@@ -1,3 +1,5 @@
+/// <reference types="node" />
+// Só teste: roda no Node, não no app.
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { DatabaseSync } from "node:sqlite";

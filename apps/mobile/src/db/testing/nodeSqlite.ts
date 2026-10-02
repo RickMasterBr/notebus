@@ -1,3 +1,5 @@
+/// <reference types="node" />
+// Só teste: roda no Node, não no app.
 /**
  * SÓ PARA TESTE. Adaptador mínimo entre `migrate.ts` e o SQLite que já vem no Node (`node:sqlite`),
  * para provar a cópia e a restauração fora do celular sem nenhuma biblioteca nova. O SQL das migrações

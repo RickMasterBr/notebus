@@ -1,3 +1,5 @@
+/// <reference types="node" />
+// Só teste: roda no Node, não no app.
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
