@@ -1,42 +1,10 @@
 /**
- * Conferências sobre o arquivo já montado: referências soltas (D-122: sem chave estrangeira,
- * então isto é obrigatório), IDs = UUIDv5 da chave (V8) e os números conhecidos da MOBILIS (V6).
+ * Conferências sobre o arquivo já montado: referências soltas e IDs = UUIDv5 da chave (V8) moram no domínio
+ * (o app as repete ao importar); aqui ficam os números conhecidos da MOBILIS (V6).
  */
-import { officialId } from "@notebus/domain/src/ids.ts";
 import type { SeedFile } from "./types.ts";
 
-/** Toda referência aponta para algo que existe no próprio arquivo. */
-export function checkReferences(seed: SeedFile): string[] {
-  const errors: string[] = [];
-  const ids = (list: { id: string }[]) => new Set(list.map((x) => x.id));
-  const stops = ids(seed.stops);
-  const lines = ids(seed.lines);
-  const patterns = ids(seed.patterns);
-  const patternStops = ids(seed.patternStops);
-  const timetables = ids(seed.timetables);
-  const trips = ids(seed.trips);
-  const ref = (ok: boolean, what: string) => {
-    if (!ok) errors.push(`referência solta: ${what}`);
-  };
-  for (const p of seed.patterns) ref(lines.has(p.lineId), `percurso ${p.key} → linha ${p.lineId}`);
-  for (const ps of seed.patternStops) {
-    ref(patterns.has(ps.patternId), `paragem de percurso ${ps.key} → percurso ${ps.patternId}`);
-    ref(stops.has(ps.stopId), `paragem de percurso ${ps.key} → paragem ${ps.stopId}`);
-  }
-  for (const t of seed.timetables) ref(patterns.has(t.patternId), `quadro ${t.key} → percurso ${t.patternId}`);
-  for (const t of seed.trips) ref(timetables.has(t.timetableId), `viagem ${t.key} → quadro ${t.timetableId}`);
-  for (const st of seed.stopTimes) {
-    ref(trips.has(st.tripId), `horário ${st.key} → viagem ${st.tripId}`);
-    ref(patternStops.has(st.patternStopId), `horário ${st.key} → paragem de percurso ${st.patternStopId}`);
-  }
-  return errors;
-}
-
-/** V8: cada ID é o UUIDv5 da sua chave (D-086); importar de novo dá os mesmos IDs. */
-export function checkIds(seed: SeedFile): string[] {
-  const all = [seed.stops, seed.lines, seed.patterns, seed.patternStops, seed.timetables, seed.trips, seed.stopTimes];
-  return all.flat().flatMap((x) => (x.id === officialId(x.key) ? [] : [`V8: ID de ${x.key} não é o UUIDv5 da chave`]));
-}
+export { checkIds, checkReferences } from "@notebus/domain/src/seedFormat.ts";
 
 /** V6: números conhecidos (Fase 1 §10). Só fazem sentido com os dados reais da MOBILIS. */
 export function checkKnownNumbers(seed: SeedFile): string[] {

@@ -40,51 +40,5 @@ export interface StopsMapFile {
 
 // ---------- Saída: o arquivo de importação ----------
 
-/** Códigos de tipo de dia (E-01 §4.4). */
-export type DayTypeCode = "weekday" | "saturday" | "sunday_holiday";
-
-/** Como a tabela agrupa os dias; entra na chave da viagem. */
-export type DaysCode = "util" | "sab" | "dom-fer" | "sab-dom-fer";
-
-/** "Oferta não se realiza em Julho e Agosto" → época que exclui as viagens nesses meses. */
-export interface SeasonRef {
-  startMd: string;
-  endMd: string;
-  mode: "exclude";
-}
-
-/**
- * Cada entidade oficial leva `key` (o texto fixo da D-086, aprovado no CONFERIR.md parte 4)
- * e `id` = UUIDv5 da chave. Rede, tipos de dia e épocas vão por código, sem chave (Q-48).
- */
-export interface SeedFile {
-  format: "notebus.mobilis-seed";
-  formatVersion: 1;
-  network: { name: string; timezone: string };
-  dataset: { name: string; version: string };
-  stops: { id: string; key: string; name: string; aliases: string[]; externalId: string | null }[];
-  lines: { id: string; key: string; code: string; name: string; color: string }[];
-  patterns: { id: string; key: string; code: string; lineId: string; label: string; isCircular: boolean }[];
-  patternStops: {
-    id: string;
-    key: string;
-    patternId: string;
-    position: number;
-    stopId: string;
-    isTimepoint: boolean;
-    timepointLabel: string | null;
-  }[];
-  timetables: { id: string; key: string; patternId: string; validFrom: string; validTo: null }[];
-  trips: {
-    id: string;
-    key: string;
-    timetableId: string;
-    firstPosition: number;
-    lastPosition: number;
-    dayTypes: DayTypeCode[];
-    season: SeasonRef | null;
-    /** Quadro de origem no markdown, contado pela ordem (1…), não pelo título. */
-    sourceTable: number;
-  }[];
-  stopTimes: { id: string; key: string; tripId: string; patternStopId: string; serviceMinute: number }[];
-}
+// O formato mora no domínio: o app importa o mesmo arquivo que esta ferramenta gera (E-01 bloco 4a).
+export type { DayTypeCode, DaysCode, SeasonRef, SeedFile } from "@notebus/domain/src/seedFormat.ts";

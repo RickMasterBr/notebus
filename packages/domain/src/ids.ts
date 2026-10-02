@@ -18,6 +18,11 @@ export function officialId(officialKey: string): string {
   return uuidv5(officialKey, OFFICIAL_ID_NAMESPACE);
 }
 
+/** SHA-1 em hexadecimal do texto (UTF-8). Serve de `checksum` do arquivo importado, não de segurança. */
+export function sha1Hex(text: string): string {
+  return Array.from(sha1(utf8(text)), (x) => x.toString(16).padStart(2, "0")).join("");
+}
+
 /** UUIDv5 (RFC 9562 §5.5): SHA-1 de namespace + nome. */
 export function uuidv5(name: string, namespace: string): string {
   const ns = parseUuid(namespace);

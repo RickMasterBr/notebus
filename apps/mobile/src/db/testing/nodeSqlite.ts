@@ -8,9 +8,10 @@
 import { copyFileSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
+import type { ImportDb } from "../importMobilis";
 import type { BackupStore, MigrationDb } from "../migrate";
 
-export class NodeSqlite implements MigrationDb {
+export class NodeSqlite implements MigrationDb, ImportDb {
   db: DatabaseSync;
   constructor(readonly path: string) {
     this.db = new DatabaseSync(path);
@@ -21,8 +22,11 @@ export class NodeSqlite implements MigrationDb {
   async userVersion() {
     return (this.db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
   }
-  all(sql: string): Record<string, unknown>[] {
-    return this.db.prepare(sql).all() as Record<string, unknown>[];
+  all(sql: string, params: (string | number | null)[] = []): Record<string, unknown>[] {
+    return this.db.prepare(sql).all(...params) as Record<string, unknown>[];
+  }
+  async run(sql: string, params: (string | number | null)[]) {
+    return { changes: Number(this.db.prepare(sql).run(...params).changes) };
   }
   /** Fecha e reabre: usado ao trocar o arquivo por baixo (restauração). */
   reopen() {
