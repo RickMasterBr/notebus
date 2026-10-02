@@ -5,6 +5,7 @@
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import * as SQLite from "expo-sqlite";
 import { migrations } from "./migrations";
+import type { ImportDb } from "./importMobilis";
 import { type BackupStore, type MigrationResult, migrateProtected } from "./migrate";
 import * as schema from "./schema";
 
@@ -27,6 +28,15 @@ export async function openNotebusDb(): Promise<{
     migrations,
   });
   return { db: drizzle(sqlite, { schema }), migration };
+}
+
+/** Adaptador do importador da MOBILIS (`importMobilis.ts`) para o expo-sqlite. Provado no iPhone (bloco 4b). */
+export function expoImportDb(sqlite: SQLite.SQLiteDatabase): ImportDb {
+  return {
+    exec: (sql) => sqlite.execAsync(sql),
+    run: async (sql, params) => ({ changes: (await sqlite.runAsync(sql, params)).changes }),
+    all: (sql, params) => sqlite.getAllAsync(sql, params),
+  };
 }
 
 /** Cópia com a API de backup do SQLite (cópia página a página do banco inteiro). */
