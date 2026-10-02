@@ -5,7 +5,7 @@
  * Quem gera (`tools/mobilis-seed`) e quem lê (importador do app) usam este arquivo, para não haver dois formatos.
  * Dados da MOBILIS não ficam aqui (D-091): só o formato.
  */
-import { officialId } from "./ids";
+import { officialId } from "./ids.ts";
 
 /** Códigos de tipo de dia (E-01 §4.4). */
 export type DayTypeCode = "weekday" | "saturday" | "sunday_holiday";
@@ -57,9 +57,11 @@ export interface SeedFile {
 }
 
 export class SeedFormatError extends Error {
-  constructor(readonly problems: string[]) {
+  readonly problems: string[];
+  constructor(problems: string[]) {
     super(`arquivo de importação inválido: ${problems.slice(0, 5).join("; ")}${problems.length > 5 ? "…" : ""}`);
     this.name = "SeedFormatError";
+    this.problems = problems;
   }
 }
 

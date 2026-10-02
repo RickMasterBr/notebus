@@ -10,6 +10,7 @@
     "noEmit": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "erasableSyntaxOnly": true,
     "esModuleInterop": true
   }
 }
