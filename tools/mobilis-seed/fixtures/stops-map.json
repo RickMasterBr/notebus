@@ -1,0 +1,27 @@
+{
+  "$comentario": "Exemplo inventado, só para testes (D-091).",
+  "pontos": [
+    {
+      "external_id": "9001",
+      "nome": "Praça Alfa",
+      "posicoes": [
+        { "percurso": "L1", "posicao": 1 },
+        { "percurso": "L1", "posicao": 5 },
+        { "percurso": "L2-s1", "posicao": 1 }
+      ]
+    },
+    {
+      "external_id": null,
+      "nome": "Rua Beta",
+      "posicoes": [
+        { "percurso": "L1", "posicao": 2 },
+        { "percurso": "L1", "posicao": 3 }
+      ]
+    },
+    {
+      "external_id": "9002",
+      "nome": "Praça Alfa (lado de lá)",
+      "posicoes": [{ "percurso": "L2-s2", "posicao": 3 }]
+    }
+  ]
+}

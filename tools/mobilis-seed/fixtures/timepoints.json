@@ -1,0 +1,60 @@
+{
+  "$comentario": "Exemplo inventado, só para testes (D-091).",
+  "vigencia": "2026-09-01",
+  "percursos": {
+    "L1": {
+      "linha": "1",
+      "n_posicoes": 5,
+      "tabelas": [
+        {
+          "id": "L1/util/1",
+          "viagens": 3,
+          "linhas": [
+            { "linha_tabela": 1, "nome_tabela": "Praça Alfa 1", "status": "alta", "posicao": 1, "nome_itinerario": "Praça Alfa [1]" },
+            { "linha_tabela": 2, "nome_tabela": "Largo Gama", "status": "alta", "posicao": 4, "nome_itinerario": "Largo Gama" },
+            { "linha_tabela": 3, "nome_tabela": "Praça Alfa 2", "status": "alta", "posicao": 5, "nome_itinerario": "Praça Alfa [2]" }
+          ]
+        },
+        {
+          "id": "L1/sab/1",
+          "viagens": 1,
+          "linhas": [
+            { "linha_tabela": 1, "nome_tabela": "Praça Alfa 1", "status": "alta", "posicao": 1, "nome_itinerario": "Praça Alfa [1]" },
+            { "linha_tabela": 2, "nome_tabela": "Largo Gama", "status": "alta", "posicao": 4, "nome_itinerario": "Largo Gama" },
+            { "linha_tabela": 3, "nome_tabela": "Praça Alfa 2", "status": "alta", "posicao": 5, "nome_itinerario": "Praça Alfa [2]" }
+          ]
+        }
+      ]
+    },
+    "L2-s1": {
+      "linha": "2",
+      "n_posicoes": 3,
+      "tabelas": [
+        {
+          "id": "L2-s1/util/1",
+          "viagens": 2,
+          "linhas": [
+            { "linha_tabela": 1, "nome_tabela": "Praça Alfa", "status": "alta", "posicao": 1, "nome_itinerario": "Praça Alfa" },
+            { "linha_tabela": 2, "nome_tabela": "Rua Épsilon", "status": "alta", "posicao": 2, "nome_itinerario": "Rua Épsilon" },
+            { "linha_tabela": 3, "nome_tabela": "Delta", "status": "alta", "posicao": 3, "nome_itinerario": "Delta" }
+          ]
+        }
+      ]
+    },
+    "L2-s2": {
+      "linha": "2",
+      "n_posicoes": 3,
+      "tabelas": [
+        {
+          "id": "L2-s2/sab-dom-fer/1",
+          "viagens": 1,
+          "linhas": [
+            { "linha_tabela": 1, "nome_tabela": "Delta", "status": "alta", "posicao": 1, "nome_itinerario": "Delta" },
+            { "linha_tabela": 2, "nome_tabela": "Zeta", "status": "sem_mapear", "nota": "exemplo de linha ambígua" },
+            { "linha_tabela": 3, "nome_tabela": "Praça Alfa", "status": "alta", "posicao": 3, "nome_itinerario": "Praça Alfa" }
+          ]
+        }
+      ]
+    }
+  }
+}
