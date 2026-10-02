@@ -1,0 +1,1 @@
+export { formatServiceMinute } from "./serviceMinute";
