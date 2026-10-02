@@ -97,6 +97,8 @@ export async function importMobilis(db: ImportDb, json: unknown, options: Import
       seed.patternStops.map((p) => [...common(p.id, p.key), p.patternId, p.position, p.stopId, p.isTimepoint ? 1 : 0, p.timepointLabel]));
     await insert("timetable", [...COMMON, "pattern_id", "dataset_id", "valid_from", "valid_to"],
       seed.timetables.map((t) => [...common(t.id, t.key), t.patternId, datasetId, t.validFrom, null]));
+    await closePreviousTimetables(db, seed);
+
     await insert("trip", [...COMMON, "timetable_id", "first_position", "last_position", "season_id"],
       seed.trips.map((t) => [...common(t.id, t.key), t.timetableId, t.firstPosition, t.lastPosition, t.season ? officialId(seasonKey(t.season)) : null]));
     await insert("trip_day_type", [...COMMON, "trip_id", "day_type_id"],
@@ -113,6 +115,30 @@ export async function importMobilis(db: ImportDb, json: unknown, options: Import
   } catch (error) {
     await db.exec("ROLLBACK").catch(() => {});
     throw error;
+  }
+}
+
+/** "2026-09-01" → "2026-08-31". */
+function dayBefore(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Q-49 / D-124: quadro novo fecha o anterior do mesmo percurso. O percurso é o mesmo quando a chave termina igual
+ * (`…/pattern/L1`: só a vigência no meio muda). Só mexe em `valid_to` e só onde ele está vazio e a vigência é mais
+ * antiga que a nova: quadro já fechado, ou mais novo que o importado, não é tocado.
+ */
+async function closePreviousTimetables(db: ImportDb, seed: SeedFile) {
+  const patternCode = new Map(seed.patterns.map((p) => [p.id, p.code]));
+  for (const t of seed.timetables) {
+    const suffix = `/pattern/${patternCode.get(t.patternId)}`;
+    await db.run(
+      `UPDATE timetable SET valid_to = ? WHERE valid_to IS NULL AND valid_from < ? AND id <> ?
+         AND pattern_id IN (SELECT id FROM pattern WHERE substr(official_key, -length(?)) = ?)`,
+      [dayBefore(t.validFrom), t.validFrom, t.id, suffix, suffix],
+    );
   }
 }
 

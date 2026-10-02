@@ -117,10 +117,13 @@ describe("importMobilis com o exemplo inventado", () => {
     const before = snapshot(conn);
     const report = await importMobilis(conn, exampleSeed("2027-03-01", true), { now: () => TIME + 1000 });
 
-    // 2026 intacto
+    // 2026 intacto (só o quadro ganha `valid_to`, D-124)
     for (const [table, rows] of Object.entries(before)) {
       const after = new Map(snapshot(conn, [table])[table]!.map((r) => [r.id, r]));
-      for (const row of rows) expect(after.get(row.id), `${table}/${row.id}`).toEqual(row);
+      for (const row of rows) {
+        const expected = table === "timetable" ? { ...row, valid_to: "2027-02-28" } : row;
+        expect(after.get(row.id), `${table}/${row.id}`).toEqual(expected);
+      }
     }
     // acrescentou: 1 percurso, 3 paragens de percurso, 1 quadro, 2 viagens, 6 horários, 1 dataset; 1 paragem nova; linha reaproveitada
     expect(counts(conn)).toMatchObject({
@@ -204,5 +207,52 @@ describe("importMobilis com o exemplo inventado", () => {
     const after = snapshot(conn, ["stop"]).stop!;
     for (const row of stop.stop!) expect(after).toContainEqual(row);
     expect(conn.all("SELECT COUNT(*) AS n FROM trip")[0]!.n).toBe(4); // as de 2026 não saíram
+  });
+
+  describe("D-124 (Q-49): vigência nova fecha a anterior do mesmo percurso", () => {
+    const validTos = (conn: NodeSqlite) =>
+      conn.all("SELECT valid_from, valid_to FROM timetable ORDER BY valid_from").map((r) => [r.valid_from, r.valid_to]);
+
+    it("a segunda vigência fecha a anterior no dia anterior; a nova fica aberta", async () => {
+      const conn = await setup();
+      await importMobilis(conn, exampleSeed("2026-09-01"), { now });
+      expect(validTos(conn)).toEqual([["2026-09-01", null]]);
+      await importMobilis(conn, exampleSeed("2027-03-01", true), { now });
+      expect(validTos(conn)).toEqual([["2026-09-01", "2027-02-28"], ["2027-03-01", null]]);
+    });
+
+    it("só muda `valid_to`: nenhuma outra coluna do quadro antigo", async () => {
+      const conn = await setup();
+      await importMobilis(conn, exampleSeed("2026-09-01"), { now });
+      const old = conn.all("SELECT * FROM timetable")[0]!;
+      await importMobilis(conn, exampleSeed("2027-03-01"), { now: () => TIME + 1000 });
+      const after = conn.all("SELECT * FROM timetable WHERE id = ?", [old.id as string])[0]!;
+      expect(after).toEqual({ ...old, valid_to: "2027-02-28" });
+    });
+
+    it("importar de novo o mesmo arquivo não muda nada", async () => {
+      const conn = await setup();
+      await importMobilis(conn, exampleSeed("2026-09-01"), { now });
+      await importMobilis(conn, exampleSeed("2027-03-01"), { now });
+      const before = snapshot(conn);
+      await importMobilis(conn, exampleSeed("2027-03-01"), { now: () => TIME + 5000 });
+      await importMobilis(conn, exampleSeed("2026-09-01"), { now: () => TIME + 6000 });
+      expect(snapshot(conn)).toEqual(before);
+    });
+
+    it("uma vigência mais antiga não fecha a mais nova", async () => {
+      const conn = await setup();
+      await importMobilis(conn, exampleSeed("2027-03-01"), { now });
+      await importMobilis(conn, exampleSeed("2026-09-01"), { now });
+      expect(validTos(conn)).toEqual([["2026-09-01", null], ["2027-03-01", null]]);
+    });
+
+    it("linha já fechada não é tocada", async () => {
+      const conn = await setup();
+      await importMobilis(conn, exampleSeed("2026-09-01"), { now });
+      conn.exec("UPDATE timetable SET valid_to = '2026-12-31'");
+      await importMobilis(conn, exampleSeed("2027-03-01"), { now });
+      expect(validTos(conn)).toEqual([["2026-09-01", "2026-12-31"], ["2027-03-01", null]]);
+    });
   });
 });
