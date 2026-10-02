@@ -6,6 +6,7 @@ import { drizzle } from "drizzle-orm/expo-sqlite";
 import * as SQLite from "expo-sqlite";
 import { migrations } from "./migrations";
 import type { ImportDb } from "./importMobilis";
+import { testMigrationsFor } from "./testMigration";
 import { type BackupStore, type MigrationResult, migrateProtected } from "./migrate";
 import * as schema from "./schema";
 
@@ -25,7 +26,8 @@ export async function openNotebusDb(): Promise<{
         (await sqlite.getFirstAsync<{ user_version: number }>("PRAGMA user_version"))?.user_version ?? 0,
     },
     backups: await expoBackupStore(sqlite),
-    migrations,
+    // Só com a variável de build de teste (A6/A7); em build normal é lista vazia.
+    migrations: [...migrations, ...testMigrationsFor(process.env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION)],
   });
   return { db: drizzle(sqlite, { schema }), migration };
 }

@@ -1,0 +1,51 @@
+# Build de iPhone para o SideStore: .ipa SEM assinatura (o SideStore assina no aparelho).
+# Só sob pedido ("Run workflow") ou em tag: macOS gasta minutos da cota. Caminho validado no S-01.
+name: ios
+on:
+  workflow_dispatch:
+    inputs:
+      test_migration:
+        description: "Build de teste (A6/A7): nenhuma, add_column ou fail. Em build normal, deixe 'nenhuma'."
+        type: choice
+        default: nenhuma
+        options: [nenhuma, add_column, fail]
+  push:
+    tags: ["*"]
+jobs:
+  ipa:
+    runs-on: macos-latest
+    env:
+      # Vazio em build normal e em tag; a migração de teste só liga se você escolher na mão.
+      EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION: ${{ inputs.test_migration != 'nenhuma' && inputs.test_migration || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Gerar o projeto nativo (prebuild)
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform ios
+      - name: Compilar sem assinatura
+        working-directory: apps/mobile/ios
+        run: |
+          xcodebuild \
+            -workspace "$(ls -d *.xcworkspace | head -1)" \
+            -scheme "$(basename "$(ls -d *.xcworkspace | head -1)" .xcworkspace)" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+      - name: Empacotar o .ipa
+        working-directory: apps/mobile/ios
+        run: |
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/*.app Payload/
+          zip -qry NoteBus.ipa Payload
+          ls -lh NoteBus.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NoteBus-ipa${{ env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION && format('-{0}', env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION) || '' }}
+          path: apps/mobile/ios/NoteBus.ipa
