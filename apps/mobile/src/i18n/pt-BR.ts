@@ -15,9 +15,12 @@ export const ptBR = {
   "first_run.start_empty.detail": "Você cadastra só os seus pontos e linhas.",
   "first_run.privacy": "Seus dados ficam só neste aparelho.",
   "first_run.importing": "Importando {{count}} linhas…",
+  "first_run.import_invalid": "Não foi possível importar. O arquivo não está no formato esperado.",
+  "first_run.import_failed": "Não foi possível importar. Nada foi alterado. Tente de novo.",
   "home.empty.title": "Comece pelo ponto onde você pega o ônibus",
   "home.empty.body": "Cadastre o ponto e as linhas que passam nele. O horário vem do que você anotar.",
   "home.empty.action": "Cadastrar meu ponto",
+  "migration.failed": "Não foi possível atualizar os dados; nada foi perdido.",
   "toast.save_failed.title": "Não foi possível gravar",
 } as const;
 

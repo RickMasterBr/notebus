@@ -1,3 +1,4 @@
+import { View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
@@ -5,17 +6,24 @@ import { pickAndImport } from "./src/db/importFromFile";
 import { expoImportDb, openNotebusDb } from "./src/db/open";
 import { FirstRun } from "./src/screens/FirstRun";
 import { ProvisionalList } from "./src/screens/ProvisionalList";
+import { MigrationNotice } from "./src/ui/MigrationNotice";
 
 type Db = Awaited<ReturnType<typeof openNotebusDb>>["db"];
-type Phase = "loading" | "first_run" | "list";
+type Phase = "loading" | "first_run" | "list" | "read_only_empty";
 
 export default function App() {
   const [db, setDb] = useState<Db | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
+  const [migrationFailed, setMigrationFailed] = useState(false);
 
   useEffect(() => {
-    openNotebusDb().then(async ({ db: opened }) => {
+    openNotebusDb().then(async ({ db: opened, migration }) => {
       setDb(opened);
+      if (migration.status === "failed") {
+        setMigrationFailed(true);
+        // Instalação nova (versão 0): o banco voltou vazio, sem tabelas para ler. Só o aviso.
+        if (migration.error.fromVersion === 0) return setPhase("read_only_empty");
+      }
       setPhase((await needsFirstRun(opened)) ? "first_run" : "list");
     });
   }, []);
@@ -23,8 +31,9 @@ export default function App() {
   if (!db || phase === "loading") return null;
 
   return (
-    <>
-      {phase === "first_run" ? (
+    <View style={{ flex: 1 }}>
+      {migrationFailed ? <MigrationNotice /> : null}
+      {phase === "read_only_empty" ? null : phase === "first_run" ? (
         <FirstRun
           onImport={async (onCount) => {
             const result = await pickAndImport(expoImportDb(db.$client), onCount);
@@ -43,6 +52,6 @@ export default function App() {
         <ProvisionalList db={db} />
       )}
       <StatusBar style="auto" />
-    </>
+    </View>
   );
 }

@@ -15,21 +15,21 @@ export function FirstRun({
   onStartEmpty,
 }: {
   /** Abre o seletor e importa. `onCount` recebe o número de linhas do arquivo; devolve `true` se entrou. */
-  onImport: (onCount: (lines: number) => void) => Promise<"done" | "cancelled" | "failed">;
+  onImport: (onCount: (lines: number) => void) => Promise<"done" | "cancelled" | "invalid" | "failed">;
   onStartEmpty: () => void;
 }) {
   const { colors } = useTheme();
   const [importing, setImporting] = useState<number | "picking" | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [error, setError] = useState<"invalid" | "failed" | null>(null);
 
   async function startImport() {
     if (importing !== null) return;
-    setFailed(false);
+    setError(null);
     setImporting("picking");
     const result = await onImport((lines) => setImporting(lines));
     // "done": a tela some (o app troca de fase); nos outros casos o cartão volta ao normal.
     if (result !== "done") setImporting(null);
-    if (result === "failed") setFailed(true);
+    if (result === "invalid" || result === "failed") setError(result);
   }
 
   return (
@@ -61,7 +61,11 @@ export function FirstRun({
               {t("first_run.import_mobilis.detail", MOBILIS_DETAIL)}
             </Text>
           )}
-          {failed ? <Text style={[type.caption, { color: colors.danger }]}>{t("toast.save_failed.title")}</Text> : null}
+          {error ? (
+            <Text accessibilityLiveRegion="polite" style={[type.caption, { color: colors.danger }]}>
+              {t(error === "invalid" ? "first_run.import_invalid" : "first_run.import_failed")}
+            </Text>
+          ) : null}
         </Pressable>
 
         <Pressable

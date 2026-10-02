@@ -14,10 +14,14 @@ export interface ColorTokens {
   onAccent: string;
   danger: string;
   warning: string;
-  success: string;
+  /** Trilho do switch desligado (D-067, refina a D-055). */
+  switchTrackOff: string;
 }
 
-/** §1.1, §1.2 e §1.4. `warning` claro e `success`: ver D-041 (4.5), que revisa a §1.4. */
+/**
+ * §1.1, §1.2 e §1.4, já com as revisões da 4.5: D-041 (`success` saiu; `warning` claro #9A5B00; `danger` só como texto)
+ * e D-067 (`switchTrackOff`; no escuro, #48494D).
+ */
 export const colors: { light: ColorTokens; dark: ColorTokens } = {
   light: {
     bg: "#F4F3EF",
@@ -28,8 +32,8 @@ export const colors: { light: ColorTokens; dark: ColorTokens } = {
     accent: "#5B4BD6",
     onAccent: "#FFFFFF",
     danger: "#C62828",
-    warning: "#B26A00",
-    success: "#2E7D32",
+    warning: "#9A5B00",
+    switchTrackOff: "#8A8A8E",
   },
   dark: {
     bg: "#121314",
@@ -41,7 +45,7 @@ export const colors: { light: ColorTokens; dark: ColorTokens } = {
     onAccent: "#1C1C1E",
     danger: "#FF8A80",
     warning: "#FFC46B",
-    success: "#81C995",
+    switchTrackOff: "#48494D",
   },
 };
 
