@@ -12,3 +12,5 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # Esquema e migrações não podem divergir: gerar de novo não pode mudar nada.
+      - run: npm run db:generate -w @notebus/mobile && git diff --exit-code && test -z "$(git status --porcelain)"
