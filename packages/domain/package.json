@@ -8,5 +8,8 @@
   "scripts": {
     "typecheck": "tsc -p .",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "date-holidays": "3.37.0"
   }
 }

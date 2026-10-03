@@ -12,12 +12,14 @@
 import { officialId } from "@notebus/domain/src/ids.ts";
 import { checkPatternPositions, checkTripTimes } from "@notebus/domain/src/invariants.ts";
 import { cleanStopName, parseMarkdown, type MdPattern, type MdTable } from "./markdown.ts";
-import type { DayTypeCode, DaysCode, SeedFile, StopsMapFile, TimepointRow, TimepointsFile } from "./types.ts";
+import { checkHolidays } from "@notebus/domain/src/seedFormat.ts";
+import type { DayTypeCode, DaysCode, HolidaysFile, SeedFile, SeedHoliday, StopsMapFile, TimepointRow, TimepointsFile } from "./types.ts";
 
 export interface SeedInput {
   markdown: string;
   timepoints: TimepointsFile;
   stopsMap: StopsMapFile;
+  holidays: HolidaysFile;
   network: { name: string; timezone: string };
   /** Cores por número da linha (4.3 §3). */
   colors: Record<string, string>;
@@ -280,6 +282,9 @@ export function buildSeed(input: SeedInput, expected?: Expected): SeedResult {
     });
   }
 
+  // ---------- Feriados (E-02 bloco 1): municipal de Leiria, pela ordem da data
+  seed.holidays = buildHolidays(input.holidays, errors);
+
   // ---------- V7: contagens; chaves únicas
   if (expected) {
     const got: Expected = {
@@ -298,11 +303,31 @@ export function buildSeed(input: SeedInput, expected?: Expected): SeedResult {
   return { seed, errors, report };
 }
 
+/**
+ * `holidays.json` → feriados do arquivo. Confere a fonte (`official`), a chave (`mobilis/holiday/<data>`, D-086) e,
+ * pelo domínio, data que existe, escopo, sem data nem chave repetida.
+ */
+export function buildHolidays(file: HolidaysFile, errors: string[]): SeedHoliday[] {
+  if (!file || !Array.isArray(file.holidays)) {
+    errors.push("feriados: holidays.json sem a lista holidays");
+    return [];
+  }
+  const out: SeedHoliday[] = [];
+  for (const h of file.holidays) {
+    if (h.source !== "official") errors.push(`feriado ${h.date}: source deve ser official`);
+    if (h.official_key !== `mobilis/holiday/${h.date}`) errors.push(`feriado ${h.date}: official_key deve ser mobilis/holiday/${h.date}`);
+    if (typeof h.name !== "string" || h.name.length === 0) errors.push(`feriado ${h.date}: sem nome`);
+    out.push({ id: officialId(h.official_key), key: h.official_key, date: h.date, name: h.name, scope: h.scope });
+  }
+  errors.push(...checkHolidays(out));
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /** Todas as chaves do arquivo, para conferir que não se repetem. */
 export function duplicateKeys(seed: SeedFile): string[] {
   const seen = new Set<string>();
   const dups: string[] = [];
-  const all = [seed.stops, seed.lines, seed.patterns, seed.patternStops, seed.timetables, seed.trips, seed.stopTimes];
+  const all = [seed.stops, seed.lines, seed.patterns, seed.patternStops, seed.timetables, seed.trips, seed.stopTimes, seed.holidays ?? []];
   for (const list of all) {
     for (const { key } of list) {
       if (seen.has(key)) dups.push(key);

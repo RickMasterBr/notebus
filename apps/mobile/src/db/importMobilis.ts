@@ -3,7 +3,7 @@
  * Importador da MOBILIS (E-01 §5, bloco 4a): grava o arquivo `mobilis-<vigência>.json` já lido no banco do app.
  * Sem tela e sem expo-sqlite aqui: o celular e os testes no Node usam este mesmo código com adaptadores
  * diferentes (`ImportDb`), como em `migrate.ts`. SQL à mão, de propósito: o plano tem 30 tabelas e aqui
- * só se grava em 12; os testes conferem as colunas contra o esquema real.
+ * só se grava em 13; os testes conferem as colunas contra o esquema real.
  *
  * - Valida a forma antes de tocar no banco (`parseSeedFile`); arquivo inválido não grava nada.
  * - Uma transação: falhou no meio, nada fica gravado.
@@ -60,7 +60,7 @@ export async function importMobilis(db: ImportDb, json: unknown, options: Import
   const seed = parseSeedFile(json); // falha aqui = banco intocado
   const now = (options.now ?? Date.now)();
   const tables: ImportReport["tables"] = {};
-  const steps = 12;
+  const steps = 13;
   let step = 0;
 
   /** Grava as linhas que ainda não existem (pelo `id`, ou pelo `official_key`). Devolve quantas entraram. */
@@ -90,6 +90,9 @@ export async function importMobilis(db: ImportDb, json: unknown, options: Import
       days.map((code) => [...common(dayTypeIds.get(code)!, `mobilis/day_type/${code}`), networkId, code, DAY_TYPES[code].name, DAY_TYPES[code].sort]));
     await insert("season", [...COMMON, "network_id", "name", "start_md", "end_md", "mode"],
       [...seasons].map(([key, s]) => [...common(officialId(key), key), networkId, `${s.startMd} a ${s.endMd} (${s.mode})`, s.startMd, s.endMd, s.mode]));
+    // E-02: o feriado municipal (uma linha por ano). Arquivo da E-01, sem a lista, grava zero.
+    await insert("holiday", [...COMMON, "network_id", "date", "name", "scope"],
+      (seed.holidays ?? []).map((h) => [...common(h.id, h.key), networkId, h.date, h.name, h.scope]));
 
     const datasetId = await importDataset(db, seed, networkId, now, tables);
     options.onProgress?.({ table: "dataset", step: ++step, of: steps, rows: 1 });

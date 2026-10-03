@@ -15,8 +15,9 @@ const withId = <T extends { key: string }>(x: T) => ({ id: officialId(x.key), ..
  *
  * @param version - Determina o namespace de vigência, útil para testar migração de dados.
  * @param extraStop - Adiciona ou não uma parada solta para testar diferenças em atualizações.
+ * @param holidays - Com os dois feriados municipais inventados (E-02); `false` = arquivo como o da E-01, sem a lista.
  */
-export function exampleSeed(version = "2026-09-01", extraStop = false): SeedFile {
+export function exampleSeed(version = "2026-09-01", extraStop = false, holidays = true): SeedFile {
   const V = `mobilis/${version}`;
   const stops = [
     withId({ key: "mobilis/stop/9001", name: "Praça Inventada", aliases: ["Praça"], externalId: "9001" }),
@@ -68,5 +69,12 @@ export function exampleSeed(version = "2026-09-01", extraStop = false): SeedFile
     timetables: [timetable],
     trips,
     stopTimes,
+    ...(holidays
+      ? {
+          holidays: ["2026-06-13", "2027-06-13"].map((date) =>
+            withId({ key: `mobilis/holiday/${date}`, date, name: "Feriado municipal de Exemplo", scope: "municipal" as const }),
+          ),
+        }
+      : {}),
   };
 }

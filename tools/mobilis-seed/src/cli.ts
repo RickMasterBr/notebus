@@ -49,6 +49,7 @@ export function main(repoRoot: string, log: (s: string) => void = console.log, e
     markdown: readFileSync(mdPath, "utf8"),
     timepoints: JSON.parse(readFileSync(join(dataDir, "timepoints.json"), "utf8")),
     stopsMap: JSON.parse(readFileSync(join(dataDir, "stops-map.json"), "utf8")),
+    holidays: JSON.parse(readFileSync(join(dataDir, "holidays.json"), "utf8")),
     network: { name: "MOBILIS Leiria", timezone: "Europe/Lisbon" },
     colors: MOBILIS_COLORS,
   };
@@ -70,7 +71,7 @@ export function main(repoRoot: string, log: (s: string) => void = console.log, e
   log(
     `${seed.lines.length} linhas, ${seed.patterns.length} percursos, ${report.tables} quadros, ${report.rows} linhas de tabela, ` +
       `${seed.trips.length} viagens, ${seed.stops.length} paragens, ${seed.patternStops.length} paragens de percurso, ` +
-      `${seed.stopTimes.length} horários.`,
+      `${seed.stopTimes.length} horários, ${seed.holidays?.length ?? 0} feriados.`,
   );
   log(`Linhas de tabela sem mapear: ${report.unmappedRows.length} (${report.droppedTimes} horários fora do arquivo).`);
   for (const u of report.unmappedRows) log(`  quadro ${u.table} ${u.pattern} linha ${u.row} "${u.name}"`);
