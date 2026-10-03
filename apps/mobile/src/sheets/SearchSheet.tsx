@@ -16,13 +16,13 @@ import { ListRow } from "../ui/ListRow";
 import { Skeleton } from "../ui/Skeleton";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
 import { StackedSheet } from "./StackedSheet";
-import { useSheets } from "./SheetsContext";
 import { useKeyboardHeight } from "./useKeyboardHeight";
+import { useOpenStop } from "./useOpenStop";
 
 export function SearchSheet() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { dispatch } = useSheets();
+  const openStop = useOpenStop();
   const index = useStopIndex();
   const keyboard = useKeyboardHeight();
   const input = useRef<React.ComponentRef<typeof BottomSheetTextInput>>(null);
@@ -91,7 +91,7 @@ export function SearchSheet() {
                       ? t("search.result.stop.a11y", { name: stop.name, lines: stop.lines.join(", ") })
                       : stop.name
                   }
-                  onPress={() => dispatch({ type: "push", sheet: { kind: "stop", stopId: stop.id, name: stop.name } })}
+                  onPress={() => openStop({ id: stop.id, name: stop.name })}
                 />
               ))}
             </View>

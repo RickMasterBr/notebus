@@ -3,6 +3,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { NowProvider } from "./src/data/NowProvider";
+import { RecentStopsProvider } from "./src/data/RecentStopsProvider";
+import { ScheduleProvider } from "./src/data/ScheduleProvider";
 import { StopIndexProvider } from "./src/data/StopIndexProvider";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
 import { pickAndImport } from "./src/db/importFromFile";
@@ -55,7 +57,11 @@ export default function App() {
         ) : (
           <NowProvider>
             <StopIndexProvider db={db}>
-              <Home />
+              <ScheduleProvider db={db}>
+                <RecentStopsProvider db={db}>
+                  <Home />
+                </RecentStopsProvider>
+              </ScheduleProvider>
             </StopIndexProvider>
           </NowProvider>
         )}

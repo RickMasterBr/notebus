@@ -17,6 +17,7 @@ export {
 } from "./invariants";
 export {
   addDays,
+  dayOfWeek,
   dayTypeOf,
   lineServiceOn,
   lisbonWallClock,

@@ -28,7 +28,7 @@ export function addDays(date: string, days: number): string {
 }
 
 /** 0 = domingo … 6 = sábado. */
-function dayOfWeek(date: string): number {
+export function dayOfWeek(date: string): number {
   return new Date(dateMs(date)).getUTCDay();
 }
 
