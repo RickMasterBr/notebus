@@ -32,3 +32,32 @@ export type {
   ServiceDay,
   WallClock,
 } from "./calendar";
+export {
+  BASE_UNCERTAINTY,
+  DEFAULT_MARGIN_MINUTES,
+  aheadFrom,
+  baseTimeAt,
+  displayBeAtStop,
+  displayCenter,
+  expectedTime,
+  passageInfo,
+  passagesAtStop,
+  timepointPositions,
+} from "./passages";
+export type {
+  AheadOptions,
+  AheadResult,
+  AheadStop,
+  BaseKind,
+  BaseTime,
+  Confidence,
+  ExpectedTime,
+  ExpectedTimeOptions,
+  PassageInfo,
+  PassageRecord,
+  PatternData,
+  PatternStopData,
+  StopPassage,
+  StopTimeData,
+  TripData,
+} from "./passages";
