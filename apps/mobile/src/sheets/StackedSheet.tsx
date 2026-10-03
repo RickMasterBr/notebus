@@ -35,6 +35,11 @@ export interface StackedDetents {
   Handle: ComponentType<{ onClose: () => void }>;
   /** A folha encaixou num detent (também por gesto do VoiceOver). Não é chamado ao fechar. */
   onChange?: (index: number) => void;
+  /**
+   * `false` desliga o gesto de arrastar a folha pelo conteúdo (Q-71, opção A): a biblioteca então deixa a lista sempre
+   * destravada (`useScrollable`: `UNLOCKED`) e só o handle muda o detent. Omitido = padrão da biblioteca (liga).
+   */
+  enableContentPanningGesture?: boolean;
 }
 
 export function StackedSheet({
@@ -127,6 +132,7 @@ export function StackedSheet({
         onChange={detents ? handleChange : undefined}
         keyboardBehavior={tall ? "extend" : undefined}
         enablePanDownToClose
+        enableContentPanningGesture={detents?.enableContentPanningGesture}
         topInset={insets.top}
         onClose={pop}
         backdropComponent={renderBackdrop}

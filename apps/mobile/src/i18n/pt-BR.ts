@@ -80,6 +80,23 @@ export const ptBR = {
   "terminal.trip.starts_here": "começa aqui · {{place}} {{time}}",
   "terminal.trip.second_pass": "2ª passagem · veio {{origin}}",
   "terminal.trip.nth_pass": "{{ordinal}} passagem · veio {{origin}}",
+  "terminal.trip.ends_here": "Termina aqui",
+  "terminal_detail.title": "Daqui para a frente",
+  "terminal_detail.context": "viagem das {{time}} · {{place}}, {{pass_ordinal}} passagem",
+  "terminal_detail.you_are_here": "você",
+  "terminal_detail.return_here": "↺ volta aqui · fim",
+  "terminal_detail.gap": "+ {{count}} paragens",
+  "terminal_detail.footnote": "Entre os pontos de controlo, horário interpolado.",
+  // Q-72 (provisórias, a aprovar): a 4.6 só tem a frase inteira "…volta ao Terminal às {{time}}", com o nome do ponto
+  // de exemplo, e não cobre ponto que a viagem passa uma vez só, volta no meio da viagem, ponto de controle na leitura
+  // do VoiceOver nem a dica da linha do Ponto.
+  "terminal_detail.narrative_going": "**Está indo** para {{places}}.",
+  "terminal_detail.narrative_return": "Depois **volta aqui às {{time}}**.",
+  "terminal_detail.places_last": "{{rest}} e {{last}}",
+  "terminal_detail.context_single": "viagem das {{time}} · {{place}}",
+  "terminal_detail.return_here_mid": "↺ volta aqui",
+  "terminal_detail.a11y.timepoint": "ponto de controle",
+  "sheet_stop.a11y.open_ahead": "toque para ver o caminho",
   "home.empty.title": "Comece pelo ponto onde você pega o ônibus",
   "home.empty.body": "Cadastre o ponto e as linhas que passam nele. O horário vem do que você anotar.",
   "home.empty.action": "Cadastrar meu ponto",

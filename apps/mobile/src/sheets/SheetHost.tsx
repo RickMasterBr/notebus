@@ -1,5 +1,6 @@
 /** Desenha a pilha: a folha-base e, por cima, cada folha empilhada (a última recebe o toque). */
 import { StyleSheet, View } from "react-native";
+import { AheadSheet } from "./AheadSheet";
 import { HomeSheet } from "./HomeSheet";
 import { SearchSheet } from "./SearchSheet";
 import { useSheets } from "./SheetsContext";
@@ -34,6 +35,8 @@ function StackedSheetSlot({ entry }: { entry: SheetEntry }) {
       return <SearchSheet id={entry.id} />;
     case "stop":
       return <StopSheet id={entry.id} stopId={entry.stopId} name={entry.name} />;
+    case "ahead":
+      return <AheadSheet id={entry.id} tripId={entry.tripId} position={entry.position} />;
     case "home":
       return null;
   }

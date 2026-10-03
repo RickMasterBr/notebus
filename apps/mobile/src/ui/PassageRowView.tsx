@@ -2,10 +2,12 @@
  * Uma passagem na lista do ponto (TL-02; canvas da 4.5, Main.dc.html; 4.1 §5; 4.4 §5.12 e §5.10):
  * `~08:13 · 08:09–08:18 · confiança`. A **próxima** da linha ganha o fundo `highlight` e o "no ponto às" grande, como
  * o cartão de ponto; as outras são linhas simples com separador. Abaixo do horário, as frases de apoio (começa aqui,
- * 2ª passagem · veio…, fim do percurso). Tocar num horário não faz nada nesta etapa (a TL-05 é do bloco 5): a linha
- * não é um botão, não tem seta nem estado de pressionada. Lida como um bloco pelo VoiceOver.
+ * 2ª passagem · veio…, fim do percurso). Tocar num horário abre a TL-05 (bloco 5a): a linha é um botão de alvo
+ * mínimo de 44 px, com retorno de toque por opacidade (4.4 §5.12, `nb-row`) e sem seta. Lida como um bloco pelo
+ * VoiceOver, mais "toque para ver o caminho".
  */
-import { StyleSheet, Text, View } from "react-native";
+import { type Ref } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { DayLine, PassageRow } from "../data/stopDay";
 import { mayPassNowText } from "../data/stopCardText";
 import { passageNotes, rowA11y, rowRangeText, rowTimeText } from "../data/stopDayText";
@@ -16,7 +18,20 @@ import { ConfidenceSeal } from "./ConfidenceSeal";
 /** Confiança alta ou média: horário em destaque (600); baixa ou só estimado: mais leve e em cinza (500). */
 const strong = (confidence: PassageRow["confidence"]) => confidence === "high" || confidence === "medium";
 
-export function PassageRowView({ line, row, last }: { line: Pick<DayLine, "code">; row: PassageRow; last: boolean }) {
+export function PassageRowView({
+  line,
+  row,
+  last,
+  onPress,
+  rowRef,
+}: {
+  line: Pick<DayLine, "code">;
+  row: PassageRow;
+  last: boolean;
+  onPress: () => void;
+  /** Para a folha devolver o foco do VoiceOver a esta linha quando a TL-05 fechar. */
+  rowRef?: Ref<View>;
+}) {
   const { colors } = useTheme();
   const notes = passageNotes(row);
   const timeColor = strong(row.confidence) ? colors.text : colors.textSecondary;
@@ -24,7 +39,15 @@ export function PassageRowView({ line, row, last }: { line: Pick<DayLine, "code"
 
   if (row.isNext) {
     return (
-      <View accessible accessibilityLabel={rowA11y(line, row)} style={[styles.next, { backgroundColor: colors.highlight }]}>
+      <Pressable
+        ref={rowRef}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={rowA11y(line, row)}
+        accessibilityHint={t("sheet_stop.a11y.open_ahead")}
+        onPress={onPress}
+        style={({ pressed }) => [styles.next, { backgroundColor: colors.highlight }, pressed && styles.pressed]}
+      >
         <View style={styles.middle}>
           <Text style={[type.timeMd, { color: colors.text }]}>{rowTimeText(row)}</Text>
           <Text style={[type.caption, styles.num, { color: colors.textSecondary }]}>{rowRangeText(row)}</Text>
@@ -40,15 +63,23 @@ export function PassageRowView({ line, row, last }: { line: Pick<DayLine, "code"
             <Text style={[strong(row.confidence) ? type.timeLg : weak, { color: timeColor }]}>{row.beAtStop}</Text>
           </View>
         )}
-      </View>
+      </Pressable>
     );
   }
 
   return (
-    <View
+    <Pressable
+      ref={rowRef}
       accessible
+      accessibilityRole="button"
       accessibilityLabel={rowA11y(line, row)}
-      style={[styles.row, !last && { borderBottomColor: colors.divider, borderBottomWidth: StyleSheet.hairlineWidth }]}
+      accessibilityHint={t("sheet_stop.a11y.open_ahead")}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.row,
+        !last && { borderBottomColor: colors.divider, borderBottomWidth: StyleSheet.hairlineWidth },
+        pressed && styles.pressed,
+      ]}
     >
       <View style={styles.middle}>
         <Text style={[type.timeMd, { color: timeColor, fontWeight: strong(row.confidence) ? "600" : "500" }]}>{rowTimeText(row)}</Text>
@@ -61,7 +92,7 @@ export function PassageRowView({ line, row, last }: { line: Pick<DayLine, "code"
         <Text style={[type.caption, styles.num, { color: colors.textSecondary }]}>{rowRangeText(row)}</Text>
         <ConfidenceSeal confidence={row.confidence} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -75,4 +106,6 @@ const styles = StyleSheet.create({
   middle: { flex: 1, gap: 2 },
   right: { alignItems: "flex-end", gap: 2 },
   num: { fontVariant: ["tabular-nums"] },
+  // Retorno de toque da linha de lista (4.4 §5.12, `nb-row`: opacidade), o mesmo valor do chip.
+  pressed: { opacity: 0.6 },
 });
