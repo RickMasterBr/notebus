@@ -7,8 +7,7 @@
  */
 
 /**
- * Folhas que existem hoje. "stop" é a folha **provisória** de ponto (E-02 bloco 3b): o bloco 4 a troca pela TL-02.
- * Cada folha leva o que precisa para se desenhar.
+ * Folhas que existem hoje. "stop" é a TL-02 Ponto (E-02 bloco 4). Cada folha leva o que precisa para se desenhar.
  */
 export type SheetContent =
   | { kind: "home" }

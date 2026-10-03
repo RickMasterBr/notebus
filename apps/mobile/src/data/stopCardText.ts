@@ -28,6 +28,8 @@ export function reasonText(reason: CardReason): string {
       return t("sheet_stop.no_service.sunday_holiday");
     case "weekdays_only":
       return t("sheet_stop.no_service.weekdays_only");
+    case "no_table":
+      return t("sheet_stop.no_service.no_table");
     case "season":
       return t("sheet_stop.no_service.season", { months: monthsText(reason.months) });
   }
@@ -39,6 +41,11 @@ export function nextDayText(state: NextDay): string {
 
 export function busEtaText(state: NextBus): string {
   return t("home.stop_card.bus_eta", { time: state.time, range: `${state.rangeStart}–${state.rangeEnd}` });
+}
+
+/** "Pode passar a qualquer momento, até 08:16" (D-146): o "esteja no ponto às" já passou, o fim da faixa não. */
+export function mayPassNowText(rangeEnd: string): string {
+  return t("sheet_stop.may_pass_now", { time: rangeEnd });
 }
 
 export function directionText(destination: string): string {
@@ -62,7 +69,7 @@ function stateParts(state: NextBus | NextDay | NoBus): string[] {
     case "next":
       return [
         t("home.stop_card.a11y.next_bus", { time: state.time }),
-        t("home.stop_card.a11y.be_at", { time: state.beAtStop }),
+        state.mayPassNow ? mayPassNowText(state.rangeEnd) : t("home.stop_card.a11y.be_at", { time: state.beAtStop }),
         confidenceText(state.confidence),
       ];
     case "later":

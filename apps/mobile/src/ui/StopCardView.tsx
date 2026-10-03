@@ -3,17 +3,36 @@
  * Nome do ponto; por linha: selo, "→ destino", "ônibus ~HH:MM · faixa", selo de confiança e, à direita,
  * "no ponto às HH:MM". Sem mais ônibus: o motivo e "próximo: dia, hora". Fica de fora o "sair de casa" (E-05).
  * O cartão é lido como um bloco (4.6 §5.2): ponto, depois cada linha.
+ * Quando o "esteja no ponto às" já passou e o fim da faixa não, a coluna da direita dá lugar a "Pode passar a
+ * qualquer momento, até HH:MM" (D-146). Sem `onPress` (dentro da folha do ponto, TL-02) o cartão não é um botão.
  */
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { NextBus, StopCard, StopCardLine } from "../data/stopCard";
-import { busEtaText, cardA11y, directionText, nextDayText, reasonText } from "../data/stopCardText";
+import { busEtaText, cardA11y, directionText, mayPassNowText, nextDayText, reasonText } from "../data/stopCardText";
 import { t } from "../i18n";
 import { radius, space, type, useTheme } from "../theme";
 import { ConfidenceSeal } from "./ConfidenceSeal";
 import { LineBadge } from "./LineBadge";
 
-export function StopCardView({ card, onPress }: { card: StopCard; onPress: () => void }) {
+export function StopCardView({ card, onPress }: { card: StopCard; onPress?: () => void }) {
   const { colors } = useTheme();
+  const body = (
+    <>
+      <Text style={[type.bodyStrong, { color: colors.text }]}>{card.name}</Text>
+      {card.lines.map((line, i) => (
+        <View key={line.code} style={[styles.line, i > 0 && [styles.separator, { borderTopColor: colors.divider }]]}>
+          <LineRow line={line} />
+        </View>
+      ))}
+    </>
+  );
+  if (!onPress) {
+    return (
+      <View accessible accessibilityLabel={cardA11y(card)} style={[styles.card, { borderColor: colors.divider }]}>
+        {body}
+      </View>
+    );
+  }
   return (
     <Pressable
       accessibilityRole="button"
@@ -21,12 +40,7 @@ export function StopCardView({ card, onPress }: { card: StopCard; onPress: () =>
       onPress={onPress}
       style={({ pressed }) => [styles.card, { borderColor: colors.divider }, pressed && { opacity: 0.6 }]}
     >
-      <Text style={[type.bodyStrong, { color: colors.text }]}>{card.name}</Text>
-      {card.lines.map((line, i) => (
-        <View key={line.code} style={[styles.line, i > 0 && [styles.separator, { borderTopColor: colors.divider }]]}>
-          <LineRow line={line} />
-        </View>
-      ))}
+      {body}
     </Pressable>
   );
 }
@@ -45,6 +59,9 @@ function LineRow({ line }: { line: StopCardLine }) {
           <>
             <Text style={[type.caption, styles.num, { color: colors.textSecondary }]}>{busEtaText(state)}</Text>
             <ConfidenceSeal confidence={state.confidence} />
+            {state.mayPassNow ? (
+              <Text style={[type.label, { color: colors.text }]}>{mayPassNowText(state.rangeEnd)}</Text>
+            ) : null}
           </>
         ) : (
           <>
@@ -55,7 +72,7 @@ function LineRow({ line }: { line: StopCardLine }) {
           </>
         )}
       </View>
-      {state.status === "next" ? (
+      {state.status === "next" && !state.mayPassNow ? (
         <View style={styles.right}>
           <Text style={[type.caption, { color: colors.textSecondary }]}>{t("home.stop_card.eta_label")}</Text>
           <Text style={[timeStyle(state.confidence), { color: strong(state.confidence) ? colors.text : colors.textSecondary }]}>

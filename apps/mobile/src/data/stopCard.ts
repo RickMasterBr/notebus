@@ -19,8 +19,10 @@ import {
   passagesAtStop,
   serviceDaysAt,
   tripsRunningOn,
+  type CalendarData,
   type Confidence,
   type DayTypeCode,
+  type ExpectedTime,
   type PatternData,
   type ScheduleData,
   type StopPassage,
@@ -35,6 +37,8 @@ const NEXT_SERVICE_HORIZON_DAYS = 400;
 export type CardReason =
   | { kind: "sunday_holiday" }
   | { kind: "weekdays_only" }
+  /** Sem tabela para esse tipo de dia (D-146); só a folha do ponto usa, o cartão do Início mantém o texto de domingo. */
+  | { kind: "no_table" }
   /** Meses (1–12) em que não circula, na ordem do calendário ("julho e agosto" = [7, 8]). */
   | { kind: "season"; months: number[] };
 
@@ -46,6 +50,8 @@ export interface NextBus {
   rangeEnd: string;
   beAtStop: string;
   confidence: Confidence;
+  /** O "esteja no ponto às" já passou e o fim da faixa não: pode passar a qualquer momento (E-02 §4.2, D-146). */
+  mayPassNow: boolean;
 }
 
 export interface NextDay {
@@ -129,11 +135,12 @@ function boardablePassages(
   patterns: PatternData[],
   trips: TripData[],
   schedule: ScheduleData,
+  includeEnds = false,
 ): StopPassage[] {
   const running = new Set(tripsRunningOn(date, dayType, schedule).map((t) => t.id));
   const todays = trips.filter((t) => running.has(t.id));
   const lastOf = new Map(todays.map((t) => [t.id, t.lastPosition]));
-  return passagesAtStop(stopId, patterns, todays).filter((p) => p.info.position !== lastOf.get(p.tripId));
+  return passagesAtStop(stopId, patterns, todays).filter((p) => includeEnds || p.info.position !== lastOf.get(p.tripId));
 }
 
 function lineState(
@@ -144,16 +151,15 @@ function lineState(
   instantMs: number,
 ): Pick<StopCardLine, "destination" | "state"> {
   const { calendar } = data;
-  const tripIds = new Set(trips.map((t) => t.id));
-  const lineSchedule: ScheduleData = { ...data.schedule, trips: data.schedule.trips.filter((t) => tripIds.has(t.id)) };
+  const lineSchedule = lineScheduleOf(trips, data);
 
   // Hoje e ontem (as viagens depois da meia-noite): o menor "quanto falta" não negativo.
   const { today, yesterday } = serviceDaysAt(instantMs, calendar);
-  let best: { passage: StopPassage; wait: number } | null = null;
+  let best: { passage: StopPassage; wait: number; minute: number } | null = null;
   for (const day of [yesterday, today]) {
     for (const passage of boardablePassages(stopId, day.date, day.dayType.dayType, patterns, trips, lineSchedule)) {
       const wait = passage.expected.center - day.minute;
-      if (wait >= 0 && (best === null || wait < best.wait)) best = { passage, wait };
+      if (wait >= 0 && (best === null || wait < best.wait)) best = { passage, wait, minute: day.minute };
     }
   }
   if (best) {
@@ -168,6 +174,7 @@ function lineState(
         rangeEnd: clockText(displayCenter(expected.rangeEnd)),
         beAtStop: clockText(displayBeAtStop(expected.beAtStop)),
         confidence: expected.confidence,
+        mayPassNow: beAtStopPassed(expected, best.minute),
       },
     };
   }
@@ -175,10 +182,39 @@ function lineState(
   // Sem mais ônibus hoje, ou sem serviço: o motivo (só se a linha nem circula hoje) e o próximo dia com serviço.
   const clock = lisbonWallClock(instantMs);
   const service = lineServiceOn(clock.date, calendar, lineSchedule);
-  const reason = service.status === "none" ? reasonOf(service.reason, clock.date, data, lineSchedule) : null;
+  const reason = service.status === "none" ? reasonOf(service.reason, clock.date, calendar, lineSchedule, false) : null;
+  return nextServiceState(stopId, patterns, trips, data, instantMs, lineSchedule, reason);
+}
+
+/** O "esteja no ponto às" (arredondado como na tela, D-092) já ficou para trás no minuto de serviço dado? */
+export function beAtStopPassed(expected: ExpectedTime, minute: number): boolean {
+  return displayBeAtStop(expected.beAtStop) < minute;
+}
+
+/** `ScheduleData` só com as viagens dadas (as de uma linha). */
+export function lineScheduleOf(trips: TripData[], data: ScheduleSnapshot): ScheduleData {
+  const tripIds = new Set(trips.map((t) => t.id));
+  return { ...data.schedule, trips: data.schedule.trips.filter((t) => tripIds.has(t.id)) };
+}
+
+/**
+ * O próximo dia com serviço da linha neste ponto, a partir de amanhã; nada em 400 dias → `none`. O cartão conta só
+ * passagens de embarque; a folha do ponto (`includeEnds`) conta também as que terminam no ponto, porque as lista.
+ */
+export function nextServiceState(
+  stopId: string,
+  patterns: PatternData[],
+  trips: TripData[],
+  data: ScheduleSnapshot,
+  instantMs: number,
+  lineSchedule: ScheduleData,
+  reason: CardReason | null,
+  includeEnds = false,
+): Pick<StopCardLine, "destination"> & { state: NextDay | NoBus } {
+  const clock = lisbonWallClock(instantMs);
   for (let i = 1; i <= NEXT_SERVICE_HORIZON_DAYS; i++) {
     const date = addDays(clock.date, i);
-    const passages = boardablePassages(stopId, date, dayTypeOf(date, calendar).dayType, patterns, trips, lineSchedule);
+    const passages = boardablePassages(stopId, date, dayTypeOf(date, data.calendar).dayType, patterns, trips, lineSchedule, includeEnds);
     const first = passages[0];
     if (first) {
       return {
@@ -190,17 +226,22 @@ function lineState(
   return { destination: null, state: { status: "none", reason } };
 }
 
-function destinationOf(passage: StopPassage, patterns: PatternData[], trips: TripData[], data: ScheduleSnapshot): string | null {
+export function destinationOf(passage: StopPassage, patterns: PatternData[], trips: TripData[], data: ScheduleSnapshot): string | null {
   const trip = trips.find((t) => t.id === passage.tripId);
   const stopId = patterns.find((p) => p.id === passage.patternId)?.stops.find((s) => s.position === trip?.lastPosition)?.stopId;
   return stopId === undefined ? null : (data.stopNames.get(stopId) ?? null);
 }
 
-function reasonOf(
+/**
+ * O motivo no que a 4.6 tem texto. `forSheet`: a folha do ponto (D-146) tem texto para "sem tabela" (`no_table`);
+ * o cartão do Início segue dizendo "domingos e feriados" num domingo e nada num sábado (D-134).
+ */
+export function reasonOf(
   why: "sem_tabela" | "so_dias_uteis" | "epoca" | "feriado",
   date: string,
-  data: ScheduleSnapshot,
+  calendar: CalendarData,
   lineSchedule: ScheduleData,
+  forSheet: boolean,
 ): CardReason | null {
   switch (why) {
     case "feriado":
@@ -208,10 +249,10 @@ function reasonOf(
     case "so_dias_uteis":
       return { kind: "weekdays_only" };
     case "sem_tabela":
-      // A 4.6 só tem texto para domingo/feriado; num sábado sem tabela não há frase aprovada.
-      return dayTypeOf(date, data.calendar).dayType === "sunday_holiday" ? { kind: "sunday_holiday" } : null;
+      if (forSheet) return { kind: "no_table" };
+      return dayTypeOf(date, calendar).dayType === "sunday_holiday" ? { kind: "sunday_holiday" } : null;
     case "epoca": {
-      const dayType = dayTypeOf(date, data.calendar).dayType;
+      const dayType = dayTypeOf(date, calendar).dayType;
       const seasonIds = new Set(
         tripsRunningOnIgnoringSeason(date, dayType, lineSchedule).flatMap((t) => (t.seasonId === null ? [] : [t.seasonId])),
       );
