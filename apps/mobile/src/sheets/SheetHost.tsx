@@ -5,32 +5,29 @@ import { HomeSheet } from "./HomeSheet";
 import { SearchSheet } from "./SearchSheet";
 import { useSheets } from "./SheetsContext";
 import { StopSheet } from "./StopSheet";
-import { useScrollVariant } from "./diagScroll";
 import { type SheetEntry, stackedSheets } from "./stack";
 
 export function SheetHost() {
   const { state } = useSheets();
   const stacked = stackedSheets(state);
-  const variant = useScrollVariant();
-  // V1, V2 e V3 desarmam a folha de baixo para que seus gesture handlers não disputem o toque com a folha do topo
-  const disableCovered = variant !== "V0";
+  // As folhas de baixo ficam sem toque, para os gesture handlers delas não disputarem o gesto com a folha do topo.
 
   return (
     <>
       <View
         style={StyleSheet.absoluteFill}
-        pointerEvents={disableCovered && stacked.length > 0 ? "none" : "box-none"}
+        pointerEvents={stacked.length > 0 ? "none" : "box-none"}
       >
         <HomeSheet />
       </View>
       {stacked.map((entry, i) => {
         const isTop = i === stacked.length - 1;
         return (
-          // Só a do topo é lida pelo VoiceOver e recebe toques quando coberta (nas variantes corrigidas)
+          // Só a do topo é lida pelo VoiceOver e recebe toques quando coberta 
           <View
             key={entry.id}
             style={StyleSheet.absoluteFill}
-            pointerEvents={disableCovered && !isTop ? "none" : "box-none"}
+            pointerEvents={!isTop ? "none" : "box-none"}
             accessibilityElementsHidden={!isTop}
             importantForAccessibility={!isTop ? "no-hide-descendants" : "auto"}
           >

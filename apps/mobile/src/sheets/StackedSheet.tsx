@@ -42,24 +42,16 @@ export interface StackedDetents {
   enableContentPanningGesture?: boolean;
 }
 
-import type { LayoutChangeEvent } from "react-native";
-
 export function StackedSheet({
   id,
   children,
   tall = false,
   detents,
-  onRootLayout,
-  onContentLayout,
-  onAnimate,
 }: {
   id: number;
   children: ReactNode;
   tall?: boolean;
   detents?: StackedDetents;
-  onRootLayout?: (e: LayoutChangeEvent) => void;
-  onContentLayout?: (e: LayoutChangeEvent) => void;
-  onAnimate?: (fromIndex: number, toIndex: number) => void;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -129,7 +121,6 @@ export function StackedSheet({
       accessibilityViewIsModal
       entering={reduceMotion ? FadeIn.duration(FADE_MS) : undefined}
       exiting={reduceMotion ? FadeOut.duration(FADE_MS) : undefined}
-      onLayout={onRootLayout}
     >
       <BottomSheet
         ref={ref}
@@ -139,7 +130,6 @@ export function StackedSheet({
         snapPoints={detents ? detents.snapPoints : tall ? TALL_SNAP_POINTS : undefined}
         enableDynamicSizing={!fill}
         onChange={detents ? handleChange : undefined}
-        onAnimate={onAnimate}
         keyboardBehavior={tall ? "extend" : undefined}
         enablePanDownToClose
         enableContentPanningGesture={detents?.enableContentPanningGesture}
@@ -154,9 +144,9 @@ export function StackedSheet({
           // Folha alta com lista: `View` comum, não `BottomSheetView`. A `BottomSheetView` é absoluta e sem altura (a lista
           // dentro dela cresce até o fim do conteúdo e é cortada) e, ao montar depois da lista, troca o tipo de rolagem
           // registrado de "rolável" para "vista", e a folha passa a arrastar em vez de rolar.
-          <View collapsable={false} style={[styles.content, styles.tall]} onLayout={onContentLayout}>{children}</View>
+          <View collapsable={false} style={[styles.content, styles.tall]}>{children}</View>
         ) : (
-          <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + space.md }]} onLayout={onContentLayout}>{children}</BottomSheetView>
+          <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + space.md }]}>{children}</BottomSheetView>
         )}
       </BottomSheet>
     </Animated.View>

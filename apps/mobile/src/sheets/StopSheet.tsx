@@ -11,8 +11,11 @@
  * Rolagem (Q-71, opção A): o gesto de arrastar a folha pelo conteúdo fica desligado (`enableContentPanningGesture`),
  * então a lista rola em qualquer detent; o detent muda pelo handle, e o ✕, o toque fora e o handle seguem fechando.
  *
- * Altura da lista (bloco 5b): `HiddenBelowSpacer` soma no fim o que a folha tem abaixo da borda da tela em cada detent
- * (a área de rolagem tem a altura do mais alto); o fim da lista para na borda da tela e lista curta não rola.
+ * Altura da lista (E-02, registro em `docs/fase-6/E-02-registro-rolagem-gavetas.md`): a folha tem o tamanho do detent mais
+ * alto e desce por `translateY`, então nos menores o fim da lista fica abaixo da borda da tela. A lista fica dentro de uma
+ * `View` de altura FIXA (a da folha aberta, `overflow: hidden`) e o `HiddenBelowSpacer` soma no fim o que está abaixo da
+ * borda, medido ao vivo pela posição da folha. Não ligar a altura a estado atualizado no `onChange` (faixa cinza e espaço
+ * fantasma) nem remontar o `ScrollView`.
  *
  * Rolagem com os componentes da biblioteca (`BottomSheetScrollView`), numa `View` comum, não `BottomSheetView`
  * (ver `StackedSheet`). Dia sem serviço nunca é lista vazia: o porquê e o próximo dia (`DayLine.empty`).
@@ -36,19 +39,11 @@ import { PassageRowView } from "../ui/PassageRowView";
 import { Skeleton } from "../ui/Skeleton";
 import { StopCardView } from "../ui/StopCardView";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
-import { ScrollView as RNGHScrollView } from "react-native-gesture-handler";
-import {
-  DiagScrollPanel,
-  onResetScrollVariant,
-  useScrollVariant,
-  type DiagLayoutEvent,
-  type DiagNativeScrollMetrics,
-} from "./diagScroll";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
-import { containerHeightOf, detentMetrics, staticViewportHeight, stopContentHeight } from "./scrollInset";
+import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { type Detent, activeSheet } from "./stack";
 
 const DAY_TYPES: readonly DayTypeCode[] = ["weekday", "saturday", "sunday_holiday"];
@@ -137,148 +132,13 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   }, [schedule, stopId, instant, dayType]);
 
   const lastIndex = useRef<number | null>(null);
-  const [settledDetentKey, setSettledDetentKey] = useState(0);
-  const [settledVisibleHeight, setSettledVisibleHeight] = useState(0);
-  const [bodyContentHeight, setBodyContentHeight] = useState(0);
-  const latestWrapperHeightRef = useRef(0);
-  const savedOffsetRef = useRef(0);
-  const scrollRef = useRef<any>(null);
-
-  const mountTimeRef = useRef(performance.now());
-  const orderRef = useRef(0);
-  const [layoutEvents, setLayoutEvents] = useState<DiagLayoutEvent[]>([]);
-
-  const addLayoutEvent = useCallback(
-    (level: DiagLayoutEvent["level"], h?: number, y?: number, w?: number, extra?: string) => {
-      const order = ++orderRef.current;
-      const ms = Math.round(performance.now() - mountTimeRef.current);
-      console.log(
-        `[E02] #${order} +${ms}ms [${level}] h=${h !== undefined ? Math.round(h) : "-"} y=${y !== undefined ? Math.round(y) : "-"} ${extra ?? ""}`
-      );
-      setLayoutEvents((prev) => [
-        ...prev.slice(-15),
-        {
-          order,
-          ms,
-          level,
-          h: h !== undefined ? Math.round(h) : undefined,
-          y: y !== undefined ? Math.round(y) : undefined,
-          w: w !== undefined ? Math.round(w) : undefined,
-          extra,
-        },
-      ]);
-    },
-    []
-  );
-
-  const onRootLayout = useCallback(
-    (e: any) => {
-      addLayoutEvent("root", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-    },
-    [addLayoutEvent]
-  );
-
-  const onContentLayout = useCallback(
-    (e: any) => {
-      addLayoutEvent("content", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-    },
-    [addLayoutEvent]
-  );
-
-  const scrollLiveRef = useRef<DiagNativeScrollMetrics>({
-    layoutH: 0,
-    contentH: 0,
-    offsetY: 0,
-    insetBottom: 0,
-    onScrollCount: 0,
-    beginDragCount: 0,
-    endDragCount: 0,
-  });
-  const [displayedScrollMetrics, setDisplayedScrollMetrics] = useState<DiagNativeScrollMetrics>({
-    ...scrollLiveRef.current,
-  });
-
-  // Atualiza métricas nativas de rolagem no painel a ~10 Hz (a cada 100 ms) sem setState a cada evento de scroll
-  useEffect(() => {
-    const t = setInterval(() => {
-      setDisplayedScrollMetrics({ ...scrollLiveRef.current });
-    }, 100);
-    return () => clearInterval(t);
-  }, []);
-
-  const [spacerMeasured, setSpacerMeasured] = useState(0);
-  const [spacerAnimated, setSpacerAnimated] = useState(0);
-
-  // Ao trocar de variante, zerar viewport, conteúdo, offset e buffer de eventos
-  useEffect(() => {
-    return onResetScrollVariant(() => {
-      setViewportHeight(0);
-      setContentHeight(0);
-      setContentOffsetY(0);
-      setBodyContentHeight(0);
-      setSpacerMeasured(0);
-      setSpacerAnimated(0);
-      setLayoutEvents([]);
-      scrollLiveRef.current = {
-        layoutH: 0,
-        contentH: 0,
-        offsetY: 0,
-        insetBottom: 0,
-        onScrollCount: 0,
-        beginDragCount: 0,
-        endDragCount: 0,
-      };
-      setDisplayedScrollMetrics({ ...scrollLiveRef.current });
-    });
-  }, []);
-
-  const handleScroll = useCallback((e: any) => {
-    const ne = e.nativeEvent;
-    const y = ne.contentOffset?.y ?? 0;
-    setContentOffsetY(y);
-    savedOffsetRef.current = y;
-    scrollLiveRef.current.layoutH = ne.layoutMeasurement?.height ?? 0;
-    scrollLiveRef.current.contentH = ne.contentSize?.height ?? 0;
-    scrollLiveRef.current.offsetY = y;
-    scrollLiveRef.current.insetBottom = ne.contentInset?.bottom ?? 0;
-    scrollLiveRef.current.onScrollCount++;
-  }, []);
-
-  const handleScrollBeginDrag = useCallback(() => {
-    scrollLiveRef.current.beginDragCount++;
-  }, []);
-
-  const handleScrollEndDrag = useCallback(() => {
-    scrollLiveRef.current.endDragCount++;
-  }, []);
-
-  const handleAnimate = useCallback(
-    (fromIndex: number, toIndex: number) => {
-      const ms = Math.round(performance.now() - mountTimeRef.current);
-      scrollLiveRef.current.lastAnimate = { from: fromIndex, to: toIndex, ms };
-      addLayoutEvent("animate", undefined, undefined, undefined, `${fromIndex}->${toIndex}`);
-    },
-    [addLayoutEvent]
-  );
 
   const onChange = useCallback((index: number) => {
-    const ms = Math.round(performance.now() - mountTimeRef.current);
-    scrollLiveRef.current.lastChange = { index, ms };
-    addLayoutEvent("change", undefined, undefined, undefined, `index=${index}`);
     // `selectionAsync` quando a folha encaixa num detent diferente (4.5 §2.6); a abertura não conta.
     if (lastIndex.current !== null && lastIndex.current !== index) void Haptics.selectionAsync();
     lastIndex.current = index;
-    const newDetent = index === 0 ? 0 : index === 1 ? 1 : 2;
-    setDetent(newDetent);
-
-    // V7: remonta a cada detent assentado
-    setSettledDetentKey((k) => k + 1);
-
-    // V8: atualiza a altura visível estática do wrapper SÓ quando a gaveta assenta
-    if (latestWrapperHeightRef.current > 0) {
-      setSettledVisibleHeight(latestWrapperHeightRef.current);
-    }
-  }, [addLayoutEvent]);
+    setDetent(index === 0 ? 0 : index === 1 ? 1 : 2);
+  }, []);
 
   const small =
     handleHeight > 0 && cardHeight > 0
@@ -290,58 +150,15 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   );
   const context = useMemo(() => ({ detent, setHandleHeight }), [detent]);
 
-  const variant = useScrollVariant();
-  const [viewportHeight, setViewportHeight] = useState(0);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [contentOffsetY, setContentOffsetY] = useState(0);
-  const [settled, setSettled] = useState(false);
-
-  useEffect(() => {
-    // V5/V6: quando a folha termina de abrir (~300ms), remonta o ScrollView para obter o layout limpo já assentado
-    const timer = setTimeout(() => {
-      setSettled(true);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // V7: restaura o offset após remontagem por detent
-  useEffect(() => {
-    if (variant === "V7" && scrollRef.current && savedOffsetRef.current > 0) {
-      const t = setTimeout(() => {
-        scrollRef.current?.scrollTo?.({ y: savedOffsetRef.current, animated: false });
-      }, 16);
-      return () => clearTimeout(t);
-    }
-  }, [settledDetentKey, variant]);
-
-  const visibleHeight = stopContentHeight(detent, window.height, insets.top, handleHeight, small);
-  const containerH = containerHeightOf(window.height, insets.top);
-  const currentSheetH =
-    detent === 0
-      ? small
-      : detent === 1
-      ? 0.5 * containerH
-      : 0.9 * containerH;
-  const staticHeight = staticViewportHeight(currentSheetH, handleHeight, 0, insets.bottom + space.md);
-  // V9: lista com altura fixa = área da gaveta aberta (nunca muda); o que fica abaixo da borda entra como respiro no fim.
-  const v9Metrics = detentMetrics(detents.snapPoints, containerH, handleHeight)[Math.min(detent, detents.snapPoints.length - 1)];
-  const v9Area = Math.max(80, Math.round(v9Metrics?.scrollAreaHeight ?? staticHeight));
-
-  const effectiveViewport = viewportHeight > 0 ? viewportHeight : (settledVisibleHeight > 0 ? settledVisibleHeight : visibleHeight);
-  const effectiveContent = contentHeight > 0 ? contentHeight : bodyContentHeight;
-  const maxOffset = Math.max(0, effectiveContent - effectiveViewport);
+  // Altura da lista: a da folha aberta menos o handle; igual em todos os detents.
+  const scrollAreaHeight = Math.max(
+    80,
+    Math.round(detentMetrics(detents.snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0),
+  );
   const showLines = (day?.lines ?? []).filter((l) => lineFilter === null || l.code === lineFilter);
 
   const listBody = (
-    <View
-      style={styles.body}
-      collapsable={false}
-      onLayout={(e) => {
-        const h = e.nativeEvent.layout.height;
-        if (h > 0) setBodyContentHeight(h);
-        addLayoutEvent("body", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-      }}
-    >
+    <View style={styles.body} collapsable={false}>
       <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}>
         {loading || skeleton ? (
           skeleton ? <Skeleton variant="card" /> : null
@@ -404,386 +221,15 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
     </View>
   );
 
-  const diagPanel = (
-    <DiagScrollPanel
-      sheetKind="stop"
-      metrics={{
-        detent,
-        viewportHeight: effectiveViewport,
-        contentHeight: effectiveContent,
-        contentOffsetY,
-        maxScrollOffset: maxOffset,
-        activeChip: dayType ?? "hoje",
-      }}
-      nativeScroll={displayedScrollMetrics}
-      geometry={{
-        windowHeight: Math.round(window.height),
-        topInset: Math.round(insets.top),
-        bottomInset: Math.round(insets.bottom),
-        containerHeight: Math.round(containerH),
-        snapPoints: detents.snapPoints,
-      }}
-      spacerMetrics={{
-        measured: spacerMeasured,
-        animated: spacerAnimated,
-      }}
-      events={layoutEvents}
-    />
-  );
-
-  // Variante V3: detent único de 90% (tall), idêntico à Busca
-  if (variant === "V3") {
-    return (
-      <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} tall onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-          {diagPanel}
-          <BottomSheetScrollView
-            contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-            showsVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            onScrollBeginDrag={handleScrollBeginDrag}
-            onScrollEndDrag={handleScrollEndDrag}
-            onLayout={(e) => {
-              const h = e.nativeEvent.layout.height;
-              if (h > 0) setViewportHeight(h);
-              addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-            }}
-            onContentSizeChange={(w, h) => {
-              if (h > 0) setContentHeight(h);
-              addLayoutEvent("contentSize", h, undefined, w);
-            }}
-          >
-            {listBody}
-          </BottomSheetScrollView>
-        </StackedSheet>
-      </StopSheetContext.Provider>
-    );
-  }
-
-  // Variante V2: ScrollView do react-native-gesture-handler com altura visível restrita ao detent
-  if (variant === "V2") {
-    return (
-      <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-          {diagPanel}
-          <View
-            style={{ height: visibleHeight }}
-            onLayout={(e) => {
-              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-            }}
-          >
-            <RNGHScrollView
-              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-              showsVerticalScrollIndicator={false}
-              scrollEventThrottle={16}
-              onScroll={handleScroll}
-              onScrollBeginDrag={handleScrollBeginDrag}
-              onScrollEndDrag={handleScrollEndDrag}
-              onLayout={(e) => {
-                const h = e.nativeEvent.layout.height;
-                if (h > 0) setViewportHeight(h);
-                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-              }}
-              onContentSizeChange={(w, h) => {
-                if (h > 0) setContentHeight(h);
-                addLayoutEvent("contentSize", h, undefined, w);
-              }}
-            >
-              {listBody}
-            </RNGHScrollView>
-          </View>
-        </StackedSheet>
-      </StopSheetContext.Provider>
-    );
-  }
-
-  // Variante V1: Hipótese principal (altura visível restrita ao detent ativo no BottomSheetScrollView, sem HiddenBelowSpacer)
-  if (variant === "V1") {
-    return (
-      <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-          {diagPanel}
-          <View
-            style={{ height: visibleHeight }}
-            onLayout={(e) => {
-              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-            }}
-          >
-            <BottomSheetScrollView
-              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-              showsVerticalScrollIndicator={false}
-              onScroll={handleScroll}
-              onScrollBeginDrag={handleScrollBeginDrag}
-              onScrollEndDrag={handleScrollEndDrag}
-              onLayout={(e) => {
-                const h = e.nativeEvent.layout.height;
-                if (h > 0) setViewportHeight(h);
-                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-              }}
-              onContentSizeChange={(w, h) => {
-                if (h > 0) setContentHeight(h);
-                addLayoutEvent("contentSize", h, undefined, w);
-              }}
-            >
-              {listBody}
-            </BottomSheetScrollView>
-          </View>
-        </StackedSheet>
-      </StopSheetContext.Provider>
-    );
-  }
-
-  // Variante V9: altura da lista constante (área da gaveta aberta) + respiro no fim por detent. Sem remontar, sem animar layout.
-  if (variant === "V9") {
-    return (
-      <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-          {diagPanel}
-          <View
-            style={{ height: v9Area, overflow: "hidden" }}
-            onLayout={(e) => {
-              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-            }}
-          >
-            <BottomSheetScrollView
-              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-              showsVerticalScrollIndicator={false}
-              onScroll={handleScroll}
-              onScrollBeginDrag={handleScrollBeginDrag}
-              onScrollEndDrag={handleScrollEndDrag}
-              onLayout={(e) => {
-                const h = e.nativeEvent.layout.height;
-                if (h > 0) setViewportHeight(h);
-                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-              }}
-              onContentSizeChange={(w, h) => {
-                if (h > 0) setContentHeight(h);
-                addLayoutEvent("contentSize", h, undefined, w);
-              }}
-            >
-              {listBody}
-              {/* Respiro no fim = o que está abaixo da borda, medido ao vivo pela posição da gaveta (não depende de estado JS). */}
-              <HiddenBelowSpacer snapPoints={detents.snapPoints} />
-            </BottomSheetScrollView>
-          </View>
-        </StackedSheet>
-      </StopSheetContext.Provider>
-    );
-  }
-
-  // Variante V4: Altura do viewport da lista fixa e não animada calculada em JS (sem Reanimated layout pass)
-  if (variant === "V4") {
-    return (
-      <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-          {diagPanel}
-          <View
-            style={{ height: staticHeight, overflow: "hidden" }}
-            onLayout={(e) => {
-              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-            }}
-          >
-            <BottomSheetScrollView
-              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-              showsVerticalScrollIndicator={false}
-              onScroll={handleScroll}
-              onScrollBeginDrag={handleScrollBeginDrag}
-              onScrollEndDrag={handleScrollEndDrag}
-              onLayout={(e) => {
-                const h = e.nativeEvent.layout.height;
-                if (h > 0) setViewportHeight(h);
-                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-              }}
-              onContentSizeChange={(w, h) => {
-                if (h > 0) setContentHeight(h);
-                addLayoutEvent("contentSize", h, undefined, w);
-              }}
-            >
-              {listBody}
-            </BottomSheetScrollView>
-          </View>
-        </StackedSheet>
-      </StopSheetContext.Provider>
-    );
-  }
-
-  // Variante V5: Remontar o ScrollView (key) uma vez quando a folha termina de abrir/assentar
-  if (variant === "V5") {
-    return (
-      <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-          {diagPanel}
-          <BottomSheetScrollView
-            key={`stop-scroll-${settled ? "settled" : "init"}`}
-            contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-            showsVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            onScrollBeginDrag={handleScrollBeginDrag}
-            onScrollEndDrag={handleScrollEndDrag}
-            onLayout={(e) => {
-              const h = e.nativeEvent.layout.height;
-              if (h > 0) setViewportHeight(h);
-              addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-            }}
-            onContentSizeChange={(w, h) => {
-              if (h > 0) setContentHeight(h);
-              addLayoutEvent("contentSize", h, undefined, w);
-            }}
-          >
-            {listBody}
-          </BottomSheetScrollView>
-        </StackedSheet>
-      </StopSheetContext.Provider>
-    );
-  }
-
-  // Variante V6: V4 (Altura Estática JS) + V5 (Remontagem Key)
-  if (variant === "V6") {
-    return (
-      <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-          {diagPanel}
-          <View
-            style={{ height: staticHeight, overflow: "hidden" }}
-            onLayout={(e) => {
-              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-            }}
-          >
-            <BottomSheetScrollView
-              key={`stop-scroll-${settled ? "settled" : "init"}`}
-              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-              showsVerticalScrollIndicator={false}
-              onScroll={handleScroll}
-              onScrollBeginDrag={handleScrollBeginDrag}
-              onScrollEndDrag={handleScrollEndDrag}
-              onLayout={(e) => {
-                const h = e.nativeEvent.layout.height;
-                if (h > 0) setViewportHeight(h);
-                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-              }}
-              onContentSizeChange={(w, h) => {
-                if (h > 0) setContentHeight(h);
-                addLayoutEvent("contentSize", h, undefined, w);
-              }}
-            >
-              {listBody}
-            </BottomSheetScrollView>
-          </View>
-        </StackedSheet>
-      </StopSheetContext.Provider>
-    );
-  }
-
-  // Variante V7: V5 com remontagem a cada detent assentado, preservando o offset
-  if (variant === "V7") {
-    return (
-      <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-          {diagPanel}
-          <BottomSheetScrollView
-            ref={scrollRef}
-            key={`stop-scroll-v7-${settledDetentKey}`}
-            contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-            showsVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            onScrollBeginDrag={handleScrollBeginDrag}
-            onScrollEndDrag={handleScrollEndDrag}
-            onLayout={(e) => {
-              const h = e.nativeEvent.layout.height;
-              if (h > 0) setViewportHeight(h);
-              addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-            }}
-            onContentSizeChange={(w, h) => {
-              if (h > 0) setContentHeight(h);
-              addLayoutEvent("contentSize", h, undefined, w);
-            }}
-          >
-            {listBody}
-          </BottomSheetScrollView>
-        </StackedSheet>
-      </StopSheetContext.Provider>
-    );
-  }
-
-  // Variante V8: Viewport igual à altura visível medida por onLayout de um wrapper não animado, atualizado só quando a gaveta assenta
-  if (variant === "V8") {
-    const v8Height = settledVisibleHeight > 0 ? settledVisibleHeight : visibleHeight;
-    return (
-      <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-          {diagPanel}
-          <View
-            collapsable={false}
-            style={{ flex: 1 }}
-            onLayout={(e) => {
-              const h = e.nativeEvent.layout.height;
-              latestWrapperHeightRef.current = h;
-              addLayoutEvent("wrapper", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width, "outer");
-              if (settledVisibleHeight === 0 && h > 0) {
-                setSettledVisibleHeight(h);
-              }
-            }}
-          >
-            <View
-              style={{ height: v8Height, overflow: "hidden" }}
-              onLayout={(e) => {
-                addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width, "inner");
-              }}
-            >
-              <BottomSheetScrollView
-                contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-                showsVerticalScrollIndicator={false}
-                onScroll={handleScroll}
-                onScrollBeginDrag={handleScrollBeginDrag}
-                onScrollEndDrag={handleScrollEndDrag}
-                onLayout={(e) => {
-                  const h = e.nativeEvent.layout.height;
-                  if (h > 0) setViewportHeight(h);
-                  addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-                }}
-                onContentSizeChange={(w, h) => {
-                  if (h > 0) setContentHeight(h);
-                  addLayoutEvent("contentSize", h, undefined, w);
-                }}
-              >
-                {listBody}
-              </BottomSheetScrollView>
-            </View>
-          </View>
-        </StackedSheet>
-      </StopSheetContext.Provider>
-    );
-  }
-
-  // Variante V0: Comportamento atual (controle, bloco 5b com HiddenBelowSpacer)
   return (
     <StopSheetContext.Provider value={context}>
-      <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
-        {diagPanel}
-        <BottomSheetScrollView
-          contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
-          showsVerticalScrollIndicator={false}
-          onScroll={handleScroll}
-          onScrollBeginDrag={handleScrollBeginDrag}
-          onScrollEndDrag={handleScrollEndDrag}
-          onLayout={(e) => {
-            const h = e.nativeEvent.layout.height;
-            if (h > 0) setViewportHeight(h);
-            addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
-          }}
-          onContentSizeChange={(w, h) => {
-            if (h > 0) setContentHeight(h);
-            addLayoutEvent("contentSize", h, undefined, w);
-          }}
-        >
-          {listBody}
-          {/* Bloco 5b: a área de rolagem tem a altura do detent mais alto; este espaço cobre a parte abaixo da tela. */}
-          <HiddenBelowSpacer
-            snapPoints={detents.snapPoints}
-            onLayout={(e) => setSpacerMeasured(e.nativeEvent.layout.height)}
-            onAnimatedHeight={setSpacerAnimated}
-          />
-        </BottomSheetScrollView>
+      <StackedSheet id={id} detents={detents}>
+        <View style={{ height: scrollAreaHeight, overflow: "hidden" }}>
+          <BottomSheetScrollView contentContainerStyle={{ paddingBottom: insets.bottom + space.md }} showsVerticalScrollIndicator={false}>
+            {listBody}
+            <HiddenBelowSpacer snapPoints={detents.snapPoints} />
+          </BottomSheetScrollView>
+        </View>
       </StackedSheet>
     </StopSheetContext.Provider>
   );

@@ -6,8 +6,6 @@ import {
   highestPosition,
   maxScrollOffset,
   snapHeight,
-  staticViewportHeight,
-  stopContentHeight,
 } from "./scrollInset";
 
 // iPhone de tela comum: janela 844 pt, área segura de cima 47 pt. Handle com linha do ✕: 44 pt. Pequeno medido: ~220 pt.
@@ -99,24 +97,8 @@ describe("espaço que acompanha o topo da folha", () => {
   });
 });
 
-describe("altura visível do conteúdo (correção da rolagem)", () => {
-  it("calcula a altura visível exata em cada detent", () => {
-    // Detent 0: 220 - 44 = 176 pt
-    expect(stopContentHeight(0, WINDOW, TOP, HANDLE, 220)).toBe(176);
-    // Detent 1: 0.5 * 797 - 44 = 398.5 - 44 = 354.5 pt
-    expect(stopContentHeight(1, WINDOW, TOP, HANDLE, 220)).toBeCloseTo(354.5, 5);
-    // Detent 2: 0.9 * 797 - 44 = 717.3 - 44 = 673.3 pt
-    expect(stopContentHeight(2, WINDOW, TOP, HANDLE, 220)).toBeCloseTo(673.3, 5);
-  });
-
-  it("calcula altura estática do viewport com cabeçalho extra e padding inferior (V4 e V6)", () => {
-    // Exemplo: detent médio (398.5 pt) - handle 44 - pílula 56 - safeBottom 34 = 264.5 pt (arredondado para 265 ou 264)
-    expect(staticViewportHeight(398.5, 44, 56, 34)).toBe(265);
-    // Limite mínimo seguro de 80 pt
-    expect(staticViewportHeight(100, 44, 56, 34)).toBe(80);
-  });
-
-  it("V9: a área da lista é a mesma em todos os detents e o respiro fecha a conta", () => {
+describe("altura fixa da lista (solução final da E-02)", () => {
+  it("a área da lista é a mesma em todos os detents e o respiro fecha a conta", () => {
     const container = containerHeightOf(WINDOW, TOP);
     const metrics = detentMetrics([220, "50%", "90%"], container, 44);
     const areas = new Set(metrics.map((m) => m.scrollAreaHeight));
