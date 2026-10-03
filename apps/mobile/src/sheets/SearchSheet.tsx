@@ -7,6 +7,7 @@ import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-shee
 import { searchStops } from "@notebus/domain";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
@@ -19,6 +20,7 @@ import { CrossGlyph, SearchGlyph } from "../ui/Glyphs";
 import { ListRow } from "../ui/ListRow";
 import { pillStyles } from "../ui/SearchPill";
 import { Skeleton } from "../ui/Skeleton";
+import { useReorderTransition } from "../ui/useReorderTransition";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
 import { StackedSheet } from "./StackedSheet";
 import { useKeyboardHeight } from "./useKeyboardHeight";
@@ -31,6 +33,7 @@ export function SearchSheet({ id }: { id: number }) {
   const index = useStopIndex();
   const recent = useRecentStops();
   const keyboard = useKeyboardHeight();
+  const layout = useReorderTransition();
   const input = useRef<React.ComponentRef<typeof BottomSheetTextInput>>(null);
   const [term, setTerm] = useState("");
 
@@ -65,18 +68,25 @@ export function SearchSheet({ id }: { id: number }) {
       onPress={() => openStop({ id: stop.id, name: stop.name })}
     />
   );
-  const group = (title: string, stops: StopEntry[]) => (
+  // Só os recentes trocam de ordem (D-142); a lista de resultados muda por busca, não por reordenação.
+  const group = (title: string, stops: StopEntry[], reorder = false) => (
     <View>
       <Text accessibilityRole="header" style={[type.label, styles.group, { color: colors.textSecondary }]}>
         {title}
       </Text>
-      {stops.map(stopRow)}
+      {reorder
+        ? stops.map((stop) => (
+            <Animated.View key={stop.id} layout={layout}>
+              {stopRow(stop)}
+            </Animated.View>
+          ))
+        : stops.map(stopRow)}
     </View>
   );
 
   let body: ReactNode = null;
   if (loading || skeleton) body = skeleton ? <Skeleton /> : null;
-  else if (panel === "recents") body = group(t("search.group.recent"), recents);
+  else if (panel === "recents") body = group(t("search.group.recent"), recents, true);
   else if (panel === "prompt")
     body = (
       <Text accessible style={[type.body, styles.prompt, { color: colors.textSecondary, opacity: opacity.muted }]}>

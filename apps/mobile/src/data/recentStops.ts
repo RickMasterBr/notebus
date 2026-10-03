@@ -1,5 +1,5 @@
 /**
- * Últimos pontos abertos (E-02 bloco 3c, D-096/Q-43): os que aparecem em "Perto de você" no Início.
+ * Últimos pontos abertos (E-02 bloco 3c, D-096/Q-43; até 10, D-144): os 3 primeiros aparecem em "Perto de você", todos na Busca vazia.
  * Ficam na tabela `setting` (chave `recent_stops`, lista de IDs em JSON), sem tabela nem migração nova.
  *
  * Exemplo: abriu A, depois B, depois A de novo → `["A", "B"]` (A volta ao topo, sem repetir).
@@ -13,8 +13,8 @@ import { setting } from "../db/schema";
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
 
 export const RECENT_STOPS_KEY = "recent_stops";
-/** Até 3 cartões em "Perto de você" (resposta do Rick à pergunta do bloco 3c; a 4.1 §4 só mostra "o ponto sugerido"). */
-export const RECENT_STOPS_MAX = 3;
+/** Guarda até 10 pontos abertos (D-144); o "Perto de você" mostra só os 3 primeiros (`nearbyIds`), a Busca vazia todos. */
+export const RECENT_STOPS_MAX = 10;
 
 /** Põe `stopId` no topo, tira a repetição e corta no limite. */
 export function pushRecent(list: readonly string[], stopId: string, max = RECENT_STOPS_MAX): string[] {
