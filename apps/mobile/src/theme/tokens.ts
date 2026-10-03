@@ -110,5 +110,12 @@ export const elevation = {
 /** §4. Curva: ease-out na entrada, ease-in na saída (padrão do sistema). */
 export const motion = { fast: 150, normal: 250 } as const;
 
+/**
+ * Q-63 (D-137): opacidade de texto "esmaecido", ex.: a mensagem da Busca vazia. 0,7 e não 0,6: a regra da Q-63 sobe
+ * o valor quando o AA não passa; mesmo assim fica abaixo de 4,5:1 (3,1:1 claro, 3,9:1 escuro, sobre `surface`).
+ * Nunca no selo de linha (D-051).
+ */
+export const opacity = { muted: 0.7 } as const;
+
 /** Altura mínima de alvo de toque (§5.12). */
 export const minTouch = 44;

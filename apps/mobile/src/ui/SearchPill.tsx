@@ -20,16 +20,17 @@ export function SearchPill({ onPress, ref }: { onPress: () => void; ref?: Ref<Vi
         onPress={onPress}
         onPressIn={() => (scale.value = withTiming(0.96, { duration: 100 }))}
         onPressOut={() => (scale.value = withTiming(1, { duration: 100 }))}
-        style={[styles.pill, { backgroundColor: colors.fill }]}
+        style={[pillStyles.pill, { backgroundColor: colors.fill }]}
       >
         <SearchGlyph color={colors.textSecondary} />
-        <Text style={[type.body, styles.text, { color: colors.textSecondary }]}>{t("home.search_placeholder")}</Text>
+        <Text style={[type.body, pillStyles.text, { color: colors.textSecondary }]}>{t("home.search_placeholder")}</Text>
       </Pressable>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
+/** Também é o formato do campo da Busca (D-136): um só lugar para os valores. */
+export const pillStyles = StyleSheet.create({
   // Canvas: altura 44, padding lateral 14, intervalo 8. `minHeight` deixa a pílula crescer com o Dynamic Type.
   pill: {
     minHeight: minTouch,
