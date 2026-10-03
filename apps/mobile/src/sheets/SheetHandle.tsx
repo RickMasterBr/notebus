@@ -1,7 +1,8 @@
 /**
  * Handle da folha (4.4 §5.11): barra de 36×4, `grab`, `space.sm` do topo.
- * Folha empilhada: o handle fecha ao tocar e há também o ✕ "Fechar" (D-129).
+ * Folha empilhada de 1 altura: o handle fecha ao tocar e há também o ✕ "Fechar" (D-129).
  * Folha inicial: controle ajustável, com rótulo `sheet.handle.a11y` e valor `sheet.detent.*` (D-129).
+ * Folha empilhada de 3 detents (a do ponto, TL-02): ajustável como a inicial, mais o ✕ "Fechar" (D-135) em `onClose`.
  */
 import { Pressable, StyleSheet, View } from "react-native";
 import { t } from "../i18n";
@@ -19,6 +20,8 @@ type Props =
       detent: Detent;
       onIncrement: () => void;
       onDecrement: () => void;
+      /** Folha empilhada: acrescenta o ✕ "Fechar" à direita. */
+      onClose?: () => void;
     };
 
 const HIT_SLOP = { top: 12, bottom: 12, left: 48, right: 48 } as const;
@@ -44,19 +47,11 @@ export function SheetHandle(props: Props) {
         >
           {bar}
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("common.close")}
-          hitSlop={space.xs}
-          onPress={props.onPress}
-          style={styles.closeButton}
-        >
-          <CrossGlyph color={colors.textSecondary} />
-        </Pressable>
+        <CloseButton onPress={props.onPress} />
       </View>
     );
   }
-  return (
+  const adjustable = (
     <View
       accessible
       accessibilityRole="adjustable"
@@ -71,6 +66,28 @@ export function SheetHandle(props: Props) {
     >
       {bar}
     </View>
+  );
+  if (!props.onClose) return adjustable;
+  return (
+    <View style={styles.closeRow}>
+      {adjustable}
+      <CloseButton onPress={props.onClose} />
+    </View>
+  );
+}
+
+function CloseButton({ onPress }: { onPress: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t("common.close")}
+      hitSlop={space.xs}
+      onPress={onPress}
+      style={styles.closeButton}
+    >
+      <CrossGlyph color={colors.textSecondary} />
+    </Pressable>
   );
 }
 

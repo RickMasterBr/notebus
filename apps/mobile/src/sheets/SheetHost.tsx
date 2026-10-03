@@ -33,7 +33,7 @@ function StackedSheetSlot({ entry }: { entry: SheetEntry }) {
     case "search":
       return <SearchSheet id={entry.id} />;
     case "stop":
-      return <StopSheet id={entry.id} name={entry.name} />;
+      return <StopSheet id={entry.id} stopId={entry.stopId} name={entry.name} />;
     case "home":
       return null;
   }

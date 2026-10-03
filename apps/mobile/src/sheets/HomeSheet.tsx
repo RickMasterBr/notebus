@@ -84,7 +84,7 @@ export function HomeSheet() {
   // Identidade estável: um `handleComponent` novo a cada troca de detent remonta o handle no fim do gesto.
   const Handle = useCallback(() => <HomeHandle onHeight={setHandleHeight} />, []);
 
-  // D-145: fundo transparente que só recebe o toque com a folha no médio ou no grande (no pequeno, `disappearsOnIndex`
+  // D-145: fundo transparente (não de opacidade 0) que só recebe o toque com a folha no médio ou no grande (no pequeno, `disappearsOnIndex`
   // o deixa passar). O toque recolhe a folha e não chega ao que está embaixo. Sem texto de leitura: não é um controle.
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -92,7 +92,9 @@ export function HomeSheet() {
         {...props}
         appearsOnIndex={1}
         disappearsOnIndex={0}
-        opacity={0}
+        // Opacidade 1 e fundo transparente: a vista com opacidade 0 não recebe toque no iOS (D-145, bloco 4).
+        opacity={1}
+        style={[props.style, { backgroundColor: "transparent" }]}
         pressBehavior={0}
         onPress={() => {
           skipHaptic.current = true;

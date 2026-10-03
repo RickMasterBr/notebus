@@ -24,6 +24,11 @@ export interface ColorTokens {
   grab: string;
   /** Fundo que escurece a folha de baixo quando outra é empilhada: 28% claro, 50% escuro (4.5 §2.5, D-043). */
   scrim: string;
+  /**
+   * Do canvas da 4.5 (Main.dc.html, `hl`), que a 4.4 não lista (Q-70): fundo do "próximo" na lista do ponto,
+   * um violeta bem claro (claro #F6F4FE, escuro #25232F).
+   */
+  highlight: string;
 }
 
 /**
@@ -45,6 +50,7 @@ export const colors: { light: ColorTokens; dark: ColorTokens } = {
     fill: "#F0F0ED",
     grab: "#C7C7C2",
     scrim: "rgba(0,0,0,0.28)",
+    highlight: "#F6F4FE",
   },
   dark: {
     bg: "#121314",
@@ -60,6 +66,7 @@ export const colors: { light: ColorTokens; dark: ColorTokens } = {
     fill: "#2C2D30",
     grab: "#48494D",
     scrim: "rgba(0,0,0,0.5)",
+    highlight: "#25232F",
   },
 };
 

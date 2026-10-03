@@ -10,6 +10,7 @@ const next = {
   rangeEnd: "08:12",
   beAtStop: "08:06",
   confidence: "estimated",
+  mayPassNow: false,
 } as const;
 
 describe("textos do cartão de ponto (4.6)", () => {
@@ -24,10 +25,16 @@ describe("textos do cartão de ponto (4.6)", () => {
   it("motivos de dia sem serviço (4.6 §3.10)", () => {
     expect(reasonText({ kind: "sunday_holiday" })).toBe("Não circula aos domingos e feriados");
     expect(reasonText({ kind: "weekdays_only" })).toBe("Só circula em dias úteis");
+    expect(reasonText({ kind: "no_table" })).toBe("Sem horário para este tipo de dia");
     expect(reasonText({ kind: "season", months: [7, 8] })).toBe("não circula em julho e agosto");
     expect(monthsText([6, 7, 8])).toBe("junho, julho e agosto");
     expect(monthsText([12])).toBe("dezembro");
     expect(nextDayText({ status: "later", reason: null, date: "2026-09-04", weekday: 5, time: "08:10" })).toBe("próximo: sexta, 08:10");
+  });
+
+  it("pode passar a qualquer momento: troca o esteja no ponto pela frase (D-146)", () => {
+    const line = { code: "1", color: "#7A3FF2", destination: "Estação", state: { ...next, mayPassNow: true } };
+    expect(lineA11y(line)).toBe("Linha 1, para Estação, próximo às 08:10, Pode passar a qualquer momento, até 08:12, estimado");
   });
 
   it("VoiceOver lê o cartão como um bloco: ponto, linha, próximo, esteja no ponto", () => {

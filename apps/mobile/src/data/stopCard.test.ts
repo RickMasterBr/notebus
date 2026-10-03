@@ -77,7 +77,7 @@ describe("buildStopCard: próximo ônibus", () => {
       code: "1",
       color: "#7A3FF2",
       destination: "Largo Fictício",
-      state: { status: "next", time: "08:10", rangeStart: "08:08", rangeEnd: "08:12", beAtStop: "08:06", confidence: "estimated" },
+      state: { status: "next", time: "08:10", rangeStart: "08:08", rangeEnd: "08:12", beAtStop: "08:06", confidence: "estimated", mayPassNow: false },
     });
   });
 
@@ -92,7 +92,7 @@ describe("buildStopCard: próximo ônibus", () => {
   it("paragem sem horário na tabela: interpola e alarga a faixa (±4), esteja às 08:11", async () => {
     const card = await cardOf(RUA, seedWith({ middleInterpolated: true }), lisbon("2026-09-03", "08:00"));
     expect(card?.lines[0]?.state).toEqual({
-      status: "next", time: "08:17", rangeStart: "08:13", rangeEnd: "08:21", beAtStop: "08:11", confidence: "estimated",
+      status: "next", time: "08:17", rangeStart: "08:13", rangeEnd: "08:21", beAtStop: "08:11", confidence: "estimated", mayPassNow: false,
     });
   });
 

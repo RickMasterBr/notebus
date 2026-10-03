@@ -22,4 +22,8 @@ describe("tema", () => {
     expect(colors.light.scrim).toBe("rgba(0,0,0,0.28)");
     expect(colors.dark.scrim).toBe("rgba(0,0,0,0.5)");
   });
+  it("destaque do próximo na lista do ponto, do canvas da 4.5 (hl; Q-70)", () => {
+    expect(colors.light.highlight).toBe("#F6F4FE");
+    expect(colors.dark.highlight).toBe("#25232F");
+  });
 });
