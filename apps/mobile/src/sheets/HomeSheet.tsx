@@ -279,7 +279,6 @@ export function HomeSheet() {
   // V9: lista com altura fixa = área da gaveta aberta (menos handle e pílula); o que fica abaixo da borda entra como respiro no fim.
   const v9Metrics = detentMetrics(snapPoints, containerH, handleHeight)[Math.min(state.detent, snapPoints.length - 1)];
   const v9Area = Math.max(80, Math.round((v9Metrics?.scrollAreaHeight ?? staticHomeHeight) - pillHeight - space.md));
-  const v9Hidden = Math.max(0, Math.round(v9Metrics?.hidden ?? 0));
 
   if (startIndex === null) return null;
 
@@ -380,7 +379,7 @@ export function HomeSheet() {
                   ? "ready"
                   : "loading"
               }
-              contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md + (isV9 ? v9Hidden : 0) }}
+              contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
               onScroll={handleScroll}
               onScrollBeginDrag={handleScrollBeginDrag}
@@ -406,7 +405,7 @@ export function HomeSheet() {
                 <NearbyStops />
               </View>
               {/* Bloco 5b: em V0 (controle), o espaço do bloco 5b continua; em V1..V8 é desativado */}
-              {variant === "V0" ? (
+              {variant === "V0" || variant === "V9" ? (
                 <HiddenBelowSpacer
                   snapPoints={snapPoints}
                   onLayout={(e) => setSpacerMeasured(e.nativeEvent.layout.height)}

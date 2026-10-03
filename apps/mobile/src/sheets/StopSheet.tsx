@@ -326,7 +326,6 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   // V9: lista com altura fixa = área da gaveta aberta (nunca muda); o que fica abaixo da borda entra como respiro no fim.
   const v9Metrics = detentMetrics(detents.snapPoints, containerH, handleHeight)[Math.min(detent, detents.snapPoints.length - 1)];
   const v9Area = Math.max(80, Math.round(v9Metrics?.scrollAreaHeight ?? staticHeight));
-  const v9Hidden = Math.max(0, Math.round(v9Metrics?.hidden ?? 0));
 
   const effectiveViewport = viewportHeight > 0 ? viewportHeight : (settledVisibleHeight > 0 ? settledVisibleHeight : visibleHeight);
   const effectiveContent = contentHeight > 0 ? contentHeight : bodyContentHeight;
@@ -547,7 +546,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
             }}
           >
             <BottomSheetScrollView
-              contentContainerStyle={{ paddingBottom: insets.bottom + space.md + v9Hidden }}
+              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
               onScroll={handleScroll}
               onScrollBeginDrag={handleScrollBeginDrag}
@@ -563,6 +562,8 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
               }}
             >
               {listBody}
+              {/* Respiro no fim = o que está abaixo da borda, medido ao vivo pela posição da gaveta (não depende de estado JS). */}
+              <HiddenBelowSpacer snapPoints={detents.snapPoints} />
             </BottomSheetScrollView>
           </View>
         </StackedSheet>
