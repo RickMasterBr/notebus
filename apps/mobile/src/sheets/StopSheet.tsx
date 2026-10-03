@@ -6,7 +6,10 @@
  *   com o "esteja no ponto às". Altura medida na tela (handle + cartão), como o pequeno da folha inicial.
  * - **Médio:** chips de tipo de dia (hoje por padrão) e de linha, e a lista do dia agrupada por linha, o próximo em destaque.
  * - **Grande:** a mesma lista, com mais espaço. "Registrar aqui" (E-03), "Declarar horário" e "editar o ponto" (E-08)
- *   ficam de fora: botão que não faz nada é pior que botão ausente. Tocar num horário não faz nada (a TL-05 é do bloco 5).
+ *   ficam de fora: botão que não faz nada é pior que botão ausente. Tocar num horário empilha a TL-05 (`AheadSheet`).
+ *
+ * Rolagem (Q-71, opção A): o gesto de arrastar a folha pelo conteúdo fica desligado (`enableContentPanningGesture`),
+ * então a lista rola em qualquer detent; o detent muda pelo handle, e o ✕, o toque fora e o handle seguem fechando.
  *
  * Rolagem com os componentes da biblioteca (`BottomSheetScrollView`), numa `View` comum, não `BottomSheetView`
  * (ver `StackedSheet`). Dia sem serviço nunca é lista vazia: o porquê e o próximo dia (`DayLine.empty`).
@@ -14,12 +17,12 @@
 import { BottomSheetScrollView, useBottomSheet } from "@gorhom/bottom-sheet";
 import type { DayTypeCode } from "@notebus/domain";
 import * as Haptics from "expo-haptics";
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSchedule } from "../data/ScheduleProvider";
 import { type StopCard, buildStopCard } from "../data/stopCard";
-import { type DayLine, type StopDay, buildStopDay } from "../data/stopDay";
+import { type DayLine, type PassageRow, type StopDay, buildStopDay } from "../data/stopDay";
 import { dayTypeChipText, emptyTexts, lineHeaderText } from "../data/stopDayText";
 import { useNowTick } from "../data/useNowTick";
 import { t } from "../i18n";
@@ -31,8 +34,9 @@ import { Skeleton } from "../ui/Skeleton";
 import { StopCardView } from "../ui/StopCardView";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
 import { SheetHandle } from "./SheetHandle";
+import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
-import type { Detent } from "./stack";
+import { type Detent, activeSheet } from "./stack";
 
 const DAY_TYPES: readonly DayTypeCode[] = ["weekday", "saturday", "sunday_holiday"];
 /** Detent em que a folha abre. P-09 §1: o pequeno é a resposta imediata, sem rolar. */
@@ -79,6 +83,35 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   const [dayType, setDayType] = useState<DayTypeCode | undefined>(undefined);
   const [lineFilter, setLineFilter] = useState<string | null>(null);
 
+  // TL-05: tocar num horário a empilha; ao fechá-la, o foco do VoiceOver volta para a linha tocada (4.6 §5, bloco 5a).
+  const { state, dispatch } = useSheets();
+  const isTop = activeSheet(state).id === id;
+  const rowRefs = useRef(new Map<string, View | null>());
+  const openedRow = useRef<string | null>(null);
+  const openAhead = useCallback(
+    (row: PassageRow) => {
+      openedRow.current = row.key;
+      dispatch({ type: "push", sheet: { kind: "ahead", tripId: row.tripId, position: row.position } });
+    },
+    [dispatch],
+  );
+  useEffect(() => {
+    if (!isTop || openedRow.current === null) return;
+    const key = openedRow.current;
+    openedRow.current = null;
+    // Espera a folha de cima sair e esta voltar a ser lida (ela estava escondida do VoiceOver).
+    const timer = setTimeout(() => {
+      const node = rowRefs.current.get(key);
+      const tag = node ? findNodeHandle(node) : null;
+      if (tag) AccessibilityInfo.setAccessibilityFocus(tag);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [isTop]);
+  const setRowRef = useCallback((key: string, node: View | null) => {
+    if (node) rowRefs.current.set(key, node);
+    else rowRefs.current.delete(key);
+  }, []);
+
   const loading = schedule.status === "loading";
   const skeleton = useSkeletonVisible(loading);
 
@@ -103,7 +136,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
       ? Math.min(handleHeight + cardHeight + insets.bottom + space.md, window.height * SMALL_MAX_SHARE)
       : SMALL_FALLBACK;
   const detents = useMemo<StackedDetents>(
-    () => ({ snapPoints: [small, "50%", "90%"], initialIndex: START_INDEX, Handle: StopHandle, onChange }),
+    () => ({ snapPoints: [small, "50%", "90%"], initialIndex: START_INDEX, Handle: StopHandle, onChange, enableContentPanningGesture: false }),
     [small, onChange],
   );
   const context = useMemo(() => ({ detent, setHandleHeight }), [detent]);
@@ -171,7 +204,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
                   </View>
                 ) : null}
                 {showLines.map((line) => (
-                  <LineSection key={line.code} line={line} />
+                  <LineSection key={line.code} line={line} onOpen={openAhead} setRowRef={setRowRef} />
                 ))}
               </>
             ) : null}
@@ -183,7 +216,15 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
 }
 
 /** Um grupo da lista: selo, "→ destino" (e "(fim do percurso)"), e as passagens ou o porquê de não haver. */
-function LineSection({ line }: { line: DayLine }) {
+function LineSection({
+  line,
+  onOpen,
+  setRowRef,
+}: {
+  line: DayLine;
+  onOpen: (row: PassageRow) => void;
+  setRowRef: (key: string, node: View | null) => void;
+}) {
   const { colors } = useTheme();
   const header = lineHeaderText(line);
   const empty = line.empty ? emptyTexts(line.empty) : null;
@@ -202,7 +243,14 @@ function LineSection({ line }: { line: DayLine }) {
       ) : (
         <View>
           {line.rows.map((row, i) => (
-            <PassageRowView key={row.key} line={line} row={row} last={i === line.rows.length - 1} />
+            <PassageRowView
+              key={row.key}
+              line={line}
+              row={row}
+              last={i === line.rows.length - 1}
+              onPress={() => onOpen(row)}
+              rowRef={(node) => setRowRef(row.key, node)}
+            />
           ))}
         </View>
       )}

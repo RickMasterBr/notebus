@@ -7,12 +7,14 @@
  */
 
 /**
- * Folhas que existem hoje. "stop" é a TL-02 Ponto (E-02 bloco 4). Cada folha leva o que precisa para se desenhar.
+ * Folhas que existem hoje. "stop" é a TL-02 Ponto (E-02 bloco 4); "ahead" é a TL-05 Daqui para a frente (bloco 5a):
+ * uma passagem de uma viagem. Cada folha leva o que precisa para se desenhar.
  */
 export type SheetContent =
   | { kind: "home" }
   | { kind: "search" }
-  | { kind: "stop"; stopId: string; name: string };
+  | { kind: "stop"; stopId: string; name: string }
+  | { kind: "ahead"; tripId: string; position: number };
 
 export type SheetKind = SheetContent["kind"];
 
@@ -72,7 +74,10 @@ export function sheetReducer(state: SheetStackState, action: SheetAction): Sheet
 }
 
 function sameSheet(a: SheetContent, b: SheetContent): boolean {
-  return a.kind === b.kind && (a.kind !== "stop" || b.kind !== "stop" || a.stopId === b.stopId);
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "stop" && b.kind === "stop") return a.stopId === b.stopId;
+  if (a.kind === "ahead" && b.kind === "ahead") return a.tripId === b.tripId && a.position === b.position;
+  return true;
 }
 
 /** A folha que recebe o toque agora: a do topo. */

@@ -92,6 +92,15 @@ describe("pilha de folhas", () => {
     expect(kinds(step(s, POP))).toEqual(["home", "search"]);
   });
 
+  it("a TL-05 empilha por cima do Ponto; tocar de novo na mesma passagem não duplica, outra passagem empilha", () => {
+    const ahead = (tripId: string, position: number): SheetAction => ({ type: "push", sheet: { kind: "ahead", tripId, position } });
+    const onStop = run(stop("a"), ahead("v1", 6));
+    expect(kinds(onStop)).toEqual(["home", "stop", "ahead"]);
+    expect(kinds(step(onStop, ahead("v1", 6)))).toEqual(["home", "stop", "ahead"]);
+    expect(kinds(step(onStop, ahead("v1", 12)))).toEqual(["home", "stop", "ahead", "ahead"]);
+    expect(kinds(step(onStop, POP))).toEqual(["home", "stop"]); // fechar volta ao Ponto, que continua por baixo
+  });
+
   it("tocar duas vezes no mesmo ponto não duplica; outro ponto empilha", () => {
     const once = run({ type: "push", sheet: { kind: "search" } }, stop("p1"), stop("p1"));
     expect(kinds(once)).toEqual(["home", "search", "stop"]);
