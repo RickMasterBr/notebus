@@ -9,6 +9,9 @@ import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRecentStops } from "../data/RecentStopsProvider";
+import { useSchedule } from "../data/ScheduleProvider";
+import { useStopIndex } from "../data/StopIndexProvider";
 import { t } from "../i18n";
 import { elevation, radius, space, useTheme } from "../theme";
 import { SearchPill } from "../ui/SearchPill";
@@ -26,6 +29,10 @@ export function HomeSheet() {
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useSheets();
   const lastIndex = useRef<number | null>(null);
+  const stops = useStopIndex();
+  const schedule = useSchedule();
+  const recent = useRecentStops();
+  const listReady = stops.status !== "loading" && schedule.status !== "loading" && recent.status !== "loading";
   const [handleHeight, setHandleHeight] = useState(0);
   const [pillHeight, setPillHeight] = useState(0);
   const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
@@ -85,7 +92,9 @@ export function HomeSheet() {
             accessibilityElementsHidden={state.detent === 0}
             importantForAccessibility={state.detent === 0 ? "no-hide-descendants" : "auto"}
           >
+            {/* `key`: quando o esqueleto dá lugar aos cartões, a lista é montada de novo e mede o conteúdo final (1ª abertura). */}
             <BottomSheetScrollView
+              key={listReady ? "ready" : "loading"}
               contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
             >

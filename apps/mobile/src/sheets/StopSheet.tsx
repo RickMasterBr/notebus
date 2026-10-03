@@ -6,10 +6,10 @@ import { Text } from "react-native";
 import { type, useTheme } from "../theme";
 import { StackedSheet } from "./StackedSheet";
 
-export function StopSheet({ name }: { name: string }) {
+export function StopSheet({ id, name }: { id: number; name: string }) {
   const { colors } = useTheme();
   return (
-    <StackedSheet>
+    <StackedSheet id={id}>
       <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
         {name}
       </Text>

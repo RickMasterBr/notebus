@@ -24,7 +24,7 @@ import { StackedSheet } from "./StackedSheet";
 import { useKeyboardHeight } from "./useKeyboardHeight";
 import { useOpenStop } from "./useOpenStop";
 
-export function SearchSheet() {
+export function SearchSheet({ id }: { id: number }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const openStop = useOpenStop();
@@ -92,7 +92,7 @@ export function SearchSheet() {
     );
 
   return (
-    <StackedSheet tall>
+    <StackedSheet id={id} tall>
       <View style={styles.fill}>
         {/* D-136: mesmo formato e mesma cor da pílula do Início (`pillStyles`). */}
         <View style={[pillStyles.pill, styles.field, { backgroundColor: colors.fill }]}>

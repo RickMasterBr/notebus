@@ -31,9 +31,9 @@ export function SheetHost() {
 function StackedSheetSlot({ entry }: { entry: SheetEntry }) {
   switch (entry.kind) {
     case "search":
-      return <SearchSheet />;
+      return <SearchSheet id={entry.id} />;
     case "stop":
-      return <StopSheet name={entry.name} />;
+      return <StopSheet id={entry.id} name={entry.name} />;
     case "home":
       return null;
   }

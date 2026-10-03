@@ -115,7 +115,7 @@ export const motion = { fast: 150, normal: 250 } as const;
  * o valor quando o AA não passa; mesmo assim fica abaixo de 4,5:1 (3,1:1 claro, 3,9:1 escuro, sobre `surface`).
  * Nunca no selo de linha (D-051).
  */
-export const opacity = { muted: 0.7 } as const;
+export const opacity = { muted: 0.9 } as const;
 
 /** Altura mínima de alvo de toque (§5.12). */
 export const minTouch = 44;
