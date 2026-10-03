@@ -250,7 +250,8 @@ describe("buildAhead: velocidade", () => {
       stopNames: new Map(Array.from({ length: 450 }, (_, i) => [`s${i}`, `Paragem ${i}`])),
     } as unknown as ScheduleSnapshot;
     // Aquece o JIT antes da medição para isolar tempo de compilação da execução
-    buildAhead("t0", 1, data);
+    const warmup = buildAhead("t0", 1, data);
+    if (warmup) timelineItems(warmup.stops);
     const t0 = performance.now();
     const a = buildAhead("t399", 3, data);
     timelineItems(a!.stops);
