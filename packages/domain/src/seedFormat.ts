@@ -1,3 +1,4 @@
+/** Definição de tipos e schema para o formato JSON do seed de dados da MOBILIS. */
 /**
  * O arquivo de importação da MOBILIS (`mobilis-<vigência>.json`, E-01 §5.1): formato, validação de forma
  * e as conferências que o D-122 (sem chave estrangeira) torna obrigatórias.
@@ -56,6 +57,9 @@ export interface SeedFile {
   stopTimes: { id: string; key: string; tripId: string; patternStopId: string; serviceMinute: number }[];
 }
 
+/**
+ * Erro lançado quando o arquivo Seed lido falha na validação de formato.
+ */
 export class SeedFormatError extends Error {
   readonly problems: string[];
   constructor(problems: string[]) {
@@ -80,8 +84,10 @@ const DAY_TYPES = ["weekday", "saturday", "sunday_holiday"];
 const MD = /^\d\d-\d\d$/;
 const DATE = /^\d{4}-\d\d-\d\d$/;
 
+/** Utilitário interno: checa se é objeto não-nulo e não-array. */
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
+/** Validador de tipos básicos esperado no schema. */
 function fieldOk(v: unknown, f: Field): boolean {
   switch (f) {
     case "s": return typeof v === "string" && v.length > 0;
@@ -94,7 +100,11 @@ function fieldOk(v: unknown, f: Field): boolean {
 
 /**
  * Confere a **forma** do JSON (tipos de cada campo) e as referências e IDs; devolve o arquivo tipado.
- * Falha com `SeedFormatError` listando os problemas. Não toca em banco nenhum.
+ * Falha com `SeedFormatError` listando os problemas se houver violação estrutural ou lógica.
+ * Não toca em banco nenhum.
+ *
+ * @param value - Objeto parseado do JSON a validar
+ * @returns O arquivo validado e tipado como `SeedFile`
  */
 export function parseSeedFile(value: unknown): SeedFile {
   const problems: string[] = [];
@@ -138,7 +148,12 @@ export function parseSeedFile(value: unknown): SeedFile {
   return value as unknown as SeedFile;
 }
 
-/** Toda referência aponta para algo que existe no próprio arquivo (D-122: sem chave estrangeira, isto é obrigatório). */
+/**
+ * Verifica se todas as referências (chaves estrangeiras simuladas)
+ * apontam para entidades presentes no próprio arquivo.
+ * (D-122: como o SQLite importado não possui FK constraints ativas para otimização,
+ * isto é obrigatório a nível de aplicação).
+ */
 export function checkReferences(seed: SeedFile): string[] {
   const errors: string[] = [];
   const ids = (list: { id: string }[]) => new Set(list.map((x) => x.id));
@@ -165,7 +180,10 @@ export function checkReferences(seed: SeedFile): string[] {
   return errors;
 }
 
-/** V8: cada ID é o UUIDv5 da sua chave (D-086); importar de novo dá os mesmos IDs. */
+/**
+ * V8: Garante que cada ID oficial seja de fato o UUIDv5 determinístico da sua chave (D-086).
+ * Isso assegura que re-importar os mesmos dados gera sempre os mesmos IDs.
+ */
 export function checkIds(seed: SeedFile): string[] {
   const all = [seed.stops, seed.lines, seed.patterns, seed.patternStops, seed.timetables, seed.trips, seed.stopTimes];
   return all.flat().flatMap((x) => (x.id === officialId(x.key) ? [] : [`V8: ID de ${x.key} não é o UUIDv5 da chave`]));

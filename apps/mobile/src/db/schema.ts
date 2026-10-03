@@ -1,3 +1,4 @@
+/** Definições de tabelas Drizzle ORM que descrevem o esquema completo do banco de dados. */
 /**
  * Esquema do banco do MVP (E-01 §4). Convenções da P-03 (C1–C6) e ADR-0002:
  * - Toda tabela tem as colunas comuns da §4.2; tabelas de rede e programação têm `official_key` único.
@@ -9,7 +10,10 @@ import { integer, real, sqliteTable, text, unique } from "drizzle-orm/sqlite-cor
 
 export type Source = "user" | "official" | "official_edited";
 
-/** Colunas comuns (§4.2). */
+/**
+ * Retorna as colunas comuns para todas as tabelas (ID único, timestamps, soft delete e origem).
+ * O Drizzle exige instanciar as colunas para cada tabela (não podemos reusar a mesma referência).
+ */
 const common = () => ({
   id: text("id").primaryKey(), // UUIDv7 (aparelho) ou UUIDv5 do official_key (D-086)
   createdAt: integer("created_at").notNull(),
@@ -45,7 +49,9 @@ export const dataset = sqliteTable("dataset", {
   checksum: text("checksum").notNull(),
 });
 
-/** Ponto físico (D-015). */
+/**
+ * Representa um Ponto físico onde ônibus podem parar (D-015).
+ */
 export const stop = sqliteTable("stop", {
   ...officialCommon(),
   networkId: text("network_id").notNull(),
@@ -72,7 +78,10 @@ export const pattern = sqliteTable("pattern", {
   isCircular: integer("is_circular", { mode: "boolean" }).notNull().default(false),
 });
 
-/** Unidade de tudo que é horário (Fase 1). */
+/**
+ * Mapeia uma parada num percurso, registrando sua posição na sequência.
+ * Define se esta parada serve como ponto de controle de horário (timepoint).
+ */
 export const patternStop = sqliteTable(
   "pattern_stop",
   {

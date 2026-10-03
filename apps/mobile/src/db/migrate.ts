@@ -1,3 +1,4 @@
+/** Utilitários para rodar migrações seguras no banco de dados SQLite. */
 /**
  * Migração protegida (E-01 §6, primeira camada da D-082). Sem expo-sqlite aqui: o celular e os testes
  * no Node usam este mesmo código, cada um com o seu adaptador (`open.ts` e `testing/nodeSqlite.ts`).
@@ -37,6 +38,10 @@ export const BACKUPS_TO_KEEP = 3;
 const BACKUP_PREFIX = "notebus-backup-";
 
 /** O que a tela mostra como "Não foi possível atualizar os dados; nada foi perdido". */
+/**
+ * Erro lançado quando a migração falha no meio e o banco de dados volta ao estado anterior.
+ * Fica para a tela mostrar ao usuário "Não foi possível atualizar os dados; nada foi perdido".
+ */
 export class MigrationFailedError extends Error {
   readonly code = "migration_failed";
   constructor(

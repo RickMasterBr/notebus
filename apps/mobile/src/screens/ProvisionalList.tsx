@@ -1,3 +1,4 @@
+/** Tela provisória para visualização em árvore das linhas importadas e seus detalhes. */
 /**
  * Lista provisória (E-01 bloco 4b), jogada fora na E-02: linhas → percursos → viagens → paragens com horário.
  * Serve para conferir a importação contra o site da MOBILIS. Sem especificação própria: só selo de linha (§5.3),
@@ -18,12 +19,19 @@ import { ListRow } from "../ui/ListRow";
 
 type Db = Parameters<typeof listLines>[0];
 
+/**
+ * Representa as etapas de navegação (drill-down) dentro da lista provisória.
+ */
 type Step =
   | { kind: "lines" }
   | { kind: "patterns"; line: LineItem }
   | { kind: "trips"; line: LineItem; pattern: PatternItem }
   | { kind: "times"; line: LineItem; pattern: PatternItem; trip: TripItem };
 
+/**
+ * Hook utilitário para carregar dados assíncronos e evitar memory leaks
+ * (ignora a resposta se o componente/effect foi desmontado).
+ */
 function useLoad<T>(load: () => Promise<T>, deps: unknown[]): T | null {
   const [value, setValue] = useState<T | null>(null);
   useEffect(() => {
@@ -38,6 +46,11 @@ function useLoad<T>(load: () => Promise<T>, deps: unknown[]): T | null {
   return value;
 }
 
+/**
+ * Tela provisória (apenas E-01) para navegar pelos dados da MOBILIS
+ * a fim de checar sanidade da importação. Exibe uma árvore iterativa:
+ * Linhas -> Sentidos (Percursos) -> Viagens -> Horários nas Paradas.
+ */
 export function ProvisionalList({ db }: { db: Db }) {
   const { colors } = useTheme();
   const [stack, setStack] = useState<Step[]>([{ kind: "lines" }]);

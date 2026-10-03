@@ -1,3 +1,4 @@
+/** Arquivo com regras de negócio e validações de invariantes de percurso. */
 /**
  * Invariantes da Fase 1 §3 que cabem no domínio sem casamento nem cálculo de horário (E-01 §4.7).
  * Cada função devolve `null` se está tudo certo, ou uma frase curta dizendo o que está errado.
@@ -8,7 +9,13 @@
  * - 7 (hora do aparelho sempre convertida para o fuso da rede) é o cálculo de horário → E-02.
  */
 
-/** Invariante 1: as posições de um percurso são 1…n, sem buracos e sem repetição. */
+/**
+ * Invariante 1: Verifica se as posições de um percurso formam uma sequência contínua (1...n).
+ * Não pode haver buracos ou repetições para garantir uma ordem lógica nas paradas.
+ *
+ * @param positions - Array de números representando as posições
+ * @returns Retorna a mensagem de erro se houver falha, ou `null` se estiver tudo certo.
+ */
 export function checkPatternPositions(positions: readonly number[]): string | null {
   const sorted = [...positions].sort((a, b) => a - b);
   for (let i = 0; i < sorted.length; i++) {
@@ -17,7 +24,13 @@ export function checkPatternPositions(positions: readonly number[]): string | nu
   return null;
 }
 
-/** Invariante 2: os horários de uma viagem não diminuem ao longo das posições. */
+/**
+ * Invariante 2: Verifica se o tempo de serviço numa viagem é progressivo ou estático.
+ * O ônibus não pode voltar no tempo ao avançar para a próxima posição.
+ *
+ * @param stopTimes - Tempos agendados com sua respectiva posição no percurso.
+ * @returns Mensagem detalhando qual posição e minuto violou a ordem, ou `null`.
+ */
 export function checkTripTimes(
   stopTimes: readonly { position: number; serviceMinute: number }[],
 ): string | null {
@@ -32,7 +45,15 @@ export function checkTripTimes(
   return null;
 }
 
-/** Invariante 3: numa opção de ônibus, a descida vem depois do embarque, no mesmo percurso. */
+/**
+ * Invariante 3: Valida a lógica fundamental de uma viagem de ônibus.
+ * O passageiro deve embarcar e desembarcar no mesmo percurso, e o desembarque
+ * obrigatoriamente ocorre em uma posição adiante.
+ *
+ * @param board - Dados do local de embarque
+ * @param alight - Dados do local de desembarque
+ * @returns Mensagem se as condições falharem, ou `null`.
+ */
 export function checkBusOption(
   board: { patternId: string; position: number },
   alight: { patternId: string; position: number },
@@ -42,7 +63,14 @@ export function checkBusOption(
   return null;
 }
 
-/** Invariante 4: observação em intervalo tem início ≤ fim e no máximo 30 min. Instantes em epoch ms. */
+/**
+ * Invariante 4: Valida um intervalo de observação garantindo coerência temporal.
+ * O tempo final não pode anteceder o tempo inicial e o período completo é limitado a 30 minutos.
+ *
+ * @param observedAt - Instante inicial da observação (epoch ms)
+ * @param observedEndAt - Instante final opcional (epoch ms)
+ * @returns Mensagem se o intervalo for negativo ou estourar o limite, ou `null`.
+ */
 export function checkObservationInterval(observedAt: number, observedEndAt: number | null): string | null {
   if (observedEndAt === null) return null;
   if (observedEndAt < observedAt) return "fim antes do início";

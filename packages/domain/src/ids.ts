@@ -1,3 +1,4 @@
+/** Arquivo de domínio para geração e formatação de IDs e hashes. */
 /**
  * IDs do banco (D-086).
  *
@@ -12,18 +13,36 @@
  */
 export const OFFICIAL_ID_NAMESPACE = "3c25269e-baff-4b19-93b9-fef99a620802";
 
-/** ID de um dado oficial: UUIDv5 do `official_key` no namespace do NoteBus. */
+/**
+ * ID de um dado oficial: UUIDv5 do `official_key` no namespace do NoteBus.
+ *
+ * @param officialKey - A chave oficial estável (ex: mobilis/2026/L1)
+ * @returns Um UUIDv5 determinístico
+ */
 export function officialId(officialKey: string): string {
   if (officialKey.length === 0) throw new Error("official_key vazio");
   return uuidv5(officialKey, OFFICIAL_ID_NAMESPACE);
 }
 
-/** SHA-1 em hexadecimal do texto (UTF-8). Serve de `checksum` do arquivo importado, não de segurança. */
+/**
+ * Calcula o SHA-1 em hexadecimal do texto (UTF-8).
+ * Serve de `checksum` do arquivo importado para verificar integridade, não para segurança.
+ *
+ * @param text - Texto de entrada
+ * @returns String hexadecimal do SHA-1
+ */
 export function sha1Hex(text: string): string {
   return Array.from(sha1(utf8(text)), (x) => x.toString(16).padStart(2, "0")).join("");
 }
 
-/** UUIDv5 (RFC 9562 §5.5): SHA-1 de namespace + nome. */
+/**
+ * Gera um UUIDv5 (RFC 9562 §5.5) baseado no SHA-1 do namespace combinado com o nome.
+ * Isso garante que a mesma entrada sempre gere o mesmo UUID.
+ *
+ * @param name - O nome ou chave para converter
+ * @param namespace - O namespace em formato UUID
+ * @returns Um UUIDv5 determinístico
+ */
 export function uuidv5(name: string, namespace: string): string {
   const ns = parseUuid(namespace);
   const nameBytes = utf8(name);
@@ -37,8 +56,13 @@ export function uuidv5(name: string, namespace: string): string {
 }
 
 /**
- * UUIDv7 (RFC 9562 §5.7): 48 bits de epoch ms + 74 bits aleatórios.
+ * Gera um UUIDv7 (RFC 9562 §5.7) que é ordenável no tempo:
+ * 48 bits de epoch ms + 74 bits aleatórios.
  * `fillRandom` é injetável para teste; por padrão usa `crypto.getRandomValues` se existir.
+ *
+ * @param nowMs - Timestamp em milissegundos
+ * @param fillRandom - Função para injetar aleatoriedade (útil para testes)
+ * @returns Um UUIDv7 ordenável no tempo
  */
 export function uuidv7(nowMs: number = Date.now(), fillRandom: (b: Uint8Array) => void = defaultRandom): string {
   const bytes = new Uint8Array(16);
@@ -53,6 +77,10 @@ export function uuidv7(nowMs: number = Date.now(), fillRandom: (b: Uint8Array) =
   return formatUuid(bytes);
 }
 
+/**
+ * Preenche o array de bytes com valores aleatórios.
+ * Tenta usar crypto nativo (ambiente web/node moderno), caso não exista usa Math.random.
+ */
 function defaultRandom(b: Uint8Array): void {
   const c = (globalThis as { crypto?: { getRandomValues?: (a: Uint8Array) => Uint8Array } }).crypto;
   if (c?.getRandomValues) {
@@ -63,6 +91,9 @@ function defaultRandom(b: Uint8Array): void {
   for (let i = 0; i < b.length; i++) b[i] = Math.floor(Math.random() * 256);
 }
 
+/**
+ * Converte uma string UUID em um array de bytes para as operações criptográficas.
+ */
 function parseUuid(uuid: string): Uint8Array {
   const hex = uuid.replace(/-/g, "");
   if (!/^[0-9a-f]{32}$/i.test(hex)) throw new Error(`UUID inválido: ${uuid}`);
@@ -71,11 +102,18 @@ function parseUuid(uuid: string): Uint8Array {
   return out;
 }
 
+/**
+ * Formata um array de bytes no padrão UUID (8-4-4-4-12 hex).
+ */
 function formatUuid(b: Uint8Array): string {
   const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
 }
 
+/**
+ * Converte uma string para um array de bytes UTF-8 para cálculos de hash.
+ * Feito manualmente para não depender de TextEncoder em certos ambientes.
+ */
 function utf8(s: string): Uint8Array {
   const out: number[] = [];
   for (const ch of s) {
@@ -88,7 +126,10 @@ function utf8(s: string): Uint8Array {
   return Uint8Array.from(out);
 }
 
-/** SHA-1 mínimo, só para o UUIDv5 (o domínio é TypeScript puro, sem crypto do Node). */
+/**
+ * Implementação mínima de SHA-1, usada apenas para o UUIDv5.
+ * Mantida no domínio para ser TypeScript puro, sem depender do módulo crypto do Node.
+ */
 function sha1(msg: Uint8Array): Uint8Array {
   const bitLen = msg.length * 8;
   const padded = new Uint8Array(Math.ceil((msg.length + 9) / 64) * 64);

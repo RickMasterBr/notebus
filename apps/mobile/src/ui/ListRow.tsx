@@ -1,8 +1,15 @@
+/** Componente base para renderizar linhas clicáveis padronizadas em listas. */
 /** Linha de lista (4.4 §5.12), variantes simples e com selo: título + valor secundário, separador, alvo ≥ 44 px. */
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { minTouch, space, type, useTheme } from "../theme";
 
+/**
+ * Componente que renderiza uma linha padronizada de lista.
+ * Possui área de toque mínima de 44px (Acessibilidade).
+ * Aceita um elemento opcional à esquerda (`leading`), um título principal,
+ * e um texto secundário à direita.
+ */
 export function ListRow({
   title,
   secondary,
