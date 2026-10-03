@@ -9,6 +9,7 @@ import { useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStopIndex } from "../data/StopIndexProvider";
+import { stopIdDetail } from "../data/stopIdDetail";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CrossGlyph, SearchGlyph } from "../ui/Glyphs";
@@ -85,6 +86,7 @@ export function SearchSheet() {
                 <ListRow
                   key={stop.id}
                   title={stop.name}
+                  detail={stopIdDetail(stop.externalId)}
                   secondary={stop.lines.join(", ")}
                   accessibilityLabel={
                     stop.lines.length > 0

@@ -4,7 +4,7 @@
  * Médio e grande mostram "Perto de você" (4.1 §4); o que a 4.1 lista para o grande (Trajetos, Registros recentes,
  * Rede e Ajustes) ainda não existe e não aparece.
  */
-import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetScrollView, useBottomSheet } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, StyleSheet, View } from "react-native";
@@ -25,7 +25,6 @@ export function HomeSheet() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useSheets();
-  const ref = useRef<BottomSheet>(null);
   const lastIndex = useRef<number | null>(null);
   const [handleHeight, setHandleHeight] = useState(0);
   const [pillHeight, setPillHeight] = useState(0);
@@ -53,19 +52,8 @@ export function HomeSheet() {
     [dispatch],
   );
 
-  const Handle = useCallback(
-    () => (
-      <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
-        <SheetHandle
-          kind="adjustable"
-          detent={state.detent}
-          onIncrement={() => ref.current?.snapToIndex(Math.min(state.detent + 1, LAST_INDEX))}
-          onDecrement={() => ref.current?.snapToIndex(Math.max(state.detent - 1, 0))}
-        />
-      </View>
-    ),
-    [state.detent],
-  );
+  // Identidade estável: um `handleComponent` novo a cada troca de detent remonta o handle no fim do gesto.
+  const Handle = useCallback(() => <HomeHandle onHeight={setHandleHeight} />, []);
 
   return (
     <View
@@ -75,7 +63,6 @@ export function HomeSheet() {
       importantForAccessibility={covered ? "no-hide-descendants" : "auto"}
     >
       <BottomSheet
-        ref={ref}
         index={0}
         animateOnMount={false}
         snapPoints={snapPoints}
@@ -87,7 +74,8 @@ export function HomeSheet() {
         style={elevation.sheet}
         backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
       >
-        <BottomSheetView style={styles.content}>
+        {/* `View` comum, não `BottomSheetView`: ver `StackedSheet` (a lista perde a rolagem e o tamanho). */}
+        <View style={styles.content}>
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
             <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
           </View>
@@ -104,7 +92,7 @@ export function HomeSheet() {
               <NearbyStops />
             </BottomSheetScrollView>
           </View>
-        </BottomSheetView>
+        </View>
       </BottomSheet>
     </View>
   );
@@ -114,3 +102,19 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: space.md },
   scroll: { flex: 1 },
 });
+
+/** Handle da folha inicial: o rótulo e o valor acompanham o detent; os ajustes do VoiceOver movem a folha. */
+function HomeHandle({ onHeight }: { onHeight: (height: number) => void }) {
+  const { state } = useSheets();
+  const { snapToIndex } = useBottomSheet();
+  return (
+    <View collapsable={false} onLayout={(e) => onHeight(e.nativeEvent.layout.height)}>
+      <SheetHandle
+        kind="adjustable"
+        detent={state.detent}
+        onIncrement={() => snapToIndex(Math.min(state.detent + 1, LAST_INDEX))}
+        onDecrement={() => snapToIndex(Math.max(state.detent - 1, 0))}
+      />
+    </View>
+  );
+}

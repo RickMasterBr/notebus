@@ -6,7 +6,7 @@
  */
 import BottomSheet, { BottomSheetBackdrop, type BottomSheetBackdropProps, BottomSheetView } from "@gorhom/bottom-sheet";
 import { type ReactNode, useCallback, useRef } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "../i18n";
@@ -89,9 +89,14 @@ export function StackedSheet({ children, tall = false }: { children: ReactNode; 
         style={elevation.sheet}
         backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
       >
-        <BottomSheetView style={[styles.content, tall ? styles.tall : null, { paddingBottom: tall ? 0 : insets.bottom + space.md }]}>
-          {children}
-        </BottomSheetView>
+        {tall ? (
+          // Folha alta com lista: `View` comum, não `BottomSheetView`. A `BottomSheetView` é absoluta e sem altura (a lista
+          // dentro dela cresce até o fim do conteúdo e é cortada) e, ao montar depois da lista, troca o tipo de rolagem
+          // registrado de "rolável" para "vista", e a folha passa a arrastar em vez de rolar.
+          <View style={[styles.content, styles.tall]}>{children}</View>
+        ) : (
+          <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + space.md }]}>{children}</BottomSheetView>
+        )}
       </BottomSheet>
     </Animated.View>
   );
