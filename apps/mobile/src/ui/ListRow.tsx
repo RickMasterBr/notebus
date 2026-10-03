@@ -1,7 +1,7 @@
 /** Componente base para renderizar linhas clicáveis padronizadas em listas. */
 /** Linha de lista (4.4 §5.12), variantes simples e com selo: título + valor secundário, separador, alvo ≥ 44 px. */
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { minTouch, space, type, useTheme } from "../theme";
 
 /**
@@ -12,12 +12,15 @@ import { minTouch, space, type, useTheme } from "../theme";
  */
 export function ListRow({
   title,
+  detail,
   secondary,
   leading,
   onPress,
   accessibilityLabel,
 }: {
   title: string;
+  /** Valor secundário sob o título (ex.: o ID de um ponto), em `type.caption`. */
+  detail?: string;
   secondary?: string;
   leading?: ReactNode;
   onPress?: () => void;
@@ -37,7 +40,10 @@ export function ListRow({
       ]}
     >
       {leading}
-      <Text style={[type.body, styles.title, { color: colors.text }]}>{title}</Text>
+      <View style={styles.title}>
+        <Text style={[type.body, { color: colors.text }]}>{title}</Text>
+        {detail ? <Text style={[type.caption, { color: colors.textSecondary }]}>{detail}</Text> : null}
+      </View>
       {secondary ? <Text style={[type.caption, { color: colors.textSecondary }]}>{secondary}</Text> : null}
     </Pressable>
   );
