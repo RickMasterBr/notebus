@@ -4,6 +4,11 @@ name: ios
 on:
   workflow_dispatch:
     inputs:
+      variante:
+        description: "normal = NoteBus de sempre; dev = 'NoteBus Dev', outro app (com.rickmasterbr.notebus.dev), instala ao lado, com banco próprio."
+        type: choice
+        default: normal
+        options: [normal, dev]
       test_migration:
         description: "Build de teste (A6/A7): nenhuma, add_column ou fail. Em build normal, deixe 'nenhuma'."
         type: choice
@@ -15,6 +20,8 @@ jobs:
   ipa:
     runs-on: macos-latest
     env:
+      # Em tag, `inputs` vem vazio e a variante é a normal (o app.config.ts trata qualquer coisa que não seja "dev" como normal).
+      NOTEBUS_VARIANT: ${{ inputs.variante }}
       # Vazio em build normal e em tag; a migração de teste só liga se você escolher na mão.
       EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION: ${{ inputs.test_migration != 'nenhuma' && inputs.test_migration || '' }}
     steps:
@@ -47,5 +54,5 @@ jobs:
           ls -lh NoteBus.ipa
       - uses: actions/upload-artifact@v4
         with:
-          name: NoteBus-ipa${{ env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION && format('-{0}', env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION) || '' }}
+          name: NoteBus-ipa${{ env.NOTEBUS_VARIANT == 'dev' && '-dev' || '' }}${{ env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION && format('-{0}', env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION) || '' }}
           path: apps/mobile/ios/NoteBus.ipa

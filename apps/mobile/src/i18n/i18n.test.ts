@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { t } from "./index";
 import { ptBR } from "./pt-BR";
@@ -15,5 +18,31 @@ describe("t()", () => {
   });
   it("toda chave tem texto", () => {
     for (const [key, text] of Object.entries(ptBR)) expect(text.length, key).toBeGreaterThan(0);
+  });
+});
+
+describe("textos usados nas telas", () => {
+  it("toda chave passada a t() no código existe no catálogo", () => {
+    const root = fileURLToPath(new URL("..", import.meta.url));
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) files.push(path);
+      }
+    };
+    walk(root);
+    const used = new Set<string>();
+    for (const file of files) {
+      for (const match of readFileSync(file, "utf8").matchAll(/\bt\(\s*"([\w.]+)"/g)) used.add(match[1]!);
+    }
+    expect(used.size).toBeGreaterThan(0);
+    for (const key of used) expect(key in ptBR, `chave "${key}" não está em pt-BR.ts`).toBe(true);
+  });
+
+  it("as chaves da 4.6 usadas na folha inicial têm o texto da 4.6", () => {
+    expect(t("home.search_placeholder")).toBe("Buscar ponto, linha ou lugar");
+    expect(t("common.close")).toBe("Fechar");
   });
 });

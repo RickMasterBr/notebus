@@ -16,6 +16,14 @@ export interface ColorTokens {
   warning: string;
   /** Trilho do switch desligado (D-067, refina a D-055). */
   switchTrackOff: string;
+  /**
+   * Do canvas da 4.5 (Main.dc.html), que a 4.4 não lista (Q-51): fundo da pílula de busca sobre a folha
+   * (a 4.4 §5.9 diz `surface`, que some contra a folha) e cor do handle (a 4.4 §5.11 diz `divider`).
+   */
+  fill: string;
+  grab: string;
+  /** Fundo que escurece a folha de baixo quando outra é empilhada: 28% claro, 50% escuro (4.5 §2.5, D-043). */
+  scrim: string;
 }
 
 /**
@@ -34,6 +42,9 @@ export const colors: { light: ColorTokens; dark: ColorTokens } = {
     danger: "#C62828",
     warning: "#9A5B00",
     switchTrackOff: "#8A8A8E",
+    fill: "#F0F0ED",
+    grab: "#C7C7C2",
+    scrim: "rgba(0,0,0,0.28)",
   },
   dark: {
     bg: "#121314",
@@ -46,6 +57,9 @@ export const colors: { light: ColorTokens; dark: ColorTokens } = {
     danger: "#FF8A80",
     warning: "#FFC46B",
     switchTrackOff: "#48494D",
+    fill: "#2C2D30",
+    grab: "#48494D",
+    scrim: "rgba(0,0,0,0.5)",
   },
 };
 

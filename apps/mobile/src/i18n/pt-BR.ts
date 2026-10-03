@@ -3,6 +3,7 @@
  * Fonte: docs/ux/4.6-conteudo-e-a11y.md §3 (chave `tela.elemento[.variante]`, placeholders `{{x}}`).
  */
 export const ptBR = {
+  "common.close": "Fechar",
   "common.day_type.weekday": "dia útil",
   "common.day_type.saturday": "Sábado",
   "common.day_type.sunday_holiday": "Domingo/feriado",
@@ -17,6 +18,7 @@ export const ptBR = {
   "first_run.importing": "Importando {{count}} linhas…",
   "first_run.import_invalid": "Não foi possível importar. O arquivo não está no formato esperado.",
   "first_run.import_failed": "Não foi possível importar. Nada foi alterado. Tente de novo.",
+  "home.search_placeholder": "Buscar ponto, linha ou lugar",
   "home.empty.title": "Comece pelo ponto onde você pega o ônibus",
   "home.empty.body": "Cadastre o ponto e as linhas que passam nele. O horário vem do que você anotar.",
   "home.empty.action": "Cadastrar meu ponto",

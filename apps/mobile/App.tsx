@@ -1,11 +1,12 @@
-import { View } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
 import { pickAndImport } from "./src/db/importFromFile";
 import { expoImportDb, openNotebusDb } from "./src/db/open";
 import { FirstRun } from "./src/screens/FirstRun";
-import { ProvisionalList } from "./src/screens/ProvisionalList";
+import { Home } from "./src/screens/Home";
 import { MigrationNotice } from "./src/ui/MigrationNotice";
 
 type Db = Awaited<ReturnType<typeof openNotebusDb>>["db"];
@@ -31,27 +32,29 @@ export default function App() {
   if (!db || phase === "loading") return null;
 
   return (
-    <View style={{ flex: 1 }}>
-      {migrationFailed ? <MigrationNotice /> : null}
-      {phase === "read_only_empty" ? null : phase === "first_run" ? (
-        <FirstRun
-          onImport={async (onCount) => {
-            const result = await pickAndImport(expoImportDb(db.$client), onCount);
-            if (result.status === "done") {
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        {migrationFailed ? <MigrationNotice /> : null}
+        {phase === "read_only_empty" ? null : phase === "first_run" ? (
+          <FirstRun
+            onImport={async (onCount) => {
+              const result = await pickAndImport(expoImportDb(db.$client), onCount);
+              if (result.status === "done") {
+                await markFirstRunDone(db);
+                setPhase("list");
+              }
+              return result.status;
+            }}
+            onStartEmpty={async () => {
               await markFirstRunDone(db);
               setPhase("list");
-            }
-            return result.status;
-          }}
-          onStartEmpty={async () => {
-            await markFirstRunDone(db);
-            setPhase("list");
-          }}
-        />
-      ) : (
-        <ProvisionalList db={db} />
-      )}
-      <StatusBar style="auto" />
-    </View>
+            }}
+          />
+        ) : (
+          <Home />
+        )}
+        <StatusBar style="auto" />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
