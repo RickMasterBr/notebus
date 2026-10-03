@@ -23,6 +23,7 @@ import { initialDetent } from "../data/homeStart";
 import { t } from "../i18n";
 import { elevation, radius, space, useTheme } from "../theme";
 import { SearchPill } from "../ui/SearchPill";
+import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
@@ -148,6 +149,8 @@ export function HomeSheet() {
               showsVerticalScrollIndicator={false}
             >
               <NearbyStops />
+              {/* Bloco 5b: cobre a parte da área de rolagem que fica abaixo da borda da tela nos detents menores. */}
+              <HiddenBelowSpacer snapPoints={snapPoints} />
             </BottomSheetScrollView>
           </View>
         </View>
