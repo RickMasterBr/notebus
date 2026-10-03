@@ -5,16 +5,36 @@
  * Vai como último filho do `BottomSheetScrollView`, depois do conteúdo e antes do `paddingBottom` da área segura.
  */
 import { useBottomSheet } from "@gorhom/bottom-sheet";
-import { useWindowDimensions } from "react-native";
-import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { type LayoutChangeEvent, useWindowDimensions } from "react-native";
+import Animated, { runOnJS, useAnimatedReaction, useAnimatedStyle } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { containerHeightOf, hiddenBelow, highestPosition, type SnapPoint } from "./scrollInset";
 
-export function HiddenBelowSpacer({ snapPoints }: { snapPoints: readonly SnapPoint[] }) {
+export function HiddenBelowSpacer({
+  snapPoints,
+  onLayout,
+  onAnimatedHeight,
+}: {
+  snapPoints: readonly SnapPoint[];
+  onLayout?: (e: LayoutChangeEvent) => void;
+  onAnimatedHeight?: (val: number) => void;
+}) {
   const { animatedPosition } = useBottomSheet();
   const window = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const highest = highestPosition(snapPoints, containerHeightOf(window.height, insets.top));
   const style = useAnimatedStyle(() => ({ height: hiddenBelow(animatedPosition.value, highest) }), [animatedPosition, highest]);
-  return <Animated.View pointerEvents="none" style={style} />;
+
+  useAnimatedReaction(
+    () => hiddenBelow(animatedPosition.value, highest),
+    (val, prev) => {
+      if (onAnimatedHeight && (prev === null || Math.abs(val - prev) >= 1)) {
+        runOnJS(onAnimatedHeight)(Math.round(val));
+      }
+    },
+    [animatedPosition, highest, onAnimatedHeight]
+  );
+
+  return <Animated.View pointerEvents="none" style={style} onLayout={onLayout} />;
 }
+

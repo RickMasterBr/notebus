@@ -37,7 +37,13 @@ import { Skeleton } from "../ui/Skeleton";
 import { StopCardView } from "../ui/StopCardView";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
 import { ScrollView as RNGHScrollView } from "react-native-gesture-handler";
-import { DiagScrollPanel, useScrollVariant } from "./diagScroll";
+import {
+  DiagScrollPanel,
+  onResetScrollVariant,
+  useScrollVariant,
+  type DiagLayoutEvent,
+  type DiagNativeScrollMetrics,
+} from "./diagScroll";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
@@ -138,7 +144,127 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   const savedOffsetRef = useRef(0);
   const scrollRef = useRef<any>(null);
 
+  const mountTimeRef = useRef(performance.now());
+  const orderRef = useRef(0);
+  const [layoutEvents, setLayoutEvents] = useState<DiagLayoutEvent[]>([]);
+
+  const addLayoutEvent = useCallback(
+    (level: DiagLayoutEvent["level"], h?: number, y?: number, w?: number, extra?: string) => {
+      const order = ++orderRef.current;
+      const ms = Math.round(performance.now() - mountTimeRef.current);
+      console.log(
+        `[E02] #${order} +${ms}ms [${level}] h=${h !== undefined ? Math.round(h) : "-"} y=${y !== undefined ? Math.round(y) : "-"} ${extra ?? ""}`
+      );
+      setLayoutEvents((prev) => [
+        ...prev.slice(-15),
+        {
+          order,
+          ms,
+          level,
+          h: h !== undefined ? Math.round(h) : undefined,
+          y: y !== undefined ? Math.round(y) : undefined,
+          w: w !== undefined ? Math.round(w) : undefined,
+          extra,
+        },
+      ]);
+    },
+    []
+  );
+
+  const onRootLayout = useCallback(
+    (e: any) => {
+      addLayoutEvent("root", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+    },
+    [addLayoutEvent]
+  );
+
+  const onContentLayout = useCallback(
+    (e: any) => {
+      addLayoutEvent("content", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+    },
+    [addLayoutEvent]
+  );
+
+  const scrollLiveRef = useRef<DiagNativeScrollMetrics>({
+    layoutH: 0,
+    contentH: 0,
+    offsetY: 0,
+    insetBottom: 0,
+    onScrollCount: 0,
+    beginDragCount: 0,
+    endDragCount: 0,
+  });
+  const [displayedScrollMetrics, setDisplayedScrollMetrics] = useState<DiagNativeScrollMetrics>({
+    ...scrollLiveRef.current,
+  });
+
+  // Atualiza métricas nativas de rolagem no painel a ~10 Hz (a cada 100 ms) sem setState a cada evento de scroll
+  useEffect(() => {
+    const t = setInterval(() => {
+      setDisplayedScrollMetrics({ ...scrollLiveRef.current });
+    }, 100);
+    return () => clearInterval(t);
+  }, []);
+
+  const [spacerMeasured, setSpacerMeasured] = useState(0);
+  const [spacerAnimated, setSpacerAnimated] = useState(0);
+
+  // Ao trocar de variante, zerar viewport, conteúdo, offset e buffer de eventos
+  useEffect(() => {
+    return onResetScrollVariant(() => {
+      setViewportHeight(0);
+      setContentHeight(0);
+      setContentOffsetY(0);
+      setBodyContentHeight(0);
+      setSpacerMeasured(0);
+      setSpacerAnimated(0);
+      setLayoutEvents([]);
+      scrollLiveRef.current = {
+        layoutH: 0,
+        contentH: 0,
+        offsetY: 0,
+        insetBottom: 0,
+        onScrollCount: 0,
+        beginDragCount: 0,
+        endDragCount: 0,
+      };
+      setDisplayedScrollMetrics({ ...scrollLiveRef.current });
+    });
+  }, []);
+
+  const handleScroll = useCallback((e: any) => {
+    const ne = e.nativeEvent;
+    const y = ne.contentOffset?.y ?? 0;
+    setContentOffsetY(y);
+    savedOffsetRef.current = y;
+    scrollLiveRef.current.layoutH = ne.layoutMeasurement?.height ?? 0;
+    scrollLiveRef.current.contentH = ne.contentSize?.height ?? 0;
+    scrollLiveRef.current.offsetY = y;
+    scrollLiveRef.current.insetBottom = ne.contentInset?.bottom ?? 0;
+    scrollLiveRef.current.onScrollCount++;
+  }, []);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    scrollLiveRef.current.beginDragCount++;
+  }, []);
+
+  const handleScrollEndDrag = useCallback(() => {
+    scrollLiveRef.current.endDragCount++;
+  }, []);
+
+  const handleAnimate = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      const ms = Math.round(performance.now() - mountTimeRef.current);
+      scrollLiveRef.current.lastAnimate = { from: fromIndex, to: toIndex, ms };
+      addLayoutEvent("animate", undefined, undefined, undefined, `${fromIndex}->${toIndex}`);
+    },
+    [addLayoutEvent]
+  );
+
   const onChange = useCallback((index: number) => {
+    const ms = Math.round(performance.now() - mountTimeRef.current);
+    scrollLiveRef.current.lastChange = { index, ms };
+    addLayoutEvent("change", undefined, undefined, undefined, `index=${index}`);
     // `selectionAsync` quando a folha encaixa num detent diferente (4.5 §2.6); a abertura não conta.
     if (lastIndex.current !== null && lastIndex.current !== index) void Haptics.selectionAsync();
     lastIndex.current = index;
@@ -152,7 +278,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
     if (latestWrapperHeightRef.current > 0) {
       setSettledVisibleHeight(latestWrapperHeightRef.current);
     }
-  }, []);
+  }, [addLayoutEvent]);
 
   const small =
     handleHeight > 0 && cardHeight > 0
@@ -210,6 +336,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
       onLayout={(e) => {
         const h = e.nativeEvent.layout.height;
         if (h > 0) setBodyContentHeight(h);
+        addLayoutEvent("body", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
       }}
     >
       <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}>
@@ -279,15 +406,25 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
       sheetKind="stop"
       metrics={{
         detent,
-        animatedPosition: 0,
         viewportHeight: effectiveViewport,
         contentHeight: effectiveContent,
-        spacerHeight: variant === "V0" ? 318.8 : 0,
         contentOffsetY,
         maxScrollOffset: maxOffset,
         activeChip: dayType ?? "hoje",
-        scrollableStatus: "UNLOCKED",
       }}
+      nativeScroll={displayedScrollMetrics}
+      geometry={{
+        windowHeight: Math.round(window.height),
+        topInset: Math.round(insets.top),
+        bottomInset: Math.round(insets.bottom),
+        containerHeight: Math.round(containerH),
+        snapPoints: detents.snapPoints,
+      }}
+      spacerMetrics={{
+        measured: spacerMeasured,
+        animated: spacerAnimated,
+      }}
+      events={layoutEvents}
     />
   );
 
@@ -295,14 +432,23 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   if (variant === "V3") {
     return (
       <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} tall>
+        <StackedSheet id={id} tall onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
           {diagPanel}
           <BottomSheetScrollView
             contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
             showsVerticalScrollIndicator={false}
-            onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-            onContentSizeChange={(_w, h) => setContentHeight(h)}
-            onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+            onScroll={handleScroll}
+            onScrollBeginDrag={handleScrollBeginDrag}
+            onScrollEndDrag={handleScrollEndDrag}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0) setViewportHeight(h);
+              addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+            }}
+            onContentSizeChange={(w, h) => {
+              if (h > 0) setContentHeight(h);
+              addLayoutEvent("contentSize", h, undefined, w);
+            }}
           >
             {listBody}
           </BottomSheetScrollView>
@@ -315,16 +461,30 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   if (variant === "V2") {
     return (
       <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents}>
+        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
           {diagPanel}
-          <View style={{ height: visibleHeight }}>
+          <View
+            style={{ height: visibleHeight }}
+            onLayout={(e) => {
+              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+            }}
+          >
             <RNGHScrollView
               contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
-              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-              onContentSizeChange={(_w, h) => setContentHeight(h)}
-              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
               scrollEventThrottle={16}
+              onScroll={handleScroll}
+              onScrollBeginDrag={handleScrollBeginDrag}
+              onScrollEndDrag={handleScrollEndDrag}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                if (h > 0) setViewportHeight(h);
+                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+              }}
+              onContentSizeChange={(w, h) => {
+                if (h > 0) setContentHeight(h);
+                addLayoutEvent("contentSize", h, undefined, w);
+              }}
             >
               {listBody}
             </RNGHScrollView>
@@ -338,15 +498,29 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   if (variant === "V1") {
     return (
       <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents}>
+        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
           {diagPanel}
-          <View style={{ height: visibleHeight }}>
+          <View
+            style={{ height: visibleHeight }}
+            onLayout={(e) => {
+              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+            }}
+          >
             <BottomSheetScrollView
               contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
-              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-              onContentSizeChange={(_w, h) => setContentHeight(h)}
-              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+              onScroll={handleScroll}
+              onScrollBeginDrag={handleScrollBeginDrag}
+              onScrollEndDrag={handleScrollEndDrag}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                if (h > 0) setViewportHeight(h);
+                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+              }}
+              onContentSizeChange={(w, h) => {
+                if (h > 0) setContentHeight(h);
+                addLayoutEvent("contentSize", h, undefined, w);
+              }}
             >
               {listBody}
             </BottomSheetScrollView>
@@ -360,15 +534,29 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   if (variant === "V4") {
     return (
       <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents}>
+        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
           {diagPanel}
-          <View style={{ height: staticHeight, overflow: "hidden" }}>
+          <View
+            style={{ height: staticHeight, overflow: "hidden" }}
+            onLayout={(e) => {
+              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+            }}
+          >
             <BottomSheetScrollView
               contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
-              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-              onContentSizeChange={(_w, h) => setContentHeight(h)}
-              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+              onScroll={handleScroll}
+              onScrollBeginDrag={handleScrollBeginDrag}
+              onScrollEndDrag={handleScrollEndDrag}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                if (h > 0) setViewportHeight(h);
+                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+              }}
+              onContentSizeChange={(w, h) => {
+                if (h > 0) setContentHeight(h);
+                addLayoutEvent("contentSize", h, undefined, w);
+              }}
             >
               {listBody}
             </BottomSheetScrollView>
@@ -382,15 +570,24 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   if (variant === "V5") {
     return (
       <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents}>
+        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
           {diagPanel}
           <BottomSheetScrollView
             key={`stop-scroll-${settled ? "settled" : "init"}`}
             contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
             showsVerticalScrollIndicator={false}
-            onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-            onContentSizeChange={(_w, h) => setContentHeight(h)}
-            onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+            onScroll={handleScroll}
+            onScrollBeginDrag={handleScrollBeginDrag}
+            onScrollEndDrag={handleScrollEndDrag}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0) setViewportHeight(h);
+              addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+            }}
+            onContentSizeChange={(w, h) => {
+              if (h > 0) setContentHeight(h);
+              addLayoutEvent("contentSize", h, undefined, w);
+            }}
           >
             {listBody}
           </BottomSheetScrollView>
@@ -403,16 +600,30 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   if (variant === "V6") {
     return (
       <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents}>
+        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
           {diagPanel}
-          <View style={{ height: staticHeight, overflow: "hidden" }}>
+          <View
+            style={{ height: staticHeight, overflow: "hidden" }}
+            onLayout={(e) => {
+              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+            }}
+          >
             <BottomSheetScrollView
               key={`stop-scroll-${settled ? "settled" : "init"}`}
               contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
-              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-              onContentSizeChange={(_w, h) => setContentHeight(h)}
-              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+              onScroll={handleScroll}
+              onScrollBeginDrag={handleScrollBeginDrag}
+              onScrollEndDrag={handleScrollEndDrag}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                if (h > 0) setViewportHeight(h);
+                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+              }}
+              onContentSizeChange={(w, h) => {
+                if (h > 0) setContentHeight(h);
+                addLayoutEvent("contentSize", h, undefined, w);
+              }}
             >
               {listBody}
             </BottomSheetScrollView>
@@ -426,24 +637,24 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   if (variant === "V7") {
     return (
       <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents}>
+        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
           {diagPanel}
           <BottomSheetScrollView
             ref={scrollRef}
             key={`stop-scroll-v7-${settledDetentKey}`}
             contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
             showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            onScrollBeginDrag={handleScrollBeginDrag}
+            onScrollEndDrag={handleScrollEndDrag}
             onLayout={(e) => {
               const h = e.nativeEvent.layout.height;
               if (h > 0) setViewportHeight(h);
+              addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
             }}
-            onContentSizeChange={(_w, h) => {
+            onContentSizeChange={(w, h) => {
               if (h > 0) setContentHeight(h);
-            }}
-            onScroll={(e) => {
-              const y = e.nativeEvent.contentOffset.y;
-              setContentOffsetY(y);
-              savedOffsetRef.current = y;
+              addLayoutEvent("contentSize", h, undefined, w);
             }}
           >
             {listBody}
@@ -458,7 +669,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
     const v8Height = settledVisibleHeight > 0 ? settledVisibleHeight : visibleHeight;
     return (
       <StopSheetContext.Provider value={context}>
-        <StackedSheet id={id} detents={detents}>
+        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
           {diagPanel}
           <View
             collapsable={false}
@@ -466,23 +677,33 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
             onLayout={(e) => {
               const h = e.nativeEvent.layout.height;
               latestWrapperHeightRef.current = h;
+              addLayoutEvent("wrapper", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width, "outer");
               if (settledVisibleHeight === 0 && h > 0) {
                 setSettledVisibleHeight(h);
               }
             }}
           >
-            <View style={{ height: v8Height, overflow: "hidden" }}>
+            <View
+              style={{ height: v8Height, overflow: "hidden" }}
+              onLayout={(e) => {
+                addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width, "inner");
+              }}
+            >
               <BottomSheetScrollView
                 contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
                 showsVerticalScrollIndicator={false}
+                onScroll={handleScroll}
+                onScrollBeginDrag={handleScrollBeginDrag}
+                onScrollEndDrag={handleScrollEndDrag}
                 onLayout={(e) => {
                   const h = e.nativeEvent.layout.height;
                   if (h > 0) setViewportHeight(h);
+                  addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
                 }}
-                onContentSizeChange={(_w, h) => {
+                onContentSizeChange={(w, h) => {
                   if (h > 0) setContentHeight(h);
+                  addLayoutEvent("contentSize", h, undefined, w);
                 }}
-                onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
               >
                 {listBody}
               </BottomSheetScrollView>
@@ -496,18 +717,31 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   // Variante V0: Comportamento atual (controle, bloco 5b com HiddenBelowSpacer)
   return (
     <StopSheetContext.Provider value={context}>
-      <StackedSheet id={id} detents={detents}>
+      <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
         {diagPanel}
         <BottomSheetScrollView
           contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
           showsVerticalScrollIndicator={false}
-          onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-          onContentSizeChange={(_w, h) => setContentHeight(h)}
-          onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+          onScroll={handleScroll}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollEndDrag={handleScrollEndDrag}
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            if (h > 0) setViewportHeight(h);
+            addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+          }}
+          onContentSizeChange={(w, h) => {
+            if (h > 0) setContentHeight(h);
+            addLayoutEvent("contentSize", h, undefined, w);
+          }}
         >
           {listBody}
           {/* Bloco 5b: a área de rolagem tem a altura do detent mais alto; este espaço cobre a parte abaixo da tela. */}
-          <HiddenBelowSpacer snapPoints={detents.snapPoints} />
+          <HiddenBelowSpacer
+            snapPoints={detents.snapPoints}
+            onLayout={(e) => setSpacerMeasured(e.nativeEvent.layout.height)}
+            onAnimatedHeight={setSpacerAnimated}
+          />
         </BottomSheetScrollView>
       </StackedSheet>
     </StopSheetContext.Provider>

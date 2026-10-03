@@ -23,7 +23,13 @@ import { initialDetent } from "../data/homeStart";
 import { t } from "../i18n";
 import { elevation, radius, space, useTheme } from "../theme";
 import { SearchPill } from "../ui/SearchPill";
-import { DiagScrollPanel, useScrollVariant } from "./diagScroll";
+import {
+  DiagScrollPanel,
+  onResetScrollVariant,
+  useScrollVariant,
+  type DiagLayoutEvent,
+  type DiagNativeScrollMetrics,
+} from "./diagScroll";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
@@ -78,9 +84,113 @@ export function HomeSheet() {
   const savedHomeOffsetRef = useRef(0);
   const homeScrollRef = useRef<any>(null);
 
+  const mountTimeRef = useRef(performance.now());
+  const orderRef = useRef(0);
+  const [layoutEvents, setLayoutEvents] = useState<DiagLayoutEvent[]>([]);
+
+  const addLayoutEvent = useCallback(
+    (level: DiagLayoutEvent["level"], h?: number, y?: number, w?: number, extra?: string) => {
+      const order = ++orderRef.current;
+      const ms = Math.round(performance.now() - mountTimeRef.current);
+      console.log(
+        `[E02] #${order} +${ms}ms [${level}] h=${h !== undefined ? Math.round(h) : "-"} y=${y !== undefined ? Math.round(y) : "-"} ${extra ?? ""}`
+      );
+      setLayoutEvents((prev) => [
+        ...prev.slice(-15),
+        {
+          order,
+          ms,
+          level,
+          h: h !== undefined ? Math.round(h) : undefined,
+          y: y !== undefined ? Math.round(y) : undefined,
+          w: w !== undefined ? Math.round(w) : undefined,
+          extra,
+        },
+      ]);
+    },
+    []
+  );
+
+  const scrollLiveRef = useRef<DiagNativeScrollMetrics>({
+    layoutH: 0,
+    contentH: 0,
+    offsetY: 0,
+    insetBottom: 0,
+    onScrollCount: 0,
+    beginDragCount: 0,
+    endDragCount: 0,
+  });
+  const [displayedScrollMetrics, setDisplayedScrollMetrics] = useState<DiagNativeScrollMetrics>({
+    ...scrollLiveRef.current,
+  });
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setDisplayedScrollMetrics({ ...scrollLiveRef.current });
+    }, 100);
+    return () => clearInterval(t);
+  }, []);
+
+  const [spacerMeasured, setSpacerMeasured] = useState(0);
+  const [spacerAnimated, setSpacerAnimated] = useState(0);
+
+  useEffect(() => {
+    return onResetScrollVariant(() => {
+      setViewportHeight(0);
+      setContentHeight(0);
+      setContentOffsetY(0);
+      setBodyContentHeight(0);
+      setSpacerMeasured(0);
+      setSpacerAnimated(0);
+      setLayoutEvents([]);
+      scrollLiveRef.current = {
+        layoutH: 0,
+        contentH: 0,
+        offsetY: 0,
+        insetBottom: 0,
+        onScrollCount: 0,
+        beginDragCount: 0,
+        endDragCount: 0,
+      };
+      setDisplayedScrollMetrics({ ...scrollLiveRef.current });
+    });
+  }, []);
+
+  const handleScroll = useCallback((e: any) => {
+    const ne = e.nativeEvent;
+    const y = ne.contentOffset?.y ?? 0;
+    setContentOffsetY(y);
+    savedHomeOffsetRef.current = y;
+    scrollLiveRef.current.layoutH = ne.layoutMeasurement?.height ?? 0;
+    scrollLiveRef.current.contentH = ne.contentSize?.height ?? 0;
+    scrollLiveRef.current.offsetY = y;
+    scrollLiveRef.current.insetBottom = ne.contentInset?.bottom ?? 0;
+    scrollLiveRef.current.onScrollCount++;
+  }, []);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    scrollLiveRef.current.beginDragCount++;
+  }, []);
+
+  const handleScrollEndDrag = useCallback(() => {
+    scrollLiveRef.current.endDragCount++;
+  }, []);
+
+  const handleAnimate = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      const ms = Math.round(performance.now() - mountTimeRef.current);
+      scrollLiveRef.current.lastAnimate = { from: fromIndex, to: toIndex, ms };
+      addLayoutEvent("animate", undefined, undefined, undefined, `${fromIndex}->${toIndex}`);
+    },
+    [addLayoutEvent]
+  );
+
   const onChange = useCallback(
     (index: number) => {
       if (index < 0) return;
+      const ms = Math.round(performance.now() - mountTimeRef.current);
+      scrollLiveRef.current.lastChange = { index, ms };
+      addLayoutEvent("change", undefined, undefined, undefined, `index=${index}`);
       // `selectionAsync` só quando o gesto encaixa num detent diferente (4.5 §2.6); a primeira leitura (abrir o app) não conta.
       const silent = skipHaptic.current;
       skipHaptic.current = false;
@@ -96,7 +206,7 @@ export function HomeSheet() {
         setHomeSettledVisibleHeight(latestHomeWrapperHeightRef.current);
       }
     },
-    [dispatch],
+    [dispatch, addLayoutEvent],
   );
 
   // Identidade estável: um `handleComponent` novo a cada troca de detent remonta o handle no fim do gesto.
@@ -182,6 +292,7 @@ export function HomeSheet() {
     <View
       style={StyleSheet.absoluteFill}
       pointerEvents="box-none"
+      onLayout={(e) => addLayoutEvent("root", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width)}
       accessibilityElementsHidden={covered}
       importantForAccessibility={covered ? "no-hide-descendants" : "auto"}
     >
@@ -194,24 +305,41 @@ export function HomeSheet() {
         enablePanDownToClose={false}
         topInset={insets.top}
         onChange={onChange}
+        onAnimate={handleAnimate}
         handleComponent={Handle}
         style={elevation.sheet}
         backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
       >
+        {/* Painel de diagnóstico flutuante em overlay absoluto (sem ocupar altura no fluxo flexbox) */}
+        <DiagScrollPanel
+          sheetKind="home"
+          metrics={{
+            detent: state.detent,
+            viewportHeight: effectiveViewport,
+            contentHeight: effectiveContent,
+            contentOffsetY,
+            maxScrollOffset: maxOffset,
+          }}
+          nativeScroll={displayedScrollMetrics}
+          geometry={{
+            windowHeight: Math.round(window.height),
+            topInset: Math.round(insets.top),
+            bottomInset: Math.round(insets.bottom),
+            containerHeight: Math.round(containerH),
+            snapPoints,
+          }}
+          spacerMetrics={{
+            measured: spacerMeasured,
+            animated: spacerAnimated,
+          }}
+          events={layoutEvents}
+        />
         {/* `View` comum, não `BottomSheetView`: ver `StackedSheet` (a lista perde a rolagem e o tamanho). */}
-        <View style={styles.content}>
-          <DiagScrollPanel
-            sheetKind="home"
-            metrics={{
-              detent: state.detent,
-              animatedPosition: 0,
-              viewportHeight: effectiveViewport,
-              contentHeight: effectiveContent,
-              spacerHeight: variant === "V0" ? 319 : 0,
-              contentOffsetY,
-              maxScrollOffset: maxOffset,
-            }}
-          />
+        <View
+          style={styles.content}
+          collapsable={false}
+          onLayout={(e) => addLayoutEvent("content", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width)}
+        >
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
             <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
           </View>
@@ -229,6 +357,7 @@ export function HomeSheet() {
               if (homeSettledVisibleHeight === 0 && h > 0) {
                 setHomeSettledVisibleHeight(h);
               }
+              addLayoutEvent("wrapper", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
             }}
             accessibilityElementsHidden={state.detent === 0}
             importantForAccessibility={state.detent === 0 ? "no-hide-descendants" : "auto"}
@@ -246,17 +375,17 @@ export function HomeSheet() {
               }
               contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
+              onScroll={handleScroll}
+              onScrollBeginDrag={handleScrollBeginDrag}
+              onScrollEndDrag={handleScrollEndDrag}
               onLayout={(e) => {
                 const h = e.nativeEvent.layout.height;
                 if (h > 0) setViewportHeight(h);
+                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
               }}
               onContentSizeChange={(_w, h) => {
                 if (h > 0) setContentHeight(h);
-              }}
-              onScroll={(e) => {
-                const y = e.nativeEvent.contentOffset.y;
-                setContentOffsetY(y);
-                savedHomeOffsetRef.current = y;
+                addLayoutEvent("contentSize", h, undefined, _w);
               }}
             >
               <View
@@ -264,12 +393,19 @@ export function HomeSheet() {
                 onLayout={(e) => {
                   const h = e.nativeEvent.layout.height;
                   if (h > 0) setBodyContentHeight(h);
+                  addLayoutEvent("body", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
                 }}
               >
                 <NearbyStops />
               </View>
               {/* Bloco 5b: em V0 (controle), o espaço do bloco 5b continua; em V1..V8 é desativado */}
-              {variant === "V0" ? <HiddenBelowSpacer snapPoints={snapPoints} /> : null}
+              {variant === "V0" ? (
+                <HiddenBelowSpacer
+                  snapPoints={snapPoints}
+                  onLayout={(e) => setSpacerMeasured(e.nativeEvent.layout.height)}
+                  onAnimatedHeight={setSpacerAnimated}
+                />
+              ) : null}
             </BottomSheetScrollView>
           </View>
         </View>
