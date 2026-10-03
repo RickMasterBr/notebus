@@ -6,6 +6,7 @@ import {
   highestPosition,
   maxScrollOffset,
   snapHeight,
+  stopContentHeight,
 } from "./scrollInset";
 
 // iPhone de tela comum: janela 844 pt, área segura de cima 47 pt. Handle com linha do ✕: 44 pt. Pequeno medido: ~220 pt.
@@ -96,3 +97,15 @@ describe("espaço que acompanha o topo da folha", () => {
     expect(hiddenBelow(highest + 100, highest)).toBe(100);
   });
 });
+
+describe("altura visível do conteúdo (correção da rolagem)", () => {
+  it("calcula a altura visível exata em cada detent", () => {
+    // Detent 0: 220 - 44 = 176 pt
+    expect(stopContentHeight(0, WINDOW, TOP, HANDLE, 220)).toBe(176);
+    // Detent 1: 0.5 * 797 - 44 = 398.5 - 44 = 354.5 pt
+    expect(stopContentHeight(1, WINDOW, TOP, HANDLE, 220)).toBeCloseTo(354.5, 5);
+    // Detent 2: 0.9 * 797 - 44 = 717.3 - 44 = 673.3 pt
+    expect(stopContentHeight(2, WINDOW, TOP, HANDLE, 220)).toBeCloseTo(673.3, 5);
+  });
+});
+

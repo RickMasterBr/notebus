@@ -23,6 +23,7 @@ import { initialDetent } from "../data/homeStart";
 import { t } from "../i18n";
 import { elevation, radius, space, useTheme } from "../theme";
 import { SearchPill } from "../ui/SearchPill";
+import { DiagScrollPanel, useScrollVariant } from "./diagScroll";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
@@ -109,7 +110,14 @@ export function HomeSheet() {
     [],
   );
 
+  const variant = useScrollVariant();
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [contentOffsetY, setContentOffsetY] = useState(0);
+
   if (startIndex === null) return null;
+
+  const maxOffset = Math.max(0, contentHeight - viewportHeight);
 
   return (
     <View
@@ -133,6 +141,18 @@ export function HomeSheet() {
       >
         {/* `View` comum, não `BottomSheetView`: ver `StackedSheet` (a lista perde a rolagem e o tamanho). */}
         <View style={styles.content}>
+          <DiagScrollPanel
+            sheetKind="home"
+            metrics={{
+              detent: state.detent,
+              animatedPosition: 0,
+              viewportHeight,
+              contentHeight,
+              spacerHeight: variant === "V0" ? 319 : 0,
+              contentOffsetY,
+              maxScrollOffset: maxOffset,
+            }}
+          />
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
             <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
           </View>
@@ -147,10 +167,13 @@ export function HomeSheet() {
               key={listReady ? "ready" : "loading"}
               contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
+              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+              onContentSizeChange={(_w, h) => setContentHeight(h)}
+              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
             >
               <NearbyStops />
-              {/* Bloco 5b: cobre a parte da área de rolagem que fica abaixo da borda da tela nos detents menores. */}
-              <HiddenBelowSpacer snapPoints={snapPoints} />
+              {/* Bloco 5b: em V0 (controle), o espaço do bloco 5b continua; em V1, V2 e V3 é desativado */}
+              {variant === "V0" ? <HiddenBelowSpacer snapPoints={snapPoints} /> : null}
             </BottomSheetScrollView>
           </View>
         </View>

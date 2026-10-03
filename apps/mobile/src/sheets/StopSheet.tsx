@@ -36,10 +36,13 @@ import { PassageRowView } from "../ui/PassageRowView";
 import { Skeleton } from "../ui/Skeleton";
 import { StopCardView } from "../ui/StopCardView";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
+import { ScrollView as RNGHScrollView } from "react-native-gesture-handler";
+import { DiagScrollPanel, useScrollVariant } from "./diagScroll";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
+import { stopContentHeight } from "./scrollInset";
 import { type Detent, activeSheet } from "./stack";
 
 const DAY_TYPES: readonly DayTypeCode[] = ["weekday", "saturday", "sunday_holiday"];
@@ -145,76 +148,174 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   );
   const context = useMemo(() => ({ detent, setHandleHeight }), [detent]);
 
+  const variant = useScrollVariant();
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [contentOffsetY, setContentOffsetY] = useState(0);
+
+  const visibleHeight = stopContentHeight(detent, window.height, insets.top, handleHeight, small);
+  const maxOffset = Math.max(0, contentHeight - viewportHeight);
   const showLines = (day?.lines ?? []).filter((l) => lineFilter === null || l.code === lineFilter);
 
+  const listBody = (
+    <View style={styles.body}>
+      <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}>
+        {loading || skeleton ? (
+          skeleton ? <Skeleton variant="card" /> : null
+        ) : card ? (
+          <StopCardView card={card} />
+        ) : (
+          <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
+            {name}
+          </Text>
+        )}
+      </View>
+
+      {/* No detent pequeno esta parte fica abaixo da borda da tela: fora da leitura do VoiceOver até a folha subir. */}
+      <View
+        style={styles.list}
+        accessibilityElementsHidden={detent === 0}
+        importantForAccessibility={detent === 0 ? "no-hide-descendants" : "auto"}
+      >
+        {loading || skeleton ? (
+          skeleton ? <Skeleton rows={3} /> : null
+        ) : day ? (
+          <>
+            <View style={styles.chips}>
+              {DAY_TYPES.map((type_) => (
+                <Chip
+                  key={type_}
+                  label={dayTypeChipText(type_, type_ === day.todayType)}
+                  selected={type_ === day.dayType}
+                  onPress={() => setDayType(type_ === day.todayType ? undefined : type_)}
+                />
+              ))}
+            </View>
+            {day.lines.length > 1 ? (
+              <View style={styles.chips}>
+                <Chip
+                  tone="ring"
+                  label={t("terminal.filter.all_lines")}
+                  selected={lineFilter === null}
+                  onPress={() => setLineFilter(null)}
+                />
+                {day.lines.map((line) => (
+                  <Chip
+                    key={line.code}
+                    tone="ring"
+                    selected={lineFilter === line.code}
+                    accessibilityLabel={t("terminal.filter.line_only.a11y", { line: line.code })}
+                    onPress={() => setLineFilter(lineFilter === line.code ? null : line.code)}
+                  >
+                    <LineBadge code={line.code} color={line.color} />
+                  </Chip>
+                ))}
+              </View>
+            ) : null}
+            {showLines.map((line) => (
+              <LineSection key={line.code} line={line} onOpen={openAhead} setRowRef={setRowRef} />
+            ))}
+          </>
+        ) : null}
+      </View>
+    </View>
+  );
+
+  const diagPanel = (
+    <DiagScrollPanel
+      sheetKind="stop"
+      metrics={{
+        detent,
+        animatedPosition: 0,
+        viewportHeight,
+        contentHeight,
+        spacerHeight: variant === "V0" ? 318.8 : 0,
+        contentOffsetY,
+        maxScrollOffset: maxOffset,
+        activeChip: dayType ?? "hoje",
+        scrollableStatus: "UNLOCKED",
+      }}
+    />
+  );
+
+  // Variante V3: detent único de 90% (tall), idêntico à Busca
+  if (variant === "V3") {
+    return (
+      <StopSheetContext.Provider value={context}>
+        <StackedSheet id={id} tall>
+          {diagPanel}
+          <BottomSheetScrollView
+            contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
+            showsVerticalScrollIndicator={false}
+            onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+            onContentSizeChange={(_w, h) => setContentHeight(h)}
+            onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+          >
+            {listBody}
+          </BottomSheetScrollView>
+        </StackedSheet>
+      </StopSheetContext.Provider>
+    );
+  }
+
+  // Variante V2: ScrollView do react-native-gesture-handler com altura visível restrita ao detent
+  if (variant === "V2") {
+    return (
+      <StopSheetContext.Provider value={context}>
+        <StackedSheet id={id} detents={detents}>
+          {diagPanel}
+          <View style={{ height: visibleHeight }}>
+            <RNGHScrollView
+              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
+              showsVerticalScrollIndicator={false}
+              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+              onContentSizeChange={(_w, h) => setContentHeight(h)}
+              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+              scrollEventThrottle={16}
+            >
+              {listBody}
+            </RNGHScrollView>
+          </View>
+        </StackedSheet>
+      </StopSheetContext.Provider>
+    );
+  }
+
+  // Variante V1: Hipótese principal (altura visível restrita ao detent ativo no BottomSheetScrollView, sem HiddenBelowSpacer)
+  if (variant === "V1") {
+    return (
+      <StopSheetContext.Provider value={context}>
+        <StackedSheet id={id} detents={detents}>
+          {diagPanel}
+          <View style={{ height: visibleHeight }}>
+            <BottomSheetScrollView
+              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
+              showsVerticalScrollIndicator={false}
+              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+              onContentSizeChange={(_w, h) => setContentHeight(h)}
+              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+            >
+              {listBody}
+            </BottomSheetScrollView>
+          </View>
+        </StackedSheet>
+      </StopSheetContext.Provider>
+    );
+  }
+
+  // Variante V0: Comportamento atual (controle, bloco 5b com HiddenBelowSpacer)
   return (
     <StopSheetContext.Provider value={context}>
       <StackedSheet id={id} detents={detents}>
+        {diagPanel}
         <BottomSheetScrollView
           contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
           showsVerticalScrollIndicator={false}
+          onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+          onContentSizeChange={(_w, h) => setContentHeight(h)}
+          onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
         >
-          <View style={styles.body}>
-            <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}>
-              {loading || skeleton ? (
-                skeleton ? <Skeleton variant="card" /> : null
-              ) : card ? (
-                <StopCardView card={card} />
-              ) : (
-                <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
-                  {name}
-                </Text>
-              )}
-            </View>
-
-            {/* No detent pequeno esta parte fica abaixo da borda da tela: fora da leitura do VoiceOver até a folha subir. */}
-            <View
-              style={styles.list}
-              accessibilityElementsHidden={detent === 0}
-              importantForAccessibility={detent === 0 ? "no-hide-descendants" : "auto"}
-            >
-              {loading || skeleton ? (
-                skeleton ? <Skeleton rows={3} /> : null
-              ) : day ? (
-                <>
-                  <View style={styles.chips}>
-                    {DAY_TYPES.map((type_) => (
-                      <Chip
-                        key={type_}
-                        label={dayTypeChipText(type_, type_ === day.todayType)}
-                        selected={type_ === day.dayType}
-                        onPress={() => setDayType(type_ === day.todayType ? undefined : type_)}
-                      />
-                    ))}
-                  </View>
-                  {day.lines.length > 1 ? (
-                    <View style={styles.chips}>
-                      <Chip
-                        tone="ring"
-                        label={t("terminal.filter.all_lines")}
-                        selected={lineFilter === null}
-                        onPress={() => setLineFilter(null)}
-                      />
-                      {day.lines.map((line) => (
-                        <Chip
-                          key={line.code}
-                          tone="ring"
-                          selected={lineFilter === line.code}
-                          accessibilityLabel={t("terminal.filter.line_only.a11y", { line: line.code })}
-                          onPress={() => setLineFilter(lineFilter === line.code ? null : line.code)}
-                        >
-                          <LineBadge code={line.code} color={line.color} />
-                        </Chip>
-                      ))}
-                    </View>
-                  ) : null}
-                  {showLines.map((line) => (
-                    <LineSection key={line.code} line={line} onOpen={openAhead} setRowRef={setRowRef} />
-                  ))}
-                </>
-              ) : null}
-            </View>
-          </View>
+          {listBody}
           {/* Bloco 5b: a área de rolagem tem a altura do detent mais alto; este espaço cobre a parte abaixo da tela. */}
           <HiddenBelowSpacer snapPoints={detents.snapPoints} />
         </BottomSheetScrollView>

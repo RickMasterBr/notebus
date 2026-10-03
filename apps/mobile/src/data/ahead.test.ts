@@ -249,6 +249,8 @@ describe("buildAhead: velocidade", () => {
       patternLine: new Map([["p", { code: "7", color: "#F57C00" }]]),
       stopNames: new Map(Array.from({ length: 450 }, (_, i) => [`s${i}`, `Paragem ${i}`])),
     } as unknown as ScheduleSnapshot;
+    // Aquece o JIT antes da medição para isolar tempo de compilação da execução
+    buildAhead("t0", 1, data);
     const t0 = performance.now();
     const a = buildAhead("t399", 3, data);
     timelineItems(a!.stops);
