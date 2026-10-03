@@ -6,6 +6,7 @@ import {
   highestPosition,
   maxScrollOffset,
   snapHeight,
+  staticViewportHeight,
   stopContentHeight,
 } from "./scrollInset";
 
@@ -106,6 +107,13 @@ describe("altura visível do conteúdo (correção da rolagem)", () => {
     expect(stopContentHeight(1, WINDOW, TOP, HANDLE, 220)).toBeCloseTo(354.5, 5);
     // Detent 2: 0.9 * 797 - 44 = 717.3 - 44 = 673.3 pt
     expect(stopContentHeight(2, WINDOW, TOP, HANDLE, 220)).toBeCloseTo(673.3, 5);
+  });
+
+  it("calcula altura estática do viewport com cabeçalho extra e padding inferior (V4 e V6)", () => {
+    // Exemplo: detent médio (398.5 pt) - handle 44 - pílula 56 - safeBottom 34 = 264.5 pt (arredondado para 265 ou 264)
+    expect(staticViewportHeight(398.5, 44, 56, 34)).toBe(265);
+    // Limite mínimo seguro de 80 pt
+    expect(staticViewportHeight(100, 44, 56, 34)).toBe(80);
   });
 });
 

@@ -94,3 +94,16 @@ export function stopContentHeight(
   return Math.max(0, sheetHeight - handleHeight);
 }
 
+/**
+ * Altura estática para o viewport da lista calculada diretamente em JS (variantes V4 e V6).
+ * Subtrai a altura do handle e cabeçalhos extras (ex.: pílula, diagnóstico ou padding seguro).
+ */
+export function staticViewportHeight(
+  sheetHeight: number,
+  handleHeight: number,
+  extraTopHeight = 0,
+  bottomInset = 0,
+): number {
+  return Math.max(80, Math.round(sheetHeight - handleHeight - extraTopHeight - bottomInset));
+}
+

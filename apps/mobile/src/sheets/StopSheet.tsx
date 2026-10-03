@@ -42,7 +42,7 @@ import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
-import { stopContentHeight } from "./scrollInset";
+import { containerHeightOf, staticViewportHeight, stopContentHeight } from "./scrollInset";
 import { type Detent, activeSheet } from "./stack";
 
 const DAY_TYPES: readonly DayTypeCode[] = ["weekday", "saturday", "sunday_holiday"];
@@ -152,8 +152,25 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
   const [contentOffsetY, setContentOffsetY] = useState(0);
+  const [settled, setSettled] = useState(false);
+
+  useEffect(() => {
+    // V5/V6: quando a folha termina de abrir (~300ms), remonta o ScrollView para obter o layout limpo já assentado
+    const timer = setTimeout(() => {
+      setSettled(true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
 
   const visibleHeight = stopContentHeight(detent, window.height, insets.top, handleHeight, small);
+  const containerH = containerHeightOf(window.height, insets.top);
+  const currentSheetH =
+    detent === 0
+      ? small
+      : detent === 1
+      ? 0.5 * containerH
+      : 0.9 * containerH;
+  const staticHeight = staticViewportHeight(currentSheetH, handleHeight, 0, insets.bottom + space.md);
   const maxOffset = Math.max(0, contentHeight - viewportHeight);
   const showLines = (day?.lines ?? []).filter((l) => lineFilter === null || l.code === lineFilter);
 
@@ -289,6 +306,72 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
           {diagPanel}
           <View style={{ height: visibleHeight }}>
             <BottomSheetScrollView
+              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
+              showsVerticalScrollIndicator={false}
+              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+              onContentSizeChange={(_w, h) => setContentHeight(h)}
+              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+            >
+              {listBody}
+            </BottomSheetScrollView>
+          </View>
+        </StackedSheet>
+      </StopSheetContext.Provider>
+    );
+  }
+
+  // Variante V4: Altura do viewport da lista fixa e não animada calculada em JS (sem Reanimated layout pass)
+  if (variant === "V4") {
+    return (
+      <StopSheetContext.Provider value={context}>
+        <StackedSheet id={id} detents={detents}>
+          {diagPanel}
+          <View style={{ height: staticHeight, overflow: "hidden" }}>
+            <BottomSheetScrollView
+              contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
+              showsVerticalScrollIndicator={false}
+              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+              onContentSizeChange={(_w, h) => setContentHeight(h)}
+              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+            >
+              {listBody}
+            </BottomSheetScrollView>
+          </View>
+        </StackedSheet>
+      </StopSheetContext.Provider>
+    );
+  }
+
+  // Variante V5: Remontar o ScrollView (key) uma vez quando a folha termina de abrir/assentar
+  if (variant === "V5") {
+    return (
+      <StopSheetContext.Provider value={context}>
+        <StackedSheet id={id} detents={detents}>
+          {diagPanel}
+          <BottomSheetScrollView
+            key={`stop-scroll-${settled ? "settled" : "init"}`}
+            contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
+            showsVerticalScrollIndicator={false}
+            onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+            onContentSizeChange={(_w, h) => setContentHeight(h)}
+            onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+          >
+            {listBody}
+          </BottomSheetScrollView>
+        </StackedSheet>
+      </StopSheetContext.Provider>
+    );
+  }
+
+  // Variante V6: V4 (Altura Estática JS) + V5 (Remontagem Key)
+  if (variant === "V6") {
+    return (
+      <StopSheetContext.Provider value={context}>
+        <StackedSheet id={id} detents={detents}>
+          {diagPanel}
+          <View style={{ height: staticHeight, overflow: "hidden" }}>
+            <BottomSheetScrollView
+              key={`stop-scroll-${settled ? "settled" : "init"}`}
               contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
               onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}

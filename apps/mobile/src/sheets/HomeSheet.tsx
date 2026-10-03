@@ -14,7 +14,7 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useSchedule } from "../data/ScheduleProvider";
@@ -28,6 +28,7 @@ import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
+import { containerHeightOf, staticViewportHeight } from "./scrollInset";
 import { detentFromIndex } from "./stack";
 
 const LAST_INDEX = 2;
@@ -114,10 +115,37 @@ export function HomeSheet() {
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
   const [contentOffsetY, setContentOffsetY] = useState(0);
+  const [homeSettled, setHomeSettled] = useState(false);
+
+  useEffect(() => {
+    // V5/V6: remonta o ScrollView uma vez quando a folha termina de abrir/assentar (~300ms)
+    const timer = setTimeout(() => {
+      setHomeSettled(true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const window = useWindowDimensions();
+  const containerH = containerHeightOf(window.height, insets.top);
+  const currentHomeSheetH =
+    state.detent === 0
+      ? (small ?? 200)
+      : state.detent === 1
+      ? 0.5 * containerH
+      : 0.9 * containerH;
+
+  const staticHomeHeight = staticViewportHeight(
+    currentHomeSheetH,
+    handleHeight,
+    pillHeight + space.md,
+    insets.bottom + space.md,
+  );
 
   if (startIndex === null) return null;
 
   const maxOffset = Math.max(0, contentHeight - viewportHeight);
+  const isStaticHeight = variant === "V4" || variant === "V6";
+  const isKeySettled = variant === "V5" || variant === "V6";
 
   return (
     <View
@@ -158,13 +186,22 @@ export function HomeSheet() {
           </View>
           {/* No detent pequeno esta parte fica abaixo da borda da tela: fora da leitura do VoiceOver até a folha subir. */}
           <View
-            style={styles.scroll}
+            style={[
+              styles.scroll,
+              isStaticHeight ? { height: staticHomeHeight, flex: 0, overflow: "hidden" } : null,
+            ]}
             accessibilityElementsHidden={state.detent === 0}
             importantForAccessibility={state.detent === 0 ? "no-hide-descendants" : "auto"}
           >
-            {/* `key`: quando o esqueleto dá lugar aos cartões, a lista é montada de novo e mede o conteúdo final (1ª abertura). */}
+            {/* Em V5 e V6, remonta com `settled` quando a folha termina de abrir, evitando layout espúrio da 1ª passada */}
             <BottomSheetScrollView
-              key={listReady ? "ready" : "loading"}
+              key={
+                isKeySettled
+                  ? `home-scroll-${listReady ? "ready" : "loading"}-${homeSettled ? "settled" : "init"}`
+                  : listReady
+                  ? "ready"
+                  : "loading"
+              }
               contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
               onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
@@ -172,7 +209,7 @@ export function HomeSheet() {
               onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
             >
               <NearbyStops />
-              {/* Bloco 5b: em V0 (controle), o espaço do bloco 5b continua; em V1, V2 e V3 é desativado */}
+              {/* Bloco 5b: em V0 (controle), o espaço do bloco 5b continua; em V1..V6 é desativado */}
               {variant === "V0" ? <HiddenBelowSpacer snapPoints={snapPoints} /> : null}
             </BottomSheetScrollView>
           </View>
