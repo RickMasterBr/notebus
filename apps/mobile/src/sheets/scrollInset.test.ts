@@ -115,5 +115,16 @@ describe("altura visível do conteúdo (correção da rolagem)", () => {
     // Limite mínimo seguro de 80 pt
     expect(staticViewportHeight(100, 44, 56, 34)).toBe(80);
   });
+
+  it("V9: a área da lista é a mesma em todos os detents e o respiro fecha a conta", () => {
+    const container = containerHeightOf(WINDOW, TOP);
+    const metrics = detentMetrics([220, "50%", "90%"], container, 44);
+    const areas = new Set(metrics.map((m) => m.scrollAreaHeight));
+    expect(areas.size).toBe(1);
+    for (const m of metrics) {
+      expect(m.visibleHeight + m.hidden).toBe(m.scrollAreaHeight);
+    }
+    expect(metrics[2]?.hidden).toBe(0);
+  });
 });
 

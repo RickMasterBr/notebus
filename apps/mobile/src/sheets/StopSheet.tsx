@@ -48,7 +48,7 @@ import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
-import { containerHeightOf, staticViewportHeight, stopContentHeight } from "./scrollInset";
+import { containerHeightOf, detentMetrics, staticViewportHeight, stopContentHeight } from "./scrollInset";
 import { type Detent, activeSheet } from "./stack";
 
 const DAY_TYPES: readonly DayTypeCode[] = ["weekday", "saturday", "sunday_holiday"];
@@ -323,6 +323,10 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
       ? 0.5 * containerH
       : 0.9 * containerH;
   const staticHeight = staticViewportHeight(currentSheetH, handleHeight, 0, insets.bottom + space.md);
+  // V9: lista com altura fixa = área da gaveta aberta (nunca muda); o que fica abaixo da borda entra como respiro no fim.
+  const v9Metrics = detentMetrics(detents.snapPoints, containerH, handleHeight)[Math.min(detent, detents.snapPoints.length - 1)];
+  const v9Area = Math.max(80, Math.round(v9Metrics?.scrollAreaHeight ?? staticHeight));
+  const v9Hidden = Math.max(0, Math.round(v9Metrics?.hidden ?? 0));
 
   const effectiveViewport = viewportHeight > 0 ? viewportHeight : (settledVisibleHeight > 0 ? settledVisibleHeight : visibleHeight);
   const effectiveContent = contentHeight > 0 ? contentHeight : bodyContentHeight;
@@ -508,6 +512,42 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
           >
             <BottomSheetScrollView
               contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
+              showsVerticalScrollIndicator={false}
+              onScroll={handleScroll}
+              onScrollBeginDrag={handleScrollBeginDrag}
+              onScrollEndDrag={handleScrollEndDrag}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                if (h > 0) setViewportHeight(h);
+                addLayoutEvent("scrollView", h, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+              }}
+              onContentSizeChange={(w, h) => {
+                if (h > 0) setContentHeight(h);
+                addLayoutEvent("contentSize", h, undefined, w);
+              }}
+            >
+              {listBody}
+            </BottomSheetScrollView>
+          </View>
+        </StackedSheet>
+      </StopSheetContext.Provider>
+    );
+  }
+
+  // Variante V9: altura da lista constante (área da gaveta aberta) + respiro no fim por detent. Sem remontar, sem animar layout.
+  if (variant === "V9") {
+    return (
+      <StopSheetContext.Provider value={context}>
+        <StackedSheet id={id} detents={detents} onRootLayout={onRootLayout} onContentLayout={onContentLayout} onAnimate={handleAnimate}>
+          {diagPanel}
+          <View
+            style={{ height: v9Area, overflow: "hidden" }}
+            onLayout={(e) => {
+              addLayoutEvent("wrapper", e.nativeEvent.layout.height, e.nativeEvent.layout.y, e.nativeEvent.layout.width);
+            }}
+          >
+            <BottomSheetScrollView
+              contentContainerStyle={{ paddingBottom: insets.bottom + space.md + v9Hidden }}
               showsVerticalScrollIndicator={false}
               onScroll={handleScroll}
               onScrollBeginDrag={handleScrollBeginDrag}

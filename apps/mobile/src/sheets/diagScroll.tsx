@@ -9,7 +9,7 @@ import { radius, space, type, useTheme } from "../theme";
 
 export const DIAG_SCROLL = true;
 
-export type ScrollVariant = "V0" | "V1" | "V2" | "V3" | "V4" | "V5" | "V6" | "V7" | "V8";
+export type ScrollVariant = "V0" | "V1" | "V2" | "V3" | "V4" | "V5" | "V6" | "V7" | "V8" | "V9";
 
 const VARIANT_NAMES: Record<ScrollVariant, string> = {
   V0: "V0: Bloco 5b (Controle)",
@@ -21,9 +21,10 @@ const VARIANT_NAMES: Record<ScrollVariant, string> = {
   V6: "V6: V4 + V5",
   V7: "V7: Remontagem a Cada Detent Assentado + Offset",
   V8: "V8: Viewport Medido por Wrapper Não Animado no Assentamento",
+  V9: "V9: Altura fixa da gaveta aberta + respiro por detent",
 };
 
-let currentVariant: ScrollVariant = "V8";
+let currentVariant: ScrollVariant = "V9";
 const variantListeners = new Set<(v: ScrollVariant) => void>();
 const resetListeners = new Set<() => void>();
 
@@ -127,7 +128,7 @@ export function DiagScrollPanel({
   const variant = useScrollVariant();
   const { state } = useSheets();
   const nowMs = useNow()();
-  const [panelEnabled, setPanelEnabled] = useState(true);
+  const [panelEnabled, setPanelEnabled] = useState(false);
 
   // animatedPosition real via useBottomSheet + useAnimatedReaction (máx ~10 Hz, diff >= 1 pt)
   const { animatedPosition } = useBottomSheet();
@@ -185,7 +186,7 @@ export function DiagScrollPanel({
           style={[styles.miniButton, { backgroundColor: colors.surface, borderColor: colors.accent }]}
         >
           <Text style={[type.caption, { color: colors.accent, fontWeight: "700" }]}>
-            {"// DEV [Painel: OFF]"}
+            {"DEV"}
           </Text>
         </Pressable>
       </View>
@@ -269,7 +270,7 @@ export function DiagScrollPanel({
             })}
           </View>
           <View style={styles.variantRow}>
-            {(["V7", "V8"] as const).map((v) => {
+            {(["V7", "V8", "V9"] as const).map((v) => {
               const active = variant === v;
               return (
                 <Pressable
@@ -355,8 +356,9 @@ const styles = StyleSheet.create({
   },
   miniButton: {
     alignSelf: "flex-end",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    opacity: 0.5,
     borderRadius: radius.sm,
     borderWidth: 1,
   },

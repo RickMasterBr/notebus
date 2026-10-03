@@ -34,7 +34,7 @@ import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
-import { containerHeightOf, staticViewportHeight } from "./scrollInset";
+import { containerHeightOf, detentMetrics, staticViewportHeight } from "./scrollInset";
 import { detentFromIndex } from "./stack";
 
 const LAST_INDEX = 2;
@@ -276,6 +276,11 @@ export function HomeSheet() {
     insets.bottom + space.md,
   );
 
+  // V9: lista com altura fixa = área da gaveta aberta (menos handle e pílula); o que fica abaixo da borda entra como respiro no fim.
+  const v9Metrics = detentMetrics(snapPoints, containerH, handleHeight)[Math.min(state.detent, snapPoints.length - 1)];
+  const v9Area = Math.max(80, Math.round((v9Metrics?.scrollAreaHeight ?? staticHomeHeight) - pillHeight - space.md));
+  const v9Hidden = Math.max(0, Math.round(v9Metrics?.hidden ?? 0));
+
   if (startIndex === null) return null;
 
   const effectiveViewport = viewportHeight > 0 ? viewportHeight : (homeSettledVisibleHeight > 0 ? homeSettledVisibleHeight : staticHomeHeight);
@@ -286,6 +291,7 @@ export function HomeSheet() {
   const isKeySettled = variant === "V5" || variant === "V6";
   const isV7 = variant === "V7";
   const isV8 = variant === "V8";
+  const isV9 = variant === "V9";
   const v8Height = homeSettledVisibleHeight > 0 ? homeSettledVisibleHeight : staticHomeHeight;
 
   return (
@@ -350,6 +356,7 @@ export function HomeSheet() {
               styles.scroll,
               isStaticHeight ? { height: staticHomeHeight, flex: 0, overflow: "hidden" } : null,
               isV8 ? { height: v8Height, flex: 0, overflow: "hidden" } : null,
+              isV9 ? { height: v9Area, flex: 0, overflow: "hidden" } : null,
             ]}
             onLayout={(e) => {
               const h = e.nativeEvent.layout.height;
@@ -373,7 +380,7 @@ export function HomeSheet() {
                   ? "ready"
                   : "loading"
               }
-              contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
+              contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md + (isV9 ? v9Hidden : 0) }}
               showsVerticalScrollIndicator={false}
               onScroll={handleScroll}
               onScrollBeginDrag={handleScrollBeginDrag}
