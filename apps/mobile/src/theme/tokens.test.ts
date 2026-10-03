@@ -14,4 +14,12 @@ describe("tema", () => {
     expect(colors.light.switchTrackOff).toBe("#8A8A8E");
     expect(colors.dark.switchTrackOff).toBe("#48494D");
   });
+  it("tokens do canvas da 4.5 para a folha: pílula, handle e fundo escurecido (D-043: 28% / 50%)", () => {
+    expect(colors.light.fill).toBe("#F0F0ED");
+    expect(colors.dark.fill).toBe("#2C2D30");
+    expect(colors.light.grab).toBe("#C7C7C2");
+    expect(colors.dark.grab).toBe("#48494D");
+    expect(colors.light.scrim).toBe("rgba(0,0,0,0.28)");
+    expect(colors.dark.scrim).toBe("rgba(0,0,0,0.5)");
+  });
 });
