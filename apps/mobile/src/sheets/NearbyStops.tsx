@@ -1,19 +1,22 @@
 /**
- * "Perto de você" (TL-01, detent médio; E-02 bloco 3c, Q-43/D-096): os últimos pontos abertos, mais recente primeiro,
+ * "Perto de você" (TL-01, detent médio; E-02 bloco 3c, Q-43/D-096): os 3 últimos pontos abertos (de até 10 guardados, D-144), mais recente primeiro,
  * cada um num cartão de ponto. Sem nenhum ponto aberto ainda: nada (só a pílula; texto de convite é questão aberta).
  * Esqueleto (D-127) enquanto a lista de pontos, os horários e os últimos pontos não chegam.
  */
 import { type ReactNode, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
+import { nearbyIds } from "../data/homeStart";
 import { type StopCard, buildStopCard } from "../data/stopCard";
 import { useNowTick } from "../data/useNowTick";
 import { t } from "../i18n";
 import { space, type, useTheme } from "../theme";
 import { Skeleton } from "../ui/Skeleton";
 import { StopCardView } from "../ui/StopCardView";
+import { useReorderTransition } from "../ui/useReorderTransition";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
 import { useOpenStop } from "./useOpenStop";
 
@@ -23,6 +26,7 @@ export function NearbyStops() {
   const recent = useRecentStops();
   const instant = useNowTick();
   const openStop = useOpenStop();
+  const layout = useReorderTransition();
 
   const loading = stops.status === "loading" || schedule.status === "loading" || recent.status === "loading";
   const skeleton = useSkeletonVisible(loading);
@@ -30,7 +34,7 @@ export function NearbyStops() {
   const cards = useMemo(
     () =>
       schedule.status === "ready"
-        ? recent.ids.flatMap((id): StopCard[] => {
+        ? nearbyIds(recent.ids).flatMap((id): StopCard[] => {
             const card = buildStopCard(id, schedule.data, instant);
             return card ? [card] : [];
           })
@@ -44,7 +48,10 @@ export function NearbyStops() {
   return (
     <Section>
       {cards.map((card) => (
-        <StopCardView key={card.stopId} card={card} onPress={() => openStop({ id: card.stopId, name: card.name })} />
+        // D-142: ao abrir um ponto, o cartão sobe e os outros descem com transição de layout.
+        <Animated.View key={card.stopId} layout={layout}>
+          <StopCardView card={card} onPress={() => openStop({ id: card.stopId, name: card.name })} />
+        </Animated.View>
       ))}
     </Section>
   );

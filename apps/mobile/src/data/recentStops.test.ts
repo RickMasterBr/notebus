@@ -11,9 +11,14 @@ describe("pushRecent", () => {
   it("repetir move para o topo, sem duplicar", () => {
     expect(pushRecent(["c", "b", "a"], "a")).toEqual(["a", "c", "b"]);
   });
-  it("corta no limite (3) e solta o mais antigo", () => {
-    expect(RECENT_STOPS_MAX).toBe(3);
-    expect(pushRecent(["c", "b", "a"], "d")).toEqual(["d", "c", "b"]);
+  it("corta no limite (10) e solta o mais antigo", () => {
+    expect(RECENT_STOPS_MAX).toBe(10);
+    const full = ["j", "i", "h", "g", "f", "e", "d", "c", "b", "a"];
+    expect(pushRecent(full, "k")).toEqual(["k", "j", "i", "h", "g", "f", "e", "d", "c", "b"]);
+  });
+  it("com o limite cheio, repetir um antigo não solta ninguém", () => {
+    const full = ["j", "i", "h", "g", "f", "e", "d", "c", "b", "a"];
+    expect(pushRecent(full, "a")).toEqual(["a", "j", "i", "h", "g", "f", "e", "d", "c", "b"]);
   });
   it("não altera a lista de entrada", () => {
     const list = ["a", "b"];
@@ -39,10 +44,19 @@ describe("últimos pontos na tabela setting", () => {
     expect(rows[0]!.updatedAt).toBe(30);
   });
 
-  it("guarda no máximo 3", async () => {
+  it("guarda no máximo 10, o mais recente primeiro", async () => {
     const db = testDb();
-    for (const [i, id] of ["a", "b", "c", "d"].entries()) await rememberStop(db, id, i);
-    expect(await readRecentStops(db)).toEqual(["d", "c", "b"]);
+    const ids = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
+    for (const [i, id] of ids.entries()) await rememberStop(db, id, i);
+    expect(await readRecentStops(db)).toEqual(["l", "k", "j", "i", "h", "g", "f", "e", "d", "c"]);
+  });
+
+  it("lista antiga de 3 continua valendo", async () => {
+    const db = testDb();
+    await db.insert(schema.setting).values({
+      id: "s1", createdAt: 1, updatedAt: 1, source: "user", key: RECENT_STOPS_KEY, value: ["c", "b", "a"],
+    });
+    expect(await rememberStop(db, "d", 5)).toEqual(["d", "c", "b", "a"]);
   });
 
   it("valor estragado ou apagado é tratado como lista vazia", async () => {
