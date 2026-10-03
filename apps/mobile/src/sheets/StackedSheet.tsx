@@ -5,7 +5,7 @@
  * Com "Reduzir movimento": sem deslocamento, só esmaece (150 ms).
  */
 import BottomSheet, { BottomSheetBackdrop, type BottomSheetBackdropProps, BottomSheetView } from "@gorhom/bottom-sheet";
-import { type ReactNode, useCallback, useRef } from "react";
+import { type ReactNode, useCallback, useEffect, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,6 +13,7 @@ import { t } from "../i18n";
 import { elevation, motion, radius, space, useTheme } from "../theme";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
+import { activeSheet } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
 
 const OPEN_MS = motion.normal; // 250
@@ -23,20 +24,34 @@ const closeConfig = { duration: CLOSE_MS, easing: Easing.in(Easing.ease) };
 
 const TALL_SNAP_POINTS = ["90%"];
 
-export function StackedSheet({ children, tall = false }: { children: ReactNode; tall?: boolean }) {
+export function StackedSheet({ id, children, tall = false }: { id: number; children: ReactNode; tall?: boolean }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { dispatch } = useSheets();
+  const { state, dispatch } = useSheets();
+  const isTop = activeSheet(state).id === id;
   const reduceMotion = useReduceMotion();
   const ref = useRef<BottomSheet>(null);
-  const popped = useRef(false);
+  const isTopRef = useRef(isTop);
+  isTopRef.current = isTop;
+  // A biblioteca avisou que a folha fechou enquanto havia outra por cima: a pilha não muda (a do topo é quem manda),
+  // e a folha é aberta de novo quando voltar a ser a do topo. Assim a pilha e a tela não saem de sincronia.
+  const closedWhileCovered = useRef(false);
 
   const pop = useCallback(() => {
-    // Fechar por gesto, handle ou toque no fundo chega aqui uma vez só.
-    if (popped.current) return;
-    popped.current = true;
-    dispatch({ type: "pop" });
-  }, [dispatch]);
+    // Fechar por gesto, handle ou toque no fundo chega aqui; a pilha ignora avisos repetidos (fecha pelo id).
+    if (!isTopRef.current) {
+      closedWhileCovered.current = true;
+      return;
+    }
+    dispatch({ type: "close", id });
+  }, [dispatch, id]);
+
+  useEffect(() => {
+    if (isTop && closedWhileCovered.current) {
+      closedWhileCovered.current = false;
+      ref.current?.snapToIndex(0, openConfig);
+    }
+  }, [isTop]);
 
   const closeFromHandle = useCallback(() => {
     // Sem movimento: sai direto e o `FadeOut` do invólucro faz o esmaecer. Com movimento: a folha desce e o `onClose` tira da pilha.

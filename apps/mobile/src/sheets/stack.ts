@@ -3,7 +3,7 @@
  * TypeScript puro (sem React nem biblioteca nativa) para ser testado no Node.
  *
  * Exemplo: o app abre só com a folha "home". Tocar na busca empilha "search" (a pilha vira [home, search]);
- * fechar a do topo volta a [home]. A folha-base nunca sai da pilha.
+ * fechar a do topo (por id) volta a [home]. A folha-base nunca sai da pilha.
  */
 
 /**
@@ -35,7 +35,7 @@ export interface SheetStackState {
 
 export type SheetAction =
   | { type: "push"; sheet: SheetContent }
-  | { type: "pop" }
+  | { type: "close"; id: number }
   | { type: "replace"; sheet: SheetContent }
   | { type: "setDetent"; detent: Detent };
 
@@ -48,13 +48,17 @@ export const initialSheetState: SheetStackState = {
 export function sheetReducer(state: SheetStackState, action: SheetAction): SheetStackState {
   switch (action.type) {
     case "push": {
-      // Empilhar a mesma folha que já está no topo não faz nada (duplo toque na pílula ou no resultado).
+      // Regra: a mesma folha nunca aparece duas vezes na pilha. Já no topo: nada a fazer (duplo toque na pílula ou no resultado).
+      // Já na pilha, mas por baixo: sobe para o topo, com id novo (a folha é montada de novo e a tela volta a bater com a pilha).
       if (sameSheet(activeSheet(state), action.sheet)) return state;
-      return { ...state, stack: [...state.stack, { ...action.sheet, id: state.nextId }], nextId: state.nextId + 1 };
+      const kept = state.stack.filter((e, i) => i === 0 || !sameSheet(e, action.sheet));
+      return { ...state, stack: [...kept, { ...action.sheet, id: state.nextId }], nextId: state.nextId + 1 };
     }
-    case "pop": {
-      // A folha-base não fecha.
-      if (state.stack.length <= 1) return state;
+    case "close": {
+      // Fecha pelo id, não pela posição: um aviso atrasado ou repetido da biblioteca não derruba outra folha.
+      // Só a do topo fecha; a folha-base nunca; id que já saiu (fechamento em dobro) não faz nada.
+      const top = activeSheet(state);
+      if (state.stack.length <= 1 || top.id !== action.id) return state;
       return { ...state, stack: state.stack.slice(0, -1) };
     }
     case "replace": {
