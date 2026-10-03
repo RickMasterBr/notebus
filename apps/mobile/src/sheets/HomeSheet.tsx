@@ -1,21 +1,25 @@
 /**
  * Folha inicial da TL-01 (4.4 §5.1, variante inicial): 3 detents.
- * Pequeno = altura do conteúdo (a biblioteca mede; cresce com o Dynamic Type e nunca corta), médio = 50%, grande = 90%.
- * Por ora o conteúdo é só a busca em pílula; o resto da TL-01 é do bloco 3b e das etapas seguintes.
+ * Pequeno = só o handle e a pílula, medidos na tela (crescem com o Dynamic Type e nunca cortam), médio = 50%, grande = 90%.
+ * Médio e grande mostram "Perto de você" (4.1 §4); o que a 4.1 lista para o grande (Trajetos, Registros recentes,
+ * Rede e Ajustes) ainda não existe e não aparece.
  */
-import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "../i18n";
 import { elevation, radius, space, useTheme } from "../theme";
 import { SearchPill } from "../ui/SearchPill";
+import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { detentFromIndex } from "./stack";
 
 const LAST_INDEX = 2;
+/** Altura do detent pequeno até a primeira medida (handle + pílula + margem de baixo). */
+const SMALL_FALLBACK = 120;
 
 export function HomeSheet() {
   const { colors } = useTheme();
@@ -23,7 +27,10 @@ export function HomeSheet() {
   const { state, dispatch } = useSheets();
   const ref = useRef<BottomSheet>(null);
   const lastIndex = useRef<number | null>(null);
-  const snapPoints = useMemo(() => ["50%", "90%"], []);
+  const [handleHeight, setHandleHeight] = useState(0);
+  const [pillHeight, setPillHeight] = useState(0);
+  const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
+  const snapPoints = useMemo(() => [small, "50%", "90%"], [small]);
   // Com folha empilhada por cima, a de baixo sai da leitura do VoiceOver.
   const covered = state.stack.length > 1;
   const pill = useRef<View>(null);
@@ -48,12 +55,14 @@ export function HomeSheet() {
 
   const Handle = useCallback(
     () => (
-      <SheetHandle
-        kind="adjustable"
-        detent={state.detent}
-        onIncrement={() => ref.current?.snapToIndex(Math.min(state.detent + 1, LAST_INDEX))}
-        onDecrement={() => ref.current?.snapToIndex(Math.max(state.detent - 1, 0))}
-      />
+      <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
+        <SheetHandle
+          kind="adjustable"
+          detent={state.detent}
+          onIncrement={() => ref.current?.snapToIndex(Math.min(state.detent + 1, LAST_INDEX))}
+          onDecrement={() => ref.current?.snapToIndex(Math.max(state.detent - 1, 0))}
+        />
+      </View>
     ),
     [state.detent],
   );
@@ -70,7 +79,7 @@ export function HomeSheet() {
         index={0}
         animateOnMount={false}
         snapPoints={snapPoints}
-        enableDynamicSizing
+        enableDynamicSizing={false}
         enablePanDownToClose={false}
         topInset={insets.top}
         onChange={onChange}
@@ -78,8 +87,23 @@ export function HomeSheet() {
         style={elevation.sheet}
         backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
       >
-        <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + space.md }]}>
-          <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
+        <BottomSheetView style={styles.content}>
+          <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
+            <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
+          </View>
+          {/* No detent pequeno esta parte fica abaixo da borda da tela: fora da leitura do VoiceOver até a folha subir. */}
+          <View
+            style={styles.scroll}
+            accessibilityElementsHidden={state.detent === 0}
+            importantForAccessibility={state.detent === 0 ? "no-hide-descendants" : "auto"}
+          >
+            <BottomSheetScrollView
+              contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
+              showsVerticalScrollIndicator={false}
+            >
+              <NearbyStops />
+            </BottomSheetScrollView>
+          </View>
         </BottomSheetView>
       </BottomSheet>
     </View>
@@ -87,5 +111,6 @@ export function HomeSheet() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: space.md },
+  content: { flex: 1, paddingHorizontal: space.md },
+  scroll: { flex: 1 },
 });
