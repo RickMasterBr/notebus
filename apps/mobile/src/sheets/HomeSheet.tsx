@@ -71,6 +71,13 @@ export function HomeSheet() {
     wasCovered.current = covered;
   }, [covered]);
 
+  const [homeSettledDetentKey, setHomeSettledDetentKey] = useState(0);
+  const [homeSettledVisibleHeight, setHomeSettledVisibleHeight] = useState(0);
+  const [bodyContentHeight, setBodyContentHeight] = useState(0);
+  const latestHomeWrapperHeightRef = useRef(0);
+  const savedHomeOffsetRef = useRef(0);
+  const homeScrollRef = useRef<any>(null);
+
   const onChange = useCallback(
     (index: number) => {
       if (index < 0) return;
@@ -80,6 +87,14 @@ export function HomeSheet() {
       if (!silent && lastIndex.current !== null && lastIndex.current !== index) void Haptics.selectionAsync();
       lastIndex.current = index;
       dispatch({ type: "setDetent", detent: detentFromIndex(index) });
+
+      // V7: remonta a cada detent assentado
+      setHomeSettledDetentKey((k) => k + 1);
+
+      // V8: atualiza a altura visível do wrapper só quando a gaveta assenta
+      if (latestHomeWrapperHeightRef.current > 0) {
+        setHomeSettledVisibleHeight(latestHomeWrapperHeightRef.current);
+      }
     },
     [dispatch],
   );
@@ -125,6 +140,16 @@ export function HomeSheet() {
     return () => clearTimeout(timer);
   }, []);
 
+  // V7: restaura o offset após remontagem por detent
+  useEffect(() => {
+    if (variant === "V7" && homeScrollRef.current && savedHomeOffsetRef.current > 0) {
+      const t = setTimeout(() => {
+        homeScrollRef.current?.scrollTo?.({ y: savedHomeOffsetRef.current, animated: false });
+      }, 16);
+      return () => clearTimeout(t);
+    }
+  }, [homeSettledDetentKey, variant]);
+
   const window = useWindowDimensions();
   const containerH = containerHeightOf(window.height, insets.top);
   const currentHomeSheetH =
@@ -143,9 +168,15 @@ export function HomeSheet() {
 
   if (startIndex === null) return null;
 
-  const maxOffset = Math.max(0, contentHeight - viewportHeight);
+  const effectiveViewport = viewportHeight > 0 ? viewportHeight : (homeSettledVisibleHeight > 0 ? homeSettledVisibleHeight : staticHomeHeight);
+  const effectiveContent = contentHeight > 0 ? contentHeight : bodyContentHeight;
+  const maxOffset = Math.max(0, effectiveContent - effectiveViewport);
+
   const isStaticHeight = variant === "V4" || variant === "V6";
   const isKeySettled = variant === "V5" || variant === "V6";
+  const isV7 = variant === "V7";
+  const isV8 = variant === "V8";
+  const v8Height = homeSettledVisibleHeight > 0 ? homeSettledVisibleHeight : staticHomeHeight;
 
   return (
     <View
@@ -174,8 +205,8 @@ export function HomeSheet() {
             metrics={{
               detent: state.detent,
               animatedPosition: 0,
-              viewportHeight,
-              contentHeight,
+              viewportHeight: effectiveViewport,
+              contentHeight: effectiveContent,
               spacerHeight: variant === "V0" ? 319 : 0,
               contentOffsetY,
               maxScrollOffset: maxOffset,
@@ -186,17 +217,28 @@ export function HomeSheet() {
           </View>
           {/* No detent pequeno esta parte fica abaixo da borda da tela: fora da leitura do VoiceOver até a folha subir. */}
           <View
+            collapsable={false}
             style={[
               styles.scroll,
               isStaticHeight ? { height: staticHomeHeight, flex: 0, overflow: "hidden" } : null,
+              isV8 ? { height: v8Height, flex: 0, overflow: "hidden" } : null,
             ]}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              latestHomeWrapperHeightRef.current = h;
+              if (homeSettledVisibleHeight === 0 && h > 0) {
+                setHomeSettledVisibleHeight(h);
+              }
+            }}
             accessibilityElementsHidden={state.detent === 0}
             importantForAccessibility={state.detent === 0 ? "no-hide-descendants" : "auto"}
           >
-            {/* Em V5 e V6, remonta com `settled` quando a folha termina de abrir, evitando layout espúrio da 1ª passada */}
             <BottomSheetScrollView
+              ref={homeScrollRef}
               key={
-                isKeySettled
+                isV7
+                  ? `home-scroll-v7-${listReady ? "ready" : "loading"}-${homeSettledDetentKey}`
+                  : isKeySettled
                   ? `home-scroll-${listReady ? "ready" : "loading"}-${homeSettled ? "settled" : "init"}`
                   : listReady
                   ? "ready"
@@ -204,12 +246,29 @@ export function HomeSheet() {
               }
               contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
-              onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-              onContentSizeChange={(_w, h) => setContentHeight(h)}
-              onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                if (h > 0) setViewportHeight(h);
+              }}
+              onContentSizeChange={(_w, h) => {
+                if (h > 0) setContentHeight(h);
+              }}
+              onScroll={(e) => {
+                const y = e.nativeEvent.contentOffset.y;
+                setContentOffsetY(y);
+                savedHomeOffsetRef.current = y;
+              }}
             >
-              <NearbyStops />
-              {/* Bloco 5b: em V0 (controle), o espaço do bloco 5b continua; em V1..V6 é desativado */}
+              <View
+                collapsable={false}
+                onLayout={(e) => {
+                  const h = e.nativeEvent.layout.height;
+                  if (h > 0) setBodyContentHeight(h);
+                }}
+              >
+                <NearbyStops />
+              </View>
+              {/* Bloco 5b: em V0 (controle), o espaço do bloco 5b continua; em V1..V8 é desativado */}
               {variant === "V0" ? <HiddenBelowSpacer snapPoints={snapPoints} /> : null}
             </BottomSheetScrollView>
           </View>

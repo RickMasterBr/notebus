@@ -131,11 +131,27 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   }, [schedule, stopId, instant, dayType]);
 
   const lastIndex = useRef<number | null>(null);
+  const [settledDetentKey, setSettledDetentKey] = useState(0);
+  const [settledVisibleHeight, setSettledVisibleHeight] = useState(0);
+  const [bodyContentHeight, setBodyContentHeight] = useState(0);
+  const latestWrapperHeightRef = useRef(0);
+  const savedOffsetRef = useRef(0);
+  const scrollRef = useRef<any>(null);
+
   const onChange = useCallback((index: number) => {
     // `selectionAsync` quando a folha encaixa num detent diferente (4.5 §2.6); a abertura não conta.
     if (lastIndex.current !== null && lastIndex.current !== index) void Haptics.selectionAsync();
     lastIndex.current = index;
-    setDetent(index === 0 ? 0 : index === 1 ? 1 : 2);
+    const newDetent = index === 0 ? 0 : index === 1 ? 1 : 2;
+    setDetent(newDetent);
+
+    // V7: remonta a cada detent assentado
+    setSettledDetentKey((k) => k + 1);
+
+    // V8: atualiza a altura visível estática do wrapper SÓ quando a gaveta assenta
+    if (latestWrapperHeightRef.current > 0) {
+      setSettledVisibleHeight(latestWrapperHeightRef.current);
+    }
   }, []);
 
   const small =
@@ -162,6 +178,16 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
     return () => clearTimeout(timer);
   }, []);
 
+  // V7: restaura o offset após remontagem por detent
+  useEffect(() => {
+    if (variant === "V7" && scrollRef.current && savedOffsetRef.current > 0) {
+      const t = setTimeout(() => {
+        scrollRef.current?.scrollTo?.({ y: savedOffsetRef.current, animated: false });
+      }, 16);
+      return () => clearTimeout(t);
+    }
+  }, [settledDetentKey, variant]);
+
   const visibleHeight = stopContentHeight(detent, window.height, insets.top, handleHeight, small);
   const containerH = containerHeightOf(window.height, insets.top);
   const currentSheetH =
@@ -171,11 +197,21 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
       ? 0.5 * containerH
       : 0.9 * containerH;
   const staticHeight = staticViewportHeight(currentSheetH, handleHeight, 0, insets.bottom + space.md);
-  const maxOffset = Math.max(0, contentHeight - viewportHeight);
+
+  const effectiveViewport = viewportHeight > 0 ? viewportHeight : (settledVisibleHeight > 0 ? settledVisibleHeight : visibleHeight);
+  const effectiveContent = contentHeight > 0 ? contentHeight : bodyContentHeight;
+  const maxOffset = Math.max(0, effectiveContent - effectiveViewport);
   const showLines = (day?.lines ?? []).filter((l) => lineFilter === null || l.code === lineFilter);
 
   const listBody = (
-    <View style={styles.body}>
+    <View
+      style={styles.body}
+      collapsable={false}
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        if (h > 0) setBodyContentHeight(h);
+      }}
+    >
       <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}>
         {loading || skeleton ? (
           skeleton ? <Skeleton variant="card" /> : null
@@ -244,8 +280,8 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
       metrics={{
         detent,
         animatedPosition: 0,
-        viewportHeight,
-        contentHeight,
+        viewportHeight: effectiveViewport,
+        contentHeight: effectiveContent,
         spacerHeight: variant === "V0" ? 318.8 : 0,
         contentOffsetY,
         maxScrollOffset: maxOffset,
@@ -380,6 +416,77 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
             >
               {listBody}
             </BottomSheetScrollView>
+          </View>
+        </StackedSheet>
+      </StopSheetContext.Provider>
+    );
+  }
+
+  // Variante V7: V5 com remontagem a cada detent assentado, preservando o offset
+  if (variant === "V7") {
+    return (
+      <StopSheetContext.Provider value={context}>
+        <StackedSheet id={id} detents={detents}>
+          {diagPanel}
+          <BottomSheetScrollView
+            ref={scrollRef}
+            key={`stop-scroll-v7-${settledDetentKey}`}
+            contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
+            showsVerticalScrollIndicator={false}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0) setViewportHeight(h);
+            }}
+            onContentSizeChange={(_w, h) => {
+              if (h > 0) setContentHeight(h);
+            }}
+            onScroll={(e) => {
+              const y = e.nativeEvent.contentOffset.y;
+              setContentOffsetY(y);
+              savedOffsetRef.current = y;
+            }}
+          >
+            {listBody}
+          </BottomSheetScrollView>
+        </StackedSheet>
+      </StopSheetContext.Provider>
+    );
+  }
+
+  // Variante V8: Viewport igual à altura visível medida por onLayout de um wrapper não animado, atualizado só quando a gaveta assenta
+  if (variant === "V8") {
+    const v8Height = settledVisibleHeight > 0 ? settledVisibleHeight : visibleHeight;
+    return (
+      <StopSheetContext.Provider value={context}>
+        <StackedSheet id={id} detents={detents}>
+          {diagPanel}
+          <View
+            collapsable={false}
+            style={{ flex: 1 }}
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              latestWrapperHeightRef.current = h;
+              if (settledVisibleHeight === 0 && h > 0) {
+                setSettledVisibleHeight(h);
+              }
+            }}
+          >
+            <View style={{ height: v8Height, overflow: "hidden" }}>
+              <BottomSheetScrollView
+                contentContainerStyle={{ paddingBottom: insets.bottom + space.md }}
+                showsVerticalScrollIndicator={false}
+                onLayout={(e) => {
+                  const h = e.nativeEvent.layout.height;
+                  if (h > 0) setViewportHeight(h);
+                }}
+                onContentSizeChange={(_w, h) => {
+                  if (h > 0) setContentHeight(h);
+                }}
+                onScroll={(e) => setContentOffsetY(e.nativeEvent.contentOffset.y)}
+              >
+                {listBody}
+              </BottomSheetScrollView>
+            </View>
           </View>
         </StackedSheet>
       </StopSheetContext.Provider>

@@ -7,19 +7,21 @@ import { radius, space, type, useTheme } from "../theme";
 
 export const DIAG_SCROLL = true;
 
-export type ScrollVariant = "V0" | "V1" | "V2" | "V3" | "V4" | "V5" | "V6";
+export type ScrollVariant = "V0" | "V1" | "V2" | "V3" | "V4" | "V5" | "V6" | "V7" | "V8";
 
 const VARIANT_NAMES: Record<ScrollVariant, string> = {
   V0: "V0: Bloco 5b (Controle)",
   V1: "V1: Viewport Dinâmico + PointerEvents",
   V2: "V2: RNGH ScrollView + Desarmar Base",
   V3: "V3: Detent Único 90% (TL-02 Tall)",
-  V4: "V4: Altura Viewport Estática JS (sem animação)",
+  V4: "V4: Altura Estática JS (sem animação)",
   V5: "V5: Remontar ScrollView (Key) após assentar",
-  V6: "V6: V4 (Altura Estática) + V5 (Remontagem Key)",
+  V6: "V6: V4 + V5",
+  V7: "V7: Remontagem a Cada Detent Assentado + Offset",
+  V8: "V8: Viewport Medido por Wrapper Não Animado no Assentamento",
 };
 
-let currentVariant: ScrollVariant = "V4";
+let currentVariant: ScrollVariant = "V8";
 const listeners = new Set<(v: ScrollVariant) => void>();
 
 export function getScrollVariant(): ScrollVariant {
@@ -58,7 +60,7 @@ export interface DiagSheetMetrics {
 }
 
 // SHA e versão de build
-const BUILD_SHA = "ef6dfac+E02";
+const BUILD_SHA = "7862d85+E02";
 const BUILD_VERSION = "1.0.0-dev";
 
 export function DiagScrollPanel({
@@ -103,7 +105,7 @@ export function DiagScrollPanel({
           </Text>
         </View>
 
-        {/* Seletor de Variantes tocável em 2 linhas */}
+        {/* Seletor de Variantes tocável em 3 linhas */}
         <View style={styles.variantContainer}>
           <View style={styles.variantRow}>
             {(["V0", "V1", "V2", "V3"] as const).map((v) => {
@@ -135,6 +137,34 @@ export function DiagScrollPanel({
           </View>
           <View style={styles.variantRow}>
             {(["V4", "V5", "V6"] as const).map((v) => {
+              const active = variant === v;
+              return (
+                <Pressable
+                  key={v}
+                  onPress={() => handleSelect(v)}
+                  style={[
+                    styles.variantButton,
+                    {
+                      backgroundColor: active ? colors.accent : colors.fill,
+                      borderColor: active ? colors.accent : colors.divider,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      type.caption,
+                      styles.buttonText,
+                      { color: active ? colors.onAccent : colors.text },
+                    ]}
+                  >
+                    {v}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.variantRow}>
+            {(["V7", "V8"] as const).map((v) => {
               const active = variant === v;
               return (
                 <Pressable
