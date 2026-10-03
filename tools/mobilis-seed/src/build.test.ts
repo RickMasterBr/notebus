@@ -15,6 +15,7 @@ function input(): SeedInput {
     markdown: read("exemplo.md"),
     timepoints: JSON.parse(read("timepoints.json")),
     stopsMap: JSON.parse(read("stops-map.json")),
+    holidays: JSON.parse(read("holidays.json")),
     network: { name: "Rede Exemplo", timezone: "Europe/Lisbon" },
     colors: { "1": "#111111", "2": "#222222" },
   };
@@ -173,5 +174,44 @@ describe("validação reprova entrada quebrada", () => {
   it("V7: contagem diferente da esperada", () => {
     const errs = errorsWith(() => {}, { ...EXPECTED, trips: 8 });
     expect(errs).toEqual(["V7: trips: 7, esperado 8"]);
+  });
+});
+
+describe("feriados (E-02 bloco 1)", () => {
+  type H = SeedInput["holidays"]["holidays"][number];
+  const h = (date: string, over: Partial<H> = {}): H => ({
+    date,
+    name: "Feriado inventado",
+    scope: "municipal",
+    source: "official",
+    official_key: `mobilis/holiday/${date}`,
+    ...over,
+  });
+  const withHolidays = (list: H[]) => build({ ...input(), holidays: { holidays: list } });
+
+  it("entram no arquivo com chave, ID = UUIDv5 da chave e pela ordem da data", () => {
+    const { seed, errors } = withHolidays([h("2027-06-13"), h("2026-06-13")]);
+    expect(errors).toEqual([]);
+    expect(seed.holidays?.map((x) => x.date)).toEqual(["2026-06-13", "2027-06-13"]);
+    expect(seed.holidays?.[0]).toMatchObject({ key: "mobilis/holiday/2026-06-13", scope: "municipal" });
+    expect(checkIds(seed)).toEqual([]);
+  });
+
+  it("o fixture tem os dois anos e o arquivo continua estável (V8)", () => {
+    expect(build().seed.holidays).toHaveLength(2);
+    expect(serialize(build().seed)).toBe(serialize(build().seed));
+  });
+
+  it("reprova data que não existe, data repetida, chave fora do esquema e fonte errada", () => {
+    expect(withHolidays([h("2026-02-30")]).errors.join()).toContain("data inválida 2026-02-30");
+    expect(withHolidays([h("2026-06-13"), h("2026-06-13")]).errors.join()).toContain("feriado repetido em 2026-06-13");
+    expect(withHolidays([h("2026-06-13", { official_key: "mobilis/holiday/x" })]).errors.join()).toContain("official_key deve ser");
+    expect(withHolidays([h("2026-06-13", { source: "user" as "official" })]).errors.join()).toContain("source deve ser official");
+    expect(withHolidays([h("2026-06-13", { scope: "regional" as "municipal" })]).errors.join()).toContain("scope inválido");
+  });
+
+  it("chave repetida com datas diferentes também reprova (V8)", () => {
+    const { errors } = withHolidays([h("2026-06-13"), h("2026-06-14", { official_key: "mobilis/holiday/2026-06-13" })]);
+    expect(errors.join()).toContain("chave repetida");
   });
 });

@@ -1,0 +1,6 @@
+{
+  "holidays": [
+    { "date": "2026-06-13", "name": "Feriado municipal de Exemplo", "scope": "municipal", "source": "official", "official_key": "mobilis/holiday/2026-06-13" },
+    { "date": "2027-06-13", "name": "Feriado municipal de Exemplo", "scope": "municipal", "source": "official", "official_key": "mobilis/holiday/2027-06-13" }
+  ]
+}

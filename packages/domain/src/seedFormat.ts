@@ -55,6 +55,20 @@ export interface SeedFile {
     sourceTable: number;
   }[];
   stopTimes: { id: string; key: string; tripId: string; patternStopId: string; serviceMinute: number }[];
+  /**
+   * Feriados gravados na tabela `holiday` (E-02 §3.1): o municipal de Leiria, uma linha por ano (a coluna `recurring`
+   * só chega na E-08). Os nacionais não vêm aqui: vêm da biblioteca. Opcional para o arquivo da E-01, que não tinha.
+   */
+  holidays?: SeedHoliday[];
+}
+
+/** Um feriado do arquivo; chave `mobilis/holiday/<AAAA-MM-DD>` (D-086), `id` = UUIDv5 dela. */
+export interface SeedHoliday {
+  id: string;
+  key: string;
+  date: string;
+  name: string;
+  scope: "national" | "municipal";
 }
 
 /**
@@ -79,7 +93,10 @@ const SHAPE: Record<string, Record<string, Field>> = {
   timetables: { id: "s", key: "s", patternId: "s", validFrom: "s" },
   trips: { id: "s", key: "s", timetableId: "s", firstPosition: "i", lastPosition: "i", sourceTable: "i" },
   stopTimes: { id: "s", key: "s", tripId: "s", patternStopId: "s", serviceMinute: "i" },
+  holidays: { id: "s", key: "s", date: "s", name: "s", scope: "s" },
 };
+/** Listas que o arquivo pode não ter (arquivos de antes da E-02). */
+const OPTIONAL_LISTS = new Set(["holidays"]);
 const DAY_TYPES = ["weekday", "saturday", "sunday_holiday"];
 const MD = /^\d\d-\d\d$/;
 const DATE = /^\d{4}-\d\d-\d\d$/;
@@ -118,6 +135,7 @@ export function parseSeedFile(value: unknown): SeedFile {
   }
   for (const [list, shape] of Object.entries(SHAPE)) {
     const rows = value[list];
+    if (rows === undefined && OPTIONAL_LISTS.has(list)) continue;
     if (!Array.isArray(rows)) {
       problems.push(`${list}: deve ser uma lista`);
       continue;
@@ -142,7 +160,7 @@ export function parseSeedFile(value: unknown): SeedFile {
   }
   if (problems.length === 0) {
     const seed = value as unknown as SeedFile;
-    problems.push(...checkReferences(seed), ...checkIds(seed));
+    problems.push(...checkReferences(seed), ...checkIds(seed), ...checkHolidays(seed.holidays ?? []));
   }
   if (problems.length > 0) throw new SeedFormatError(problems);
   return value as unknown as SeedFile;
@@ -185,6 +203,29 @@ export function checkReferences(seed: SeedFile): string[] {
  * Isso assegura que re-importar os mesmos dados gera sempre os mesmos IDs.
  */
 export function checkIds(seed: SeedFile): string[] {
-  const all = [seed.stops, seed.lines, seed.patterns, seed.patternStops, seed.timetables, seed.trips, seed.stopTimes];
+  const all = [seed.stops, seed.lines, seed.patterns, seed.patternStops, seed.timetables, seed.trips, seed.stopTimes, seed.holidays ?? []];
   return all.flat().flatMap((x) => (x.id === officialId(x.key) ? [] : [`V8: ID de ${x.key} não é o UUIDv5 da chave`]));
+}
+
+/** "2026-02-30" não passa: a data tem de existir no calendário. */
+export function isRealDate(date: string): boolean {
+  if (!DATE.test(date)) return false;
+  const d = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === date;
+}
+
+/** Feriados (E-02 bloco 1): data que existe, escopo conhecido, sem data repetida e sem chave repetida. */
+export function checkHolidays(holidays: SeedHoliday[]): string[] {
+  const errors: string[] = [];
+  const dates = new Set<string>();
+  const keys = new Set<string>();
+  for (const h of holidays) {
+    if (!isRealDate(h.date)) errors.push(`feriado ${h.key}: data inválida ${h.date}`);
+    if (h.scope !== "municipal" && h.scope !== "national") errors.push(`feriado ${h.key}: scope inválido ${h.scope}`);
+    if (dates.has(h.date)) errors.push(`feriado repetido em ${h.date}`);
+    if (keys.has(h.key)) errors.push(`feriado com chave repetida ${h.key}`);
+    dates.add(h.date);
+    keys.add(h.key);
+  }
+  return errors;
 }

@@ -38,7 +38,24 @@ export interface StopsMapFile {
   }[];
 }
 
+// ---------- Entrada: holidays.json (E-02 bloco 1) ----------
+
+/**
+ * Feriados que a biblioteca não traz (P-07): o municipal de Leiria. Colunas com o nome da tabela `holiday`.
+ * Uma linha por ano até a E-08 trazer a coluna `recurring`.
+ */
+export interface HolidaysFile {
+  holidays: {
+    date: string;
+    name: string;
+    scope: "municipal" | "national";
+    source: "official";
+    /** `mobilis/holiday/<date>` (D-086). */
+    official_key: string;
+  }[];
+}
+
 // ---------- Saída: o arquivo de importação ----------
 
 // O formato mora no domínio: o app importa o mesmo arquivo que esta ferramenta gera (E-01 bloco 4a).
-export type { DayTypeCode, DaysCode, SeasonRef, SeedFile } from "@notebus/domain/src/seedFormat.ts";
+export type { DayTypeCode, DaysCode, SeasonRef, SeedFile, SeedHoliday } from "@notebus/domain/src/seedFormat.ts";

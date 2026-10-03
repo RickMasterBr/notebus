@@ -19,7 +19,7 @@ async function setup() {
 }
 
 const IMPORTED = [
-  "network", "day_type", "season", "dataset", "line", "stop", "pattern", "pattern_stop",
+  "network", "day_type", "season", "holiday", "dataset", "line", "stop", "pattern", "pattern_stop",
   "timetable", "trip", "trip_day_type", "stop_time",
 ];
 const TIME = 1_790_000_000_000;
@@ -34,7 +34,7 @@ const counts = (conn: NodeSqlite) =>
 
 /** Referências soltas no banco (D-122: sem chave estrangeira, quem confere somos nós). */
 const REFS: [string, string, string][] = [
-  ["day_type", "network_id", "network"], ["season", "network_id", "network"], ["dataset", "network_id", "network"],
+  ["day_type", "network_id", "network"], ["season", "network_id", "network"], ["holiday", "network_id", "network"], ["dataset", "network_id", "network"],
   ["line", "network_id", "network"], ["stop", "network_id", "network"],
   ["pattern", "line_id", "line"], ["pattern_stop", "pattern_id", "pattern"], ["pattern_stop", "stop_id", "stop"],
   ["timetable", "pattern_id", "pattern"], ["timetable", "dataset_id", "dataset"],
@@ -69,7 +69,7 @@ describe("importMobilis com o exemplo inventado", () => {
     const report = await importMobilis(conn, exampleSeed(), { now });
 
     expect(counts(conn)).toEqual({
-      network: 1, day_type: 3, season: 1, dataset: 1, line: 1, stop: 3, pattern: 1, pattern_stop: 3,
+      network: 1, day_type: 3, season: 1, holiday: 2, dataset: 1, line: 1, stop: 3, pattern: 1, pattern_stop: 3,
       timetable: 1, trip: 2, trip_day_type: 3, stop_time: 6,
     });
     expect(Object.keys(report.tables)).toEqual(expect.arrayContaining(IMPORTED));
@@ -94,9 +94,10 @@ describe("importMobilis com o exemplo inventado", () => {
     const conn = await setup();
     const seen: string[] = [];
     await importMobilis(conn, exampleSeed(), { now, onProgress: (p) => seen.push(`${p.step}/${p.of} ${p.table}`) });
-    expect(seen).toHaveLength(12);
-    expect(seen[0]).toBe("1/12 network");
-    expect(seen[11]).toBe("12/12 stop_time");
+    expect(seen).toHaveLength(13);
+    expect(seen[0]).toBe("1/13 network");
+    expect(seen[3]).toBe("4/13 holiday");
+    expect(seen[12]).toBe("13/13 stop_time");
   });
 
   it("importar duas vezes: mesmas contagens, nada alterado, dataset não duplica", async () => {
@@ -109,6 +110,42 @@ describe("importMobilis com o exemplo inventado", () => {
     expect(report.newDataset).toBe(false);
     expect(Object.values(report.tables).every((t) => t.inserted === 0)).toBe(true);
     expect(report.tables.stop).toEqual({ total: 3, inserted: 0 });
+  });
+
+  it("feriados (E-02): gravados como dado oficial, com a chave e o escopo do arquivo", async () => {
+    const conn = await setup();
+    await importMobilis(conn, exampleSeed(), { now });
+    const networkId = conn.all("SELECT id FROM network")[0]!.id;
+    expect(conn.all("SELECT date, name, scope, source, official_key, network_id, deleted_at FROM holiday ORDER BY date")).toEqual(
+      ["2026-06-13", "2027-06-13"].map((date) => ({
+        date, name: "Feriado municipal de Exemplo", scope: "municipal", source: "official",
+        official_key: `mobilis/holiday/${date}`, network_id: networkId, deleted_at: null,
+      })),
+    );
+  });
+
+  it("reimportar (E-02): o arquivo da E-01 sem feriados e depois o novo: só entram os feriados e uma linha de dataset", async () => {
+    const conn = await setup();
+    await importMobilis(conn, exampleSeed("2026-09-01", false, false), { now });
+    expect(counts(conn).holiday).toBe(0);
+    const before = snapshot(conn);
+
+    const report = await importMobilis(conn, exampleSeed(), { now: () => TIME + 60_000 });
+
+    // o arquivo mudou (checksum novo) → um dataset novo, como na D-123; o resto já existia e ficou igual
+    expect(report.newDataset).toBe(true);
+    expect(Object.fromEntries(Object.entries(report.tables).filter(([, r]) => r.inserted > 0).map(([t, r]) => [t, r.inserted])))
+      .toEqual({ holiday: 2, dataset: 1 });
+    const after = snapshot(conn);
+    for (const [table, rows] of Object.entries(before)) {
+      if (table === "dataset") expect(after.dataset).toEqual(expect.arrayContaining(rows));
+      else if (table !== "holiday") expect(after[table], table).toEqual(rows);
+    }
+    expect(danglingRefs(conn)).toEqual([]);
+    // e uma terceira vez com o mesmo arquivo não muda nada
+    const third = snapshot(conn);
+    await importMobilis(conn, exampleSeed(), { now: () => TIME + 120_000 });
+    expect(snapshot(conn)).toEqual(third);
   });
 
   it("vigência nova acrescenta sem apagar a antiga e reaproveita as paragens", async () => {
@@ -128,7 +165,7 @@ describe("importMobilis com o exemplo inventado", () => {
     // acrescentou: 1 percurso, 3 paragens de percurso, 1 quadro, 2 viagens, 6 horários, 1 dataset; 1 paragem nova; linha reaproveitada
     expect(counts(conn)).toMatchObject({
       dataset: 2, line: 1, stop: 4, pattern: 2, pattern_stop: 6, timetable: 2, trip: 4, trip_day_type: 6, stop_time: 12,
-      day_type: 3, season: 1, network: 1,
+      day_type: 3, season: 1, network: 1, holiday: 2,
     });
     expect(report.tables.stop).toEqual({ total: 4, inserted: 1 });
     expect(report.tables.line).toEqual({ total: 1, inserted: 0 });
@@ -172,6 +209,9 @@ describe("importMobilis com o exemplo inventado", () => {
       ["tipo de dia desconhecido", bad((s) => { (s.trips[0] as { dayTypes: unknown }).dayTypes = ["feriado"]; })],
       ["referência solta", bad((s) => { s.stopTimes[0]!.tripId = "inexistente"; })],
       ["ID que não é o da chave", bad((s) => { s.stops[0]!.key = "mobilis/stop/9999"; })],
+      ["feriado com data que não existe", bad((s) => { s.holidays![0]!.date = "2026-02-30"; })],
+      ["feriado repetido", bad((s) => { s.holidays![1]!.date = s.holidays![0]!.date; })],
+      ["feriado sem nome", bad((s) => { (s.holidays![0] as { name: unknown }).name = ""; })],
     ];
     for (const [name, json] of cases) {
       await expect(importMobilis(conn, json, { now }), name).rejects.toBeInstanceOf(SeedFormatError);
