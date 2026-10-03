@@ -45,6 +45,8 @@ export const ptBR = {
   "first_run.import_invalid": "Não foi possível importar. O arquivo não está no formato esperado.",
   "first_run.import_failed": "Não foi possível importar. Nada foi alterado. Tente de novo.",
   "search.group.stops": "Pontos",
+  "search.group.recent": "Recentes",
+  "search.empty.prompt": "Pesquise um ponto de ônibus para começar",
   "search.empty.no_results": "Nada encontrado para “{{term}}”",
   "search.clear.a11y": "Limpar busca",
   "search.result.stop.a11y": "{{name}}, linhas {{lines}}",

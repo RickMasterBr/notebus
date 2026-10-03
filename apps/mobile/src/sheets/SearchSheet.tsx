@@ -1,19 +1,23 @@
 /**
- * TL-14 Busca (4.1 §15a; campo 4.4 §5.13, linha de lista §5.12, esqueleto §5.17).
- * Acha pontos por nome, apelido ou ID. Antes de digitar: nada. Só o grupo "Pontos": Linhas (E-08) e Lugares (E-05)
+ * TL-14 Busca (4.1 §15a; campo em pílula 4.4 §5.9/D-136, linha de lista §5.12, esqueleto §5.17).
+ * Acha pontos por nome, apelido ou ID. Antes de digitar (D-137): "Recentes" ou a mensagem de convite. Só o grupo "Pontos": Linhas (E-08) e Lugares (E-05)
  * só entram quando o destino deles existir.
  */
 import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { searchStops } from "@notebus/domain";
-import { useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRecentStops } from "../data/RecentStopsProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
+import { searchPanel } from "../data/searchPanel";
+import type { StopEntry } from "../data/stopIndex";
 import { stopIdDetail } from "../data/stopIdDetail";
 import { t } from "../i18n";
-import { minTouch, radius, space, type, useTheme } from "../theme";
+import { minTouch, opacity, space, type, useTheme } from "../theme";
 import { CrossGlyph, SearchGlyph } from "../ui/Glyphs";
 import { ListRow } from "../ui/ListRow";
+import { pillStyles } from "../ui/SearchPill";
 import { Skeleton } from "../ui/Skeleton";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
 import { StackedSheet } from "./StackedSheet";
@@ -25,28 +29,79 @@ export function SearchSheet() {
   const insets = useSafeAreaInsets();
   const openStop = useOpenStop();
   const index = useStopIndex();
+  const recent = useRecentStops();
   const keyboard = useKeyboardHeight();
   const input = useRef<React.ComponentRef<typeof BottomSheetTextInput>>(null);
   const [term, setTerm] = useState("");
-  const [focused, setFocused] = useState(false);
 
   const typed = term.trim() !== "";
-  const loading = index.status === "loading" && typed;
+  const loading = (index.status === "loading" && typed) || (!typed && (index.status === "loading" || recent.status === "loading"));
   const skeleton = useSkeletonVisible(loading);
   const results = useMemo(() => (index.status === "ready" ? searchStops(index.stops, term) : []), [index, term]);
+  const recents = useMemo(() => {
+    if (index.status !== "ready") return [];
+    const byId = new Map(index.stops.map((s) => [s.id, s]));
+    return recent.ids.flatMap((id) => byId.get(id) ?? []);
+  }, [index, recent.ids]);
+  const panel = searchPanel(term, recents.length);
+
+  // A mensagem do vazio não é decorativa: o VoiceOver a lê uma vez, quando ela aparece.
+  const announced = useRef(false);
+  useEffect(() => {
+    if (loading || panel !== "prompt" || announced.current) return;
+    announced.current = true;
+    AccessibilityInfo.announceForAccessibility(t("search.empty.prompt"));
+  }, [loading, panel]);
+
+  const stopRow = (stop: StopEntry) => (
+    <ListRow
+      key={stop.id}
+      title={stop.name}
+      detail={stopIdDetail(stop.externalId)}
+      secondary={stop.lines.join(", ")}
+      accessibilityLabel={
+        stop.lines.length > 0 ? t("search.result.stop.a11y", { name: stop.name, lines: stop.lines.join(", ") }) : stop.name
+      }
+      onPress={() => openStop({ id: stop.id, name: stop.name })}
+    />
+  );
+  const group = (title: string, stops: StopEntry[]) => (
+    <View>
+      <Text accessibilityRole="header" style={[type.label, styles.group, { color: colors.textSecondary }]}>
+        {title}
+      </Text>
+      {stops.map(stopRow)}
+    </View>
+  );
+
+  let body: ReactNode = null;
+  if (loading || skeleton) body = skeleton ? <Skeleton /> : null;
+  else if (panel === "recents") body = group(t("search.group.recent"), recents);
+  else if (panel === "prompt")
+    body = (
+      <Text accessible style={[type.body, styles.prompt, { color: colors.textSecondary, opacity: opacity.muted }]}>
+        {t("search.empty.prompt")}
+      </Text>
+    );
+  else if (results.length > 0) body = group(t("search.group.stops"), results);
+  else if (index.status === "ready")
+    body = (
+      <Text style={[type.body, styles.empty, { color: colors.textSecondary }]}>
+        {t("search.empty.no_results", { term: term.trim() })}
+      </Text>
+    );
 
   return (
     <StackedSheet tall>
       <View style={styles.fill}>
-        <View style={[styles.field, { borderColor: focused ? colors.accent : colors.divider }]}>
+        {/* D-136: mesmo formato e mesma cor da pílula do Início (`pillStyles`). */}
+        <View style={[pillStyles.pill, styles.field, { backgroundColor: colors.fill }]}>
           <SearchGlyph color={colors.textSecondary} />
           <BottomSheetTextInput
             ref={input}
             autoFocus
             value={term}
             onChangeText={setTerm}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
             placeholder={t("home.search_placeholder")}
             placeholderTextColor={colors.textSecondary}
             accessibilityLabel={t("home.search_placeholder")}
@@ -73,35 +128,12 @@ export function SearchSheet() {
 
         <BottomSheetScrollView
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: Math.max(keyboard, insets.bottom) + space.md }}
+          contentContainerStyle={[
+            { paddingBottom: Math.max(keyboard, insets.bottom) + space.md },
+            panel === "prompt" && !loading ? styles.centered : null,
+          ]}
         >
-          {loading || skeleton ? (
-            skeleton ? <Skeleton /> : null
-          ) : results.length > 0 ? (
-            <View>
-              <Text accessibilityRole="header" style={[type.label, styles.group, { color: colors.textSecondary }]}>
-                {t("search.group.stops")}
-              </Text>
-              {results.map((stop) => (
-                <ListRow
-                  key={stop.id}
-                  title={stop.name}
-                  detail={stopIdDetail(stop.externalId)}
-                  secondary={stop.lines.join(", ")}
-                  accessibilityLabel={
-                    stop.lines.length > 0
-                      ? t("search.result.stop.a11y", { name: stop.name, lines: stop.lines.join(", ") })
-                      : stop.name
-                  }
-                  onPress={() => openStop({ id: stop.id, name: stop.name })}
-                />
-              ))}
-            </View>
-          ) : typed && index.status === "ready" ? (
-            <Text style={[type.body, styles.empty, { color: colors.textSecondary }]}>
-              {t("search.empty.no_results", { term: term.trim() })}
-            </Text>
-          ) : null}
+          {body}
         </BottomSheetScrollView>
       </View>
     </StackedSheet>
@@ -110,19 +142,13 @@ export function SearchSheet() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  // 5.13: `radius.sm`, `space.sm` interno, borda `divider` (foco: `accent` 1,5 px). Cresce com o Dynamic Type.
-  field: {
-    minHeight: minTouch,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.sm,
-    paddingHorizontal: space.sm,
-    borderWidth: 1.5,
-    borderRadius: radius.sm,
-    marginBottom: space.sm,
-  },
+  // O formato vem de `pillStyles.pill`; aqui só o que é do campo: espaço até a lista e o campo de texto que cresce.
+  field: { marginBottom: space.sm },
   input: { flex: 1, paddingVertical: space.sm },
   clear: { width: minTouch, height: minTouch, alignItems: "center", justifyContent: "center", marginRight: -space.sm },
   group: { paddingHorizontal: space.md, paddingVertical: space.sm },
   empty: { paddingHorizontal: space.md, paddingVertical: space.md },
+  // Meio da área de resultados (a rolagem ocupa a folha toda; o conteúdo cresce até preencher e centraliza).
+  centered: { flexGrow: 1, justifyContent: "center" },
+  prompt: { textAlign: "center", paddingHorizontal: space.lg },
 });
