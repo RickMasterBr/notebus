@@ -154,6 +154,25 @@ describe("buildStopDay: passagem de uma linha", () => {
   });
 });
 
+describe("buildStopDay: estável entre renders (bloco 4b)", () => {
+  it("mesmo \"agora\": mesmo conteúdo e as mesmas chaves de linha, na mesma ordem (a lista não é remontada)", async () => {
+    const at = lisbon("2026-09-03", "08:00");
+    const a = await day("rua", at);
+    const b = await day("rua", at);
+    expect(b).toEqual(a);
+    const keys = (d: typeof a) => d.lines.flatMap((l) => l.rows.map((r) => r.key));
+    expect(keys(b)).toEqual(keys(a));
+    expect(new Set(keys(a)).size).toBe(keys(a).length);
+  });
+
+  it("o minuto seguinte só muda o que depende do horário: as chaves das passagens que continuam são as mesmas", async () => {
+    const a = await day("rua", lisbon("2026-09-03", "08:00"));
+    const b = await day("rua", lisbon("2026-09-03", "08:01"));
+    const keys = (d: typeof a) => d.lines.flatMap((l) => l.rows.map((r) => r.key));
+    expect(keys(b)).toEqual(keys(a));
+  });
+});
+
 describe("buildStopDay: número, origem, destino e pontas (§3.6, D-094)", () => {
   it("Estádio na linha 5: 1ª, 2ª e 3ª passagens, com origem e destino", async () => {
     const d = await day("estadio", lisbon("2026-09-03", "09:00"));
