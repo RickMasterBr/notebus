@@ -6,14 +6,21 @@
  * fechar a do topo volta a [home]. A folha-base nunca sai da pilha.
  */
 
-/** Folhas que existem hoje. O bloco 3b troca "search" pela TL-14 e acrescenta as outras. */
-export type SheetKind = "home" | "search";
+/**
+ * Folhas que existem hoje. "stop" é a folha **provisória** de ponto (E-02 bloco 3b): o bloco 4 a troca pela TL-02.
+ * Cada folha leva o que precisa para se desenhar.
+ */
+export type SheetContent =
+  | { kind: "home" }
+  | { kind: "search" }
+  | { kind: "stop"; stopId: string; name: string };
 
-export interface SheetEntry {
+export type SheetKind = SheetContent["kind"];
+
+export type SheetEntry = SheetContent & {
   /** Identifica a folha enquanto ela existe (chave do React); nunca se repete. */
   id: number;
-  kind: SheetKind;
-}
+};
 
 /** Os 3 detents da folha inicial (4.4 §5.1): pequeno, médio, grande. */
 export type Detent = 0 | 1 | 2;
@@ -27,9 +34,9 @@ export interface SheetStackState {
 }
 
 export type SheetAction =
-  | { type: "push"; kind: SheetKind }
+  | { type: "push"; sheet: SheetContent }
   | { type: "pop" }
-  | { type: "replace"; kind: SheetKind }
+  | { type: "replace"; sheet: SheetContent }
   | { type: "setDetent"; detent: Detent };
 
 export const initialSheetState: SheetStackState = {
@@ -41,9 +48,9 @@ export const initialSheetState: SheetStackState = {
 export function sheetReducer(state: SheetStackState, action: SheetAction): SheetStackState {
   switch (action.type) {
     case "push": {
-      // Empilhar a mesma folha que já está no topo não faz nada (duplo toque na pílula).
-      if (activeSheet(state).kind === action.kind) return state;
-      return { ...state, stack: [...state.stack, { id: state.nextId, kind: action.kind }], nextId: state.nextId + 1 };
+      // Empilhar a mesma folha que já está no topo não faz nada (duplo toque na pílula ou no resultado).
+      if (sameSheet(activeSheet(state), action.sheet)) return state;
+      return { ...state, stack: [...state.stack, { ...action.sheet, id: state.nextId }], nextId: state.nextId + 1 };
     }
     case "pop": {
       // A folha-base não fecha.
@@ -53,12 +60,16 @@ export function sheetReducer(state: SheetStackState, action: SheetAction): Sheet
     case "replace": {
       // Troca a do topo por outra; na base não há o que trocar (use "push").
       if (state.stack.length <= 1) return state;
-      const next: SheetEntry = { id: state.nextId, kind: action.kind };
+      const next: SheetEntry = { ...action.sheet, id: state.nextId };
       return { ...state, stack: [...state.stack.slice(0, -1), next], nextId: state.nextId + 1 };
     }
     case "setDetent":
       return state.detent === action.detent ? state : { ...state, detent: action.detent };
   }
+}
+
+function sameSheet(a: SheetContent, b: SheetContent): boolean {
+  return a.kind === b.kind && (a.kind !== "stop" || b.kind !== "stop" || a.stopId === b.stopId);
 }
 
 /** A folha que recebe o toque agora: a do topo. */

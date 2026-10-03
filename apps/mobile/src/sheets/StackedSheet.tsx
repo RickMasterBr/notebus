@@ -1,5 +1,6 @@
 /**
  * Moldura das folhas empilhadas (4.4 §5.1, variante curta: 1 altura; 4.5 §2.5, D-043).
+ * `tall`: uma altura fixa de 90% (folha com campo de texto e lista rolável, como a Busca); o teclado não empurra a folha.
  * Abre em 250 ms ease-out, fecha em 180 ms ease-in, e o fundo escurece (28% claro / 50% escuro).
  * Com "Reduzir movimento": sem deslocamento, só esmaece (150 ms).
  */
@@ -20,7 +21,9 @@ const FADE_MS = motion.fast; // 150
 const openConfig = { duration: OPEN_MS, easing: Easing.out(Easing.ease) };
 const closeConfig = { duration: CLOSE_MS, easing: Easing.in(Easing.ease) };
 
-export function StackedSheet({ children }: { children: ReactNode }) {
+const TALL_SNAP_POINTS = ["90%"];
+
+export function StackedSheet({ children, tall = false }: { children: ReactNode; tall?: boolean }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { dispatch } = useSheets();
@@ -42,7 +45,7 @@ export function StackedSheet({ children }: { children: ReactNode }) {
   }, [pop, reduceMotion]);
 
   const Handle = useCallback(
-    () => <SheetHandle kind="close" onPress={closeFromHandle} accessibilityLabel={t("common.close")} />,
+    () => <SheetHandle kind="close" onPress={closeFromHandle} />,
     [closeFromHandle],
   );
 
@@ -75,7 +78,9 @@ export function StackedSheet({ children }: { children: ReactNode }) {
         index={0}
         animateOnMount={!reduceMotion}
         animationConfigs={openConfig}
-        enableDynamicSizing
+        snapPoints={tall ? TALL_SNAP_POINTS : undefined}
+        enableDynamicSizing={!tall}
+        keyboardBehavior={tall ? "extend" : undefined}
         enablePanDownToClose
         topInset={insets.top}
         onClose={pop}
@@ -84,7 +89,9 @@ export function StackedSheet({ children }: { children: ReactNode }) {
         style={elevation.sheet}
         backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
       >
-        <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + space.md }]}>{children}</BottomSheetView>
+        <BottomSheetView style={[styles.content, tall ? styles.tall : null, { paddingBottom: tall ? 0 : insets.bottom + space.md }]}>
+          {children}
+        </BottomSheetView>
       </BottomSheet>
     </Animated.View>
   );
@@ -92,4 +99,5 @@ export function StackedSheet({ children }: { children: ReactNode }) {
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: space.md },
+  tall: { flex: 1 },
 });

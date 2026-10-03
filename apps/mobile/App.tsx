@@ -2,6 +2,8 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
+import { NowProvider } from "./src/data/NowProvider";
+import { StopIndexProvider } from "./src/data/StopIndexProvider";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
 import { pickAndImport } from "./src/db/importFromFile";
 import { expoImportDb, openNotebusDb } from "./src/db/open";
@@ -51,7 +53,11 @@ export default function App() {
             }}
           />
         ) : (
-          <Home />
+          <NowProvider>
+            <StopIndexProvider db={db}>
+              <Home />
+            </StopIndexProvider>
+          </NowProvider>
         )}
         <StatusBar style="auto" />
       </SafeAreaProvider>

@@ -1,26 +1,20 @@
 /** Busca em pílula (4.4 §5.9). Fundo `fill` e lupa como no canvas da 4.5 (Main.dc.html); toque encolhe a 96% em 100 ms (4.5 §2.5). */
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { Ref } from "react";
+import { Pressable, StyleSheet, Text, type View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
+import { SearchGlyph } from "./Glyphs";
 
-/** Lupa de 18 px desenhada com Views (sem biblioteca de ícones). Só decoração: o rótulo é o texto da pílula. */
-function SearchIcon({ color }: { color: string }) {
-  return (
-    <View style={styles.icon} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={[styles.lens, { borderColor: color }]} />
-      <View style={[styles.handle, { backgroundColor: color }]} />
-    </View>
-  );
-}
-
-export function SearchPill({ onPress }: { onPress: () => void }) {
+/** `ref` aponta para o botão: ao fechar a Busca, o foco do VoiceOver volta para ele. */
+export function SearchPill({ onPress, ref }: { onPress: () => void; ref?: Ref<View> }) {
   const { colors } = useTheme();
   const scale = useSharedValue(1);
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
     <Animated.View style={animated}>
       <Pressable
+        ref={ref}
         accessibilityRole="button"
         accessibilityLabel={t("home.search_placeholder")}
         onPress={onPress}
@@ -28,7 +22,7 @@ export function SearchPill({ onPress }: { onPress: () => void }) {
         onPressOut={() => (scale.value = withTiming(1, { duration: 100 }))}
         style={[styles.pill, { backgroundColor: colors.fill }]}
       >
-        <SearchIcon color={colors.textSecondary} />
+        <SearchGlyph color={colors.textSecondary} />
         <Text style={[type.body, styles.text, { color: colors.textSecondary }]}>{t("home.search_placeholder")}</Text>
       </Pressable>
     </Animated.View>
@@ -47,7 +41,4 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   text: { flexShrink: 1 },
-  icon: { width: 18, height: 18 },
-  lens: { position: "absolute", left: 1, top: 1, width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
-  handle: { position: "absolute", left: 11, top: 14, width: 7, height: 2, borderRadius: 1, transform: [{ rotate: "45deg" }] },
 });

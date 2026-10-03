@@ -15,16 +15,20 @@ export function ListRow({
   secondary,
   leading,
   onPress,
+  accessibilityLabel,
 }: {
   title: string;
   secondary?: string;
   leading?: ReactNode;
   onPress?: () => void;
+  /** Leitura única da linha pelo VoiceOver, quando o título + valor secundário não bastam. */
+  accessibilityLabel?: string;
 }) {
   const { colors } = useTheme();
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,

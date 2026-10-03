@@ -4,6 +4,7 @@
  */
 export const ptBR = {
   "common.close": "Fechar",
+  "common.loading": "Carregando",
   "common.day_type.weekday": "dia útil",
   "common.day_type.saturday": "Sábado",
   "common.day_type.sunday_holiday": "Domingo/feriado",
@@ -18,6 +19,14 @@ export const ptBR = {
   "first_run.importing": "Importando {{count}} linhas…",
   "first_run.import_invalid": "Não foi possível importar. O arquivo não está no formato esperado.",
   "first_run.import_failed": "Não foi possível importar. Nada foi alterado. Tente de novo.",
+  "search.group.stops": "Pontos",
+  "search.empty.no_results": "Nada encontrado para “{{term}}”",
+  "search.clear.a11y": "Limpar busca",
+  "search.result.stop.a11y": "{{name}}, linhas {{lines}}",
+  "sheet.handle.a11y": "Tamanho da folha",
+  "sheet.detent.small": "pequeno",
+  "sheet.detent.medium": "médio",
+  "sheet.detent.large": "grande",
   "home.search_placeholder": "Buscar ponto, linha ou lugar",
   "home.empty.title": "Comece pelo ponto onde você pega o ônibus",
   "home.empty.body": "Cadastre o ponto e as linhas que passam nele. O horário vem do que você anotar.",
