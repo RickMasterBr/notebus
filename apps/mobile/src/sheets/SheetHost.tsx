@@ -1,27 +1,40 @@
 /** Desenha a pilha: a folha-base e, por cima, cada folha empilhada (a última recebe o toque). */
-import type { ReactElement } from "react";
+import { StyleSheet, View } from "react-native";
 import { HomeSheet } from "./HomeSheet";
 import { SearchSheet } from "./SearchSheet";
 import { useSheets } from "./SheetsContext";
-import { type SheetKind, stackedSheets } from "./stack";
-
-/** A folha-base ("home") não entra aqui: ela é sempre a `HomeSheet`. */
-const stacked: Record<Exclude<SheetKind, "home">, () => ReactElement> = {
-  search: () => <SearchSheet />,
-};
+import { StopSheet } from "./StopSheet";
+import { type SheetEntry, stackedSheets } from "./stack";
 
 export function SheetHost() {
   const { state } = useSheets();
+  const stacked = stackedSheets(state);
   return (
     <>
       <HomeSheet />
-      {stackedSheets(state).map((entry) => (
-        <StackedSheetSlot key={entry.id} kind={entry.kind} />
+      {stacked.map((entry, i) => (
+        // Só a do topo é lida pelo VoiceOver: as de baixo ficam escondidas enquanto houver outra por cima.
+        <View
+          key={entry.id}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="box-none"
+          accessibilityElementsHidden={i < stacked.length - 1}
+          importantForAccessibility={i < stacked.length - 1 ? "no-hide-descendants" : "auto"}
+        >
+          <StackedSheetSlot entry={entry} />
+        </View>
       ))}
     </>
   );
 }
 
-function StackedSheetSlot({ kind }: { kind: SheetKind }) {
-  return kind === "home" ? null : stacked[kind]();
+function StackedSheetSlot({ entry }: { entry: SheetEntry }) {
+  switch (entry.kind) {
+    case "search":
+      return <SearchSheet />;
+    case "stop":
+      return <StopSheet name={entry.name} />;
+    case "home":
+      return null;
+  }
 }

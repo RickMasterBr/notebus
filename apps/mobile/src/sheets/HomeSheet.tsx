@@ -5,8 +5,8 @@
  */
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
-import { useCallback, useMemo, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { AccessibilityInfo, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "../i18n";
 import { elevation, radius, space, useTheme } from "../theme";
@@ -26,6 +26,14 @@ export function HomeSheet() {
   const snapPoints = useMemo(() => ["50%", "90%"], []);
   // Com folha empilhada por cima, a de baixo sai da leitura do VoiceOver.
   const covered = state.stack.length > 1;
+  const pill = useRef<View>(null);
+  const wasCovered = useRef(false);
+
+  // Ao fechar a Busca (a base volta a ser a do topo), o foco do VoiceOver volta para a pílula que a abriu.
+  useEffect(() => {
+    if (wasCovered.current && !covered && pill.current) AccessibilityInfo.sendAccessibilityEvent(pill.current, "focus");
+    wasCovered.current = covered;
+  }, [covered]);
 
   const onChange = useCallback(
     (index: number) => {
@@ -42,6 +50,7 @@ export function HomeSheet() {
     () => (
       <SheetHandle
         kind="adjustable"
+        detent={state.detent}
         onIncrement={() => ref.current?.snapToIndex(Math.min(state.detent + 1, LAST_INDEX))}
         onDecrement={() => ref.current?.snapToIndex(Math.max(state.detent - 1, 0))}
       />
@@ -70,7 +79,7 @@ export function HomeSheet() {
         backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
       >
         <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + space.md }]}>
-          <SearchPill onPress={() => dispatch({ type: "push", kind: "search" })} />
+          <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
         </BottomSheetView>
       </BottomSheet>
     </View>

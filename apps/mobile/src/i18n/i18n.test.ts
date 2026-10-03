@@ -45,4 +45,14 @@ describe("textos usados nas telas", () => {
     expect(t("home.search_placeholder")).toBe("Buscar ponto, linha ou lugar");
     expect(t("common.close")).toBe("Fechar");
   });
+
+  it("os textos da folha e da busca são os da 4.6 §3.12", () => {
+    expect(t("common.loading")).toBe("Carregando");
+    expect(t("sheet.handle.a11y")).toBe("Tamanho da folha");
+    expect([t("sheet.detent.small"), t("sheet.detent.medium"), t("sheet.detent.large")]).toEqual(["pequeno", "médio", "grande"]);
+    expect(t("search.group.stops")).toBe("Pontos");
+    expect(t("search.empty.no_results", { term: "xyz" })).toBe("Nada encontrado para “xyz”");
+    expect(t("search.clear.a11y")).toBe("Limpar busca");
+    expect(t("search.result.stop.a11y", { name: "Praça Inventada", lines: "1, 3" })).toBe("Praça Inventada, linhas 1, 3");
+  });
 });
