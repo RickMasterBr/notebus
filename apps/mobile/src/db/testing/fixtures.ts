@@ -1,3 +1,4 @@
+/** Definições de estado inicial do banco (fixtures) em raw SQL para testes de migração. */
 /**
  * SÓ PARA TESTE. Registros de exemplo **inventados** (nada da MOBILIS, D-091) gravados num banco
  * de cada versão, para provar que as migrações seguintes não perdem nada (§6.6).
@@ -5,8 +6,8 @@
  * SQL escrito à mão, de propósito: descreve o banco como ele era naquela versão, mesmo depois que
  * `schema.ts` evoluir. Nunca edite a fixture de uma versão já publicada; crie a da versão nova.
  */
-const T = 1_790_000_000_000; // um instante qualquer, epoch ms
-const c = `${T}, ${T}`; // created_at, updated_at
+const T = 1_790_000_000_000; // Timestamp fixo para testes (epoch ms)
+const c = `${T}, ${T}`; // Valores em string para "created_at, updated_at"
 
 /** Versão 1 (0000_init): uma linha em cada uma das 23 tabelas, mais uma apagada (deleted_at). */
 const v1 = [

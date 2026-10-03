@@ -1,3 +1,4 @@
+/** Interface de linha de comando para gerar o seed da MOBILIS. */
 /**
  * Gera `docs/dados/mobilis/mobilis-<vigência>.json` a partir dos dados do repositório privado
  * (D-091). Se qualquer conferência V1–V8 falhar, o arquivo não é gerado (E-01 §5.1).
@@ -28,6 +29,15 @@ export const MOBILIS_COLORS: Record<string, string> = {
   "9": "#1C1C1E",
 };
 
+/**
+ * Ponto de entrada real do CLI. Lê arquivos de input, constrói os dados,
+ * checa consistência e, se passar em tudo, salva o JSON de resultado.
+ *
+ * @param repoRoot - Diretório raiz do repositório, usado para montar os paths.
+ * @param log - Injetor de log para testes (default: console.log)
+ * @param err - Injetor de erro para testes (default: console.error)
+ * @returns Status code (0 para sucesso, 1 para erro)
+ */
 export function main(repoRoot: string, log: (s: string) => void = console.log, err: (s: string) => void = console.error): number {
   const dataDir = join(repoRoot, "docs", "dados", "mobilis");
   const mdPath = join(repoRoot, "docs", "referencias", "mobilis", "horarios-linhas.md");
@@ -68,8 +78,15 @@ export function main(repoRoot: string, log: (s: string) => void = console.log, e
 }
 
 /**
- * V7: percursos e viagens por linha contados direto do texto, sem o leitor do markdown:
- * cada bloco `| … |` é um quadro, e as viagens são as células da 1ª linha de dados.
+ * V7: Revalidação independente.
+ * Conta os percursos e viagens por linha diretamente do texto Markdown usando
+ * regex e iteradores básicos, sem depender do parser complexo.
+ * Compara esta contagem rudimentar com a contagem final construída no seed,
+ * garantindo que nenhuma viagem inteira foi perdida silenciosamente no parsing.
+ *
+ * @param md - Conteúdo bruto do arquivo Markdown
+ * @param seed - Objeto JSON final da MOBILIS com todos os dados processados
+ * @returns Lista de mensagens de erro se as contagens divergirem. Array vazio se ok.
  */
 export function independentCount(md: string, seed: SeedFile): string[] {
   const counted = new Map<string, { patterns: number; trips: number }>();

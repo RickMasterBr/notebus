@@ -1,3 +1,4 @@
+/** Utilitários para abrir o banco e instanciar adaptadores Drizzle para Expo SQLite. */
 /**
  * Abre o banco no celular: migração protegida (§6) e depois o Drizzle.
  * Adaptador fino entre expo-sqlite e `migrate.ts`; a lógica é testada no Node (`migrate.test.ts`).
@@ -14,6 +15,12 @@ export const DB_NAME = "notebus.db";
 /** Lista das cópias (o expo-sqlite não lista arquivos). Arquivo à parte: restaurar o banco não o apaga. */
 const BACKUP_CATALOG = "notebus-backups.db";
 
+/**
+ * Ponto de entrada do banco no aplicativo.
+ * Abre o banco local via `expo-sqlite`, dispara a migração protegida
+ * e devolve a instância Drizzle ORM já configurada, pronta pra uso,
+ * junto do status de migração (se falhou, se atualizou etc.).
+ */
 export async function openNotebusDb(): Promise<{
   db: ReturnType<typeof drizzle<typeof schema>>;
   migration: MigrationResult;
@@ -32,7 +39,10 @@ export async function openNotebusDb(): Promise<{
   return { db: drizzle(sqlite, { schema }), migration };
 }
 
-/** Adaptador do importador da MOBILIS (`importMobilis.ts`) para o expo-sqlite. Provado no iPhone (bloco 4b). */
+/**
+ * Adaptador do importador da MOBILIS (`importMobilis.ts`) para o expo-sqlite. Provado no iPhone (bloco 4b).
+ * Isola a interface do banco para não amarrar o script de importação direto ao driver.
+ */
 export function expoImportDb(sqlite: SQLite.SQLiteDatabase): ImportDb {
   return {
     exec: (sql) => sqlite.execAsync(sql),

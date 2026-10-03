@@ -1,3 +1,4 @@
+/** Script de construção e validação dos dados JSON da MOBILIS a partir do Markdown. */
 /**
  * Monta o arquivo de importação a partir do markdown e dos dois mapeamentos, conferindo V1–V5 e
  * V7 pelo caminho (E-01 §5.3). Função pura: mesma entrada, mesma saída, byte a byte (V8).
@@ -51,6 +52,15 @@ const DAY_TYPES: Record<DaysCode, DayTypeCode[]> = {
   "sab-dom-fer": ["saturday", "sunday_holiday"],
 };
 
+/**
+ * Ponto central da construção do arquivo importável. Processa o markdown extraindo
+ * as tabelas, cruza os dados com `timepoints` e `stopsMap` e preenche o formato `SeedFile`.
+ * Valida V1 a V5 (completude e limites) e V7 (contagens esperadas).
+ *
+ * @param input - O conteúdo em markdown, as configurações e os mapeamentos.
+ * @param expected - Quantidades esperadas para a checagem V7 de sanidade.
+ * @returns Objeto com o `seed` montado, uma lista de erros (se vazio, sucesso) e um `report` de log.
+ */
 export function buildSeed(input: SeedInput, expected?: Expected): SeedResult {
   const { lines: mdLines, errors } = parseMarkdown(input.markdown);
   const vig = input.timepoints.vigencia;
@@ -303,6 +313,11 @@ export function duplicateKeys(seed: SeedFile): string[] {
 }
 
 /** Serialização estável: o mesmo arquivo, byte a byte, para a mesma entrada. */
+/**
+ * Formata o objeto SeedFile como uma string JSON determinística.
+ * Ao invés de usar `JSON.stringify` puro, serializa itens individualmente
+ * em uma linha, para facilitar revisões e diffs da Seed gerada.
+ */
 export function serialize(seed: SeedFile): string {
   return JSON.stringify(seed, null, 1) + "\n";
 }

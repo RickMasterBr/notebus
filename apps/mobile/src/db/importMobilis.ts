@@ -1,3 +1,4 @@
+/** Lógica principal de importação do arquivo seed da MOBILIS para as tabelas do banco. */
 /**
  * Importador da MOBILIS (E-01 §5, bloco 4a): grava o arquivo `mobilis-<vigência>.json` já lido no banco do app.
  * Sem tela e sem expo-sqlite aqui: o celular e os testes no Node usam este mesmo código com adaptadores
@@ -21,6 +22,9 @@ export interface ImportDb {
   all(sql: string, params: SqlValue[]): Promise<Record<string, unknown>[]> | Record<string, unknown>[];
 }
 
+/**
+ * Evento emitido durante a importação para atualizar UI.
+ */
 export interface ImportProgress {
   table: string;
   /** Quantas tabelas já terminaram, de `of`. */
@@ -29,6 +33,9 @@ export interface ImportProgress {
   rows: number;
 }
 
+/**
+ * Resultado final da importação, com métricas do que foi feito.
+ */
 export interface ImportReport {
   /** Por tabela: `total` no arquivo, `inserted` gravadas agora (o resto já existia). */
   tables: Record<string, { total: number; inserted: number }>;

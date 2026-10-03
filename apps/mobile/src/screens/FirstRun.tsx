@@ -1,3 +1,4 @@
+/** Tela de primeiro uso apresentada para importação inicial de dados ou criar banco vazio. */
 /**
  * TL-13 Primeiro uso (4.5 §8.5, D-066). Sem imagem de referência: montada do texto da 4.5, dos tokens da 4.4 e dos
  * componentes 5.4 (cartão) e 5.10 (selo). Textos todos do catálogo (4.6).
@@ -10,12 +11,18 @@ import { radius, space, type, useTheme } from "../theme";
 /** O que o cartão mostra antes de o arquivo ser escolhido (a TL-13 da 4.5: "9 linhas … 01/09/2026"). */
 const MOBILIS_DETAIL = { count: 9, date: "01/09/2026" };
 
+/**
+ * Tela de configuração inicial (TL-13) apresentada quando o usuário abre o aplicativo
+ * pela primeira vez, sem base de dados importada.
+ * Permite importar os dados de um arquivo MOBILIS ou começar um banco vazio.
+ */
 export function FirstRun({
   onImport,
   onStartEmpty,
 }: {
   /** Abre o seletor e importa. `onCount` recebe o número de linhas do arquivo; devolve `true` se entrou. */
   onImport: (onCount: (lines: number) => void) => Promise<"done" | "cancelled" | "invalid" | "failed">;
+  /** Passa à frente sem importar nada, registrando o fim do primeiro uso. */
   onStartEmpty: () => void;
 }) {
   const { colors } = useTheme();

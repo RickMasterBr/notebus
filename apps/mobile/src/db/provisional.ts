@@ -1,3 +1,4 @@
+/** Consultas temporárias para exibir listas e debug enquanto a UI final não é implementada. */
 /**
  * Consultas da lista provisória (E-01 bloco 4b): linhas → percursos → viagens → horários de uma viagem.
  * Só serve para conferir a importação contra o site da MOBILIS; a E-02 joga fora e faz as telas de verdade.
@@ -16,6 +17,9 @@ export interface PatternItem { id: string; label: string }
 export interface TripItem { id: string; firstMinute: number; dayTypes: DayTypeCode[] }
 export interface TripTime { position: number; stopName: string; minute: number }
 
+/**
+ * Retorna as linhas ordenadas alfanumericamente pelo código (ex: "1", "2", "11").
+ */
 export async function listLines(db: AnyDb): Promise<LineItem[]> {
   const rows = await selectLive(db, line);
   return rows
@@ -23,12 +27,20 @@ export async function listLines(db: AnyDb): Promise<LineItem[]> {
     .sort((a, b) => a.code.localeCompare(b.code, "pt", { numeric: true }));
 }
 
+/**
+ * Retorna os percursos de uma linha ordenados pelo label (sentido/itinerário).
+ */
 export async function listPatterns(db: AnyDb, lineId: string): Promise<PatternItem[]> {
   const rows = await selectLive(db, pattern, eq(pattern.lineId, lineId));
   return rows.map(({ id, label }) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label, "pt"));
 }
 
-/** Viagens do quadro em vigor (`valid_to` vazio) do percurso, pela hora da primeira paragem. */
+/**
+ * Viagens do quadro em vigor (`valid_to` vazio) de um dado percurso,
+ * ordenadas pela hora de partida da primeira parada.
+ *
+ * Junta os dias da semana em que cada viagem opera para mostrar na UI provisória.
+ */
 export async function listTrips(db: AnyDb, patternId: string): Promise<TripItem[]> {
   const tables = await selectLive(db, timetable, and(eq(timetable.patternId, patternId), isNull(timetable.validTo)));
   if (tables.length === 0) return [];
@@ -56,7 +68,10 @@ export async function listTrips(db: AnyDb, patternId: string): Promise<TripItem[
     .sort((a, b) => a.firstMinute - b.firstMinute);
 }
 
-/** Paragem e horário de cada passagem da viagem, na ordem do percurso. */
+/**
+ * Horários detalhados de uma viagem, já com join nas paradas para obter o nome.
+ * Retorna ordenado pela posição ao longo do percurso.
+ */
 export async function listTripTimes(db: AnyDb, tripId: string): Promise<TripTime[]> {
   const rows = await db
     .select({ position: patternStop.position, stopName: stop.name, minute: stopTime.serviceMinute })

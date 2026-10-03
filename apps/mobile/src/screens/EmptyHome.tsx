@@ -1,8 +1,13 @@
+/** Tela inicial (Home) exibida quando o aplicativo não possui paradas ou dados configurados. */
 /** Início vazio (4.5 §8.5, "Começar do zero"). O botão ainda não faz nada: o cadastro (TL-11) é da E-02. */
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 
+/**
+ * Tela inicial exibida quando o app não tem linhas importadas ou locais definidos.
+ * Fornece um call to action genérico para adicionar a primeira parada (implementação E-02).
+ */
 export function EmptyHome() {
   const { colors } = useTheme();
   return (

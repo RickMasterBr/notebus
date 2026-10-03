@@ -1,3 +1,4 @@
+/** Adaptador NodeSQLite de mock para rodar testes sem precisar do ambiente Expo. */
 /// <reference types="node" />
 // Só teste: roda no Node, não no app.
 /**
@@ -11,6 +12,10 @@ import { backup, DatabaseSync } from "node:sqlite";
 import type { ImportDb } from "../importMobilis";
 import type { BackupStore, MigrationDb } from "../migrate";
 
+/**
+ * Implementação local do banco de dados para rodar testes diretamente no Node,
+ * satisfazendo tanto a interface de migração quanto a do importador de dados.
+ */
 export class NodeSqlite implements MigrationDb, ImportDb {
   db: DatabaseSync;
   constructor(readonly path: string) {
@@ -35,7 +40,11 @@ export class NodeSqlite implements MigrationDb, ImportDb {
   }
 }
 
-/** Cópias como arquivos numa pasta. Restaurar = fechar, copiar o arquivo de volta, reabrir. */
+/**
+ * Adaptador de BackupStore para Node. Salva as cópias do banco como arquivos
+ * regulares no sistema de arquivos local (`dir`). A restauração fecha a conexão,
+ * copia o backup de volta por cima e reabre.
+ */
 export function nodeBackupStore(conn: NodeSqlite, dir: string): BackupStore {
   mkdirSync(dir, { recursive: true });
   return {

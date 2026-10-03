@@ -1,12 +1,21 @@
+/** Geração de dados (seed) fictícios para injeção nos testes automatizados. */
 /**
  * SÓ PARA TESTE. Arquivo de importação **inventado** (nada da MOBILIS, D-091), no formato `SeedFile`,
  * com as chaves da D-086: paragens e linhas sem vigência; percursos, quadros, viagens e horários com vigência.
  */
 import { officialId, type SeedFile } from "@notebus/domain";
 
+/** Preenche o `id` (UUIDv5) automaticamente a partir do `key` fornecido para as fixtures. */
 const withId = <T extends { key: string }>(x: T) => ({ id: officialId(x.key), ...x });
 
-/** Linha 1 inventada: 3 paragens, uma viagem de dia útil e uma de fim de semana (fora de julho e agosto). */
+/**
+ * Cria um SeedFile completo e válido com dados fictícios para injeção nos testes.
+ * A linha 1 inventada possui 3 paradas, uma viagem de dia útil e uma de fim de semana
+ * (operando fora da temporada de julho/agosto).
+ *
+ * @param version - Determina o namespace de vigência, útil para testar migração de dados.
+ * @param extraStop - Adiciona ou não uma parada solta para testar diferenças em atualizações.
+ */
 export function exampleSeed(version = "2026-09-01", extraStop = false): SeedFile {
   const V = `mobilis/${version}`;
   const stops = [
