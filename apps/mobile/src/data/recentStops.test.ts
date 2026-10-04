@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import * as schema from "../db/schema";
 import { testDb } from "../db/testing/drizzleTestDb";
-import { RECENT_STOPS_KEY, RECENT_STOPS_MAX, pushRecent, readRecentStops, rememberStop } from "./recentStops";
+import { RECENT_STOPS_KEY, RECENT_STOPS_MAX, pushRecent, readRecentStops, rememberStop, writeRecentStops } from "./recentStops";
 
 describe("pushRecent", () => {
   it("o mais recente fica no topo", () => {
@@ -76,5 +76,31 @@ describe("últimos pontos na tabela setting", () => {
     expect(await readRecentStops(db)).toEqual([]);
     expect(await rememberStop(db, "a", 5)).toEqual(["a"]);
     expect(await readRecentStops(db)).toEqual(["a"]);
+  });
+});
+
+describe("Limpar recentes (D-143)", () => {
+  it("limpar esvazia a lista inteira e o Desfazer a devolve, na mesma ordem", async () => {
+    const db = testDb();
+    await rememberStop(db, "a", 1_000);
+    await rememberStop(db, "b", 2_000);
+    await rememberStop(db, "c", 3_000);
+    const before = await readRecentStops(db);
+    expect(before).toEqual(["c", "b", "a"]);
+    // Limpar: a lista vira vazia (e o "Perto de você", que sai dos 3 primeiros dela, também).
+    await writeRecentStops(db, [], 4_000);
+    expect(await readRecentStops(db)).toEqual([]);
+    // Desfazer: grava a lista de antes.
+    await writeRecentStops(db, before, 5_000);
+    expect(await readRecentStops(db)).toEqual(["c", "b", "a"]);
+    // Uma linha só na tabela `setting`: limpar e desfazer atualizam, não duplicam.
+    expect((await db.select().from(schema.setting)).filter((r) => r.key === RECENT_STOPS_KEY)).toHaveLength(1);
+  });
+
+  it("abrir um ponto depois de limpar recomeça a lista", async () => {
+    const db = testDb();
+    await rememberStop(db, "a", 1_000);
+    await writeRecentStops(db, [], 2_000);
+    expect(await rememberStop(db, "z", 3_000)).toEqual(["z"]);
   });
 });

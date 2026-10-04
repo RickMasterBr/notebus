@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 import { createTestClock } from "./src/data/clock";
 import { TestClockProvider } from "./src/data/TestClockProvider";
 import { RecentStopsProvider } from "./src/data/RecentStopsProvider";
+import { RegistroProvider } from "./src/data/RegistroProvider";
 import { ScheduleProvider } from "./src/data/ScheduleProvider";
 import { StopIndexProvider } from "./src/data/StopIndexProvider";
+import { ToastProvider } from "./src/data/ToastProvider";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
 import { pickAndImport } from "./src/db/importFromFile";
 import { expoImportDb, openNotebusDb } from "./src/db/open";
@@ -61,13 +63,17 @@ export default function App() {
           />
         ) : (
           <TestClockProvider clock={testClock}>
-            <StopIndexProvider db={db}>
-              <ScheduleProvider db={db}>
-                <RecentStopsProvider db={db}>
-                  <Home />
-                </RecentStopsProvider>
-              </ScheduleProvider>
-            </StopIndexProvider>
+            <ToastProvider>
+              <StopIndexProvider db={db}>
+                <ScheduleProvider db={db}>
+                  <RecentStopsProvider db={db}>
+                    <RegistroProvider db={db}>
+                      <Home />
+                    </RegistroProvider>
+                  </RecentStopsProvider>
+                </ScheduleProvider>
+              </StopIndexProvider>
+            </ToastProvider>
             <TestClockBanner />
           </TestClockProvider>
         )}

@@ -9,6 +9,16 @@ interface SheetsValue {
   dispatch: Dispatch<SheetAction>;
 }
 
+/** Quem pediu a escolha de um ponto (a folha Registrar, ao tocar em "Trocar"); a Busca em modo `pick` chama de volta. */
+export type StopPick = (stop: { id: string; name: string }) => void;
+interface StopPickValue {
+  /** A folha que pede grava aqui o que fazer com o ponto escolhido, antes de empilhar a Busca. */
+  request: (callback: StopPick) => void;
+  /** A Busca entrega o ponto escolhido. */
+  resolve: StopPick;
+}
+const StopPickContext = createContext<StopPickValue | null>(null);
+
 const SheetsContext = createContext<SheetsValue | null>(null);
 
 export function SheetsProvider({ children }: { children: ReactNode }) {
@@ -24,7 +34,31 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
     rawDispatch(action);
   }, []);
   const value = useMemo(() => ({ state, dispatch }), [state, dispatch]);
-  return <SheetsContext.Provider value={value}>{children}</SheetsContext.Provider>;
+  const pick = useRef<StopPick | null>(null);
+  const stopPick = useMemo<StopPickValue>(
+    () => ({
+      request: (callback) => {
+        pick.current = callback;
+      },
+      resolve: (stop) => {
+        const callback = pick.current;
+        pick.current = null;
+        callback?.(stop);
+      },
+    }),
+    [],
+  );
+  return (
+    <SheetsContext.Provider value={value}>
+      <StopPickContext.Provider value={stopPick}>{children}</StopPickContext.Provider>
+    </SheetsContext.Provider>
+  );
+}
+
+export function useStopPick(): StopPickValue {
+  const value = useContext(StopPickContext);
+  if (!value) throw new Error("useStopPick fora do SheetsProvider");
+  return value;
 }
 
 export function useSheets(): SheetsValue {

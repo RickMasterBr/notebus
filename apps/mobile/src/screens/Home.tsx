@@ -7,6 +7,7 @@ import { useStopIndex } from "../data/StopIndexProvider";
 import { SheetHost } from "../sheets/SheetHost";
 import { SheetsProvider } from "../sheets/SheetsContext";
 import { useTheme } from "../theme";
+import { ToastHost } from "../ui/ToastHost";
 import { SettingsButton } from "./SettingsButton";
 import { EmptyHome } from "./EmptyHome";
 
@@ -19,6 +20,8 @@ export function Home() {
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
         <SettingsButton />
         <SheetHost />
+        {/* O toast fica por último: acima das folhas, sem entrar no layout delas. */}
+        <ToastHost />
       </View>
     </SheetsProvider>
   );

@@ -33,12 +33,17 @@ export async function readRecentStops(db: AnyDb, max = RECENT_STOPS_MAX): Promis
   return parseList(rows[0]?.value, max);
 }
 
+/** Grava a lista inteira (vazia = "Limpar recentes", D-143; a lista de antes = o Desfazer dele). */
+export async function writeRecentStops(db: AnyDb, ids: readonly string[], now: number): Promise<void> {
+  await db
+    .insert(setting)
+    .values({ id: uuidv7(now), createdAt: now, updatedAt: now, source: "user", key: RECENT_STOPS_KEY, value: [...ids] })
+    .onConflictDoUpdate({ target: setting.key, set: { value: [...ids], updatedAt: now, deletedAt: null } });
+}
+
 /** Grava que o ponto foi aberto e devolve a lista nova (mais recente primeiro). */
 export async function rememberStop(db: AnyDb, stopId: string, now: number, max = RECENT_STOPS_MAX): Promise<string[]> {
   const next = pushRecent(await readRecentStops(db, max), stopId, max);
-  await db
-    .insert(setting)
-    .values({ id: uuidv7(now), createdAt: now, updatedAt: now, source: "user", key: RECENT_STOPS_KEY, value: next })
-    .onConflictDoUpdate({ target: setting.key, set: { value: next, updatedAt: now, deletedAt: null } });
+  await writeRecentStops(db, next, now);
   return next;
 }

@@ -10,6 +10,7 @@ import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-nati
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecentStops } from "../data/RecentStopsProvider";
+import { useToast } from "../data/ToastProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { searchPanel } from "../data/searchPanel";
 import type { StopEntry } from "../data/stopIndex";
@@ -22,14 +23,20 @@ import { pillStyles } from "../ui/SearchPill";
 import { Skeleton } from "../ui/Skeleton";
 import { useReorderTransition } from "../ui/useReorderTransition";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
-import { StackedSheet } from "./StackedSheet";
+import { useStopPick } from "./SheetsContext";
+import { StackedSheet, useCloseSheet } from "./StackedSheet";
 import { useKeyboardHeight } from "./useKeyboardHeight";
 import { useOpenStop } from "./useOpenStop";
 
-export function SearchSheet({ id }: { id: number }) {
+export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const openStop = useOpenStop();
+  // `pick`: a folha Registrar pediu para escolher um ponto ("Trocar"); o toque devolve o ponto e fecha, sem abrir o ponto
+  // nem entrar nos recentes.
+  const stopPick = useStopPick();
+  const closeSheet = useCloseSheet();
+  const toast = useToast();
   const index = useStopIndex();
   const recent = useRecentStops();
   const keyboard = useKeyboardHeight();
@@ -65,15 +72,40 @@ export function SearchSheet({ id }: { id: number }) {
       accessibilityLabel={
         stop.lines.length > 0 ? t("search.result.stop.a11y", { name: stop.name, lines: stop.lines.join(", ") }) : stop.name
       }
-      onPress={() => openStop({ id: stop.id, name: stop.name })}
+      onPress={() => {
+        if (!pick) return openStop({ id: stop.id, name: stop.name });
+        stopPick.resolve({ id: stop.id, name: stop.name });
+        closeSheet();
+      }}
     />
   );
+
+  // D-143: "Limpar" à direita do título "Recentes", sem confirmação; toast "Recentes limpos" com Desfazer. Só com recentes.
+  const clearRecents = () => {
+    const before = recent.clear();
+    toast.show({
+      title: t("toast.recents_cleared.title"),
+      action: { label: t("toast.action.undo"), run: () => recent.restore(before) },
+    });
+  };
   // Só os recentes trocam de ordem (D-142); a lista de resultados muda por busca, não por reordenação.
   const group = (title: string, stops: StopEntry[], reorder = false) => (
     <View>
-      <Text accessibilityRole="header" style={[type.label, styles.group, { color: colors.textSecondary }]}>
-        {title}
-      </Text>
+      <View style={styles.groupHeader}>
+        <Text accessibilityRole="header" style={[type.label, styles.group, { color: colors.textSecondary }]}>
+          {title}
+        </Text>
+        {reorder && !pick ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("search.recent.clear.a11y")}
+            onPress={clearRecents}
+            style={styles.clearRecents}
+          >
+            <Text style={[type.label, { color: colors.accent }]}>{t("search.recent.clear")}</Text>
+          </Pressable>
+        ) : null}
+      </View>
       {reorder
         ? stops.map((stop) => (
             <Animated.View key={stop.id} layout={layout}>
@@ -157,6 +189,8 @@ const styles = StyleSheet.create({
   input: { flex: 1, paddingVertical: space.sm },
   clear: { width: minTouch, height: minTouch, alignItems: "center", justifyContent: "center", marginRight: -space.sm },
   group: { paddingHorizontal: space.md, paddingVertical: space.sm },
+  groupHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  clearRecents: { minHeight: minTouch, paddingHorizontal: space.md, justifyContent: "center" },
   empty: { paddingHorizontal: space.md, paddingVertical: space.md },
   // Meio da área de resultados (a rolagem ocupa a folha toda; o conteúdo cresce até preencher e centraliza).
   centered: { flexGrow: 1, justifyContent: "center" },

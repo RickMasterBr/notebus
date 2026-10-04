@@ -26,4 +26,10 @@ describe("tema", () => {
     expect(colors.light.highlight).toBe("#F6F4FE");
     expect(colors.dark.highlight).toBe("#25232F");
   });
+  it("toast invertido (D-039) e cartão Em viagem (D-042), do canvas da 4.5", () => {
+    expect([colors.light.toast, colors.light.toastText, colors.light.toastAction]).toEqual(["#1C1C1E", "#F2F2F0", "#A99FFF"]);
+    expect([colors.dark.toast, colors.dark.toastBorder, colors.dark.toastAction]).toEqual(["#3A3B3F", "#4A4B50", "#C4BDFF"]);
+    expect([colors.light.trip, colors.dark.trip]).toEqual(["#EEEBFB", "#2A2745"]);
+    expect([colors.light.tripText2, colors.dark.tripText2, colors.light.tripAccent, colors.dark.tripAccent]).toEqual(["#4A4E55", "#B9B6CC", "#4A3BC4", "#C4BDFF"]);
+  });
 });

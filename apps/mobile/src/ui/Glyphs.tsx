@@ -32,7 +32,33 @@ export function CrossGlyph({ color }: { color: string }) {
   );
 }
 
+/** "+" de 22 px (canvas da 4.5: botão Registrar, traço de 2,4 px, pontas redondas). */
+export function PlusGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.plus} {...HIDDEN}>
+      <View style={[styles.plusBar, { backgroundColor: color, width: 14, height: 2.4 }]} />
+      <View style={[styles.plusBar, { backgroundColor: color, width: 2.4, height: 14 }]} />
+    </View>
+  );
+}
+
+/** Marcador de ponto de 22 px (canvas da 4.5, folha Registrar): anel com o miolo, sem biblioteca de ícones. */
+export function PinGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.pin} {...HIDDEN}>
+      <View style={[styles.pinRing, { borderColor: color }]}>
+        <View style={[styles.pinDot, { backgroundColor: color }]} />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  plus: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
+  plusBar: { position: "absolute", borderRadius: 1.2 },
+  pin: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
+  pinRing: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  pinDot: { width: 6, height: 6, borderRadius: 3 },
   gear: { fontSize: 22, lineHeight: 26 },
   search: { width: 18, height: 18 },
   lens: { position: "absolute", left: 1, top: 1, width: 12, height: 12, borderRadius: 6, borderWidth: 2 },

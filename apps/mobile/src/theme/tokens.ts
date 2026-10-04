@@ -29,6 +29,17 @@ export interface ColorTokens {
    * um violeta bem claro (claro #F6F4FE, escuro #25232F).
    */
   highlight: string;
+  /**
+   * Toast em superfície invertida (4.5 §2.1, D-039) e cartão "Em viagem" em tom de destaque (4.5 §2.4, D-042); valores do
+   * canvas (`Main.dc.html`). A 4.4 não lista estes tokens.
+   */
+  toast: string;
+  toastText: string;
+  toastAction: string;
+  toastBorder: string;
+  trip: string;
+  tripText2: string;
+  tripAccent: string;
 }
 
 /**
@@ -51,6 +62,13 @@ export const colors: { light: ColorTokens; dark: ColorTokens } = {
     grab: "#C7C7C2",
     scrim: "rgba(0,0,0,0.28)",
     highlight: "#F6F4FE",
+    toast: "#1C1C1E",
+    toastText: "#F2F2F0",
+    toastAction: "#A99FFF",
+    toastBorder: "#1C1C1E",
+    trip: "#EEEBFB",
+    tripText2: "#4A4E55",
+    tripAccent: "#4A3BC4",
   },
   dark: {
     bg: "#121314",
@@ -67,6 +85,13 @@ export const colors: { light: ColorTokens; dark: ColorTokens } = {
     grab: "#48494D",
     scrim: "rgba(0,0,0,0.5)",
     highlight: "#25232F",
+    toast: "#3A3B3F",
+    toastText: "#F2F2F0",
+    toastAction: "#C4BDFF",
+    toastBorder: "#4A4B50",
+    trip: "#2A2745",
+    tripText2: "#B9B6CC",
+    tripAccent: "#C4BDFF",
   },
 };
 
