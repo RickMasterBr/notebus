@@ -1,6 +1,7 @@
 /** Desenha a pilha: a folha-base e, por cima, cada folha empilhada (a última recebe o toque). */
 import { StyleSheet, View } from "react-native";
 import { AheadSheet } from "./AheadSheet";
+import { StackDiagStrip } from "./diagScroll";
 import { ClockPickerSheet } from "./ClockPickerSheet";
 import { HomeSheet } from "./HomeSheet";
 import { SearchSheet } from "./SearchSheet";
@@ -37,6 +38,7 @@ export function SheetHost() {
           </View>
         );
       })}
+      <StackDiagStrip />
     </>
   );
 }
