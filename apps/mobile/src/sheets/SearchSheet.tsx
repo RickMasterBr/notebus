@@ -95,7 +95,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
         <Text accessibilityRole="header" style={[type.label, styles.group, { color: colors.textSecondary }]}>
           {title}
         </Text>
-        {reorder && !pick ? (
+        {reorder ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("search.recent.clear.a11y")}
