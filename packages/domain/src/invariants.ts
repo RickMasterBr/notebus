@@ -3,8 +3,7 @@
  * Invariantes da Fase 1 §3 que cabem no domínio sem casamento nem cálculo de horário (E-01 §4.7).
  * Cada função devolve `null` se está tudo certo, ou uma frase curta dizendo o que está errado.
  *
- * Ficam para as etapas do cálculo:
- * - 5 (Ride: desembarque depois do embarque no mesmo percurso) depende da passagem deduzida → E-03.
+ * O 5 (Ride) entrou na E-03, com a passagem deduzida. Ficam para as etapas do cálculo:
  * - 6 (toda data tem um único tipo de dia) é o calendário → E-02.
  * - 7 (hora do aparelho sempre convertida para o fuso da rede) é o cálculo de horário → E-02.
  */
@@ -75,5 +74,19 @@ export function checkObservationInterval(observedAt: number, observedEndAt: numb
   if (observedEndAt === null) return null;
   if (observedEndAt < observedAt) return "fim antes do início";
   if (observedEndAt - observedAt > 30 * 60_000) return "intervalo maior que 30 min";
+  return null;
+}
+
+/**
+ * Invariante 5: um `Ride` liga embarque e descida do **mesmo percurso**, com a descida em posição maior e hora
+ * maior ou igual (E-03 §4). Cada lado é a passagem deduzida do registro e o seu instante (epoch ms).
+ */
+export function checkRide(
+  board: { patternId: string; position: number; observedAt: number },
+  alight: { patternId: string; position: number; observedAt: number },
+): string | null {
+  if (board.patternId !== alight.patternId) return "embarque e descida em percursos diferentes";
+  if (alight.position <= board.position) return "descida não vem depois do embarque";
+  if (alight.observedAt < board.observedAt) return "descida antes do embarque";
   return null;
 }

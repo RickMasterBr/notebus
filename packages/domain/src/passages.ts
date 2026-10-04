@@ -7,6 +7,10 @@
  * só as funções `displayCenter` e `displayBeAtStop` arredondam, e só para mostrar (D-092).
  */
 
+import type { DayTypeCode } from "./seedFormat.ts";
+import { DOMAIN_CONFIG, type DomainConfig } from "./config.ts";
+import { ageDays, recordWeight, weightedQuantile } from "./estimate.ts";
+
 // ─── Dados de entrada ───────────────────────────────────────────────────────
 
 /** Uma posição do percurso (`pattern_stop`). `stopId` é o ponto físico (D-084). */
@@ -76,23 +80,56 @@ export function baseTimeAt(trip: TripData, position: number): BaseTime | null {
   return { position, minute: before.serviceMinute + (after.serviceMinute - before.serviceMinute) * share, kind: "interpolated" };
 }
 
-// ─── Horário esperado (§3.5, P-04) ──────────────────────────────────────────
+// ─── Horário esperado (§3.5, P-04; E-03 §3.4, D-073, D-120) ─────────────────
 
-/** Confiança (P-04): `estimated` com 0 registros; `low`/`medium`/`high` chegam com a estatística da E-03. */
+/** Confiança (P-04 §3.5, D-120). */
 export type Confidence = "estimated" | "low" | "medium" | "high";
 
+/** Vínculo de um registro com a viagem (Fase 1 §4.2; `manual` = escolhido por você na TL-09, E-04). */
+export type MatchStatus = "auto" | "manual" | "ambiguous" | "orphan";
+
 /**
- * Um registro do Rick nesta passagem. Vazio até a E-03, que acrescenta aqui os campos de que a estatística precisa
- * (desvio, data, "de memória", antes da vigência…). As telas só repassam a lista, por isso não mudam.
+ * Um registro já deduzido, como a estatística o lê. Quem chama passa os registros da linha (de qualquer viagem e
+ * ponto); a função escolhe o nível. Só `auto` e `manual` entram (D-022); o `kind` não muda o peso (D-073).
  */
 export interface PassageRecord {
-  /** Minutos depois da base (+) ou antes (−). */
+  /** Minutos depois da base (+) ou antes (−), com decimais. */
   deviation: number;
+  /** Instante observado (epoch ms UTC), para a recência. */
+  observedAt: number;
+  /** Dia de serviço (`AAAA-MM-DD`) e o seu tipo de dia. */
+  serviceDate: string;
+  dayType: DayTypeCode;
+  /** A passagem a que o registro foi ligado: viagem, percurso, posição e ponto físico. */
+  tripId: string;
+  patternId: string;
+  position: number;
+  stopId: string;
+  matchStatus: MatchStatus;
+  mode: "live" | "later" | "memory";
+  kind: "boarded" | "passed" | "alighted";
+}
+
+/** A passagem cujo horário se quer, para a escolha do nível (P-04 §3.1). Obrigatória quando há registros. */
+export interface PassageTarget {
+  tripId: string;
+  patternId: string;
+  position: number;
+  stopId: string;
+  dayType: DayTypeCode;
+  /** Início da vigência atual da tabela da viagem (`AAAA-MM-DD`): registros de antes pesam 0,25. */
+  validFrom: string | null;
 }
 
 export interface ExpectedTimeOptions {
-  /** Minutos antes do início da faixa para estar no ponto. Padrão 2 (D-019); configurável na E-08. */
+  /** Minutos antes do início da faixa para estar no ponto. Padrão `config.marginMinutes` (D-019). */
   marginMinutes?: number;
+  /** A passagem pedida. Obrigatória se `records` não for vazio. */
+  target?: PassageTarget;
+  /** "Agora" (epoch ms UTC), para a recência. Obrigatório se `records` não for vazio. */
+  now?: number;
+  /** Parâmetros; padrão `DOMAIN_CONFIG`. */
+  config?: DomainConfig;
 }
 
 export interface ExpectedTime {
@@ -106,32 +143,173 @@ export interface ExpectedTime {
   beAtStop: number;
 }
 
-/** Incerteza da base em minutos, para cada lado (P-04). */
-export const BASE_UNCERTAINTY: Record<BaseKind, number> = { official: 2, interpolated: 4, declared: 3 };
-/** Margem padrão do "esteja no ponto" (D-019, P-04). */
-export const DEFAULT_MARGIN_MINUTES = 2;
+/** Incerteza da base em minutos, para cada lado (P-04). Vem da configuração única. */
+export const BASE_UNCERTAINTY: Readonly<Record<BaseKind, number>> = DOMAIN_CONFIG.baseUncertainty;
+/** Margem padrão do "esteja no ponto" (D-019, P-04). Vem da configuração única. */
+export const DEFAULT_MARGIN_MINUTES = DOMAIN_CONFIG.marginMinutes;
+
+/** Nível de agregação usado para o centro (P-04 §3.1): (a) `trip`, (b) `stop`, (c) `pattern`, (d) `none`. */
+export type EstimateLevel = "trip" | "stop" | "pattern" | "none";
+
+/** O detalhe da conta, em desvios (minutos relativos à base). `expectedTime` só converte em horário. */
+export interface DeviationEstimate {
+  level: EstimateLevel;
+  /** Desvio do centro, já encolhido. */
+  center: number;
+  rangeStart: number;
+  rangeEnd: number;
+  confidence: Confidence;
+  /** Registros aceitos no nível usado (contagem, D-120) e quantos deles são recentes (≤ 56 dias). */
+  count: number;
+  recentCount: number;
+  /** Soma dos pesos do nível usado: o `n` do encolhimento (D-120). */
+  weightSum: number;
+  /** Mediana ponderada do nível usado e a do nível acima (0 no nível `none`). */
+  localMedian: number;
+  aboveMedian: number;
+}
+
+interface Weighted {
+  value: number;
+  weight: number;
+  observedAt: number;
+}
+
+/**
+ * Os quatro níveis (P-04 §3.1), do mais específico ao mais geral, sempre no mesmo tipo de dia e no mesmo percurso:
+ * (a) a mesma viagem na mesma posição; (b) o mesmo ponto físico, todas as viagens; (c) todos os pontos do percurso.
+ * Cada nível contém o anterior.
+ */
+function levelsOf(target: PassageTarget, records: readonly PassageRecord[]): Record<Exclude<EstimateLevel, "none">, PassageRecord[]> {
+  const pattern = records.filter((r) => r.patternId === target.patternId && r.dayType === target.dayType);
+  const stop = pattern.filter((r) => r.stopId === target.stopId);
+  const trip = stop.filter((r) => r.tripId === target.tripId && r.position === target.position);
+  return { trip, stop, pattern };
+}
+
+/**
+ * A estatística do horário esperado sobre o desvio (E-03 §3.4, P-04 §3, D-120):
+ * - só `auto` e `manual` entram (D-022); "vi passar" pesa igual a "embarquei" (D-073);
+ * - usa o nível mais específico com dados; peso = `recordWeight` (recência × vigência × "de memória");
+ * - centro = `(n · mediana_local + k · mediana_acima) / (n + k)`, `n` = soma dos pesos (D-120), medianas ponderadas
+ *   (`weightedQuantile` com q = 0,5), `mediana_acima` = a do nível seguinte (0 acima do percurso);
+ * - faixa: com menos de 5 registros, do menor ao maior desvio do nível usado, alargada pela incerteza da base;
+ *   com 5 ou mais, percentis 10 a 90 ponderados do nível usado (sem alargar);
+ * - confiança conta **registros** do nível usado: 0 `estimated`; 1–2 `low`; 3–5 `medium`; 6 ou mais `high` se 6 ou
+ *   mais forem dos últimos 56 dias e a faixa tiver até 4 min; senão `medium` (D-120).
+ */
+export function estimateDeviation(
+  baseKind: BaseKind,
+  records: readonly PassageRecord[],
+  target: PassageTarget,
+  now: number,
+  config: DomainConfig = DOMAIN_CONFIG,
+): DeviationEstimate {
+  const accepted = records.filter((r) => r.matchStatus === "auto" || r.matchStatus === "manual");
+  const levels = levelsOf(target, accepted);
+  const weigh = (rs: PassageRecord[]): Weighted[] =>
+    rs.map((r) => ({ value: r.deviation, weight: recordWeight(r, now, target.validFrom, config), observedAt: r.observedAt }));
+  const median = (ws: Weighted[]) => (ws.length === 0 ? 0 : weightedQuantile(ws, 0.5));
+  const order: Exclude<EstimateLevel, "none">[] = ["trip", "stop", "pattern"];
+  const half = config.baseUncertainty[baseKind];
+
+  const index = order.findIndex((l) => levels[l].length > 0);
+  if (index === -1) {
+    return { level: "none", center: 0, rangeStart: -half, rangeEnd: half, confidence: "estimated", count: 0, recentCount: 0, weightSum: 0, localMedian: 0, aboveMedian: 0 };
+  }
+  const level = order[index]!;
+  const local = weigh(levels[level]);
+  const above = index + 1 < order.length ? weigh(levels[order[index + 1]!]) : [];
+  const n = local.reduce((s, w) => s + w.weight, 0);
+  const localMedian = median(local);
+  const aboveMedian = median(above);
+  const center = (n * localMedian + config.shrinkK * aboveMedian) / (n + config.shrinkK);
+
+  let rangeStart: number;
+  let rangeEnd: number;
+  if (local.length < config.percentileFromRecords) {
+    rangeStart = Math.min(...local.map((w) => w.value)) - half;
+    rangeEnd = Math.max(...local.map((w) => w.value)) + half;
+  } else {
+    rangeStart = weightedQuantile(local, config.rangeLowQuantile);
+    rangeEnd = weightedQuantile(local, config.rangeHighQuantile);
+  }
+
+  const count = local.length;
+  const recentCount = local.filter((w) => ageDays(w.observedAt, now) <= config.recentWindowDays).length;
+  let confidence: Confidence;
+  if (count < config.mediumFromRecords) confidence = "low";
+  else if (count < config.highFromRecords) confidence = "medium";
+  else confidence = recentCount >= config.highFromRecords && rangeEnd - rangeStart <= config.highMaxRangeMinutes + EPS ? "high" : "medium";
+
+  return { level, center, rangeStart, rangeEnd, confidence, count, recentCount, weightSum: n, localMedian, aboveMedian };
+}
 
 /**
  * Horário esperado de uma passagem: centro, faixa, confiança, tipo da base e "esteja no ponto às".
- * Nesta etapa `records` chega sempre vazio e o resultado é só a base com a sua incerteza.
- *
- * Como a E-03 estende (§3.4 da E-03, Fase 1 §4.3, D-120): com registros, o centro passa a ser base + mediana
- * ponderada (encolhida para o nível acima), a faixa é a dos desvios aceitos alargada por `BASE_UNCERTAINTY`, e a
- * confiança sai da contagem. A assinatura fica; a E-03 acrescenta campos a `PassageRecord` e, se precisar do nível
- * acima, um campo opcional em `options`.
+ * Sem registros: a base com a sua incerteza (E-02). Com registros: `estimateDeviation` somado à base; para isso
+ * `options.target` e `options.now` são obrigatórios.
  */
 export function expectedTime(base: BaseTime, records: readonly PassageRecord[], options: ExpectedTimeOptions = {}): ExpectedTime {
-  const margin = options.marginMinutes ?? DEFAULT_MARGIN_MINUTES;
-  if (records.length > 0) throw new Error("expectedTime: registros só entram na E-03");
-  const half = BASE_UNCERTAINTY[base.kind];
-  const rangeStart = base.minute - half;
+  const config = options.config ?? DOMAIN_CONFIG;
+  const margin = options.marginMinutes ?? config.marginMinutes;
+  let est: Pick<DeviationEstimate, "center" | "rangeStart" | "rangeEnd" | "confidence">;
+  if (records.length === 0) {
+    const half = config.baseUncertainty[base.kind];
+    est = { center: 0, rangeStart: -half, rangeEnd: half, confidence: "estimated" };
+  } else {
+    if (!options.target || options.now === undefined) throw new Error("expectedTime: com registros, `target` e `now` são obrigatórios");
+    est = estimateDeviation(base.kind, records, options.target, options.now, config);
+  }
+  const rangeStart = base.minute + est.rangeStart;
   return {
-    center: base.minute,
+    center: base.minute + est.center,
     rangeStart,
-    rangeEnd: base.minute + half,
-    confidence: "estimated",
+    rangeEnd: base.minute + est.rangeEnd,
+    confidence: est.confidence,
     baseKind: base.kind,
     beAtStop: rangeStart - margin,
+  };
+}
+
+// ─── Dentro da viagem em curso (D-070, E-03 §3.5) ───────────────────────────
+
+/**
+ * O atraso mais recente que a viagem em curso mostrou hoje (D-070): o desvio do registro aceito (`auto`/`manual`)
+ * de `observedAt` mais tardio; `null` se nenhum. Passe só os registros desse `ride` (ou dessa viagem neste dia).
+ */
+export function latestRideDeviation(records: readonly Pick<PassageRecord, "deviation" | "observedAt" | "matchStatus">[]): number | null {
+  let best: { deviation: number; observedAt: number } | null = null;
+  for (const r of records) {
+    if (r.matchStatus !== "auto" && r.matchStatus !== "manual") continue;
+    if (!best || r.observedAt >= best.observedAt) best = r;
+  }
+  return best ? best.deviation : null;
+}
+
+/**
+ * Previsão de uma próxima paragem dentro da viagem em curso (D-070): o centro passa a ser `base + rideDeviation`
+ * (o atraso de hoje, não o dos outros dias); a faixa do histórico (`historical`, de `expectedTime`) é **deslocada**
+ * pela mesma diferença, `shift = (base + rideDeviation) − historical.center`; depois, se algum lado ficar a menos de
+ * 2 min do centro, é alargado até ±2 (nunca mais estreita que ±2). Confiança e tipo da base são os do histórico.
+ * O `shift` devolvido é o mesmo número para o `shiftMinutes` que a TL-05 aceita (ligação no bloco 2).
+ */
+export function inRideExpected(
+  base: BaseTime,
+  historical: ExpectedTime,
+  rideDeviation: number,
+  options: Pick<ExpectedTimeOptions, "marginMinutes" | "config"> = {},
+): { expected: ExpectedTime; shift: number } {
+  const config = options.config ?? DOMAIN_CONFIG;
+  const margin = options.marginMinutes ?? config.marginMinutes;
+  const center = base.minute + rideDeviation;
+  const shift = center - historical.center;
+  const min = config.inRideMinHalfRangeMinutes;
+  const rangeStart = Math.min(historical.rangeStart + shift, center - min);
+  const rangeEnd = Math.max(historical.rangeEnd + shift, center + min);
+  return {
+    expected: { center, rangeStart, rangeEnd, confidence: historical.confidence, baseKind: historical.baseKind, beAtStop: rangeStart - margin },
+    shift,
   };
 }
 

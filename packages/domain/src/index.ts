@@ -13,6 +13,7 @@ export {
   checkBusOption,
   checkObservationInterval,
   checkPatternPositions,
+  checkRide,
   checkTripTimes,
 } from "./invariants";
 export {
@@ -42,7 +43,10 @@ export {
   baseTimeAt,
   displayBeAtStop,
   displayCenter,
+  estimateDeviation,
   expectedTime,
+  inRideExpected,
+  latestRideDeviation,
   passageInfo,
   passagesAtStop,
   timepointPositions,
@@ -54,13 +58,25 @@ export type {
   BaseKind,
   BaseTime,
   Confidence,
+  DeviationEstimate,
+  EstimateLevel,
   ExpectedTime,
   ExpectedTimeOptions,
   PassageInfo,
+  MatchStatus,
   PassageRecord,
+  PassageTarget,
   PatternData,
   PatternStopData,
   StopPassage,
   StopTimeData,
   TripData,
 } from "./passages";
+export { DOMAIN_CONFIG } from "./config";
+export type { DomainConfig } from "./config";
+export { ageDays, recordWeight, weightedQuantile } from "./estimate";
+export type { WeightInput } from "./estimate";
+export { deduceObservation, matchInstant, matchObservation, normalizedDistance } from "./matching";
+export type { Deduction, LinePatternData, MatchCandidate, MatchNetwork, MatchResult, ObservationFact, OngoingRide } from "./matching";
+export { alightRide, boardWithOpenRides, dismissRide, expireRide, notBoarded, openRide, rideExpired } from "./ride";
+export type { RidePoint, RideState, RideStatus } from "./ride";
