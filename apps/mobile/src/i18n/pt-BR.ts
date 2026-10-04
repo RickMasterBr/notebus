@@ -124,6 +124,7 @@ export const ptBR = {
   "home.trip.dismiss_button": "Dispensar",
   "sheet_board.title": "Registrar embarque",
   "sheet_board.change_button": "Trocar",
+  "sheet_board.change_stop.a11y": "Trocar o ponto",
   "sheet_board.line_prompt": "Qual linha você pegou?",
   "sheet_board.expected": "esperado ~{{time}} · {{relative}}",
   "sheet_board.time_note": "Hora do registro: {{time}} (agora). Dá para ajustar depois, no aviso.",

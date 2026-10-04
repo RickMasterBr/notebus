@@ -117,25 +117,34 @@ export function BoardSheet({ id, stopId: initialStopId }: { id: number; stopId: 
               {t("sheet_board.title")}
             </Text>
 
-            {/* O ponto: nome e "Trocar" (canvas: fundo `fill`, raio 14, padding 10 12). */}
-            <View style={[styles.stopBox, { backgroundColor: colors.fill }]}>
+            {/* O ponto: nome e "Trocar" (canvas: fundo `fill`, raio 14, padding 10 12, alvo >= 44 pt). */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={stopName ? `${stopName}, ${t("sheet_board.change_stop.a11y")}` : t("sheet_board.pick_stop")}
+              onPress={pickStop}
+              style={({ pressed }) => [
+                styles.stopBox,
+                { backgroundColor: colors.fill },
+                pressed && { opacity: 0.8 },
+              ]}
+            >
               <PinGlyph color={colors.accent} />
               {stopName ? (
                 <>
                   <Text style={[type.bodyStrong, styles.stopName, { color: colors.text }]}>{stopName}</Text>
-                  <Pressable accessibilityRole="button" onPress={pickStop} style={styles.change}>
+                  <View style={styles.change}>
                     <Text style={[type.subtitle, { color: colors.accent }]}>{t("sheet_board.change_button")}</Text>
-                  </Pressable>
+                  </View>
                 </>
               ) : (
                 <>
                   <Text style={[type.body, styles.stopName, { color: colors.textSecondary }]}>{t("sheet_board.pick_stop_hint")}</Text>
-                  <Pressable accessibilityRole="button" onPress={pickStop} style={styles.change}>
+                  <View style={styles.change}>
                     <Text style={[type.subtitle, { color: colors.accent }]}>{t("sheet_board.pick_stop")}</Text>
-                  </Pressable>
+                  </View>
                 </>
               )}
-            </View>
+            </Pressable>
 
             {stopId ? (
               <>
@@ -197,7 +206,7 @@ function ChoiceRow({ choice, onPress }: { choice: BoardChoice; onPress: () => vo
 }
 
 const styles = StyleSheet.create({
-  stopBox: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 12 },
+  stopBox: { minHeight: minTouch, flexDirection: "row", alignItems: "center", gap: 12, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 12 },
   stopName: { flex: 1 },
   change: { minHeight: minTouch, paddingHorizontal: 6, justifyContent: "center" },
   // Canvas: altura mínima 64, raio 14, padding 10 12, 12 de intervalo.
