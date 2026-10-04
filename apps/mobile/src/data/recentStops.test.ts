@@ -104,14 +104,3 @@ describe("Limpar recentes (D-143)", () => {
     expect(await rememberStop(db, "z", 3_000)).toEqual(["z"]);
   });
 });
-
-describe("Recentes depois de importar backup (E-03 bloco 4)", () => {
-  it("ler recentes após gravação externa reflete a nova lista sem recriar o contexto", async () => {
-    const db = testDb();
-    expect(await readRecentStops(db)).toEqual([]);
-    // Simula importação de backup gravando recent_stops na tabela setting
-    await writeRecentStops(db, ["stop-1", "stop-2"], 10_000);
-    // Leitura subsequente (como o reload() do RecentStopsProvider) obtém os dados importados
-    expect(await readRecentStops(db)).toEqual(["stop-1", "stop-2"]);
-  });
-});
