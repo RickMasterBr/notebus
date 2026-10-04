@@ -1,7 +1,8 @@
-// DIAG (E-02 bloco 5e): painel de diagnóstico da TL-05 e faixa da pilha de folhas. Sai quando o Rick medir (como no ccc5ca9).
+// DIAG (E-02 bloco 5e): painel de diagnóstico da TL-05 e faixa da pilha de folhas. Desligados (`DIAG_SCROLL = false`) no bloco 5f;
+// o código fica para o próximo sintoma. Para usar o painel: ligar a constante e renderizar `AheadDiagPanel` dentro do `BottomSheet`.
 // Sempre overlay absoluto com `pointerEvents` "box-none"/"none", fora do layout das folhas (D-150). Valores lidos de
 // verdade ou "N/D".
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SCROLLABLE_STATUS, useBottomSheet, useBottomSheetInternal } from "@gorhom/bottom-sheet";
 import { runOnJS, useAnimatedReaction } from "react-native-reanimated";
@@ -10,34 +11,9 @@ import { useNow } from "../data/NowProvider";
 import { radius, space, type, useTheme } from "../theme";
 import { useSheets } from "./SheetsContext";
 
-export const DIAG_SCROLL = true;
+export const DIAG_SCROLL = false;
 
 const BUILD_SHA = process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D";
-
-// ─── Variantes da TL-05 ──────────────────────────────────────────────────────
-
-export type AheadVariant = "V0" | "V1";
-export const AHEAD_VARIANT_NAMES: Record<AheadVariant, string> = {
-  V0: "V0: como na main (controle)",
-  V1: "V1: lista numa View de altura fixa (90% − handle), overflow hidden",
-};
-
-let currentVariant: AheadVariant = "V0";
-const listeners = new Set<(v: AheadVariant) => void>();
-
-export function useAheadVariant(): AheadVariant {
-  const [variant, setVariant] = useState(currentVariant);
-  useEffect(() => {
-    listeners.add(setVariant);
-    return () => void listeners.delete(setVariant);
-  }, []);
-  return variant;
-}
-
-function selectVariant(v: AheadVariant) {
-  currentVariant = v;
-  for (const l of listeners) l(v);
-}
 
 // ─── Último pedido de abertura de folha ──────────────────────────────────────
 
@@ -81,12 +57,11 @@ export interface AheadScrollMetrics {
   viewport: number | null;
   content: number | null;
   offset: number;
-  fixedHeight: number | null;
   scrollEvents: number;
 }
 
 /** Dentro do `BottomSheet` (usa os hooks da biblioteca). */
-export function AheadDiagPanel({ metrics, variant }: { metrics: AheadScrollMetrics; variant: AheadVariant }) {
+export function AheadDiagPanel({ metrics }: { metrics: AheadScrollMetrics }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const nowText = clockText(useNow()());
@@ -124,27 +99,15 @@ export function AheadDiagPanel({ metrics, variant }: { metrics: AheadScrollMetri
     <View pointerEvents="box-none" style={[styles.overlay, { top: insets.top + space.xs }]}>
       <View style={[styles.panel, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
         <View style={styles.row}>
-          <Text style={[styles.metric, { color: colors.accent, fontWeight: "700", flex: 1 }]}>{`[DIAG] AHEAD · ${BUILD_SHA} · ${nowText} · ${variant}`}</Text>
+          <Text style={[styles.metric, { color: colors.accent, fontWeight: "700", flex: 1 }]}>{`[DIAG] AHEAD · ${BUILD_SHA} · ${nowText}`}</Text>
           <Pressable onPress={() => setOpen(!open)} style={[styles.button, { borderColor: colors.divider, backgroundColor: colors.fill }]}>
             <Text style={[styles.metric, { color: colors.text }]}>{open ? "recolher" : "abrir"}</Text>
           </Pressable>
         </View>
         {open ? (
           <>
-            <View style={styles.row}>
-              {(["V0", "V1"] as const).map((v) => (
-                <Pressable
-                  key={v}
-                  onPress={() => selectVariant(v)}
-                  style={[styles.button, { flex: 1, borderColor: colors.divider, backgroundColor: variant === v ? colors.accent : colors.fill }]}
-                >
-                  <Text style={[styles.metric, { color: variant === v ? colors.onAccent : colors.text, fontWeight: "700" }]}>{v}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={[styles.metric, { color: colors.textSecondary }]}>{AHEAD_VARIANT_NAMES[variant]}</Text>
             <Text style={[styles.metric, { color: colors.text }]}>
-              {`Viewport: ${r(metrics.viewport)} | Conteúdo: ${r(metrics.content)} | Offset: ${r(metrics.offset)}/${r(max)} | Altura fixa V1: ${r(metrics.fixedHeight)}`}
+              {`Viewport: ${r(metrics.viewport)} | Conteúdo: ${r(metrics.content)} | Offset: ${r(metrics.offset)}/${r(max)}`}
             </Text>
             <Text style={[styles.metric, { color: colors.text }]}>{`Topo da folha: ${position === null ? "N/D" : `${position} pt`} | Biblioteca: ${status} | onScroll: ${metrics.scrollEvents}`}</Text>
             <Text style={[styles.metric, { color: colors.textSecondary }]}>{stackText}</Text>

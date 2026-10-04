@@ -333,3 +333,55 @@ describe("textos da folha do ponto (4.6)", () => {
     );
   });
 });
+
+describe("buildStopDay e buildStopCard: velocidade (plano E-02 §5, limite de 50 ms)", () => {
+  it("ponto com 6 linhas e 3 passagens por viagem, 360 viagens de dados sintéticos: ponto + cartão abaixo de 50 ms", () => {
+    // O Estádio real (4283) fica no teste com os dados da MOBILIS (privado, `docs/dados/mobilis/bloco-5f-real.test.ts`);
+    // aqui o mesmo formato com dados inventados, para o CI ter a prova.
+    const stopCount = 60;
+    const here = (position: number) => position === 1 || position === 20 || position === 50;
+    const patterns = Array.from({ length: 6 }, (_, p) => ({
+      id: `p${p}`,
+      stops: Array.from({ length: stopCount }, (_, i) => ({
+        position: i + 1,
+        stopId: here(i + 1) ? "est" : `s${p}-${i}`,
+        isTimepoint: i % 5 === 0 || i + 1 === stopCount,
+      })),
+    }));
+    const trips = patterns.flatMap((pattern, p) =>
+      Array.from({ length: 60 }, (_, n) => ({
+        id: `t${p}-${n}`,
+        patternId: pattern.id,
+        firstPosition: 1,
+        lastPosition: stopCount,
+        stopTimes: pattern.stops
+          .filter((s) => s.isTimepoint)
+          .map((s) => ({ position: s.position, serviceMinute: 300 + n * 15 + s.position, origin: "official" as const })),
+      })),
+    );
+    const data = {
+      calendar: { overrides: [], holidays: [] },
+      schedule: {
+        timetables: patterns.map((p) => ({ id: `tt-${p.id}`, validFrom: "2026-09-01", validTo: null })),
+        seasons: [],
+        trips: trips.map((t) => ({ id: t.id, timetableId: `tt-${t.patternId}`, seasonId: null, deletedAt: null, dayTypes: ["weekday"] })),
+      },
+      patterns,
+      trips,
+      patternLine: new Map(patterns.map((p, i) => [p.id, { code: String(i * 2 + 1), color: "#7A3FF2" }])),
+      stopNames: new Map([["est", "Estádio Inventado"]]),
+    } as unknown as ScheduleSnapshot;
+    const now = lisbon("2026-10-08", "08:00");
+    for (let w = 0; w < 3; w++) {
+      buildStopCard("est", data, now);
+      buildStopDay("est", data, now);
+    }
+    const t0 = performance.now();
+    const card = buildStopCard("est", data, now);
+    const day = buildStopDay("est", data, now);
+    const elapsed = performance.now() - t0;
+    expect(card!.lines).toHaveLength(6);
+    expect(day!.lines.reduce((n, l) => n + l.rows.length, 0)).toBeGreaterThan(300);
+    expect(elapsed).toBeLessThan(50);
+  });
+});

@@ -1,6 +1,7 @@
 /** Componente visual para exibir o selo de identificação (número e cor) de uma linha. */
 /** Selo de linha (4.4 §5.3): número sempre junto da cor, nunca com opacidade reduzida (D-051). */
 import { StyleSheet, Text, View } from "react-native";
+import { t } from "../i18n";
 import { lineColors, lineOutline, radius, space, type, useTheme } from "../theme";
 
 /**
@@ -27,6 +28,9 @@ export function LineBadge({ code, color }: { code: string; color: string }) {
   const outline = name === "dark" && (known ? known.outline : false);
   return (
     <View
+      // D-046: "Linha 1", não só "1". Dentro de um grupo que já se lê inteiro (cartão, linha do Ponto) este rótulo não é lido à parte.
+      accessible
+      accessibilityLabel={t("common.line.a11y", { line: code })}
       style={[
         styles.badge,
         { backgroundColor: color },

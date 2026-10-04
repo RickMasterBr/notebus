@@ -52,3 +52,24 @@ describe("searchStops", () => {
     expect(stops).toEqual(copy);
   });
 });
+
+describe("T-31 (plano E-02 §5): dois pontos com o mesmo nome ficam separados", () => {
+  // Dados inventados: o mesmo nome em dois lados da rua (D-015), um deles com ID e apelido.
+  const twins = [
+    { id: "a", name: "Largo Gêmeo", aliases: [], externalId: "9101" },
+    { id: "b", name: "Largo Gêmeo", aliases: ["Gêmeo Norte"], externalId: "9102" },
+    { id: "c", name: "Rua Qta. do Exemplo (Centro Comercial)", aliases: [], externalId: "9517" },
+  ];
+  const found = (term: string) => searchStops(twins, term).map((s) => s.id);
+  it("'gemeo' e 'GÊMEO' acham os dois, sem juntar", () => {
+    // O apelido "Gêmeo Norte" começa com o termo, então o "b" vem primeiro (regra do `searchStops`).
+    expect(found("gemeo")).toEqual(["b", "a"]);
+    expect(found("GÊMEO")).toEqual(["b", "a"]);
+    expect(found("largo gemeo")).toEqual(["a", "b"]);
+  });
+  it("o ID acha um só; o apelido acha o ponto certo", () => {
+    expect(found("9517")).toEqual(["c"]);
+    expect(found("9102")).toEqual(["b"]);
+    expect(found("norte")).toEqual(["b"]);
+  });
+});
