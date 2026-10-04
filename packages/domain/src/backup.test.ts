@@ -246,6 +246,25 @@ describe("lembrete (D-088)", () => {
     const r = (at: number) => backupReminder({ ...base, now: at, lastExportAt: now - 9 * DAY, snoozedUntil }).show;
     expect([r(now), r(now + 2 * DAY - 1), r(now + 2 * DAY)]).toEqual([false, false, true]);
   });
+  it("\"Agora não\" gravado há 1 dia (snoozedUntil = now + 1 dia) esconde o lembrete", () => {
+    expect(backupReminder({ ...base, lastExportAt: now - 9 * DAY, snoozedUntil: now + 1 * DAY }).show).toBe(false);
+  });
+  it("snoozedUntil = now + 2 dias exatos esconde (limite incluso)", () => {
+    expect(backupReminder({ ...base, lastExportAt: now - 9 * DAY, snoozedUntil: now + 2 * DAY }).show).toBe(false);
+  });
+  it("snoozedUntil = now + 20 dias (relógio voltou) mostra o lembrete", () => {
+    expect(
+      backupReminder({
+        ...base,
+        recordsUpdatedSinceExport: true,
+        lastExportAt: now - 8 * DAY,
+        snoozedUntil: now + 20 * DAY,
+      }).show,
+    ).toBe(true);
+  });
+  it("snoozedUntil no passado mostra o lembrete", () => {
+    expect(backupReminder({ ...base, lastExportAt: now - 9 * DAY, snoozedUntil: now - 1 }).show).toBe(true);
+  });
 });
 
 describe("contrato", () => {
