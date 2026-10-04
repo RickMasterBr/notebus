@@ -405,7 +405,12 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     return { observations, rides };
   }
 
-  return { board, undoBoard, alight, undoAlight, notBoarded, undoNotBoarded, dismiss, undoDismiss, expire, refreshDeductions, load };
+  /** Roda `job` na mesma fila das gravações (a importação do backup e o seu Desfazer: uma transação por vez). */
+  function exclusive<T>(job: () => Promise<T>): Promise<T> {
+    return enqueue(job);
+  }
+
+  return { board, undoBoard, alight, undoAlight, notBoarded, undoNotBoarded, dismiss, undoDismiss, expire, refreshDeductions, load, exclusive };
 }
 
 export type Registro = ReturnType<typeof createRegistro>;
