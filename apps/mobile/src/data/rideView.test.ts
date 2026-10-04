@@ -72,11 +72,11 @@ describe("buildTripCard: o cartão Em viagem", () => {
   });
 
   it("sem viagem certa (orphan): usa o candidato mais perto, sem atraso (não conta)", async () => {
-    const { data, } = await fixture();
-    // 09:30 na Arrabalde: 570. Viagem das 08:40 (base 522): +48 → 3,2; viagem das 08:10 (492): +78 → 5,2. A mais perto é a das 08:40.
-    const fact = boarding("A", "1", "09:30");
+    const { data } = await fixture();
+    // 08:58 na Arrabalde: 538. Viagem das 08:40 (base 522): +16 min (> 15 min, orphan; <= 30 min, D-159). A mais perto é a das 08:40.
+    const fact = boarding("A", "1", "08:58");
     expect(deduceBoarding(fact, matchNetworkOf(data)).matchStatus).toBe("orphan");
-    const card = buildTripCard("r", fact, data, matchNetworkOf(data), [], lisbon(THURSDAY, "09:31"))!;
+    const card = buildTripCard("r", fact, data, matchNetworkOf(data), [], lisbon(THURSDAY, "08:59"))!;
     expect(card.trip!.tripId).toBe(tripIdOf("1", "0840"));
     // Sem atraso aceito: o destino aparece e a chegada é a da tabela (Campus 554 = 09:14).
     expect([card.destination, card.rideDeviation, card.eta]).toEqual(["Campus Exemplo", null, { time: "09:14", approximate: true }]);
@@ -92,6 +92,43 @@ describe("buildTripCard: o cartão Em viagem", () => {
   it("ponto que sumiu dos horários: sem cartão", async () => {
     const { data } = await fixture();
     expect(buildTripCard("r", { ...boarding("A", "1", "08:12"), stopId: "nao-existe" }, data, matchNetworkOf(data), [], 0)).toBeNull();
+  });
+
+  it("orphan às 22:10 com nearest a mais de 30 min: unmatched true e destino/chegada nulos (Q-88)", async () => {
+    const { data } = await fixture();
+    const fact = boarding("A", "1", "22:10");
+    expect(deduceBoarding(fact, matchNetworkOf(data)).matchStatus).toBe("orphan");
+    const card = buildTripCard("r", fact, data, matchNetworkOf(data), [], lisbon(THURSDAY, "22:11"))!;
+    expect(card.unmatched).toBe(true);
+    expect([card.destination, card.eta, card.trip, card.tripStart, card.ahead]).toEqual([null, null, null, null, null]);
+  });
+
+  it("orphan com nearest a 12 min continua com destino (D-159)", async () => {
+    const { data } = await fixture();
+    // 08:00 na Arrabalde: 480. Base da 08:10 é 492: desvio −12 min (fora de [−5, +15] → orphan; |−12| <= 30 → D-159).
+    const fact = boarding("A", "1", "08:00");
+    const deduction = deduceBoarding(fact, matchNetworkOf(data));
+    expect(deduction.matchStatus).toBe("orphan");
+    expect(deduction.nearest!.deviation).toBe(-12);
+    const card = buildTripCard("r", fact, data, matchNetworkOf(data), [], lisbon(THURSDAY, "08:01"))!;
+    expect(card.unmatched).toBe(false);
+    expect(card.destination).toBe("Campus Exemplo");
+    expect(card.trip!.tripId).toBe(tripIdOf("1", "0810"));
+  });
+
+  it("auto e ambiguous continuam inalterados com unmatched false e destino presente", async () => {
+    const { data } = await fixture();
+    // auto: 08:12:30 na Arrabalde (L1)
+    const cardAuto = buildTripCard("r1", boarding("A", "1", "08:12", "30"), data, matchNetworkOf(data), [], lisbon(THURSDAY, "08:13"))!;
+    expect(cardAuto.unmatched).toBe(false);
+    expect(cardAuto.destination).toBe("Campus Exemplo");
+
+    // ambiguous: 08:23 na Arrabalde (L3 passa às 08:20 e 08:26)
+    const factAmbiguous = boarding("A", "3", "08:23");
+    expect(deduceBoarding(factAmbiguous, matchNetworkOf(data)).matchStatus).toBe("ambiguous");
+    const cardAmbiguous = buildTripCard("r2", factAmbiguous, data, matchNetworkOf(data), [], lisbon(THURSDAY, "08:24"))!;
+    expect(cardAmbiguous.unmatched).toBe(false);
+    expect(cardAmbiguous.destination).not.toBeNull();
   });
 });
 
@@ -113,9 +150,9 @@ describe("buildAlightRows: Onde você desceu?", () => {
 
   it("a hora prevista sem o atraso é a oficial: Campus 08:44", async () => {
     const { data } = await fixture();
-    // Orphan: sem atraso aceito; a lista usa a tabela pura.
-    const card = buildTripCard("r", boarding("A", "1", "09:30"), data, matchNetworkOf(data), [], lisbon(THURSDAY, "09:31"))!;
-    const campus = buildAlightRows(card, data, lisbon(THURSDAY, "09:31")).find((r) => r.position === 5)!;
+    // Orphan com nearest a 16 min (<= 30 min): sem atraso aceito; a lista usa a tabela pura.
+    const card = buildTripCard("r", boarding("A", "1", "08:58"), data, matchNetworkOf(data), [], lisbon(THURSDAY, "08:59"))!;
+    const campus = buildAlightRows(card, data, lisbon(THURSDAY, "08:59")).find((r) => r.position === 5)!;
     // Viagem das 08:40: Campus 554 = 09:14.
     expect(campus.time).toBe("09:14");
   });
