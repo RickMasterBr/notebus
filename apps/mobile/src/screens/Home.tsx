@@ -7,6 +7,7 @@ import { useStopIndex } from "../data/StopIndexProvider";
 import { SheetHost } from "../sheets/SheetHost";
 import { SheetsProvider } from "../sheets/SheetsContext";
 import { useTheme } from "../theme";
+import { SettingsButton } from "./SettingsButton";
 import { EmptyHome } from "./EmptyHome";
 
 export function Home() {
@@ -16,6 +17,7 @@ export function Home() {
   return (
     <SheetsProvider>
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <SettingsButton />
         <SheetHost />
       </View>
     </SheetsProvider>

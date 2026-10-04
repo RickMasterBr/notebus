@@ -14,6 +14,7 @@ export function Chip({
   onPress,
   tone = "accent",
   accessibilityLabel,
+  minWidth,
   children,
 }: {
   /** Texto do chip; sem ele, o chip leva `children` (o selo de linha). */
@@ -22,6 +23,8 @@ export function Chip({
   onPress: () => void;
   tone?: "accent" | "ring";
   accessibilityLabel?: string;
+  /** Largura mínima (alvo de toque de 44 px em chips de um só símbolo, como "−" e "+"). */
+  minWidth?: number;
   children?: ReactNode;
 }) {
   const { colors } = useTheme();
@@ -36,6 +39,7 @@ export function Chip({
       style={({ pressed }) => [
         styles.chip,
         children ? styles.compact : null,
+        minWidth !== undefined && { minWidth },
         { backgroundColor: filled ? colors.accent : colors.fill, borderColor: tone === "ring" && selected ? colors.text : "transparent" },
         pressed && { opacity: 0.6 },
       ]}

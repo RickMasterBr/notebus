@@ -1,5 +1,5 @@
 /** Ícones desenhados com Views (sem biblioteca de ícones). Só decoração: quem usa dá o rótulo de acessibilidade. */
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 const HIDDEN = { accessibilityElementsHidden: true, importantForAccessibility: "no-hide-descendants" } as const;
 
@@ -10,6 +10,15 @@ export function SearchGlyph({ color }: { color: string }) {
       <View style={[styles.lens, { borderColor: color }]} />
       <View style={[styles.handle, { backgroundColor: color }]} />
     </View>
+  );
+}
+
+/** Engrenagem: a 4.4 não tem glifo de engrenagem; símbolo de texto simples (D-151), sem biblioteca de ícones. */
+export function GearGlyph({ color }: { color: string }) {
+  return (
+    <Text style={[styles.gear, { color }]} {...HIDDEN}>
+      {"\u2699\uFE0E"}
+    </Text>
   );
 }
 
@@ -24,6 +33,7 @@ export function CrossGlyph({ color }: { color: string }) {
 }
 
 const styles = StyleSheet.create({
+  gear: { fontSize: 22, lineHeight: 26 },
   search: { width: 18, height: 18 },
   lens: { position: "absolute", left: 1, top: 1, width: 12, height: 12, borderRadius: 6, borderWidth: 2 },
   handle: { position: "absolute", left: 11, top: 14, width: 7, height: 2, borderRadius: 1, transform: [{ rotate: "45deg" }] },
