@@ -9,6 +9,8 @@ import Animated, { Easing, FadeIn, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToast } from "../data/ToastProvider";
 import { elevation, motion, radius, type, useTheme } from "../theme";
+import { toastBottom } from "../data/toastPosition";
+import { useKeyboardHeight } from "../sheets/useKeyboardHeight";
 import { useReduceMotion } from "../sheets/useReduceMotion";
 
 const RISE = 16;
@@ -26,12 +28,13 @@ function riseIn() {
 export function ToastHost() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
   const reduceMotion = useReduceMotion();
   const { toast, press } = useToast();
   if (!toast) return null;
   return (
-    // Canvas: 12 px dos lados e 28 px de baixo (a área segura do iPhone com a barra de início é de 34 pt).
-    <View pointerEvents="box-none" style={[styles.host, { bottom: Math.max(insets.bottom - 6, 12) }]}>
+    // Canvas: 12 px dos lados e 28 px de baixo (a área segura do iPhone com a barra de início é de 34 pt); acima do teclado quando aberto.
+    <View pointerEvents="box-none" style={[styles.host, { bottom: toastBottom(keyboardHeight, insets.bottom) }]}>
       <Animated.View
         // `key`: um toast novo, mesmo com o mesmo texto, roda a entrada de novo.
         key={toast.id}
