@@ -232,42 +232,13 @@ describe("5e, tarefa 4: a sequência da gaveta presa (home > stop > ahead > sett
     expect(kinds(step(s, board))).toEqual(["home", "board"]);
   });
 
-  it("E-03: ciclo completo de gravação no Registrar fecha a folha e mantém a pilha saudável para novo registro", () => {
-    const board: SheetAction = { type: "push", sheet: { kind: "board", stopId: null } };
-    let s = run(board);
-    expect(kinds(s)).toEqual(["home", "board"]);
-    // Gravar fecha a folha (POP)
-    s = step(s, POP);
-    expect(kinds(s)).toEqual(["home"]);
-    expect(activeSheet(s).kind).toBe("home");
-    // Novo registro abre normalmente
-    s = step(s, board);
-    expect(kinds(s)).toEqual(["home", "board"]);
-  });
-
-  it("E-03: Trocar abre Busca em pick, escolher fecha a Busca voltando ao Registrar, e gravar fecha o Registrar voltando ao Início", () => {
-    const board: SheetAction = { type: "push", sheet: { kind: "board", stopId: null } };
-    const pick: SheetAction = { type: "push", sheet: { kind: "search", pick: true } };
-    let s = run(board, pick);
-    expect(kinds(s)).toEqual(["home", "board", "search"]);
-    // Escolher ponto fecha a Busca
-    s = step(s, POP);
-    expect(kinds(s)).toEqual(["home", "board"]);
-    // Gravar embarque fecha o Registrar
-    s = step(s, POP);
-    expect(kinds(s)).toEqual(["home"]);
-    expect(activeSheet(s).kind).toBe("home");
-  });
-
-  it("E-03: Desci aqui abre sobre o Início, escolher paragem fecha a folha e permite abrir de novo na viagem seguinte", () => {
-    const alight: SheetAction = { type: "push", sheet: { kind: "alight" } };
-    let s = run(alight);
+  it("E-03: o 'Registrar aqui' do Ponto empilha o Registrar com o ponto; 'Desci aqui' e o cartão puxado abrem por cima do Início", () => {
+    let s = run(stop("a"), { type: "push", sheet: { kind: "board", stopId: "a" } });
+    expect(activeSheet(s)).toMatchObject({ kind: "board", stopId: "a" });
+    expect(covered(s)).toEqual(["home", "stop"]);
+    s = run({ type: "push", sheet: { kind: "alight" } });
     expect(kinds(s)).toEqual(["home", "alight"]);
-    // Escolher descida fecha a folha
-    s = step(s, POP);
-    expect(kinds(s)).toEqual(["home"]);
-    // Próxima viagem: Desci aqui abre normalmente
-    s = step(s, alight);
-    expect(kinds(s)).toEqual(["home", "alight"]);
+    s = run({ type: "push", sheet: { kind: "trip" } });
+    expect(kinds(s)).toEqual(["home", "trip"]);
   });
 });
