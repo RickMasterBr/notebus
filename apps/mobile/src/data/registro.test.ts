@@ -274,27 +274,29 @@ describe("Não embarquei e Dispensar", () => {
 });
 
 describe("fechamento automático", () => {
-  it("a viagem das 08:10 termina às 09:05 (545); com +15 min o ride fecha depois das 09:20", async () => {
+  it("a viagem das 08:10 termina às 09:05 (545); com +30 min (Q-82) o ride fecha depois das 09:35", async () => {
     const f = await fixture();
     const board = await boardAtA(f);
     await f.registro.refreshDeductions(Date.now());
-    // Fim = 545 (09:05) + 15 = 560 (09:20). `rideExpired` compara o minuto inteiro com `>`: 09:20:59 é o minuto 560 (aberto);
-    // 09:21:00 é o 561 (fecha).
-    expect(await f.registro.expire(lisbon(THURSDAY, "09:19", "00"))).toBe(0);
-    expect(await f.registro.expire(lisbon(THURSDAY, "09:20", "59"))).toBe(0);
+    // Fim = 545 (09:05) + 30 = 575 (09:35). `rideExpired` compara o minuto inteiro com `>`: 09:35:59 é o minuto 575 (aberto);
+    // 09:36:00 é o 576 (fecha). Com a folga antiga (+15) já teria fechado às 09:21.
+    expect(await f.registro.expire(lisbon(THURSDAY, "09:21", "00"))).toBe(0);
+    expect(await f.registro.expire(lisbon(THURSDAY, "09:35", "59"))).toBe(0);
     expect((await rideOf(f, board.rideId)).status).toBe("open");
-    expect(await f.registro.expire(lisbon(THURSDAY, "09:21", "00"))).toBe(1);
+    expect(await f.registro.expire(lisbon(THURSDAY, "09:36", "00"))).toBe(1);
     const r = await rideOf(f, board.rideId);
     // Fechou sem descida e sem tocar no registro.
     expect([r.status, r.alightingObservationId, (await obsOf(f, board.observationId)).kind]).toEqual(["closed", null, "boarded"]);
   });
 
-  it("um ride sem viagem conhecida (a linha não passa no ponto) não fecha por aqui", async () => {
+  it("Q-85: um ride sem viagem conhecida (a linha não passa no ponto) fecha 3 h depois do embarque", async () => {
     const f = await fixture();
-    // A linha 2 não passa na Estação: sem viagem, sem fim para contar.
+    // A linha 2 não passa na Estação: sem viagem, sem fim para contar. Embarque 08:12 → 11:12 aberto, 11:13 fecha.
     const board = await f.registro.board({ stopId: stopId("S"), lineId: lineId("2"), at: lisbon(THURSDAY, "08:12") });
-    expect(await f.registro.expire(lisbon(THURSDAY, "23:00"))).toBe(0);
+    expect(await f.registro.expire(lisbon(THURSDAY, "11:12"))).toBe(0);
     expect((await rideOf(f, board.rideId)).status).toBe("open");
+    expect(await f.registro.expire(lisbon(THURSDAY, "11:13"))).toBe(1);
+    expect((await rideOf(f, board.rideId)).status).toBe("closed");
   });
 });
 

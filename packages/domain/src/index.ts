@@ -78,5 +78,47 @@ export { ageDays, recordWeight, weightedQuantile } from "./estimate";
 export type { WeightInput } from "./estimate";
 export { deduceObservation, matchInstant, matchObservation, normalizedDistance } from "./matching";
 export type { Deduction, LinePatternData, MatchCandidate, MatchNetwork, MatchResult, ObservationFact, OngoingRide } from "./matching";
-export { alightRide, boardWithOpenRides, dismissRide, expireRide, notBoarded, openRide, rideExpired } from "./ride";
+export { alightRide, boardWithOpenRides, dismissRide, expireRide, expireRideWithoutTrip, notBoarded, openRide, rideExpired } from "./ride";
 export type { RidePoint, RideState, RideStatus } from "./ride";
+export {
+  BACKUP_FORMAT,
+  BACKUP_FORMAT_VERSION,
+  BACKUP_REMINDER_DAYS,
+  BACKUP_SETTING_KEYS,
+  BACKUP_SNOOZE_DAYS,
+  BACKUP_TABLES,
+  BACKUP_V1_COLUMNS,
+  OFFICIAL_EDIT_TABLES,
+  backupFileName,
+  backupReminder,
+  backupSummary,
+  checksumMatches,
+  countTables,
+  findOrphans,
+  isoSeconds,
+  matchKey,
+  migrateBackup,
+  parseBackup,
+  planMerge,
+  planTableMerge,
+  serializeBackup,
+  snoozeUntil,
+} from "./backup";
+export type {
+  BackupFile,
+  BackupHeader,
+  BackupInput,
+  BackupParseResult,
+  BackupProblem,
+  BackupRow,
+  BackupTableName,
+  BackupTables,
+  BackupValue,
+  MergeOp,
+  MergePlan,
+  MergeSummary,
+  Orphan,
+  ParseDeps,
+  ReminderInput,
+  Sha256,
+} from "./backup";

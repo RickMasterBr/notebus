@@ -11,6 +11,9 @@
  * entra na altura pela mesma conta da pílula (medido por `onLayout`, sem constante nova, sem espaçador novo, sem estado
  * do `onChange` e sem remontar a lista): o detent pequeno cresce com ele e a lista tem a altura da folha aberta menos
  * handle, cartão e pílula.
+ *
+ * E-03 bloco 3: o lembrete de backup (D-088) fica logo abaixo do cartão "Em viagem", no mesmo bloco medido: o detent
+ * pequeno cresce o necessário para os dois, pela mesma conta.
  */
 import BottomSheet, {
   BottomSheetBackdrop,
@@ -23,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBackup } from "../data/BackupProvider";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
@@ -32,7 +36,7 @@ import { t } from "../i18n";
 import { elevation, radius, space, useTheme } from "../theme";
 import { REGISTER_BUTTON_HEIGHT, RegisterButton } from "../ui/RegisterButton";
 import { SearchPill } from "../ui/SearchPill";
-import { TripCard } from "../ui/TripCard";
+import { BackupReminderCard, TripCard } from "../ui/TripCard";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
@@ -54,11 +58,17 @@ export function HomeSheet() {
   const recent = useRecentStops();
   const listReady = stops.status !== "loading" && schedule.status !== "loading" && recent.status !== "loading";
   const { tripCard, notBoarded, dismiss } = useRegistro();
+  const backup = useBackup();
+  const reminder = backup.reminder.show
+    ? backup.reminder.daysSince === null
+      ? t("home.backup_reminder.body_never")
+      : t("home.backup_reminder.body", { days: backup.reminder.daysSince })
+    : null;
   const [handleHeight, setHandleHeight] = useState(0);
   const [pillHeight, setPillHeight] = useState(0);
-  // Altura medida do cartão "Em viagem" (com o espaço até a pílula); 0 sem viagem em curso.
+  // Altura medida do cartão "Em viagem" e do lembrete de backup (com o espaço até a pílula); 0 sem nenhum dos dois.
   const [cardHeight, setCardHeight] = useState(0);
-  const effectiveCardHeight = tripCard ? cardHeight : 0;
+  const effectiveCardHeight = tripCard || reminder ? cardHeight : 0;
   const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + effectiveCardHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
   // Topo da folha, medido pela biblioteca (já com a área segura de cima): o botão "Registrar" sobe e desce com ele.
   // Começa fora da tela até a primeira medida.
@@ -165,15 +175,18 @@ export function HomeSheet() {
       >
         {/* `View` comum, não `BottomSheetView`: ver `StackedSheet` (a lista perde a rolagem e o tamanho). */}
         <View style={styles.content} collapsable={false}>
-          {tripCard ? (
+          {tripCard || reminder ? (
             <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)} style={styles.card}>
-              <TripCard
-                card={tripCard}
-                onAlight={() => dispatch({ type: "push", sheet: { kind: "alight" } })}
-                onNotBoarded={() => notBoarded(tripCard)}
-                onDismiss={() => dismiss(tripCard)}
-                onOpenList={() => dispatch({ type: "push", sheet: { kind: "trip" } })}
-              />
+              {tripCard ? (
+                <TripCard
+                  card={tripCard}
+                  onAlight={() => dispatch({ type: "push", sheet: { kind: "alight" } })}
+                  onNotBoarded={() => notBoarded(tripCard)}
+                  onDismiss={() => dismiss(tripCard)}
+                  onOpenList={() => dispatch({ type: "push", sheet: { kind: "trip" } })}
+                />
+              ) : null}
+              {reminder ? <BackupReminderCard text={reminder} onExport={backup.exportNow} onSnooze={backup.snooze} /> : null}
             </View>
           ) : null}
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
@@ -212,7 +225,7 @@ export function HomeSheet() {
 
 const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: space.md },
-  card: { paddingBottom: space.md },
+  card: { paddingBottom: space.md, gap: space.sm },
   fab: { position: "absolute", top: 0, right: space.md },
 });
 

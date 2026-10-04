@@ -67,6 +67,8 @@ export interface Fixture {
   db: ReturnType<typeof testDbWithSqlite>["db"];
   data: ScheduleSnapshot;
   registro: ReturnType<typeof createRegistro>;
+  /** O mesmo banco pela interface de SQL cru (importação da MOBILIS e backup). */
+  raw: ImportDb;
 }
 
 /** Banco em memória com a rede inventada importada; `deps` troca a dedução (falha ou demora) nos testes. */
@@ -80,5 +82,5 @@ export async function fixture(deps: Partial<RegistroDeps> = {}): Promise<Fixture
   await importMobilis(importDb, exampleNetworkSeed());
   const data = await loadSchedule(db);
   const registro = createRegistro(db, { network: () => matchNetworkOf(data), snapshot: () => data, ...deps });
-  return { db, data, registro };
+  return { db, data, registro, raw: importDb };
 }

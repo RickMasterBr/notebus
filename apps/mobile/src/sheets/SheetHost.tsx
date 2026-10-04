@@ -2,6 +2,7 @@
 import { StyleSheet, View } from "react-native";
 import { AheadSheet } from "./AheadSheet";
 import { AlightSheet } from "./AlightSheet";
+import { BackupImportSheet } from "./BackupImportSheet";
 import { BoardSheet } from "./BoardSheet";
 import { TripSheet } from "./TripSheet";
 import { StackDiagStrip } from "./diagScroll";
@@ -73,6 +74,8 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
       return <SettingsSheet id={entry.id} />;
     case "clockPicker":
       return <ClockPickerSheet id={entry.id} />;
+    case "backupImport":
+      return <BackupImportSheet id={entry.id} />;
     case "home":
       return null;
   }

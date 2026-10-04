@@ -154,7 +154,9 @@ export function buildTripCard(
     tripStart,
     // O centro de cada paragem é `base + atraso da viagem` (D-070): o deslocamento da lista é o próprio atraso. A hora
     // de saída da viagem ("viagem das 08:10") é a da tabela, não a deslocada.
-    ahead: ahead && tripStart !== null ? { ...ahead, tripStart } : ahead,
+    // A linha "você" mostra a hora do embarque em minuto cheio (08:12:30 → 08:12), como o cartão e o toast; o centro
+    // deslocado (492 + 0,5 = 492,5) arredondaria para 08:13.
+    ahead: ahead ? { ...ahead, tripStart: tripStart ?? ahead.tripStart, here: { ...ahead.here, time: boardedTime } } : null,
   };
 }
 

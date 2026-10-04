@@ -102,6 +102,26 @@ export function TripCard({
   );
 }
 
+/**
+ * Lembrete de backup (D-088, plano E-03 §5.5): aviso discreto na folha inicial, abaixo do cartão "Em viagem". Sem
+ * componente visual novo: a moldura e as ações em texto são as deste cartão, com o fundo neutro `fill` em vez do
+ * destaque `trip` (o lembrete não compete com a viagem). "Exportar agora" abre o fluxo de exportar; "Agora não" esconde
+ * por 2 dias. Nunca vira notificação.
+ */
+export function BackupReminderCard({ text, onExport, onSnooze }: { text: string; onExport: () => void; onSnooze: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.card, { backgroundColor: colors.fill }]}>
+      <Text style={[type.body, { color: colors.text }]}>{text}</Text>
+      <View style={styles.actions}>
+        <View style={styles.spacer} />
+        <TextAction label={t("home.backup_reminder.export")} color={colors.accent} onPress={onExport} />
+        <TextAction label={t("home.backup_reminder.snooze")} color={colors.textSecondary} onPress={onSnooze} />
+      </View>
+    </View>
+  );
+}
+
 function TextAction({ label, color, onPress }: { label: string; color: string; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>

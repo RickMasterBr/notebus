@@ -194,7 +194,7 @@ function levelsOf(target: PassageTarget, records: readonly PassageRecord[]): Rec
  * - centro = `(n · mediana_local + k · mediana_acima) / (n + k)`, `n` = soma dos pesos (D-120), medianas ponderadas
  *   (`weightedQuantile` com q = 0,5), `mediana_acima` = a do nível seguinte (0 acima do percurso);
  * - faixa: com menos de 5 registros, do menor ao maior desvio do nível usado, alargada pela incerteza da base;
- *   com 5 ou mais, percentis 10 a 90 ponderados do nível usado (sem alargar);
+ *   com 5 ou mais, percentis 10 a 90 ponderados do nível usado (sem alargar); depois, alargada até conter o centro (Q-80);
  * - confiança conta **registros** do nível usado: 0 `estimated`; 1–2 `low`; 3–5 `medium`; 6 ou mais `high` se 6 ou
  *   mais forem dos últimos 56 dias e a faixa tiver até 4 min; senão `medium` (D-120).
  */
@@ -234,6 +234,9 @@ export function estimateDeviation(
     rangeStart = weightedQuantile(local, config.rangeLowQuantile);
     rangeEnd = weightedQuantile(local, config.rangeHighQuantile);
   }
+  // Q-80: a faixa sempre contém o centro (o "esteja no ponto às" sai do limite inferior e nunca pode passar do centro).
+  rangeStart = Math.min(rangeStart, center);
+  rangeEnd = Math.max(rangeEnd, center);
 
   const count = local.length;
   const recentCount = local.filter((w) => ageDays(w.observedAt, now) <= config.recentWindowDays).length;

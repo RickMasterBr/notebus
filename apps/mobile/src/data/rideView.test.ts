@@ -3,7 +3,9 @@
 // L1, viagem 08:10: pos. 1 = 490, 2 = 492 (Arrabalde), 3 ≈ 502,67, 4 ≈ 513,33, 5 = 524 (Campus, controle),
 // 6 = 534,5, 7 = 545 (Estação, fim). Embarque às 08:12:30 na Arrabalde: atraso +0,5.
 import { describe, expect, it } from "vitest";
+import { lisbonWallClock } from "@notebus/domain";
 import { matchNetworkOf } from "./records";
+import { clockText } from "./stopCard";
 import { buildAlightRows, buildTripCard, deduceBoarding, nextDestination, serviceMinuteOn } from "./rideView";
 import { THURSDAY, fixture, lineId, lisbon, stopId, tripIdOf } from "./registroFixture";
 
@@ -45,6 +47,17 @@ describe("buildTripCard: o cartão Em viagem", () => {
     // A lista puxada vai até o fim do percurso; a hora de saída da viagem é a da tabela, não a deslocada.
     expect(card.ahead!.tripStart).toBe("08:10");
     expect(card.ahead!.stops.map((s) => s.position)).toEqual([3, 4, 5, 6, 7]);
+  });
+
+  it("linha \"você\" da lista puxada: embarque 08:12:30 → 08:12 (minuto cheio), como o cartão e o toast", async () => {
+    const { data } = await fixture();
+    const at = lisbon(THURSDAY, "08:12", "30");
+    const card = buildTripCard("ride-1", boarding("A", "1", "08:12", "30"), data, matchNetworkOf(data), [], at)!;
+    // Antes: base 492 + atraso 0,5 = 492,5 → meio minuto sobe → 08:13. Agora: o instante do embarque sem os segundos.
+    expect(card.ahead!.here.time).toBe("08:12");
+    expect(card.boardedTime).toBe("08:12");
+    // O toast do embarque usa a mesma conta (`RegistroProvider`: relógio de Lisboa, minuto cheio).
+    expect(clockText(lisbonWallClock(at).minute)).toBe("08:12");
   });
 
   it("os horários da lista puxada seguem o atraso da própria viagem (D-070)", async () => {

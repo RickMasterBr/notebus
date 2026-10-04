@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createTestClock } from "./src/data/clock";
 import { TestClockProvider } from "./src/data/TestClockProvider";
 import { RecentStopsProvider } from "./src/data/RecentStopsProvider";
@@ -9,9 +9,11 @@ import { RegistroProvider } from "./src/data/RegistroProvider";
 import { ScheduleProvider } from "./src/data/ScheduleProvider";
 import { StopIndexProvider } from "./src/data/StopIndexProvider";
 import { ToastProvider } from "./src/data/ToastProvider";
+import { BackupProvider } from "./src/data/BackupProvider";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
 import { pickAndImport } from "./src/db/importFromFile";
-import { expoImportDb, openNotebusDb } from "./src/db/open";
+import { expoBackupStore, expoImportDb, openNotebusDb } from "./src/db/open";
+import appJson from "./app.json";
 import { FirstRun } from "./src/screens/FirstRun";
 import { Home } from "./src/screens/Home";
 import { MigrationNotice } from "./src/ui/MigrationNotice";
@@ -40,7 +42,11 @@ export default function App() {
     });
   }, []);
 
-  if (!db || phase === "loading") return null;
+  // Identidade fixa: o backup lê e grava pelo SQL cru do mesmo banco (E-03 §5).
+  const raw = useMemo(() => (db ? expoImportDb(db.$client) : null), [db]);
+  const backups = useCallback(() => expoBackupStore(db!.$client), [db]);
+
+  if (!db || !raw || phase === "loading") return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -68,7 +74,9 @@ export default function App() {
                 <ScheduleProvider db={db}>
                   <RecentStopsProvider db={db}>
                     <RegistroProvider db={db}>
-                      <Home />
+                      <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
+                        <Home />
+                      </BackupProvider>
                     </RegistroProvider>
                   </RecentStopsProvider>
                 </ScheduleProvider>

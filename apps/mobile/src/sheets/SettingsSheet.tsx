@@ -1,5 +1,6 @@
 /**
- * Ajustes mínimo (D-151): uma folha empilhada de uma altura com só a linha "Versão". Sete batidas seguidas nela abrem o
+ * Ajustes mínimo (D-151; E-03 §5: mais "Exportar backup", "Importar backup" e "Último backup", no mesmo estilo de linha).
+ * Uma folha empilhada de uma altura com a linha "Versão". Sete batidas seguidas nela abrem o
  * seletor do relógio de teste (D-095). Com o relógio já ligado, a 7ª batida abre o seletor para trocar o instante (a
  * faixa vermelha continua sendo o jeito de desligar). O resto da TL-12 fica para a E-08.
  * Versão: o `version` do `app.json`; build: o curto do commit (`EXPO_PUBLIC_BUILD_SHA`, definido pelo `app.config.ts`).
@@ -7,6 +8,7 @@
 import { useEffect, useRef } from "react";
 import { AccessibilityInfo, StyleSheet, Text, View } from "react-native";
 import appJson from "../../app.json";
+import { lisbonDateText, useBackup } from "../data/BackupProvider";
 import { realNow } from "../data/clock";
 import { createTapCounter } from "../data/testClockPicker";
 import { t } from "../i18n";
@@ -32,11 +34,29 @@ export function SettingsSheet({ id }: { id: number }) {
     wasCovered.current = !isTop;
   }, [isTop]);
 
+  const backup = useBackup();
+  const last = backup.lastExportAt === null ? t("settings.never_exported") : t("settings.last_backup", { date: lisbonDateText(backup.lastExportAt) });
+
   return (
     <StackedSheet id={id}>
       <Text accessibilityRole="header" style={[type.title, styles.title, { color: colors.text }]}>
         {t("settings.title")}
       </Text>
+      <ListRow
+        title={t("settings.export_backup")}
+        detail={last}
+        accessibilityLabel={t("settings.export_backup.a11y", { last })}
+        onPress={backup.exportNow}
+      />
+      <ListRow
+        title={t("settings.import_backup")}
+        accessibilityLabel={`${t("settings.import_backup")}. ${t("settings.import_backup.hint")}`}
+        onPress={() =>
+          void backup.startImport().then((picked) => {
+            if (picked) dispatch({ type: "push", sheet: { kind: "backupImport" } });
+          })
+        }
+      />
       <ListRow
         ref={row}
         title={t("settings.version")}

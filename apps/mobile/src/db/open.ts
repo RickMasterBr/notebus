@@ -51,8 +51,8 @@ export function expoImportDb(sqlite: SQLite.SQLiteDatabase): ImportDb {
   };
 }
 
-/** Cópia com a API de backup do SQLite (cópia página a página do banco inteiro). */
-async function expoBackupStore(main: SQLite.SQLiteDatabase): Promise<BackupStore> {
+/** Cópia com a API de backup do SQLite (cópia página a página do banco inteiro). Também antes de importar um backup (E-03). */
+export async function expoBackupStore(main: SQLite.SQLiteDatabase): Promise<BackupStore> {
   const catalog = await SQLite.openDatabaseAsync(BACKUP_CATALOG);
   await catalog.execAsync("CREATE TABLE IF NOT EXISTS backup (name TEXT PRIMARY KEY NOT NULL)");
 
