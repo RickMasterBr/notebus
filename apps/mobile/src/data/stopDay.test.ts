@@ -6,6 +6,7 @@ import { type ImportDb, importMobilis } from "../db/importMobilis";
 import { testDbWithSqlite } from "../db/testing/drizzleTestDb";
 import { type LineSpec, lineSeed } from "../db/testing/lineSeed";
 import { type ScheduleSnapshot, loadSchedule } from "./schedule";
+import { buildStopCard } from "./stopCard";
 import { buildStopDay } from "./stopDay";
 import { dayTypeChipText, emptyTexts, lineHeaderText, passageNotes, rowA11y, rowRangeText, rowTimeText } from "./stopDayText";
 
@@ -238,6 +239,21 @@ describe("buildStopDay: tipo de dia (chip) e dia sem serviço", () => {
     expect(august.empty?.reason).toEqual({ kind: "season", months: [7, 8] });
     const september = lineOf(await day("praca", lisbon("2026-09-02", "10:00"), "saturday"), "3");
     expect(september.rows.map((r) => r.time)).toEqual(["09:00"]);
+  });
+
+  it("5e: tabela que só vale de 01/09 (como a da MOBILIS): em 12/08 a linha 9 diz a época, no cartão e na folha", async () => {
+    const fromSeptember = await load(lineSeed(NAMES, LINES, "2026-09-01"));
+    const instant = lisbon("2026-08-12", "12:00");
+    const sheet = lineOf(buildStopDay(idOf("vila"), fromSeptember, instant)!, "9");
+    expect(sheet.rows).toEqual([]);
+    expect(sheet.empty).toEqual({ reason: { kind: "season", months: [7, 8] }, next: { date: "2026-09-01", weekday: 2, time: "07:00" } });
+    const card = buildStopCard(idOf("vila"), fromSeptember, instant)!.lines.find((l) => l.code === "9")!;
+    expect(card.state).toMatchObject({ status: "later", reason: { kind: "season", months: [7, 8] }, date: "2026-09-01" });
+    // 31/08 ainda é época; 01/09 volta a circular (terça, 07:00).
+    const last = lineOf(buildStopDay(idOf("vila"), fromSeptember, lisbon("2026-08-31", "12:00"))!, "9");
+    expect(last.empty?.reason).toEqual({ kind: "season", months: [7, 8] });
+    const back = lineOf(buildStopDay(idOf("vila"), fromSeptember, lisbon("2026-09-01", "06:00"))!, "9");
+    expect(back.rows.map((r) => r.time)).toEqual(["07:00"]);
   });
 
   it("os quatro motivos de dia sem serviço (T-32)", async () => {

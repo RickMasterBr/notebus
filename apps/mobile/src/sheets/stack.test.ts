@@ -182,3 +182,41 @@ describe("folhas de Ajustes e do seletor do relógio (D-151)", () => {
     expect(activeSheet(s).kind).toBe("settings");
   });
 });
+
+describe("5e, tarefa 4: a sequência da gaveta presa (home > stop > ahead > settings > clockPicker)", () => {
+  const ahead: SheetAction = { type: "push", sheet: { kind: "ahead", tripId: "t1", position: 3 } };
+  const settings: SheetAction = { type: "push", sheet: { kind: "settings" } };
+  const clockPicker: SheetAction = { type: "push", sheet: { kind: "clockPicker" } };
+  /** O que a tela mostra: só a folha do topo recebe toque; as outras ficam cobertas (sem eventos). */
+  const covered = (s: SheetStackState) => s.stack.slice(0, -1).map((e) => e.kind);
+
+  it("empilha cinco folhas, fecha o seletor e abre outro ponto: uma folha no topo, ids únicos, as outras cobertas", () => {
+    let s = run(stop("a", "Campus"), ahead, settings, clockPicker);
+    expect(kinds(s)).toEqual(["home", "stop", "ahead", "settings", "clockPicker"]);
+    s = step(s, POP);
+    expect(activeSheet(s).kind).toBe("settings");
+    s = step(s, stop("b", "Estádio"));
+    expect(kinds(s)).toEqual(["home", "stop", "ahead", "settings", "stop"]);
+    expect(activeSheet(s)).toMatchObject({ kind: "stop", stopId: "b" });
+    expect(covered(s)).toEqual(["home", "stop", "ahead", "settings"]);
+    expect(new Set(s.stack.map((e) => e.id)).size).toBe(s.stack.length);
+  });
+
+  it("fechar uma a uma volta à base, sem sobrar folha; avisos repetidos e atrasados não derrubam outra", () => {
+    let s = run(stop("a"), ahead, settings, clockPicker);
+    const ids = s.stack.map((e) => e.id);
+    s = step(s, POP);
+    s = step(s, closeId(ids[4]!)); // aviso atrasado da folha que já saiu
+    expect(kinds(s)).toEqual(["home", "stop", "ahead", "settings"]);
+    s = step(step(step(s, POP), POP), POP);
+    expect(kinds(s)).toEqual(["home"]);
+  });
+
+  it("abrir de novo o mesmo ponto que está por baixo traz a folha para o topo, sem duplicar", () => {
+    let s = run(stop("a"), ahead, settings, clockPicker);
+    s = step(s, POP);
+    s = step(s, stop("a"));
+    expect(kinds(s)).toEqual(["home", "ahead", "settings", "stop"]);
+    expect(s.stack.filter((e) => e.kind === "stop")).toHaveLength(1);
+  });
+});
