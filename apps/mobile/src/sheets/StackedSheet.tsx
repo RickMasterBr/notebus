@@ -7,7 +7,7 @@
  * fechar, fundo, pilha) é a mesma. O conteúdo é uma `View` que preenche a folha, como na `tall` (ver abaixo).
  */
 import BottomSheet, { BottomSheetBackdrop, type BottomSheetBackdropProps, BottomSheetView } from "@gorhom/bottom-sheet";
-import { type ComponentType, type ReactNode, createContext, useCallback, useContext, useEffect, useRef } from "react";
+import { type ComponentType, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -26,10 +26,39 @@ const closeConfig = { duration: CLOSE_MS, easing: Easing.in(Easing.ease) };
 
 const TALL_SNAP_POINTS = ["90%"];
 
+export interface CloseSheetContextValue {
+  close: () => void;
+  register: (handler: () => void) => () => void;
+}
+
+const CloseSheetContext = createContext<CloseSheetContextValue | null>(null);
+
 /** Fecha a folha com a animação de saída (o mesmo caminho do handle e do ✕): para o conteúdo fechar a própria folha. */
-const CloseSheetContext = createContext<() => void>(() => {});
 export function useCloseSheet(): () => void {
-  return useContext(CloseSheetContext);
+  const ctx = useContext(CloseSheetContext);
+  return ctx ? ctx.close : () => {};
+}
+
+export function CloseSheetProvider({ id, children }: { id: number; children: ReactNode }) {
+  const { dispatch } = useSheets();
+  const handlerRef = useRef<() => void>(() => {
+    dispatch({ type: "close", id });
+  });
+
+  const register = useCallback((handler: () => void) => {
+    handlerRef.current = handler;
+    return () => {
+      handlerRef.current = () => dispatch({ type: "close", id });
+    };
+  }, [dispatch, id]);
+
+  const close = useCallback(() => {
+    handlerRef.current();
+  }, []);
+
+  const value = useMemo(() => ({ close, register }), [close, register]);
+
+  return <CloseSheetContext.Provider value={value}>{children}</CloseSheetContext.Provider>;
 }
 
 export interface StackedDetents {
@@ -93,6 +122,13 @@ export function StackedSheet({
     else ref.current?.close(closeConfig);
   }, [pop, reduceMotion]);
 
+  const closeCtx = useContext(CloseSheetContext);
+  useEffect(() => {
+    if (closeCtx) {
+      return closeCtx.register(closeFromHandle);
+    }
+  }, [closeCtx, closeFromHandle]);
+
   const DetentsHandle = detents?.Handle;
   const Handle = useCallback(
     () => (DetentsHandle ? <DetentsHandle onClose={closeFromHandle} /> : <SheetHandle kind="close" onPress={closeFromHandle} />),
@@ -146,7 +182,6 @@ export function StackedSheet({
         style={elevation.sheet}
         backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
       >
-        <CloseSheetContext.Provider value={closeFromHandle}>
         {fill ? (
           // Folha alta com lista: `View` comum, não `BottomSheetView`. A `BottomSheetView` é absoluta e sem altura (a lista
           // dentro dela cresce até o fim do conteúdo e é cortada) e, ao montar depois da lista, troca o tipo de rolagem
@@ -155,7 +190,6 @@ export function StackedSheet({
         ) : (
           <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + space.md }]}>{children}</BottomSheetView>
         )}
-        </CloseSheetContext.Provider>
       </BottomSheet>
     </Animated.View>
   );

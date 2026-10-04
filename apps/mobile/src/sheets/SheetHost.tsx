@@ -11,6 +11,7 @@ import { SearchSheet } from "./SearchSheet";
 import { SettingsSheet } from "./SettingsSheet";
 import { useSheets } from "./SheetsContext";
 import { StopSheet } from "./StopSheet";
+import { CloseSheetProvider } from "./StackedSheet";
 import { type SheetEntry, stackedSheets } from "./stack";
 
 export function SheetHost() {
@@ -47,6 +48,14 @@ export function SheetHost() {
 }
 
 function StackedSheetSlot({ entry }: { entry: SheetEntry }) {
+  return (
+    <CloseSheetProvider id={entry.id}>
+      <StackedSheetContent entry={entry} />
+    </CloseSheetProvider>
+  );
+}
+
+function StackedSheetContent({ entry }: { entry: SheetEntry }) {
   switch (entry.kind) {
     case "search":
       return <SearchSheet id={entry.id} pick={entry.pick === true} />;
