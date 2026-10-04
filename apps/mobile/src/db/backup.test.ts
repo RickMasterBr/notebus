@@ -205,6 +205,22 @@ describe("importar duas vezes, Desfazer, manual e órfãos", () => {
     expect(snapshot(dst)).toEqual(once);
   });
 
+  it("importar o mesmo backup duas vezes e recalcular duas vezes deixa os updated_at idênticos", async () => {
+    const text = await exportText(await backupScenario());
+    const dst = await fixture();
+    await importText(dst, text, SCENARIO_NOW + 10_000);
+    await dst.registro.refreshDeductions(SCENARIO_NOW + 20_000);
+    const beforeObs = all(dst, "SELECT id, updated_at FROM observation ORDER BY id");
+    const beforeRides = all(dst, "SELECT id, updated_at FROM ride ORDER BY id");
+    // Segunda importação e segundo recálculo em instantes futuros
+    await importText(dst, text, SCENARIO_NOW + 30_000);
+    await dst.registro.refreshDeductions(SCENARIO_NOW + 40_000);
+    const afterObs = all(dst, "SELECT id, updated_at FROM observation ORDER BY id");
+    const afterRides = all(dst, "SELECT id, updated_at FROM ride ORDER BY id");
+    expect(afterObs).toEqual(beforeObs);
+    expect(afterRides).toEqual(beforeRides);
+  });
+
   it("Desfazer volta o banco ao estado de antes, inclusive as linhas substituídas e depois de a fila refazer as deduções", async () => {
     const src = await backupScenario();
     const text = await exportText(src);

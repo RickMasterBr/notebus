@@ -80,11 +80,19 @@ export function AlightSheet({ id }: { id: number }) {
     Math.round(detentMetrics(DETENTS.snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0),
   );
 
-  const choose = (row: AlightRow) => {
+  const choose = async (row: AlightRow) => {
     if (!card || busy.current) return;
     busy.current = true;
-    close();
-    void alight(card, row);
+    try {
+      const ok = await alight(card, row);
+      if (ok) {
+        close();
+      } else {
+        busy.current = false;
+      }
+    } catch {
+      busy.current = false;
+    }
   };
 
   return (

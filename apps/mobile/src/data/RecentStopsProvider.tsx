@@ -18,6 +18,8 @@ export interface RecentStopsValue {
   /** "Limpar recentes" (D-143): esvazia a lista; a de antes volta por `restore` (o Desfazer do toast). */
   clear: () => string[];
   restore: (ids: readonly string[]) => void;
+  /** Recarrega do banco os recentes gravados (usado após importar backup ou desfazer importação). */
+  reload: () => Promise<void>;
 }
 
 const RecentStopsContext = createContext<RecentStopsValue>({
@@ -26,12 +28,22 @@ const RecentStopsContext = createContext<RecentStopsValue>({
   remember: () => {},
   clear: () => [],
   restore: () => {},
+  reload: async () => {},
 });
 
 export function RecentStopsProvider({ db, children }: { db: Db; children: ReactNode }) {
   const now = useNow();
   const [state, setState] = useState<{ status: "loading" | "ready"; ids: string[] }>({ status: "loading", ids: [] });
   const queue = useRef<Promise<unknown>>(Promise.resolve());
+
+  const reload = useCallback(async () => {
+    try {
+      const ids = await readRecentStops(db);
+      setState({ status: "ready", ids });
+    } catch {
+      setState((cur) => ({ ...cur, status: "ready" }));
+    }
+  }, [db]);
 
   useEffect(() => {
     let alive = true;
@@ -68,7 +80,7 @@ export function RecentStopsProvider({ db, children }: { db: Db; children: ReactN
     return before;
   }, [replaceAll]);
 
-  const value = useMemo(() => ({ ...state, remember, clear, restore: replaceAll }), [state, remember, clear, replaceAll]);
+  const value = useMemo(() => ({ ...state, remember, clear, restore: replaceAll, reload }), [state, remember, clear, replaceAll, reload]);
   return <RecentStopsContext.Provider value={value}>{children}</RecentStopsContext.Provider>;
 }
 
