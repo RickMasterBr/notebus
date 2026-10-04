@@ -21,9 +21,11 @@ interface ToastValue {
   show: (request: ToastRequest) => void;
   /** Toque na ação do toast (o botão chama isto). */
   press: () => void;
+  /** Dispensa o toast arrastando, sem acionar a ação (E-03 melhoria 3). */
+  dismiss: () => void;
 }
 
-const ToastContext = createContext<ToastValue>({ toast: null, show: () => {}, press: () => {} });
+const ToastContext = createContext<ToastValue>({ toast: null, show: () => {}, press: () => {}, dismiss: () => {} });
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState | null>(null);
@@ -65,7 +67,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     controller.current!.press();
   }, []);
 
-  const value = useMemo(() => ({ toast, show, press }), [toast, show, press]);
+  const dismiss = useCallback(() => {
+    controller.current!.dismiss();
+  }, []);
+
+  const value = useMemo(() => ({ toast, show, press, dismiss }), [toast, show, press, dismiss]);
   return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
 }
 

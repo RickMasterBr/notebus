@@ -4,7 +4,8 @@
  * movimento", só esmaece. Fica acima das folhas, sem entrar no layout delas, e só o próprio toast recebe toque
  * (`pointerEvents="box-none"` no invólucro): o resto da tela continua tocável.
  */
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useMemo } from "react";
+import { PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeOut, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToast } from "../data/ToastProvider";
@@ -40,7 +41,20 @@ export function ToastHost() {
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
   const reduceMotion = useReduceMotion();
-  const { toast, press } = useToast();
+  const { toast, press, dismiss } = useToast();
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 || g.dy > 10,
+        onPanResponderRelease: (_, g) => {
+          if (g.dy > 20 || Math.abs(g.dx) > 40) {
+            dismiss();
+          }
+        },
+      }),
+    [dismiss],
+  );
 
   return (
     // Canvas: 12 px dos lados e 28 px de baixo (a área segura do iPhone com a barra de início é de 34 pt); acima do teclado quando aberto.
@@ -52,6 +66,7 @@ export function ToastHost() {
           entering={reduceMotion ? FadeIn.duration(motion.fast) : riseIn}
           exiting={reduceMotion ? FadeOut.duration(motion.fast) : fallOut}
           accessibilityLiveRegion="polite"
+          {...panResponder.panHandlers}
           style={[styles.toast, elevation.toast, { backgroundColor: colors.toast, borderColor: colors.toastBorder }]}
         >
           <View accessible accessibilityRole="text" style={styles.text}>

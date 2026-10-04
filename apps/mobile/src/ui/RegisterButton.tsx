@@ -9,7 +9,7 @@ import { t } from "../i18n";
 import { elevation, radius, space, useTheme } from "../theme";
 import { PlusGlyph } from "./Glyphs";
 
-export const REGISTER_BUTTON_HEIGHT = 56;
+export const REGISTER_BUTTON_HEIGHT = 48;
 
 export function RegisterButton({ onPress, disabled = false }: { onPress: () => void; disabled?: boolean }) {
   const { colors } = useTheme();
@@ -35,15 +35,15 @@ export function RegisterButton({ onPress, disabled = false }: { onPress: () => v
 }
 
 const styles = StyleSheet.create({
-  // Canvas: altura 56, raio 28, padding 0 22 0 18, 8 px entre o ícone e a palavra, 17/600.
+  // Pílula compacta (alvo >= 44 pt, altura 48, raio full, padding 0 18 0 14, 8 px entre o ícone e a palavra, 17/600).
   button: {
     height: REGISTER_BUTTON_HEIGHT,
     borderRadius: radius.full,
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
-    paddingLeft: 18,
-    paddingRight: 22,
+    paddingLeft: 14,
+    paddingRight: 18,
   },
   label: { fontSize: 17, fontWeight: "600" },
 });

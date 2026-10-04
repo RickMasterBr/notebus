@@ -11,9 +11,9 @@ import { type MessageKey, t } from "../i18n";
 export type PickerUnit = "day" | "hour" | "minute";
 
 const DAY_MINUTES = 1440;
-const STEP_MINUTES: Record<PickerUnit, number> = { day: DAY_MINUTES, hour: 60, minute: 5 };
+const STEP_MINUTES: Record<PickerUnit, number> = { day: DAY_MINUTES, hour: 60, minute: 1 };
 
-/** Soma (`direction` 1) ou subtrai (−1) um passo: dia ±1 dia, hora ±1 h, minuto ±5 min. Passar da meia-noite muda o dia. */
+/** Soma (`direction` 1) ou subtrai (−1) um passo: dia ±1 dia, hora ±1 h, minuto ±1 min. Passar da meia-noite muda o dia. */
 export function stepWall(wall: WallClock, unit: PickerUnit, direction: 1 | -1): WallClock {
   if (unit === "day") return { date: addDays(wall.date, direction), minute: wall.minute };
   const total = wall.minute + direction * STEP_MINUTES[unit];

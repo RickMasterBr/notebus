@@ -15,10 +15,10 @@ describe("stepWall (dia ±1, hora ±1, minuto ±5)", () => {
     expect(stepWall(w("2026-10-01", 23 * 60 + 30), "hour", 1)).toEqual(w("2026-10-02", 30));
     expect(stepWall(w("2026-10-01", 30), "hour", -1)).toEqual(w("2026-09-30", 23 * 60 + 30));
   });
-  it("minuto: ±5 min; 23:55 → 00:00 do dia seguinte e 00:00 → 23:55 do dia anterior", () => {
-    expect(stepWall(w("2026-10-01", 480), "minute", 1)).toEqual(w("2026-10-01", 485));
-    expect(stepWall(w("2026-10-01", 23 * 60 + 55), "minute", 1)).toEqual(w("2026-10-02", 0));
-    expect(stepWall(w("2026-10-02", 0), "minute", -1)).toEqual(w("2026-10-01", 23 * 60 + 55));
+  it("minuto: ±1 min; 23:59 → 00:00 do dia seguinte e 00:00 → 23:59 do dia anterior", () => {
+    expect(stepWall(w("2026-10-01", 480), "minute", 1)).toEqual(w("2026-10-01", 481));
+    expect(stepWall(w("2026-10-01", 23 * 60 + 59), "minute", 1)).toEqual(w("2026-10-02", 0));
+    expect(stepWall(w("2026-10-02", 0), "minute", -1)).toEqual(w("2026-10-01", 23 * 60 + 59));
   });
   it("mais e menos se desfazem", () => {
     const start = w("2026-03-01", 0);
