@@ -22,6 +22,7 @@ import { t } from "../i18n";
 import { type ImportPreview, exportBackup, prepareImport } from "./backupFlow";
 import { nativeExportIO, nativeSha256, pickBackupText } from "./backupNative";
 import { useNow } from "./NowProvider";
+import { useRecentStops } from "./RecentStopsProvider";
 import { useRegistro } from "./RegistroProvider";
 import { useToast } from "./ToastProvider";
 import { useNowTick } from "./useNowTick";
@@ -99,6 +100,7 @@ export function BackupProvider({
   const instant = useNowTick();
   const toast = useToast();
   const { observations, exclusive, refresh } = useRegistro();
+  const recentStops = useRecentStops();
   const [state, setState] = useState<Awaited<ReturnType<typeof readReminderState>> | null>(null);
   const [importSheet, setImportSheet] = useState<ImportSheetState | null>(null);
   const busy = useRef(false);
@@ -200,6 +202,7 @@ export function BackupProvider({
             void (async () => {
               try {
                 await exclusive(() => undoImport(raw, outcome.undo));
+                await recentStops.reload();
                 toast.show({ title: t("toast.import_undone.title") });
               } catch {
                 toast.show({ title: t("toast.import_failed.title"), body: t("toast.import_failed.body"), kind: "error", haptic: "error" });
@@ -208,7 +211,8 @@ export function BackupProvider({
             })(),
         },
       });
-      // A fila refaz as deduções dos importados; o toast não espera.
+      // Invalida os recentes e a fila refaz as deduções dos importados; o toast não espera.
+      void recentStops.reload();
       void refresh();
     })();
   }, [importSheet, raw, backups, exclusive, refresh, toast]);
