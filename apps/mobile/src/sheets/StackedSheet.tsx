@@ -144,7 +144,7 @@ export function StackedSheet({
           // Folha alta com lista: `View` comum, não `BottomSheetView`. A `BottomSheetView` é absoluta e sem altura (a lista
           // dentro dela cresce até o fim do conteúdo e é cortada) e, ao montar depois da lista, troca o tipo de rolagem
           // registrado de "rolável" para "vista", e a folha passa a arrastar em vez de rolar.
-          <View style={[styles.content, styles.tall]}>{children}</View>
+          <View collapsable={false} style={[styles.content, styles.tall]}>{children}</View>
         ) : (
           <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + space.md }]}>{children}</BottomSheetView>
         )}

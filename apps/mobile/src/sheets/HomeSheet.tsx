@@ -14,7 +14,7 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useSchedule } from "../data/ScheduleProvider";
@@ -27,6 +27,7 @@ import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
+import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { detentFromIndex } from "./stack";
 
 const LAST_INDEX = 2;
@@ -109,6 +110,17 @@ export function HomeSheet() {
     [],
   );
 
+  const window = useWindowDimensions();
+  // Altura da lista: a da folha aberta menos handle e pílula; igual em todos os detents.
+  const scrollAreaHeight = Math.max(
+    80,
+    Math.round(
+      (detentMetrics(snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0) -
+        pillHeight -
+        space.md,
+    ),
+  );
+
   if (startIndex === null) return null;
 
   return (
@@ -132,24 +144,24 @@ export function HomeSheet() {
         backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}
       >
         {/* `View` comum, não `BottomSheetView`: ver `StackedSheet` (a lista perde a rolagem e o tamanho). */}
-        <View style={styles.content}>
+        <View style={styles.content} collapsable={false}>
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
             <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
           </View>
-          {/* No detent pequeno esta parte fica abaixo da borda da tela: fora da leitura do VoiceOver até a folha subir. */}
+          {/* Lista com altura fixa (a da folha aberta); ver o registro E-02. No detent pequeno esta parte fica abaixo da
+              borda da tela: fora da leitura do VoiceOver até a folha subir. */}
           <View
-            style={styles.scroll}
+            collapsable={false}
+            style={{ height: scrollAreaHeight, overflow: "hidden" }}
             accessibilityElementsHidden={state.detent === 0}
             importantForAccessibility={state.detent === 0 ? "no-hide-descendants" : "auto"}
           >
-            {/* `key`: quando o esqueleto dá lugar aos cartões, a lista é montada de novo e mede o conteúdo final (1ª abertura). */}
             <BottomSheetScrollView
               key={listReady ? "ready" : "loading"}
               contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
             >
               <NearbyStops />
-              {/* Bloco 5b: cobre a parte da área de rolagem que fica abaixo da borda da tela nos detents menores. */}
               <HiddenBelowSpacer snapPoints={snapPoints} />
             </BottomSheetScrollView>
           </View>
@@ -161,7 +173,6 @@ export function HomeSheet() {
 
 const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: space.md },
-  scroll: { flex: 1 },
 });
 
 /** Handle da folha inicial: o rótulo e o valor acompanham o detent; os ajustes do VoiceOver movem a folha. */

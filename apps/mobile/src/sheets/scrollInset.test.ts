@@ -96,3 +96,17 @@ describe("espaço que acompanha o topo da folha", () => {
     expect(hiddenBelow(highest + 100, highest)).toBe(100);
   });
 });
+
+describe("altura fixa da lista (solução final da E-02)", () => {
+  it("a área da lista é a mesma em todos os detents e o respiro fecha a conta", () => {
+    const container = containerHeightOf(WINDOW, TOP);
+    const metrics = detentMetrics([220, "50%", "90%"], container, 44);
+    const areas = new Set(metrics.map((m) => m.scrollAreaHeight));
+    expect(areas.size).toBe(1);
+    for (const m of metrics) {
+      expect(m.visibleHeight + m.hidden).toBe(m.scrollAreaHeight);
+    }
+    expect(metrics[2]?.hidden).toBe(0);
+  });
+});
+
