@@ -463,6 +463,7 @@ export interface ReminderInput {
 /**
  * Mostra o lembrete se (há registro novo desde o último export **e** passaram mais de 7 dias) **ou** (nunca exportou
  * e já há registros), e o "Agora não" já venceu. 7 dias exatos não mostram; 7 dias e 1 ms mostram.
+ * O "Agora não" só vale se estiver a no máximo 2 dias à frente de agora (datas mais distantes são tratadas como vencidas caso o relógio tenha voltado).
  * `daysSince` = dias inteiros desde o último export (para "há 9 dias"), `null` se nunca.
  */
 export function backupReminder(input: ReminderInput): { show: boolean; daysSince: number | null } {
@@ -471,7 +472,8 @@ export function backupReminder(input: ReminderInput): { show: boolean; daysSince
   const due = lastExportAt === null
     ? input.hasRecords
     : input.recordsUpdatedSinceExport && now - lastExportAt > BACKUP_REMINDER_DAYS * DAY_MS;
-  const snoozed = snoozedUntil !== null && now < snoozedUntil;
+  const snoozed =
+    snoozedUntil !== null && now < snoozedUntil && snoozedUntil - now <= BACKUP_SNOOZE_DAYS * DAY_MS;
   return { show: due && !snoozed, daysSince };
 }
 
