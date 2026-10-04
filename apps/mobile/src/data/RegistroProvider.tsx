@@ -36,6 +36,10 @@ export interface RegistroValue {
   alight: (card: TripCardModel, row: AlightRow) => Promise<boolean>;
   notBoarded: (card: TripCardModel) => void;
   dismiss: (card: TripCardModel) => void;
+  /** Roda `job` na fila das gravações (o backup: importar e o Desfazer, uma transação por vez). */
+  exclusive: <T>(job: () => Promise<T>) => Promise<T>;
+  /** Relê os registros, refaz a fila de deduções e relê de novo, sem bloquear quem chamou. */
+  refresh: () => Promise<void>;
 }
 
 const nothing = async () => false;
@@ -48,6 +52,8 @@ const RegistroContext = createContext<RegistroValue>({
   alight: nothing,
   notBoarded: () => {},
   dismiss: () => {},
+  exclusive: (job) => job(),
+  refresh: async () => {},
 });
 
 const hhmm = (at: number) => clockText(lisbonWallClock(at).minute);
@@ -312,9 +318,10 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
     [registro, toast, failed, undone, reload],
   );
 
+  const exclusive = registro.exclusive;
   const value = useMemo<RegistroValue>(
-    () => ({ status: state.status, observations: state.observations, records, tripCard, board, alight, notBoarded, dismiss }),
-    [state.status, state.observations, records, tripCard, board, alight, notBoarded, dismiss],
+    () => ({ status: state.status, observations: state.observations, records, tripCard, board, alight, notBoarded, dismiss, exclusive, refresh: settle }),
+    [state.status, state.observations, records, tripCard, board, alight, notBoarded, dismiss, exclusive, settle],
   );
   return <RegistroContext.Provider value={value}>{children}</RegistroContext.Provider>;
 }

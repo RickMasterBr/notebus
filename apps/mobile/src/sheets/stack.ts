@@ -24,7 +24,9 @@ export type SheetContent =
   | { kind: "trip" }
   /** Ajustes mínimo (D-151): só a versão e as 7 batidas que abrem o seletor do relógio de teste. */
   | { kind: "settings" }
-  | { kind: "clockPicker" };
+  | { kind: "clockPicker" }
+  /** Prévia da importação do backup (E-03 §5.4), aberta pelo "Importar backup" de Ajustes. O arquivo fica no `BackupProvider`. */
+  | { kind: "backupImport" };
 
 export type SheetKind = SheetContent["kind"];
 

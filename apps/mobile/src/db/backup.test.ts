@@ -9,13 +9,15 @@ import {
   BACKUP_TABLES,
   BACKUP_V1_COLUMNS,
   type BackupFile,
+  backupReminder,
   parseBackup,
   serializeBackup,
+  snoozeUntil,
 } from "@notebus/domain";
 import { describe, expect, it } from "vitest";
 import { type ExportIO, exportBackup, prepareImport } from "../data/backupFlow";
 import { fixture, type Fixture } from "../data/registroFixture";
-import { LAST_EXPORT_AT, importBackup, readBackupInput, readSettingNumber, undoImport } from "./backup";
+import { BACKUP_REMINDER_SNOOZED_UNTIL, LAST_EXPORT_AT, importBackup, readBackupInput, readReminderState, readSettingNumber, undoImport, writeSettingNumber } from "./backup";
 import type { BackupStore } from "./migrate";
 import { tables } from "./schema";
 import { SCENARIO_NOW, backupScenario } from "./testing/backupScenario";
@@ -330,5 +332,25 @@ describe("arquivos de exemplo por formatVersion (D-090, §5.6)", () => {
     // Gerar de novo (só ao criar uma formatVersion nova): NOTEBUS_WRITE_BACKUP_FIXTURE=1 npx vitest run src/db/backup.test.ts
     if (process.env.NOTEBUS_WRITE_BACKUP_FIXTURE === "1") writeFileSync(join(dir, "format-v1.json"), text);
     expect(text).toBe(readFileSync(join(dir, "format-v1.json"), "utf8"));
+  });
+});
+
+describe("A8 pelo banco: lembrete com data simulada (D-088)", () => {
+  it("export há 8 dias e um registro novo depois → aparece \"há 8 dias\"; \"Agora não\" esconde 2 dias", async () => {
+    const f = await backupScenario(); // último export: um dia antes do cenário; os registros são de depois dele
+    const DAY = 86_400_000;
+    const exportedAt = SCENARIO_NOW - DAY;
+    const state = await readReminderState(f.raw);
+    expect(state).toEqual({ lastExportAt: exportedAt, snoozedUntil: null, hasRecords: true, recordsUpdatedSinceExport: true });
+    expect(backupReminder({ now: exportedAt + 7 * DAY, ...state })).toEqual({ show: false, daysSince: 7 });
+    expect(backupReminder({ now: exportedAt + 8 * DAY, ...state })).toEqual({ show: true, daysSince: 8 });
+    const later = exportedAt + 8 * DAY;
+    await writeSettingNumber(f.raw, BACKUP_REMINDER_SNOOZED_UNTIL, snoozeUntil(later), later, () => "set-snooze");
+    const snoozed = await readReminderState(f.raw);
+    expect(backupReminder({ now: later + DAY, ...snoozed }).show).toBe(false);
+    expect(backupReminder({ now: later + 2 * DAY, ...snoozed }).show).toBe(true);
+    // Exportou depois do último registro: some.
+    await writeSettingNumber(f.raw, LAST_EXPORT_AT, later + 3 * DAY, later + 3 * DAY, () => "x");
+    expect(backupReminder({ now: later + 20 * DAY, ...(await readReminderState(f.raw)) }).show).toBe(false);
   });
 });

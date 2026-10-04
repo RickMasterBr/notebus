@@ -242,3 +242,15 @@ describe("5e, tarefa 4: a sequência da gaveta presa (home > stop > ahead > sett
     expect(kinds(s)).toEqual(["home", "trip"]);
   });
 });
+
+describe("E-03 bloco 3: prévia da importação do backup", () => {
+  it("abre por cima de Ajustes; fechar volta a Ajustes; duas vezes seguidas não empilha duas", () => {
+    const settings: SheetAction = { type: "push", sheet: { kind: "settings" } };
+    const preview: SheetAction = { type: "push", sheet: { kind: "backupImport" } };
+    let s = run(settings, preview);
+    expect(kinds(s)).toEqual(["home", "settings", "backupImport"]);
+    expect(kinds(step(s, preview))).toEqual(["home", "settings", "backupImport"]);
+    s = step(s, { type: "close", id: activeSheet(s).id });
+    expect(kinds(s)).toEqual(["home", "settings"]);
+  });
+});
