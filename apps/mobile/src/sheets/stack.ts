@@ -12,9 +12,16 @@
  */
 export type SheetContent =
   | { kind: "home" }
-  | { kind: "search" }
+  /** `pick`: a Busca reaproveitada para escolher o ponto da folha Registrar; o toque devolve o ponto em vez de abri-lo. */
+  | { kind: "search"; pick?: boolean }
   | { kind: "stop"; stopId: string; name: string }
   | { kind: "ahead"; tripId: string; position: number }
+  /** TL-03 Registrar (E-03). `stopId` vem do "Registrar aqui" do Ponto; `null` = o ponto sugerido (4.1 §6.1). */
+  | { kind: "board"; stopId: string | null }
+  /** "Onde você desceu?" (E-03), a lista do "Desci aqui" do cartão Em viagem. */
+  | { kind: "alight" }
+  /** As paragens que faltam até o fim do percurso (D-075), aberta ao puxar o cartão Em viagem. Só leitura. */
+  | { kind: "trip" }
   /** Ajustes mínimo (D-151): só a versão e as 7 batidas que abrem o seletor do relógio de teste. */
   | { kind: "settings" }
   | { kind: "clockPicker" };

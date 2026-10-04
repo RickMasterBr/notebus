@@ -25,8 +25,19 @@ export interface ScheduleSnapshot {
   trips: TripData[];
   /** Linha de cada percurso (código e cor do selo). */
   patternLine: Map<string, LineInfo>;
+  /** Id da linha de cada percurso (o registro guarda `line_id`; o casamento do domínio compara por ele). */
+  patternLineId: Map<string, string>;
+  /** Código e cor de cada linha, pelo id (texto do toast e selo do cartão "Em viagem"). */
+  lineInfo: Map<string, LineInfo>;
+  /** Id do `pattern_stop` de cada posição, na chave `"<percurso>:<posição>"` (a dedução grava `pattern_stop_id`). */
+  patternStopIds: Map<string, string>;
+  /** O caminho de volta: `pattern_stop_id` → percurso, posição e ponto (para ler a dedução gravada). */
+  patternStopById: Map<string, { patternId: string; position: number; stopId: string }>;
   stopNames: Map<string, string>;
 }
+
+/** Chave de `ScheduleSnapshot.patternStopIds`. */
+export const patternStopKey = (patternId: string, position: number) => `${patternId}:${position}`;
 
 const DAY_TYPE_CODES: readonly string[] = ["weekday", "saturday", "sunday_holiday"];
 
@@ -89,9 +100,13 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
 
   const lineById = new Map(lines.map((l) => [l.id, { code: l.code, color: l.color }]));
   const patternLine = new Map<string, LineInfo>();
+  const patternLineId = new Map<string, string>();
   for (const p of patterns) {
     const info = lineById.get(p.lineId);
-    if (info) patternLine.set(p.id, info);
+    if (info) {
+      patternLine.set(p.id, info);
+      patternLineId.set(p.id, p.lineId);
+    }
   }
 
   return {
@@ -116,6 +131,10 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
     patterns: patterns.map((p) => ({ id: p.id, stops: stopsByPattern.get(p.id) ?? [] })),
     trips: tripData,
     patternLine,
+    patternLineId,
+    lineInfo: lineById,
+    patternStopIds: new Map(patternStops.map((ps) => [patternStopKey(ps.patternId, ps.position), ps.id])),
+    patternStopById: new Map(patternStops.map((ps) => [ps.id, { patternId: ps.patternId, position: ps.position, stopId: ps.stopId }])),
     stopNames: new Map(stops.map((s) => [s.id, s.name])),
   };
 }

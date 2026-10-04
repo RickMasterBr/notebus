@@ -24,7 +24,7 @@ import { BottomSheetScrollView, useBottomSheet } from "@gorhom/bottom-sheet";
 import type { DayTypeCode } from "@notebus/domain";
 import * as Haptics from "expo-haptics";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSchedule } from "../data/ScheduleProvider";
 import { type StopCard, buildStopCard } from "../data/stopCard";
@@ -87,6 +87,8 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   const [detent, setDetent] = useState<Detent>(START_INDEX);
   const [handleHeight, setHandleHeight] = useState(0);
   const [cardHeight, setCardHeight] = useState(0);
+  // Altura medida do botão "Registrar aqui" (com o espaço até o resto).
+  const [registerHeight, setRegisterHeight] = useState(0);
   // `undefined` = hoje; um tipo de dia = o dia de serviço daquele tipo, com a época de hoje (§4.2).
   const [dayType, setDayType] = useState<DayTypeCode | undefined>(undefined);
   const [lineFilter, setLineFilter] = useState<string | null>(null);
@@ -142,7 +144,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
 
   const small =
     handleHeight > 0 && cardHeight > 0
-      ? Math.min(handleHeight + cardHeight + insets.bottom + space.md, window.height * SMALL_MAX_SHARE)
+      ? Math.min(handleHeight + registerHeight + cardHeight + insets.bottom + space.md, window.height * SMALL_MAX_SHARE)
       : SMALL_FALLBACK;
   const detents = useMemo<StackedDetents>(
     () => ({ snapPoints: [small, "50%", "90%"], initialIndex: START_INDEX, Handle: StopHandle, onChange, enableContentPanningGesture: false }),
@@ -153,7 +155,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   // Altura da lista: a da folha aberta menos o handle; igual em todos os detents.
   const scrollAreaHeight = Math.max(
     80,
-    Math.round(detentMetrics(detents.snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0),
+    Math.round((detentMetrics(detents.snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0) - registerHeight),
   );
   const showLines = (day?.lines ?? []).filter((l) => lineFilter === null || l.code === lineFilter);
 
@@ -224,6 +226,15 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   return (
     <StopSheetContext.Provider value={context}>
       <StackedSheet id={id} detents={detents}>
+        <View collapsable={false} onLayout={(e) => setRegisterHeight(e.nativeEvent.layout.height)} style={styles.register}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => dispatch({ type: "push", sheet: { kind: "board", stopId } })}
+            style={({ pressed }) => [styles.registerButton, { backgroundColor: colors.accent }, pressed && { opacity: 0.6 }]}
+          >
+            <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("sheet_stop.register_here")}</Text>
+          </Pressable>
+        </View>
         <View style={{ height: scrollAreaHeight, overflow: "hidden" }}>
           <BottomSheetScrollView contentContainerStyle={{ paddingBottom: insets.bottom + space.md }} showsVerticalScrollIndicator={false}>
             {listBody}
@@ -287,6 +298,9 @@ function sectionA11y(line: DayLine, header: { direction: string | null; end: str
 }
 
 const styles = StyleSheet.create({
+  register: { paddingBottom: space.md },
+  // Canvas: altura 48, raio 24, fundo `accent`, 16/600 centralizado.
+  registerButton: { height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   body: { gap: space.md },
   list: { gap: space.md },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, alignItems: "center" },

@@ -5,7 +5,7 @@
  */
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNow } from "./NowProvider";
-import { pushRecent, readRecentStops, rememberStop } from "./recentStops";
+import { pushRecent, readRecentStops, rememberStop, writeRecentStops } from "./recentStops";
 
 type Db = Parameters<typeof readRecentStops>[0];
 
@@ -15,9 +15,18 @@ export interface RecentStopsValue {
   /** IDs dos pontos, o mais recente primeiro. */
   ids: string[];
   remember: (stopId: string) => void;
+  /** "Limpar recentes" (D-143): esvazia a lista; a de antes volta por `restore` (o Desfazer do toast). */
+  clear: () => string[];
+  restore: (ids: readonly string[]) => void;
 }
 
-const RecentStopsContext = createContext<RecentStopsValue>({ status: "loading", ids: [], remember: () => {} });
+const RecentStopsContext = createContext<RecentStopsValue>({
+  status: "loading",
+  ids: [],
+  remember: () => {},
+  clear: () => [],
+  restore: () => {},
+});
 
 export function RecentStopsProvider({ db, children }: { db: Db; children: ReactNode }) {
   const now = useNow();
@@ -43,7 +52,23 @@ export function RecentStopsProvider({ db, children }: { db: Db; children: ReactN
     [db, now],
   );
 
-  const value = useMemo(() => ({ ...state, remember }), [state, remember]);
+  // `clear` e `restore` entram na mesma fila de gravação do `remember`: nada se perde nem se embaralha.
+  const idsRef = useRef<string[]>([]);
+  idsRef.current = state.ids;
+  const replaceAll = useCallback(
+    (ids: readonly string[]) => {
+      setState((cur) => ({ ...cur, ids: [...ids] }));
+      queue.current = queue.current.then(() => writeRecentStops(db, ids, now())).catch(() => undefined);
+    },
+    [db, now],
+  );
+  const clear = useCallback(() => {
+    const before = idsRef.current;
+    replaceAll([]);
+    return before;
+  }, [replaceAll]);
+
+  const value = useMemo(() => ({ ...state, remember, clear, restore: replaceAll }), [state, remember, clear, replaceAll]);
   return <RecentStopsContext.Provider value={value}>{children}</RecentStopsContext.Provider>;
 }
 

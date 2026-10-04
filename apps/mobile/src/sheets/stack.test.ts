@@ -219,4 +219,26 @@ describe("5e, tarefa 4: a sequência da gaveta presa (home > stop > ahead > sett
     expect(kinds(s)).toEqual(["home", "ahead", "settings", "stop"]);
     expect(s.stack.filter((e) => e.kind === "stop")).toHaveLength(1);
   });
+
+  it("E-03: Registrar abre sobre o Início; 'Trocar' empilha a Busca em modo pick; fechar uma a uma volta ao Registrar", () => {
+    const board: SheetAction = { type: "push", sheet: { kind: "board", stopId: null } };
+    const pick: SheetAction = { type: "push", sheet: { kind: "search", pick: true } };
+    let s = run(board, pick);
+    expect(kinds(s)).toEqual(["home", "board", "search"]);
+    expect(activeSheet(s)).toMatchObject({ kind: "search", pick: true });
+    s = step(s, POP);
+    expect(activeSheet(s)).toMatchObject({ kind: "board", stopId: null });
+    // Duplo toque no botão Registrar: a mesma folha não entra duas vezes.
+    expect(kinds(step(s, board))).toEqual(["home", "board"]);
+  });
+
+  it("E-03: o 'Registrar aqui' do Ponto empilha o Registrar com o ponto; 'Desci aqui' e o cartão puxado abrem por cima do Início", () => {
+    let s = run(stop("a"), { type: "push", sheet: { kind: "board", stopId: "a" } });
+    expect(activeSheet(s)).toMatchObject({ kind: "board", stopId: "a" });
+    expect(covered(s)).toEqual(["home", "stop"]);
+    s = run({ type: "push", sheet: { kind: "alight" } });
+    expect(kinds(s)).toEqual(["home", "alight"]);
+    s = run({ type: "push", sheet: { kind: "trip" } });
+    expect(kinds(s)).toEqual(["home", "trip"]);
+  });
 });

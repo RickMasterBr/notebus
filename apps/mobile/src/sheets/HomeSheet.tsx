@@ -5,6 +5,12 @@
  * Pequeno = só o handle e a pílula, medidos na tela (crescem com o Dynamic Type e nunca cortam), médio = 50%, grande = 90%.
  * Médio e grande mostram "Perto de você" (4.1 §4); o que a 4.1 lista para o grande (Trajetos, Registros recentes,
  * Rede e Ajustes) ainda não existe e não aparece.
+ *
+ * E-03: o cartão "Em viagem" (enquanto houver `ride` aberto) é um filho FIXO acima da pílula, e o botão flutuante
+ * "Registrar" acompanha o topo da folha (`animatedPosition`), no canto de baixo à direita, em qualquer detent. O cartão
+ * entra na altura pela mesma conta da pílula (medido por `onLayout`, sem constante nova, sem espaçador novo, sem estado
+ * do `onChange` e sem remontar a lista): o detent pequeno cresce com ele e a lista tem a altura da folha aberta menos
+ * handle, cartão e pílula.
  */
 import BottomSheet, {
   BottomSheetBackdrop,
@@ -15,14 +21,18 @@ import BottomSheet, {
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecentStops } from "../data/RecentStopsProvider";
+import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { initialDetent } from "../data/homeStart";
 import { t } from "../i18n";
 import { elevation, radius, space, useTheme } from "../theme";
+import { REGISTER_BUTTON_HEIGHT, RegisterButton } from "../ui/RegisterButton";
 import { SearchPill } from "../ui/SearchPill";
+import { TripCard } from "../ui/TripCard";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
@@ -43,9 +53,20 @@ export function HomeSheet() {
   const schedule = useSchedule();
   const recent = useRecentStops();
   const listReady = stops.status !== "loading" && schedule.status !== "loading" && recent.status !== "loading";
+  const { tripCard, notBoarded, dismiss } = useRegistro();
   const [handleHeight, setHandleHeight] = useState(0);
   const [pillHeight, setPillHeight] = useState(0);
-  const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
+  // Altura medida do cartão "Em viagem" (com o espaço até a pílula); 0 sem viagem em curso.
+  const [cardHeight, setCardHeight] = useState(0);
+  useEffect(() => {
+    if (!tripCard) setCardHeight(0);
+  }, [tripCard]);
+  const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + cardHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
+  // Topo da folha, medido pela biblioteca (já com a área segura de cima): o botão "Registrar" sobe e desce com ele.
+  // Começa fora da tela até a primeira medida.
+  const window = useWindowDimensions();
+  const sheetTop = useSharedValue(window.height + 200);
+  const fabStyle = useAnimatedStyle(() => ({ transform: [{ translateY: sheetTop.value - REGISTER_BUTTON_HEIGHT - space.md }] }));
   const snapPoints = useMemo(() => [small, "50%", "90%"], [small]);
   // Com folha empilhada por cima, a de baixo sai da leitura do VoiceOver.
   const covered = state.stack.length > 1;
@@ -110,13 +131,13 @@ export function HomeSheet() {
     [],
   );
 
-  const window = useWindowDimensions();
-  // Altura da lista: a da folha aberta menos handle e pílula; igual em todos os detents.
+  // Altura da lista: a da folha aberta menos handle, cartão e pílula; igual em todos os detents.
   const scrollAreaHeight = Math.max(
     80,
     Math.round(
       (detentMetrics(snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0) -
         pillHeight -
+        cardHeight -
         space.md,
     ),
   );
@@ -135,6 +156,7 @@ export function HomeSheet() {
         animateOnMount={false}
         backdropComponent={renderBackdrop}
         snapPoints={snapPoints}
+        animatedPosition={sheetTop}
         enableDynamicSizing={false}
         enablePanDownToClose={false}
         topInset={insets.top}
@@ -145,6 +167,17 @@ export function HomeSheet() {
       >
         {/* `View` comum, não `BottomSheetView`: ver `StackedSheet` (a lista perde a rolagem e o tamanho). */}
         <View style={styles.content} collapsable={false}>
+          {tripCard ? (
+            <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)} style={styles.card}>
+              <TripCard
+                card={tripCard}
+                onAlight={() => dispatch({ type: "push", sheet: { kind: "alight" } })}
+                onNotBoarded={() => notBoarded(tripCard)}
+                onDismiss={() => dismiss(tripCard)}
+                onOpenList={() => dispatch({ type: "push", sheet: { kind: "trip" } })}
+              />
+            </View>
+          ) : null}
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
             <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
           </View>
@@ -167,12 +200,22 @@ export function HomeSheet() {
           </View>
         </View>
       </BottomSheet>
+      {/* Botão flutuante (4.1 §4): acima do topo da folha, canto de baixo à direita, em qualquer detent. Depois da folha na
+          ordem de desenho, para ficar por cima do fundo transparente do médio e do grande (D-145). */}
+      <Animated.View pointerEvents="box-none" style={[styles.fab, fabStyle]}>
+        <RegisterButton
+          disabled={schedule.status !== "ready"}
+          onPress={() => dispatch({ type: "push", sheet: { kind: "board", stopId: null } })}
+        />
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: space.md },
+  card: { paddingBottom: space.md },
+  fab: { position: "absolute", top: 0, right: space.md },
 });
 
 /** Handle da folha inicial: o rótulo e o valor acompanham o detent; os ajustes do VoiceOver movem a folha. */
