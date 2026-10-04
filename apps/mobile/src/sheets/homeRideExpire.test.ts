@@ -76,8 +76,8 @@ describe("F3: Início mantém conteúdo após fechamento automático da viagem",
     );
     expect(scrollAreaBefore).toBeGreaterThan(80);
 
-    // 2. O relógio avança para depois do fim da viagem + 15 min de folga (09:21:00)
-    const tExpire = lisbon(THURSDAY, "09:21", "00");
+    // 2. O relógio avança para depois do fim da viagem + 30 min de folga (Q-82: 09:36:00)
+    const tExpire = lisbon(THURSDAY, "09:36", "00");
     const expiredCount = await f.registro.expire(tExpire);
     expect(expiredCount).toBe(1);
 

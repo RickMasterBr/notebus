@@ -35,8 +35,10 @@ export interface DomainConfig {
   highMaxRangeMinutes: number;
   /** Dentro da viagem (D-070): a faixa deslocada nunca fica mais estreita que ± isto. */
   inRideMinHalfRangeMinutes: number;
-  /** O `ride` aberto fecha sozinho quando passa o fim do percurso + isto (E-03 §4). */
+  /** O `ride` aberto fecha sozinho quando passa o fim do percurso + isto (E-03 §4, Q-82 e D-030: +30). */
   rideEndToleranceMinutes: number;
+  /** `ride` sem viagem conhecida (sem fim de percurso) fecha sozinho isto depois do embarque (Q-85: 3 h). */
+  rideWithoutTripHours: number;
 }
 
 export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
@@ -57,5 +59,6 @@ export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
   recentWindowDays: 56,
   highMaxRangeMinutes: 4,
   inRideMinHalfRangeMinutes: 2,
-  rideEndToleranceMinutes: 15,
+  rideEndToleranceMinutes: 30,
+  rideWithoutTripHours: 3,
 });

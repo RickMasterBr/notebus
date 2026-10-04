@@ -26,6 +26,7 @@ import {
   displayCenter,
   dismissRide,
   expireRide,
+  expireRideWithoutTrip,
   notBoarded as domainNotBoarded,
   uuidv7,
 } from "@notebus/domain";
@@ -296,7 +297,8 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
 
   /**
    * Fecha, sem descida e sem aviso, o `ride` aberto cuja viagem passou do fim do percurso + a folga da configuração
-   * (E-03 §4). Devolve quantos fechou. Um `ride` sem viagem conhecida (registro `orphan` sem candidato) não fecha por aqui.
+   * (E-03 §4, Q-82: +30 min). Devolve quantos fechou. Um `ride` sem viagem conhecida (registro `orphan` sem candidato)
+   * fecha 3 h depois do embarque (Q-85).
    */
   function expire(now: number): Promise<number> {
     return enqueue(async () => {
@@ -307,8 +309,12 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
         const boarding = await observationById(open.boardingObservationId);
         const start = boarding ? resolveBoarding(boarding, network) : null;
         const trip = start ? network.trips.find((t) => t.id === start.tripId) : undefined;
-        if (!start || !trip) continue;
-        const next = expireRide(rideState(open), trip, start.serviceDate, now);
+        // Sem viagem conhecida não há fim de percurso: fecha 3 h depois do embarque (Q-85).
+        const next = start && trip
+          ? expireRide(rideState(open), trip, start.serviceDate, now)
+          : boarding
+            ? expireRideWithoutTrip(rideState(open), boarding.observedAt, now)
+            : rideState(open);
         if (next.status === open.status) continue;
         await db.update(ride).set({ status: next.status, updatedAt: now }).where(eq(ride.id, open.id));
         closed++;

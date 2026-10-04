@@ -78,5 +78,5 @@ export { ageDays, recordWeight, weightedQuantile } from "./estimate";
 export type { WeightInput } from "./estimate";
 export { deduceObservation, matchInstant, matchObservation, normalizedDistance } from "./matching";
 export type { Deduction, LinePatternData, MatchCandidate, MatchNetwork, MatchResult, ObservationFact, OngoingRide } from "./matching";
-export { alightRide, boardWithOpenRides, dismissRide, expireRide, notBoarded, openRide, rideExpired } from "./ride";
+export { alightRide, boardWithOpenRides, dismissRide, expireRide, expireRideWithoutTrip, notBoarded, openRide, rideExpired } from "./ride";
 export type { RidePoint, RideState, RideStatus } from "./ride";

@@ -221,3 +221,23 @@ describe("dentro da viagem (D-070, E-03 §3.5)", () => {
     expect([expected.center, expected.rangeStart, expected.rangeEnd].map(fmt)).toEqual(["08:17", "08:15", "08:19"]);
   });
 });
+
+describe("faixa contém o centro (Q-80)", () => {
+  it("1 registro de +6 num ponto oficial com o ponto em +2: centro +3, faixa +4 a +8 alarga para +3 a +8", () => {
+    // Pos. 6 da L1 = ponto de controle (oficial, ±2). Nível (a) = {+6} na viagem das 08:10; nível (b) = 10 × (+2) + {+6}.
+    // Centro (1 × 6 + 3 × 2) / 4 = +3. Faixa sem Q-80: 6 − 2 = +4 a 6 + 2 = +8 (o centro ficava fora).
+    const at6 = (deviation: number, start = hm(8, 10)) => rec(deviation, { start, position: 6, stopId: "f-l1-6" });
+    const records = [at6(6), ...Array.from({ length: 10 }, (_, i) => at6(2, hm(9, 10) + 30 * i))];
+    const target: PassageTarget = { ...TARGET, position: 6, stopId: "f-l1-6" };
+    const e = estimateDeviation("official", records, target, NOW);
+    expect([e.center, e.rangeStart, e.rangeEnd]).toEqual([3, 3, 8]);
+    // Base 08:20 (s + 10). Centro 08:23, faixa 08:23–08:28; "esteja no ponto" = 08:23 − 2 = 08:21 (era 08:22).
+    const t = expectedTime(baseTimeAt(trip(T0810), 6)!, records, { target, now: NOW });
+    expect([t.center, t.rangeStart, t.rangeEnd, t.beAtStop].map(fmt)).toEqual(["08:23", "08:23", "08:28", "08:21"]);
+  });
+
+  it("o centro já dentro da faixa não muda nada: 3 registros −1, +2, +6 → −5 a +10 (T-99)", () => {
+    const e = est([rec(-1), rec(2), rec(6)]);
+    expect([e.rangeStart, e.rangeEnd]).toEqual([-5, 10]);
+  });
+});

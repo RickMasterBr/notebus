@@ -4,7 +4,8 @@
  *   open ──Desci aqui──▶ closed (com descida)
  *   open ──Não embarquei──▶ dismissed (o embarque vira "vi passar", D-073)
  *   open ──Dispensar──▶ closed (sem descida)
- *   open ──fim do percurso + 15 min──▶ closed (sem descida)
+ *   open ──fim do percurso + 30 min (Q-82)──▶ closed (sem descida)
+ *   open ──3 h depois do embarque, sem viagem conhecida (Q-85)──▶ closed (sem descida)
  *   open ──novo embarque──▶ closed (sem descida), e o novo abre (T-26)
  */
 import { addDays, lisbonWallClock } from "./calendar.ts";
@@ -60,7 +61,7 @@ export function dismissRide(ride: RideState): RideState {
 }
 
 /**
- * A viagem já passou do fim do percurso + 15 min? `trip` é a viagem do `ride`, `serviceDate` o seu dia de serviço,
+ * A viagem já passou do fim do percurso + a folga (`rideEndToleranceMinutes`, 30 min)? `trip` é a viagem do `ride`, `serviceDate` o seu dia de serviço,
  * `now` o instante (convertido para o fuso da rede, invariante 7). O fim é o horário-base da última posição.
  */
 export function rideExpired(trip: TripData, serviceDate: string, now: number, config: DomainConfig = DOMAIN_CONFIG): boolean {
@@ -73,9 +74,18 @@ export function rideExpired(trip: TripData, serviceDate: string, now: number, co
   return true;
 }
 
-/** Fecha sozinho (sem descida) se a viagem passou do fim + 15 min; senão devolve o mesmo `ride`. */
+/** Fecha sozinho (sem descida) se a viagem passou do fim + a folga; senão devolve o mesmo `ride`. */
 export function expireRide(ride: RideState, trip: TripData, serviceDate: string, now: number, config: DomainConfig = DOMAIN_CONFIG): RideState {
   if (ride.status !== "open" || !rideExpired(trip, serviceDate, now, config)) return ride;
+  return { ...ride, status: "closed" };
+}
+
+/**
+ * `ride` sem viagem conhecida (registro `orphan` sem candidato, Q-85): não há fim de percurso, então fecha sozinho
+ * `rideWithoutTripHours` (3 h) depois do embarque. Às 3 h exatas ainda não; é preciso passar.
+ */
+export function expireRideWithoutTrip(ride: RideState, boardedAt: number, now: number, config: DomainConfig = DOMAIN_CONFIG): RideState {
+  if (ride.status !== "open" || now - boardedAt <= config.rideWithoutTripHours * 3_600_000) return ride;
   return { ...ride, status: "closed" };
 }
 
