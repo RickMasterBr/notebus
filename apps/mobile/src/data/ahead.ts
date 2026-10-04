@@ -15,6 +15,8 @@
 import {
   type BaseKind,
   type Confidence,
+  type PatternData,
+  type TripData,
   aheadFrom,
   baseTimeAt,
   displayCenter,
@@ -24,6 +26,16 @@ import {
 } from "@notebus/domain";
 import type { ScheduleSnapshot } from "./schedule";
 import { clockText } from "./stopCard";
+
+const timepointsCache = new WeakMap<PatternData, Set<number>>();
+
+function cachedTimepointPositions(pattern: PatternData, trips: TripData[]): Set<number> {
+  const cached = timepointsCache.get(pattern);
+  if (cached) return cached;
+  const computed = timepointPositions(pattern, trips);
+  timepointsCache.set(pattern, computed);
+  return computed;
+}
 
 export interface AheadStopRow {
   position: number;
@@ -79,7 +91,7 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
   if (!pattern || !pattern.stops.some((s) => s.position === position)) return null;
   const shiftMinutes = options.shiftMinutes ?? 0;
 
-  const timepoints = timepointPositions(
+  const timepoints = cachedTimepointPositions(
     pattern,
     data.trips.filter((t) => t.patternId === pattern.id),
   );
