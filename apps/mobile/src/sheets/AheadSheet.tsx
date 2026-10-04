@@ -223,6 +223,6 @@ const styles = StyleSheet.create({
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3 },
   name: { flex: 1, fontSize: 15 },
   stackedText: { flex: 1, gap: 2 },
-  tag: { borderRadius: radius.full, paddingVertical: 3, paddingHorizontal: 9 },
-  tagText: { fontSize: 12 },
+  tag: { borderRadius: radius.full, paddingVertical: 5, paddingHorizontal: 12 },
+  tagText: { fontSize: 14 },
 });
