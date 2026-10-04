@@ -104,22 +104,9 @@ export function seasonMonths(startMd: string, endMd: string): number[] {
   return months;
 }
 
-const stopCardCache = new WeakMap<ScheduleSnapshot, Map<string, StopCard | null>>();
-
 export function buildStopCard(stopId: string, data: ScheduleSnapshot, instantMs: number): StopCard | null {
-  const cacheKey = `${stopId}:${instantMs}`;
-  let snapCache = stopCardCache.get(data);
-  if (!snapCache) {
-    snapCache = new Map();
-    stopCardCache.set(data, snapCache);
-  }
-  if (snapCache.has(cacheKey)) return snapCache.get(cacheKey)!;
-
   const name = data.stopNames.get(stopId);
-  if (name === undefined) {
-    snapCache.set(cacheKey, null);
-    return null; // ponto apagado ou de outra importação
-  }
+  if (name === undefined) return null; // ponto apagado ou de outra importação
 
   // Percursos que passam no ponto, agrupados por linha.
   const byLine = new Map<string, { color: string; patterns: PatternData[] }>();
@@ -140,9 +127,7 @@ export function buildStopCard(stopId: string, data: ScheduleSnapshot, instantMs:
       return { code, color, ...lineState(stopId, patterns, trips, data, instantMs) };
     });
 
-  const card: StopCard = { stopId, name, lines };
-  snapCache.set(cacheKey, card);
-  return card;
+  return { stopId, name, lines };
 }
 
 /** Passagens de embarque da linha neste ponto num dia de serviço (as que terminam aqui ficam de fora). */
@@ -157,8 +142,7 @@ function boardablePassages(
 ): StopPassage[] {
   const running = new Set(tripsRunningOn(date, dayType, schedule).map((t) => t.id));
   const todays = trips.filter((t) => running.has(t.id));
-  const lastOf = new Map<string, number>();
-  for (const t of todays) lastOf.set(t.id, t.lastPosition);
+  const lastOf = new Map(todays.map((t) => [t.id, t.lastPosition]));
   return passagesAtStop(stopId, patterns, todays).filter((p) => includeEnds || p.info.position !== lastOf.get(p.tripId));
 }
 
