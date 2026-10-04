@@ -3,13 +3,14 @@
  * plano E-02 §4.3; 4.6 §3.9 e §5.2): as próximas paragens de uma viagem a partir da passagem tocada, com o horário
  * esperado e o "↺ volta aqui" onde o percurso repete o ponto físico. Resposta a "está indo ou voltando?" (UC-16).
  *
- * Folha empilhada de uma altura (como a Busca) por cima do Ponto, com ✕ "Fechar" (D-135) e fundo escurecido. Rola com
- * `BottomSheetScrollView`, numa `View` comum (ver `StackedSheet`), e **não** desliga o gesto de conteúdo (só o Ponto).
+ * Folha empilhada de um detent só (90%, como a Busca) por cima do Ponto, com ✕ "Fechar" (D-135) e fundo escurecido.
+ * Rola com `BottomSheetScrollView` numa `View` de altura fixa (D-150, ver `AheadSheet` abaixo e `scrollInset.ts`) e **não**
+ * desliga o gesto de conteúdo (só o Ponto).
  * Ordem de leitura do VoiceOver: título, contexto, frase-resumo e, por fim, cada paragem como um bloco (D-047).
  * Dynamic Type acima de `.xxLarge`: hora e nome empilham por paragem (4.6 §6). Sem lugares do usuário (E-05).
  */
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { type ReactNode, useRef, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSchedule } from "../data/ScheduleProvider";
@@ -29,9 +30,9 @@ import { type ColorTokens, radius, space, type, useTheme } from "../theme";
 import { LineBadge } from "../ui/LineBadge";
 import { Skeleton } from "../ui/Skeleton";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
-import { AheadDiagPanel, type AheadScrollMetrics, type AheadVariant, DIAG_SCROLL, useAheadVariant } from "./diagScroll";
-import { StackedSheet } from "./StackedSheet";
-import { containerHeightOf, snapHeight } from "./scrollInset";
+import { SheetHandle } from "./SheetHandle";
+import { type StackedDetents, StackedSheet } from "./StackedSheet";
+import { containerHeightOf, detentMetrics } from "./scrollInset";
 
 /** Canvas: hora de 48 px, ponto de 14, trilho de 4; o trilho passa pelo centro da coluna do ponto. */
 const TIME_WIDTH = 48;
@@ -41,75 +42,64 @@ const RAIL = 4;
 /** Acima de `.xxLarge` (≈ 1,24× o texto) a hora e o nome não cabem lado a lado (4.6 §6). */
 const STACK_FONT_SCALE = 1.25;
 
+/** A altura medida do handle (`StopSheet` faz igual): a lista tem a altura da folha aberta menos o handle. */
+const AheadSheetContext = createContext<(height: number) => void>(() => {});
+
+/** Identidade estável (a biblioteca remonta um handle novo a cada render do pai). */
+function AheadHandle({ onClose }: { onClose: () => void }) {
+  const setHandleHeight = useContext(AheadSheetContext);
+  return (
+    <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
+      <SheetHandle kind="close" onPress={onClose} />
+    </View>
+  );
+}
+
+/** Detent único de 90%: sem espaçador do fim (`HiddenBelowSpacer`), que só existe para os detents menores. */
+const DETENTS: StackedDetents = { snapPoints: ["90%"], initialIndex: 0, Handle: AheadHandle };
+
 export function AheadSheet({ id, tripId, position }: { id: number; tripId: string; position: number }) {
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
   const schedule = useSchedule();
   const loading = schedule.status === "loading";
   const skeleton = useSkeletonVisible(loading);
   const ahead = schedule.status === "ready" ? buildAhead(tripId, position, schedule.data) : null;
-  const variant = useAheadVariant();
+  const [handleHeight, setHandleHeight] = useState(0);
+
+  // Receita da D-150 (a mesma do Ponto e do Início, `scrollInset.ts`): lista numa `View` de altura FIXA, a da folha aberta
+  // menos o handle, com `overflow: hidden`. Não há cabeçalho fixo: o título e a frase-resumo rolam com a lista.
+  const scrollAreaHeight = Math.max(
+    80,
+    Math.round(detentMetrics(DETENTS.snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0),
+  );
 
   return (
-    <StackedSheet id={id} tall>
-      {/* `key` só troca com a variante (botão do painel [DIAG]): zera as medidas. Nunca por timer. */}
-      <AheadList key={variant} variant={variant} bottomInset={insets.bottom}>
-        {loading || skeleton ? (
-          skeleton ? <Skeleton rows={6} /> : null
-        ) : (
-          <>
-            <Header ahead={ahead} />
-            {ahead ? <Body ahead={ahead} /> : null}
-          </>
-        )}
-      </AheadList>
-    </StackedSheet>
-  );
-}
-
-/** Altura estimada do handle com ✕ (`SheetHandle kind="close"`: linha de `minTouch`); só a V1 usa. O painel mostra a medida. */
-const HANDLE_ESTIMATE = 44;
-
-function AheadList({ variant, bottomInset, children }: { variant: AheadVariant; bottomInset: number; children: ReactNode }) {
-  const window = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-  const scrolls = useRef(0);
-  const lastPaint = useRef(0);
-  const [metrics, setMetrics] = useState<AheadScrollMetrics>({ viewport: null, content: null, offset: 0, fixedHeight: null, scrollEvents: 0 });
-  // V1 (receita da D-150): a lista numa View de altura FIXA, a da folha aberta (90%) menos o handle.
-  const fixedHeight = snapHeight("90%", containerHeightOf(window.height, insets.top)) - HANDLE_ESTIMATE;
-
-  const scroll = (
-    <BottomSheetScrollView
-      contentContainerStyle={{ paddingBottom: bottomInset + space.md, gap: space.md }}
-      showsVerticalScrollIndicator={false}
-      onLayout={(e) => setMetrics((m) => ({ ...m, viewport: e.nativeEvent.layout.height }))}
-      onContentSizeChange={(_w, h) => setMetrics((m) => ({ ...m, content: h }))}
-      onScroll={
-        DIAG_SCROLL
-          ? (e) => {
-              scrolls.current += 1;
-              const at = performance.now();
-              if (at - lastPaint.current < 100) return; // o painel atualiza no máximo 10 vezes por segundo
-              lastPaint.current = at;
-              const offset = e.nativeEvent.contentOffset.y;
-              setMetrics((m) => ({ ...m, offset, scrollEvents: scrolls.current }));
-            }
-          : undefined
-      }
-    >
-      {children}
-    </BottomSheetScrollView>
-  );
-  return (
-    <>
-      {variant === "V1" ? <View style={{ height: fixedHeight, overflow: "hidden" }}>{scroll}</View> : scroll}
-      {DIAG_SCROLL ? <AheadDiagPanel metrics={{ ...metrics, fixedHeight: variant === "V1" ? fixedHeight : null }} variant={variant} /> : null}
-    </>
+    <AheadSheetContext.Provider value={setHandleHeight}>
+      <StackedSheet id={id} detents={DETENTS}>
+        <View collapsable={false} style={{ height: scrollAreaHeight, overflow: "hidden" }}>
+          <BottomSheetScrollView
+            contentContainerStyle={{ paddingBottom: insets.bottom + space.md, gap: space.md }}
+            showsVerticalScrollIndicator={false}
+          >
+            {loading || skeleton ? (
+              skeleton ? <Skeleton rows={6} /> : null
+            ) : (
+              <>
+                <Header ahead={ahead} />
+                {ahead ? <Body ahead={ahead} /> : null}
+              </>
+            )}
+          </BottomSheetScrollView>
+        </View>
+      </StackedSheet>
+    </AheadSheetContext.Provider>
   );
 }
 
 /** Selo da linha + "Daqui para a frente", e o contexto ("viagem das 08:10 · Estádio, 2ª passagem"). */
-function Header({ ahead }: { ahead: Ahead | null }) {
+/** `Header`, `Body` e `Timeline` são exportados para o cartão "Em viagem" (E-03, D-075) reaproveitar a lista sem reescrita. */
+export function Header({ ahead }: { ahead: Ahead | null }) {
   const { colors } = useTheme();
   return (
     <View style={styles.header}>
@@ -124,7 +114,7 @@ function Header({ ahead }: { ahead: Ahead | null }) {
   );
 }
 
-function Body({ ahead }: { ahead: Ahead }) {
+export function Body({ ahead }: { ahead: Ahead }) {
   const { colors } = useTheme();
   const summary = summaryText(ahead);
   return (
@@ -165,7 +155,7 @@ function Body({ ahead }: { ahead: Ahead }) {
 }
 
 /** A linha do tempo: "você", as paragens (ou "+ N paragens") e o trilho na cor da linha. */
-function Timeline({ ahead, lineColor }: { ahead: Ahead; lineColor: string }) {
+export function Timeline({ ahead, lineColor }: { ahead: Ahead; lineColor: string }) {
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale >= STACK_FONT_SCALE;
   const items: TimelineItem[] = [{ kind: "stop", row: ahead.here }, ...timelineItems(ahead.stops)];
