@@ -84,9 +84,12 @@ export interface StopCard {
   lines: StopCardLine[];
 }
 
+const CLOCK_TEXT_TABLE = Array.from({ length: 1440 }, (_, m) => formatServiceMinute(m));
+
 /** Hora de relógio "HH:MM" de um minuto de serviço (depois da meia-noite: 25:10 → "01:10"). */
 export function clockText(serviceMinute: number): string {
-  return formatServiceMinute(((serviceMinute % 1440) + 1440) % 1440);
+  const norm = ((serviceMinute % 1440) + 1440) % 1440;
+  return CLOCK_TEXT_TABLE[norm] ?? formatServiceMinute(norm);
 }
 
 /** Meses (1–12) de um intervalo anual "MM-DD"…"MM-DD", com virada de ano ("12-15"…"01-15" = [12, 1]). */
