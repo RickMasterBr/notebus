@@ -298,6 +298,34 @@ describe("fechamento automático", () => {
     expect(await f.registro.expire(lisbon(THURSDAY, "11:13"))).toBe(1);
     expect((await rideOf(f, board.rideId)).status).toBe("closed");
   });
+
+  it("embarque orphan com viagem nearest já terminada não fecha 5 min depois (mantém ride aberto)", async () => {
+    const f = await fixture();
+    // A última viagem da linha 1 termina às 09:35. Registro às 22:10 é orphan com nearest na manhã.
+    const boardAt = lisbon(THURSDAY, "22:10");
+    const board = await f.registro.board({ stopId: stopId("A"), lineId: lineId("1"), at: boardAt });
+    await f.registro.refreshDeductions(Date.now());
+    expect((await obsOf(f, board.observationId)).matchStatus).toBe("orphan");
+
+    // 5 min depois do embarque: o ride TEM que continuar aberto
+    expect(await f.registro.expire(boardAt + 5 * 60_000)).toBe(0);
+    expect((await rideOf(f, board.rideId)).status).toBe("open");
+  });
+
+  it("embarque orphan fecha quando now passa de 3 h do embarque (Q-85)", async () => {
+    const f = await fixture();
+    const boardAt = lisbon(THURSDAY, "22:10");
+    const board = await f.registro.board({ stopId: stopId("A"), lineId: lineId("1"), at: boardAt });
+    await f.registro.refreshDeductions(Date.now());
+
+    // Até 3 h exatas do embarque continua aberto
+    expect(await f.registro.expire(boardAt + 3 * 3_600_000)).toBe(0);
+    expect((await rideOf(f, board.rideId)).status).toBe("open");
+
+    // Passou de 3 h (3 h + 1 s): fecha
+    expect(await f.registro.expire(boardAt + 3 * 3_600_000 + 1_000)).toBe(1);
+    expect((await rideOf(f, board.rideId)).status).toBe("closed");
+  });
 });
 
 describe("fila: gravações em série", () => {

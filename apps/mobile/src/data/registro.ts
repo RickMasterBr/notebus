@@ -307,11 +307,15 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       let closed = 0;
       for (const open of await selectLive(db, ride, eq(ride.status, "open"))) {
         const boarding = await observationById(open.boardingObservationId);
-        const start = boarding ? resolveBoarding(boarding, network) : null;
-        const trip = start ? network.trips.find((t) => t.id === start.tripId) : undefined;
+        const hasKnownTrip = Boolean(
+          boarding?.tripId &&
+          boarding.serviceDate &&
+          (boarding.matchStatus === "auto" || boarding.matchStatus === "manual"),
+        );
+        const trip = hasKnownTrip ? network.trips.find((t) => t.id === boarding!.tripId) : undefined;
         // Sem viagem conhecida não há fim de percurso: fecha 3 h depois do embarque (Q-85).
-        const next = start && trip
-          ? expireRide(rideState(open), trip, start.serviceDate, now)
+        const next = trip && boarding?.serviceDate
+          ? expireRide(rideState(open), trip, boarding.serviceDate, now)
           : boarding
             ? expireRideWithoutTrip(rideState(open), boarding.observedAt, now)
             : rideState(open);
