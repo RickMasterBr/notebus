@@ -28,13 +28,26 @@ import type { ScheduleSnapshot } from "./schedule";
 import { clockText } from "./stopCard";
 
 const timepointsCache = new WeakMap<PatternData, Set<number>>();
+const patternPositionStopId = new WeakMap<PatternData, Map<number, string>>();
 
-function cachedTimepointPositions(pattern: PatternData, trips: TripData[]): Set<number> {
+function cachedTimepointPositions(pattern: PatternData, trips: readonly TripData[]): Set<number> {
   const cached = timepointsCache.get(pattern);
   if (cached) return cached;
-  const computed = timepointPositions(pattern, trips);
+  const patternTrips = trips.filter((t) => t.patternId === pattern.id);
+  const computed = timepointPositions(pattern, patternTrips);
   timepointsCache.set(pattern, computed);
   return computed;
+}
+
+function cachedPatternPositionStopId(pattern: PatternData): Map<number, string> {
+  const cached = patternPositionStopId.get(pattern);
+  if (cached) return cached;
+  const map = new Map<number, string>();
+  for (const s of pattern.stops) {
+    map.set(s.position, s.stopId);
+  }
+  patternPositionStopId.set(pattern, map);
+  return map;
 }
 
 export interface AheadStopRow {
@@ -83,19 +96,32 @@ export interface AheadOptions {
   shiftMinutes?: number;
 }
 
+const aheadCache = new WeakMap<TripData, Map<string, Ahead>>();
+
 /** `null` se a viagem, a posição ou o percurso não existem nos dados (viagem apagada, importação trocada). */
 export function buildAhead(tripId: string, position: number, data: ScheduleSnapshot, options: AheadOptions = {}): Ahead | null {
   const trip = data.trips.find((t) => t.id === tripId);
   if (!trip) return null;
   const pattern = data.patterns.find((p) => p.id === trip.patternId);
-  if (!pattern || !pattern.stops.some((s) => s.position === position)) return null;
+  if (!pattern) return null;
+  const posToId = cachedPatternPositionStopId(pattern);
+  if (!posToId.has(position)) return null;
   const shiftMinutes = options.shiftMinutes ?? 0;
 
-  const timepoints = cachedTimepointPositions(
-    pattern,
-    data.trips.filter((t) => t.patternId === pattern.id),
-  );
-  const nameAt = new Map(pattern.stops.map((s) => [s.position, data.stopNames.get(s.stopId) ?? ""]));
+  const cacheKey = `${position}:${shiftMinutes}`;
+  let tripCache = aheadCache.get(trip);
+  if (!tripCache) {
+    tripCache = new Map();
+    aheadCache.set(trip, tripCache);
+  }
+  const cachedAhead = tripCache.get(cacheKey);
+  if (cachedAhead) return cachedAhead;
+
+  const timepoints = cachedTimepointPositions(pattern, data.trips);
+  const getName = (pos: number) => {
+    const sid = posToId.get(pos);
+    return sid ? data.stopNames.get(sid) ?? "" : "";
+  };
   const result = aheadFrom(pattern, timepoints, trip, position, { shiftMinutes });
   const startBase = baseTimeAt(trip, trip.firstPosition);
   const rawHere = baseTimeAt(trip, position);
@@ -108,7 +134,7 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
     extra: Pick<AheadStopRow, "isTimepoint" | "number" | "returnsHere">,
   ): AheadStopRow => ({
     position: pos,
-    name: nameAt.get(pos) ?? "",
+    name: getName(pos),
     time: clockText(displayCenter(base.minute)),
     rangeStart: clockText(displayCenter(expected.rangeStart)),
     rangeEnd: clockText(displayCenter(expected.rangeEnd)),
@@ -118,7 +144,7 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
     ...extra,
   });
   const place = (s: { info: { position: number }; base: { minute: number } }): AheadPlace => ({
-    name: nameAt.get(s.info.position) ?? "",
+    name: getName(s.info.position),
     time: clockText(displayCenter(s.base.minute)),
   });
 
@@ -134,7 +160,7 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
   });
 
   const line = data.patternLine.get(pattern.id) ?? null;
-  return {
+  const ahead: Ahead = {
     tripId,
     line: line ? { code: line.code, color: line.color } : null,
     tripStart: clockText(displayCenter(startBase.minute + shiftMinutes)),
@@ -145,6 +171,8 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
     isFirst: position === trip.firstPosition,
     isLast: position === trip.lastPosition,
   };
+  tripCache.set(cacheKey, ahead);
+  return ahead;
 }
 
 /** Uma linha da linha do tempo: uma paragem ou uma lacuna "+ N paragens" (`terminal_detail.gap`). */

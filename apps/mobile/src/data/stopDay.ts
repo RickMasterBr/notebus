@@ -105,9 +105,22 @@ interface Candidate {
   trip: TripData;
 }
 
+const stopDayCache = new WeakMap<ScheduleSnapshot, Map<string, StopDay | null>>();
+
 export function buildStopDay(stopId: string, data: ScheduleSnapshot, instantMs: number, dayType?: DayTypeCode): StopDay | null {
+  const cacheKey = `${stopId}:${instantMs}:${dayType ?? ""}`;
+  let snapCache = stopDayCache.get(data);
+  if (!snapCache) {
+    snapCache = new Map();
+    stopDayCache.set(data, snapCache);
+  }
+  if (snapCache.has(cacheKey)) return snapCache.get(cacheKey)!;
+
   const name = data.stopNames.get(stopId);
-  if (name === undefined) return null; // ponto apagado ou de outra importação
+  if (name === undefined) {
+    snapCache.set(cacheKey, null);
+    return null; // ponto apagado ou de outra importação
+  }
 
   const clock = lisbonWallClock(instantMs);
   const todayType = dayTypeOf(clock.date, data.calendar).dayType;
@@ -131,7 +144,9 @@ export function buildStopDay(stopId: string, data: ScheduleSnapshot, instantMs: 
       return { code, color, ...lineDay(stopId, patterns, trips, data, instantMs, shown, shown === todayType) };
     });
 
-  return { stopId, name, dayType: shown, todayType, lines };
+  const stopDay: StopDay = { stopId, name, dayType: shown, todayType, lines };
+  snapCache.set(cacheKey, stopDay);
+  return stopDay;
 }
 
 function lineDay(
@@ -145,16 +160,28 @@ function lineDay(
 ): Omit<DayLine, "code" | "color"> {
   const lineSchedule = lineScheduleOf(trips, data);
   const clock = lisbonWallClock(instantMs);
-  const stopIdAt = new Map(patterns.map((p) => [p.id, new Map(p.stops.map((s) => [s.position, s.stopId]))]));
+  const stopIdByPatternPos = new Map<string, string>();
+  for (const p of patterns) {
+    for (const s of p.stops) {
+      stopIdByPatternPos.set(`${p.id}:${s.position}`, s.stopId);
+    }
+  }
   const endsHere = patterns.every((p) => {
-    const last = Math.max(...p.stops.map((s) => s.position));
-    return p.stops.filter((s) => s.stopId === stopId).every((s) => s.position === last);
+    let last = 0;
+    for (const s of p.stops) {
+      if (s.position > last) last = s.position;
+    }
+    for (const s of p.stops) {
+      if (s.stopId === stopId && s.position !== last) return false;
+    }
+    return true;
   });
 
   const candidates = (date: string, type: DayTypeCode, now: number | null): Candidate[] => {
     const running = new Set(tripsRunningOn(date, type, lineSchedule).map((t) => t.id));
     const todays = trips.filter((t) => running.has(t.id));
-    const tripById = new Map(todays.map((t) => [t.id, t]));
+    const tripById = new Map<string, TripData>();
+    for (const t of todays) tripById.set(t.id, t);
     return passagesAtStop(stopId, patterns, todays).map((passage) => ({ date, now, passage, trip: tripById.get(passage.tripId)! }));
   };
 
@@ -171,18 +198,24 @@ function lineDay(
   }
 
   const nameAt = (patternId: string, position: number) => {
-    const id = stopIdAt.get(patternId)?.get(position);
-    return id === undefined ? null : (data.stopNames.get(id) ?? null);
+    const id = stopIdByPatternPos.get(`${patternId}:${position}`);
+    return id ? (data.stopNames.get(id) ?? null) : null;
   };
 
-  const next = { key: null as string | null };
-  const rows: PassageRow[] = list.map((c) => {
+  let nextIndex = -1;
+  if (isToday) {
+    nextIndex = list.findIndex((c) => {
+      const isLast = c.passage.info.position === c.trip.lastPosition;
+      return !isLast && c.passage.expected.center - c.now! >= 0;
+    });
+  }
+
+  const rows: PassageRow[] = list.map((c, idx) => {
     const { passage, trip } = c;
     const { info, expected } = passage;
     const key = `${c.date}/${trip.id}/${info.position}`;
     const isLast = info.position === trip.lastPosition;
     const isFirst = info.position === trip.firstPosition;
-    if (isToday && next.key === null && !isLast && expected.center - c.now! >= 0) next.key = key;
 
     let destination: PassageRow["destination"] = null;
     if (info.destination !== null && info.destination <= trip.lastPosition) {
@@ -205,15 +238,14 @@ function lineDay(
       tripDestination: nameAt(passage.patternId, trip.lastPosition),
       isFirst,
       isLast,
-      isNext: false,
+      isNext: idx === nextIndex,
       mayPassNow: isToday && !isLast && beAtStopPassed(expected, c.now!),
     };
   });
-  const finalRows = rows.map((r) => (r.key === next.key ? { ...r, isNext: true } : r));
 
-  if (finalRows.length > 0) {
-    const head = finalRows.find((r) => r.isNext) ?? finalRows[0]!;
-    return { destination: head.tripDestination, endsHere, rows: finalRows, empty: null };
+  if (rows.length > 0) {
+    const head = (nextIndex !== -1 ? rows[nextIndex] : rows[0])!;
+    return { destination: head.tripDestination, endsHere, rows, empty: null };
   }
 
   // Sem passagens: o porquê (só se a linha nem circula nesse tipo de dia, com a época e a vigência de hoje) e o próximo dia.
