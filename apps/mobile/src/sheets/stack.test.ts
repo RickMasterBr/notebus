@@ -170,3 +170,15 @@ describe("pilha de folhas", () => {
     });
   });
 });
+
+describe("folhas de Ajustes e do seletor do relógio (D-151)", () => {
+  it("Ajustes → seletor empilham, nunca duplicam, e fecham de cima para baixo", () => {
+    let s = sheetReducer(initialSheetState, { type: "push", sheet: { kind: "settings" } });
+    s = sheetReducer(s, { type: "push", sheet: { kind: "settings" } });
+    expect(stackedSheets(s).map((e) => e.kind)).toEqual(["settings"]);
+    s = sheetReducer(s, { type: "push", sheet: { kind: "clockPicker" } });
+    expect(stackedSheets(s).map((e) => e.kind)).toEqual(["settings", "clockPicker"]);
+    s = sheetReducer(s, { type: "close", id: activeSheet(s).id });
+    expect(activeSheet(s).kind).toBe("settings");
+  });
+});

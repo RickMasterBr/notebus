@@ -1,8 +1,10 @@
 /** Desenha a pilha: a folha-base e, por cima, cada folha empilhada (a última recebe o toque). */
 import { StyleSheet, View } from "react-native";
 import { AheadSheet } from "./AheadSheet";
+import { ClockPickerSheet } from "./ClockPickerSheet";
 import { HomeSheet } from "./HomeSheet";
 import { SearchSheet } from "./SearchSheet";
+import { SettingsSheet } from "./SettingsSheet";
 import { useSheets } from "./SheetsContext";
 import { StopSheet } from "./StopSheet";
 import { type SheetEntry, stackedSheets } from "./stack";
@@ -47,6 +49,10 @@ function StackedSheetSlot({ entry }: { entry: SheetEntry }) {
       return <StopSheet id={entry.id} stopId={entry.stopId} name={entry.name} />;
     case "ahead":
       return <AheadSheet id={entry.id} tripId={entry.tripId} position={entry.position} />;
+    case "settings":
+      return <SettingsSheet id={entry.id} />;
+    case "clockPicker":
+      return <ClockPickerSheet id={entry.id} />;
     case "home":
       return null;
   }

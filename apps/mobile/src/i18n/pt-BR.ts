@@ -101,6 +101,17 @@ export const ptBR = {
   "home.empty.body": "Cadastre o ponto e as linhas que passam nele. O horário vem do que você anotar.",
   "home.empty.action": "Cadastrar meu ponto",
   "migration.failed": "Não foi possível atualizar os dados; nada foi perdido.",
+  "settings.title": "Ajustes",
+  "settings.version": "Versão",
+  "test_clock.banner": "Relógio de teste: {{when}} · toque para desligar",
+  "test_clock.banner.a11y": "Relógio de teste ligado, {{when}}, toque para desligar",
+  "test_clock.date": "{{weekday}} {{date}}",
+  "test_clock.day": "Dia",
+  "test_clock.hour": "Hora",
+  "test_clock.minute": "Minuto",
+  "test_clock.step.more": "{{unit}}, mais",
+  "test_clock.step.less": "{{unit}}, menos",
+  "test_clock.turn_on": "Ligar",
   "toast.save_failed.title": "Não foi possível gravar",
 } as const;
 

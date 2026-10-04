@@ -14,7 +14,10 @@ export type SheetContent =
   | { kind: "home" }
   | { kind: "search" }
   | { kind: "stop"; stopId: string; name: string }
-  | { kind: "ahead"; tripId: string; position: number };
+  | { kind: "ahead"; tripId: string; position: number }
+  /** Ajustes mínimo (D-151): só a versão e as 7 batidas que abrem o seletor do relógio de teste. */
+  | { kind: "settings" }
+  | { kind: "clockPicker" };
 
 export type SheetKind = SheetContent["kind"];
 

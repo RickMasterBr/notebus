@@ -3,7 +3,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { createTestClock } from "./src/data/clock";
-import { NowProvider } from "./src/data/NowProvider";
+import { TestClockProvider } from "./src/data/TestClockProvider";
 import { RecentStopsProvider } from "./src/data/RecentStopsProvider";
 import { ScheduleProvider } from "./src/data/ScheduleProvider";
 import { StopIndexProvider } from "./src/data/StopIndexProvider";
@@ -13,8 +13,9 @@ import { expoImportDb, openNotebusDb } from "./src/db/open";
 import { FirstRun } from "./src/screens/FirstRun";
 import { Home } from "./src/screens/Home";
 import { MigrationNotice } from "./src/ui/MigrationNotice";
+import { TestClockBanner } from "./src/ui/TestClockBanner";
 
-// Relógio de teste (D-095): desligado = relógio real. A faixa e o seletor esperam a Q-74.
+// Relógio de teste (D-095): desligado = relógio real. Faixa, seletor e Ajustes: D-151.
 const testClock = createTestClock();
 
 type Db = Awaited<ReturnType<typeof openNotebusDb>>["db"];
@@ -59,7 +60,7 @@ export default function App() {
             }}
           />
         ) : (
-          <NowProvider source={testClock.now}>
+          <TestClockProvider clock={testClock}>
             <StopIndexProvider db={db}>
               <ScheduleProvider db={db}>
                 <RecentStopsProvider db={db}>
@@ -67,7 +68,8 @@ export default function App() {
                 </RecentStopsProvider>
               </ScheduleProvider>
             </StopIndexProvider>
-          </NowProvider>
+            <TestClockBanner />
+          </TestClockProvider>
         )}
         <StatusBar style="auto" />
       </SafeAreaProvider>
