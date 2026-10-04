@@ -28,7 +28,7 @@ describe("relógio injetável", () => {
     const files = roots.flatMap((r) => (statSync(r).isDirectory() ? sourceFiles(r) : [r]));
     expect(files.length).toBeGreaterThan(50);
     const offenders = files
-      .map((f) => relative(repo, f))
+      .map((f) => relative(repo, f).replace(/\\/g, "/"))
       .filter((f) => !ALLOWED.has(f))
       .filter((f) => /new Date\(\s*\)|Date\.now\(/.test(readFileSync(join(repo, f), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")));
     expect(offenders).toEqual([]);

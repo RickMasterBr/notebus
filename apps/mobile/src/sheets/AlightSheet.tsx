@@ -54,11 +54,22 @@ export function AlightSheet({ id }: { id: number }) {
 
   // A viagem deixou de existir com a folha aberta (fechou pelo fim do percurso, foi desfeita): a folha não tem o que mostrar.
   useEffect(() => {
-    if (status === "ready" && card === null) close();
+    if (status === "ready" && card === null && !busy.current) close();
   }, [status, card, close]);
 
   const data = schedule.status === "ready" ? schedule.data : null;
   const rows = useMemo(() => (data && card ? buildAlightRows(card, data, instant) : []), [data, card, instant]);
+  const lastRowsRef = useRef<AlightRow[]>([]);
+  if (rows.length > 0) {
+    lastRowsRef.current = rows;
+  }
+  const lastCardRef = useRef<typeof card>(null);
+  if (card) {
+    lastCardRef.current = card;
+  }
+  const displayCard = card ?? (busy.current ? lastCardRef.current : null);
+  const displayRows = rows.length > 0 ? rows : (busy.current ? lastRowsRef.current : []);
+
   const externalIds = useMemo(
     () => new Map(index.status === "ready" ? index.stops.map((s) => [s.id, s.externalId] as const) : []),
     [index],
@@ -69,12 +80,11 @@ export function AlightSheet({ id }: { id: number }) {
     Math.round(detentMetrics(DETENTS.snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0),
   );
 
-  const choose = async (row: AlightRow) => {
+  const choose = (row: AlightRow) => {
     if (!card || busy.current) return;
     busy.current = true;
-    const ok = await alight(card, row);
-    busy.current = false;
-    if (ok) close(); // recusada ou com erro: a folha fica, para escolher outra paragem
+    close();
+    void alight(card, row);
   };
 
   return (
@@ -89,22 +99,22 @@ export function AlightSheet({ id }: { id: number }) {
               <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
                 {t("sheet_alight.title")}
               </Text>
-              {card ? (
+              {displayCard ? (
                 <View style={styles.ref}>
-                  {card.line ? <LineBadge code={card.line.code} color={card.line.color} /> : null}
+                  {displayCard.line ? <LineBadge code={displayCard.line.code} color={displayCard.line.color} /> : null}
                   <Text style={[type.caption, styles.num, { color: colors.textSecondary }]}>
                     {t("sheet_alight.trip_ref", {
-                      board_time: card.tripStart ?? card.boardedTime,
+                      board_time: displayCard.tripStart ?? displayCard.boardedTime,
                       now: clockText(lisbonWallClock(instant).minute),
                     })}
                   </Text>
                 </View>
               ) : null}
             </View>
-            {rows.length > 0 ? (
+            {displayRows.length > 0 ? (
               <>
                 <Text style={[type.label, { color: colors.textSecondary }]}>{t("sheet_alight.sort_hint")}</Text>
-                {rows.map((row, i) => (
+                {displayRows.map((row, i) => (
                   <StopChoice key={row.position} row={row} highlighted={i === 0} externalId={externalIds.get(row.stopId) ?? null} onPress={() => void choose(row)} />
                 ))}
               </>

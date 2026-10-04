@@ -58,10 +58,8 @@ export function HomeSheet() {
   const [pillHeight, setPillHeight] = useState(0);
   // Altura medida do cartão "Em viagem" (com o espaço até a pílula); 0 sem viagem em curso.
   const [cardHeight, setCardHeight] = useState(0);
-  useEffect(() => {
-    if (!tripCard) setCardHeight(0);
-  }, [tripCard]);
-  const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + cardHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
+  const effectiveCardHeight = tripCard ? cardHeight : 0;
+  const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + effectiveCardHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
   // Topo da folha, medido pela biblioteca (já com a área segura de cima): o botão "Registrar" sobe e desce com ele.
   // Começa fora da tela até a primeira medida.
   const window = useWindowDimensions();
@@ -137,7 +135,7 @@ export function HomeSheet() {
     Math.round(
       (detentMetrics(snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0) -
         pillHeight -
-        cardHeight -
+        effectiveCardHeight -
         space.md,
     ),
   );
