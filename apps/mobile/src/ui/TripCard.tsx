@@ -46,7 +46,7 @@ export function TripCard({
 }) {
   const { colors } = useTheme();
   const reduceMotion = useReduceMotion();
-  const canList = card.ahead !== null;
+  const canList = !card.unmatched && card.ahead !== null;
   const pull = Gesture.Pan()
     .runOnJS(true)
     .enabled(canList)
@@ -56,7 +56,11 @@ export function TripCard({
       if (event.translationY <= -PULL_PX) onOpenList();
     });
 
-  const title = card.destination ? t("home.trip.title", { destination: card.destination }) : t("home.trip.title_no_destination");
+  const title = card.unmatched
+    ? t("trip_card.unmatched")
+    : card.destination
+      ? t("home.trip.title", { destination: card.destination })
+      : t("home.trip.title_no_destination");
   const subtitle = t("home.trip.subtitle", { time: card.boardedTime, stop_name: card.stopName });
   const eta = card.eta ? `${card.eta.approximate ? "~" : ""}${card.eta.time}` : null;
   const headLabel = [title, subtitle, eta ? t("home.trip.eta.a11y", { time: eta }) : null].filter(Boolean).join(", ");
@@ -84,7 +88,7 @@ export function TripCard({
         </Pressable>
       </GestureDetector>
       <View style={styles.actions}>
-        {card.trip ? (
+        {card.trip && !card.unmatched ? (
           <Pressable
             accessibilityRole="button"
             onPress={onAlight}

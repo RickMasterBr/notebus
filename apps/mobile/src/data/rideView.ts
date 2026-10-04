@@ -101,6 +101,8 @@ export interface TripCardModel {
   tripStart: string | null;
   /** "Daqui para a frente" a partir do embarque, com os horários deslocados pelo atraso da viagem (D-075). */
   ahead: Ahead | null;
+  /** Q-88: true quando o embarque não casou (orphan) e a viagem mais próxima está a > 30 min (ou não existe). */
+  unmatched: boolean;
 }
 
 /**
@@ -122,16 +124,26 @@ export function buildTripCard(
   const start = deduction.nearest;
   const rideDeviation = deduction.matchStatus === "auto" ? deduction.deviation : null;
   const boardedTime = clockText(lisbonWallClock(boarding.observedAt).minute);
-  const base: Omit<TripCardModel, "destination" | "eta" | "trip" | "ahead" | "tripStart"> = {
+  const base: Omit<TripCardModel, "destination" | "eta" | "trip" | "ahead" | "tripStart" | "unmatched"> = {
     rideId,
     line: line ? { code: line.code, color: line.color } : null,
     boardedTime,
     stopName,
     rideDeviation,
   };
+
+  // Q-88: Quando o embarque não casou (orphan) e a viagem nearest está a mais de 30 min do embarque,
+  // ou não há nearest, monta o cartão como "sem viagem": destino, chegada e viagem nulos, unmatched: true.
+  const isOrphanDistant = deduction.matchStatus === "orphan" && (!start || Math.abs(start.deviation) > 30);
+  if (isOrphanDistant) {
+    return { ...base, destination: null, eta: null, trip: null, tripStart: null, ahead: null, unmatched: true };
+  }
+
   const trip = start ? data.trips.find((t) => t.id === start.tripId) : undefined;
   const pattern = trip ? data.patterns.find((p) => p.id === trip.patternId) : undefined;
-  if (!start || !trip || !pattern) return { ...base, destination: null, eta: null, trip: null, tripStart: null, ahead: null };
+  if (!start || !trip || !pattern) {
+    return { ...base, destination: null, eta: null, trip: null, tripStart: null, ahead: null, unmatched: true };
+  }
 
   const next = nextDestination(data, pattern.id, trip.id, start.position);
   const endBase = next ? baseTimeAt(trip, next.position) : null;
@@ -157,6 +169,7 @@ export function buildTripCard(
     // A linha "você" mostra a hora do embarque em minuto cheio (08:12:30 → 08:12), como o cartão e o toast; o centro
     // deslocado (492 + 0,5 = 492,5) arredondaria para 08:13.
     ahead: ahead ? { ...ahead, tripStart: tripStart ?? ahead.tripStart, here: { ...ahead.here, time: boardedTime } } : null,
+    unmatched: false,
   };
 }
 
