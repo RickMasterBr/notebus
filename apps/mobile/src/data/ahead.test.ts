@@ -251,7 +251,7 @@ describe("buildAhead: velocidade", () => {
     } as unknown as ScheduleSnapshot;
     // Aquece o JIT antes da medição para isolar tempo de compilação da execução
     for (let w = 0; w < 3; w++) {
-      const warmup = buildAhead("t399", 3, data);
+      const warmup = buildAhead("t0", 1, data);
       if (warmup) timelineItems(warmup.stops);
     }
     const t0 = performance.now();

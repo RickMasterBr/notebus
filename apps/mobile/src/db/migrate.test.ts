@@ -139,7 +139,7 @@ describe("A7: migração que quebra no meio", () => {
     expect(() =>
       conn.db.exec("INSERT INTO place (id, created_at, updated_at, source, name) VALUES ('novo', 1, 1, 'user', 'Novo')"),
     ).toThrow(/readonly|query_only/i);
-  }, 15000);
+  });
 
   it("se nem a cópia der para fazer, não migra nada", async () => {
     const { conn, backups, migrate } = setup();
