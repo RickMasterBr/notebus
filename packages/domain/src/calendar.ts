@@ -217,10 +217,21 @@ export function lineServiceOn(date: string, calendar: CalendarData, data: Schedu
   return { status: "none", reason: noServiceReason(date, dayType, data), nextServiceDate: nextServiceDate(date, calendar, data) };
 }
 
+/** Alguma viagem não apagada do tipo de dia seria tirada pela época nesta data (sem olhar a vigência)? */
+export function excludedBySeason(date: string, dayType: DayTypeCode, data: ScheduleData): boolean {
+  const seasons = new Map(data.seasons.map((s) => [s.id, s]));
+  return data.trips.some((t) => {
+    const season = t.seasonId === null ? undefined : seasons.get(t.seasonId);
+    return t.deletedAt == null && t.dayTypes.includes(dayType) && season !== undefined && !seasonAllows(date, season);
+  });
+}
+
 function noServiceReason(date: string, dayType: DayTypeResult, data: ScheduleData): NoServiceReason {
   const live = liveTripsInForce(date, data);
   const ofDayType = live.filter((t) => t.dayTypes.includes(dayType.dayType));
   if (ofDayType.length > 0) return "epoca";
+  // Antes de a tabela entrar em vigência (a da MOBILIS vale de 01/09/2026): se a época tira a data, é a época o motivo.
+  if (live.length === 0 && excludedBySeason(date, dayType.dayType, data)) return "epoca";
   if (dayType.reason === "holiday" && tripsRunningOn(date, calendarDayType(date), data).length > 0) return "feriado";
   if (live.length > 0 && live.every((t) => t.dayTypes.every((d) => d === "weekday"))) return "so_dias_uteis";
   return "sem_tabela";

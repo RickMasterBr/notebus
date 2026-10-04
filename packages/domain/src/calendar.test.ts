@@ -220,6 +220,16 @@ describe("por que não circula e o próximo dia (§4.2, T-32)", () => {
     expect(lineServiceOn("2026-08-12", EMPTY, line9)).toEqual({ status: "none", reason: "epoca", nextServiceDate: "2026-09-01" });
   });
 
+  it("5e: tabela que só vale de 01/09 e época sem serviço: em 12/08 o motivo é a época, não 'sem tabela'", () => {
+    const l9FromSeptember: ScheduleData = { ...line9, timetables: [{ id: TT.id, validFrom: "2026-09-01", validTo: null }] };
+    for (const date of ["2026-07-01", "2026-08-12", "2026-08-31"]) {
+      expect(lineServiceOn(date, EMPTY, l9FromSeptember), date).toEqual({ status: "none", reason: "epoca", nextServiceDate: "2026-09-01" });
+    }
+    // Antes da época e antes da tabela: continua "sem tabela". 01/09 (terça) já circula.
+    expect(lineServiceOn("2026-06-30", EMPTY, l9FromSeptember)).toMatchObject({ status: "none", reason: "sem_tabela" });
+    expect(lineServiceOn("2026-09-01", EMPTY, l9FromSeptember)).toMatchObject({ status: "running" });
+  });
+
   it("feriado numa sexta: L9 → feriado, e o próximo dia útil pula o fim de semana", () => {
     expect(lineServiceOn("2026-05-22", LEIRIA, line9)).toEqual({ status: "none", reason: "feriado", nextServiceDate: "2026-05-25" });
   });

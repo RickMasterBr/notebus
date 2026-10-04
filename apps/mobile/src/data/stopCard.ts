@@ -253,19 +253,23 @@ export function reasonOf(
       return dayTypeOf(date, calendar).dayType === "sunday_holiday" ? { kind: "sunday_holiday" } : null;
     case "epoca": {
       const dayType = dayTypeOf(date, calendar).dayType;
-      const seasonIds = new Set(
-        tripsRunningOnIgnoringSeason(date, dayType, lineSchedule).flatMap((t) => (t.seasonId === null ? [] : [t.seasonId])),
-      );
-      const found = lineSchedule.seasons.find((s) => seasonIds.has(s.id) && s.mode === "exclude");
+      const excluding = (inForceOnly: boolean) => {
+        const seasonIds = new Set(
+          tripsOfDayType(date, dayType, lineSchedule, inForceOnly).flatMap((t) => (t.seasonId === null ? [] : [t.seasonId])),
+        );
+        return lineSchedule.seasons.find((s) => seasonIds.has(s.id) && s.mode === "exclude");
+      };
+      // Primeiro as tabelas em vigência; sem nenhuma (antes de 01/09/2026, a vigência da MOBILIS), todas as da linha.
+      const found = excluding(true) ?? excluding(false);
       return found ? { kind: "season", months: seasonMonths(found.startMd, found.endMd) } : null;
     }
   }
 }
 
-/** As viagens da linha do tipo de dia e em vigência, sem olhar a época (para descobrir qual época as tira). */
-function tripsRunningOnIgnoringSeason(date: string, dayType: DayTypeCode, schedule: ScheduleData) {
+/** As viagens da linha do tipo de dia (e, se `inForceOnly`, em vigência), sem olhar a época (para descobrir qual época as tira). */
+function tripsOfDayType(date: string, dayType: DayTypeCode, schedule: ScheduleData, inForceOnly: boolean) {
   const inForce = new Set(
-    schedule.timetables.filter((t) => t.validFrom <= date && (t.validTo === null || date <= t.validTo)).map((t) => t.id),
+    schedule.timetables.filter((t) => !inForceOnly || (t.validFrom <= date && (t.validTo === null || date <= t.validTo))).map((t) => t.id),
   );
   return schedule.trips.filter((t) => t.deletedAt == null && inForce.has(t.timetableId) && t.dayTypes.includes(dayType));
 }
