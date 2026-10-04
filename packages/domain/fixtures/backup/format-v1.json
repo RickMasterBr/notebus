@@ -39,7 +39,7 @@
     "frequency_day_type": 0,
     "official_edits": 1
   },
-  "checksum": "sha256:d7b7ec7cb476d75c80e8ff582afdac24a38c5bcfd4f238541f9352d60b90353b",
+  "checksum": "sha256:72b6e54c4d3fe216daa6efa3b9b9195fc16334ed374a1b29b6440c46cd1275ec",
   "tables": {
     "observation": [
       {
@@ -258,7 +258,7 @@
       {
         "id": "0199c3a0-0000-7000-8000-000000000007",
         "created_at": 1791457200000,
-        "updated_at": 1791478800000,
+        "updated_at": 1791460800000,
         "deleted_at": null,
         "source": "user",
         "boarding_observation_id": "0199c3a0-0000-7000-8000-000000000006",
@@ -269,7 +269,7 @@
       {
         "id": "0199c3a0-0000-7000-8000-000000000009",
         "created_at": 1791460800000,
-        "updated_at": 1791478800000,
+        "updated_at": 1791446040000,
         "deleted_at": null,
         "source": "user",
         "boarding_observation_id": "0199c3a0-0000-7000-8000-000000000008",
@@ -280,7 +280,7 @@
       {
         "id": "0199c3a0-0000-7000-8000-000000000011",
         "created_at": 1791446040000,
-        "updated_at": 1791478800000,
+        "updated_at": 1791444720000,
         "deleted_at": null,
         "source": "user",
         "boarding_observation_id": "0199c3a0-0000-7000-8000-000000000010",

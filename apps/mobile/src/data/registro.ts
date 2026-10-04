@@ -346,25 +346,52 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     const result = await deduce(fact, network, ongoing);
     const snapshot = deps.snapshot();
     const auto = result.matchStatus === "auto";
+    const newServiceDate = result.serviceDate;
+    const newServiceMinute = Math.floor(result.serviceMinute);
+    const newPatternStopId = auto && result.patternId !== null && result.position !== null
+      ? (snapshot?.patternStopIds.get(patternStopKey(result.patternId, result.position)) ?? null)
+      : null;
+    const newTripId = auto ? result.tripId : null;
+    const newMatchStatus = result.matchStatus;
+    const newDeviationMin = auto ? result.deviation : null;
+
+    const deviationsEqual =
+      (row.deviationMin === null && newDeviationMin === null) ||
+      (row.deviationMin !== null && newDeviationMin !== null && Math.abs(row.deviationMin - newDeviationMin) < 1e-6);
+
+    const observationChanged =
+      row.serviceDate !== newServiceDate ||
+      row.serviceMinute !== newServiceMinute ||
+      row.patternStopId !== newPatternStopId ||
+      row.tripId !== newTripId ||
+      row.matchStatus !== newMatchStatus ||
+      !deviationsEqual;
+
+    const rideTripId = auto ? result.tripId : null;
+    const rideChanged = Boolean(parent && parent.boardingObservationId === row.id && parent.tripId !== rideTripId);
+
+    if (!observationChanged && !rideChanged && row.matchRuleVersion === MATCH_RULE_VERSION) {
+      return;
+    }
+
     await inTransaction(async () => {
-      await db
-        .update(observation)
-        .set({
-          serviceDate: result.serviceDate,
-          // A coluna é inteira: o minuto cheio. O desvio, abaixo, sai do instante exato (decimais).
-          serviceMinute: Math.floor(result.serviceMinute),
-          patternStopId: auto && result.patternId !== null && result.position !== null
-            ? (snapshot?.patternStopIds.get(patternStopKey(result.patternId, result.position)) ?? null)
-            : null,
-          tripId: auto ? result.tripId : null,
-          matchStatus: result.matchStatus,
-          deviationMin: auto ? result.deviation : null,
-          matchRuleVersion: MATCH_RULE_VERSION,
-          updatedAt: now,
-        })
-        .where(eq(observation.id, row.id));
-      if (parent && parent.boardingObservationId === row.id) {
-        await db.update(ride).set({ tripId: auto ? result.tripId : null, updatedAt: now }).where(eq(ride.id, parent.id));
+      if (observationChanged || row.matchRuleVersion !== MATCH_RULE_VERSION) {
+        await db
+          .update(observation)
+          .set({
+            serviceDate: newServiceDate,
+            serviceMinute: newServiceMinute,
+            patternStopId: newPatternStopId,
+            tripId: newTripId,
+            matchStatus: newMatchStatus,
+            deviationMin: newDeviationMin,
+            matchRuleVersion: MATCH_RULE_VERSION,
+            updatedAt: observationChanged ? now : row.updatedAt,
+          })
+          .where(eq(observation.id, row.id));
+      }
+      if (rideChanged && parent) {
+        await db.update(ride).set({ tripId: rideTripId, updatedAt: now }).where(eq(ride.id, parent.id));
       }
     });
   }
