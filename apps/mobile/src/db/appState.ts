@@ -5,6 +5,7 @@
 import { eq } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { uuidv7 } from "@notebus/domain";
+import { realNow } from "../data/clock";
 import { selectLive } from "./query";
 import { dataset, setting } from "./schema";
 
@@ -28,7 +29,7 @@ export async function needsFirstRun(db: AnyDb): Promise<boolean> {
  * Salva no banco de dados a flag indicando que a tela de primeiro uso foi concluída,
  * evitando que ela apareça de novo no futuro.
  */
-export async function markFirstRunDone(db: AnyDb, now = Date.now()): Promise<void> {
+export async function markFirstRunDone(db: AnyDb, now = realNow()): Promise<void> {
   await db
     .insert(setting)
     .values({ id: uuidv7(now), createdAt: now, updatedAt: now, source: "user", key: FIRST_RUN_DONE, value: true })

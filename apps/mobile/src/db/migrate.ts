@@ -11,6 +11,7 @@
  * A versão do banco é o `PRAGMA user_version` (= quantas migrações já rodaram). Ele fica no cabeçalho
  * do arquivo e entra na transação: ou sobe junto com as migrações, ou não sobe.
  */
+import { realNow } from "../data/clock";
 
 export interface Migration {
   tag: string;
@@ -70,7 +71,7 @@ export async function migrateProtected(opts: {
   now?: () => number;
 }): Promise<MigrationResult> {
   const { db, backups, migrations } = opts;
-  const now = opts.now ?? Date.now;
+  const now = opts.now ?? realNow;
   const from = await db.userVersion();
   const to = migrations.length;
   // Banco de um build mais novo (from > to): segue sem migrar; as migrações são só aditivas.

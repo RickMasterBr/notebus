@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
+import { createTestClock } from "./src/data/clock";
 import { NowProvider } from "./src/data/NowProvider";
 import { RecentStopsProvider } from "./src/data/RecentStopsProvider";
 import { ScheduleProvider } from "./src/data/ScheduleProvider";
@@ -12,6 +13,9 @@ import { expoImportDb, openNotebusDb } from "./src/db/open";
 import { FirstRun } from "./src/screens/FirstRun";
 import { Home } from "./src/screens/Home";
 import { MigrationNotice } from "./src/ui/MigrationNotice";
+
+// Relógio de teste (D-095): desligado = relógio real. A faixa e o seletor esperam a Q-74.
+const testClock = createTestClock();
 
 type Db = Awaited<ReturnType<typeof openNotebusDb>>["db"];
 type Phase = "loading" | "first_run" | "list" | "read_only_empty";
@@ -55,7 +59,7 @@ export default function App() {
             }}
           />
         ) : (
-          <NowProvider>
+          <NowProvider source={testClock.now}>
             <StopIndexProvider db={db}>
               <ScheduleProvider db={db}>
                 <RecentStopsProvider db={db}>
