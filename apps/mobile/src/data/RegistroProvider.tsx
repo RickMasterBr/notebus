@@ -9,16 +9,27 @@
  */
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { type PassageRecord, lisbonWallClock } from "@notebus/domain";
+import { type PassageRecord, baseTimeAt, displayCenter, lisbonWallClock } from "@notebus/domain";
 import type { BoardChoice } from "./boardChoices";
 import { useNow } from "./NowProvider";
 import { useSchedule } from "./ScheduleProvider";
 import { useToast } from "./ToastProvider";
-import { type AlightToken, type BoardToken, type ObservationRow, type RideRow, createRegistro } from "./registro";
+import {
+  type AlightToken,
+  type BoardToken,
+  type EditPatch,
+  type EditResult,
+  type EditToken,
+  type ManualResult,
+  type ObservationRow,
+  type RideRow,
+  createRegistro,
+} from "./registro";
 import { matchNetworkOf, passageRecords } from "./records";
 import { type AlightRow, type TripCardModel, boardingOf, buildTripCard } from "./rideView";
 import { clockText } from "./stopCard";
 import { useNowTick } from "./useNowTick";
+import { openRecordSheet } from "../sheets/SheetsContext";
 import { t } from "../i18n";
 
 type Db = Parameters<typeof createRegistro>[0];
@@ -26,16 +37,25 @@ type Db = Parameters<typeof createRegistro>[0];
 export interface RegistroValue {
   status: "loading" | "ready";
   observations: readonly ObservationRow[];
+  rides: readonly RideRow[];
   /** Os registros aceitos, no formato da estatística (`expectedTime`). */
   records: readonly PassageRecord[];
   /** O cartão do `ride` aberto; `null` sem viagem em curso (ou com os horários ainda carregando). */
   tripCard: TripCardModel | null;
-  /** Embarque na linha escolhida da folha Registrar. Devolve `true` se o fato foi gravado. */
-  board: (stopId: string, choice: BoardChoice) => Promise<boolean>;
+  /** Embarque na linha escolhida da folha Registrar. Devolve o `observationId` se o fato foi gravado. */
+  board: (stopId: string, choice: BoardChoice) => Promise<string | null>;
   /** "Desci aqui" numa paragem da lista. Devolve `true` se a descida foi gravada. */
   alight: (card: TripCardModel, row: AlightRow) => Promise<boolean>;
   notBoarded: (card: TripCardModel) => void;
   dismiss: (card: TripCardModel) => void;
+  /** Edição do fato na TL-06 com toast e Desfazer. */
+  edit: (id: string, patch: EditPatch) => Promise<EditResult>;
+  /** Escolha manual na TL-09 com toast e Desfazer. */
+  chooseManual: (id: string, choice: { tripId: string; position: number; serviceDate: string; lineId?: string }) => Promise<ManualResult>;
+  /** "Não sei" na TL-09 com toast e Desfazer. */
+  dismissReview: (id: string) => Promise<void>;
+  /** Apaga o registro na TL-06 com toast e Desfazer. */
+  remove: (id: string) => Promise<{ pair: boolean; token: EditToken }>;
   /** Roda `job` na fila das gravações (o backup: importar e o Desfazer, uma transação por vez). */
   exclusive: <T>(job: () => Promise<T>) => Promise<T>;
   /** Relê os registros, refaz a fila de deduções e relê de novo, sem bloquear quem chamou. */
@@ -46,12 +66,17 @@ const nothing = async () => false;
 const RegistroContext = createContext<RegistroValue>({
   status: "loading",
   observations: [],
+  rides: [],
   records: [],
   tripCard: null,
-  board: nothing,
+  board: async () => null,
   alight: nothing,
   notBoarded: () => {},
   dismiss: () => {},
+  edit: async () => ({ changed: false, rejected: [], token: null }),
+  chooseManual: async () => ({ ok: false, problem: "uninitialized" }),
+  dismissReview: async () => {},
+  remove: async () => ({ pair: false, token: { observations: [], rides: [], createdRideIds: [] } }),
   exclusive: (job) => job(),
   refresh: async () => {},
 });
@@ -169,18 +194,19 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
   const undone = useCallback((body: string) => toast.show({ title: t("toast.undo_done.title"), body }), [toast]);
 
   const board = useCallback(
-    async (stopId: string, choice: BoardChoice): Promise<boolean> => {
+    async (stopId: string, choice: BoardChoice): Promise<string | null> => {
       const at = nowRef.current();
       const stopName = (scheduleRef.current.status === "ready" ? scheduleRef.current.data.stopNames.get(stopId) : undefined) ?? "";
-      const attempt = async (): Promise<boolean> => {
+      const attempt = async (): Promise<string | null> => {
         let token: BoardToken;
         try {
           token = await registro.board({ stopId, lineId: choice.lineId, at });
         } catch {
           failed(() => void attempt());
-          return false;
+          return null;
         }
         const time = hhmm(at);
+        const observationId = token.observationId;
         toast.show({
           title: t("toast.board.title"),
           body: t("toast.board.body", { line: choice.code, stop_name: stopName, time }),
@@ -198,13 +224,259 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
                 }
               })(),
           },
+          secondaryAction: {
+            label: t("toast.action.adjust"),
+            run: () => {
+              openRecordSheet(observationId);
+            },
+          },
         });
         void settle();
-        return true;
+        return observationId;
       };
       return attempt();
     },
     [registro, toast, failed, undone, settle, reload],
+  );
+
+  const edit = useCallback(
+    async (id: string, patch: EditPatch): Promise<EditResult> => {
+      const at = nowRef.current();
+      const row = state.observations.find((o) => o.id === id);
+      if (!row) throw new Error("registro não encontrado");
+      const prevTimeText = hhmm(row.observedAt);
+      let result: EditResult;
+      try {
+        result = await registro.edit(id, patch, at);
+      } catch {
+        failed(() => void edit(id, patch));
+        return { changed: false, rejected: [], token: null };
+      }
+
+      if (result.rejected.length > 0) {
+        const code = result.rejected[0]!.code;
+        let problemText = t("toast.save_failed.body");
+        if (code === "before_boarding") problemText = t("sheet_record.problem.before_boarding");
+        else if (code === "position_not_after") problemText = t("sheet_record.problem.position_not_after");
+        else if (code === "pattern_differs") problemText = t("sheet_record.problem.pattern_differs");
+        else if (code === "future") problemText = t("sheet_record.problem.future");
+        else if (code === "invalid_interval") problemText = t("sheet_record.problem.invalid_interval");
+
+        const token = result.token;
+        toast.show({
+          title: t("toast.record_not_saved.title"),
+          body: problemText,
+          kind: "error",
+          haptic: "error",
+          action: token
+            ? {
+                label: t("toast.action.undo"),
+                run: () =>
+                  void (async () => {
+                    try {
+                      await registro.restore(token, nowRef.current());
+                      await reload();
+                      undone(t("toast.undo_record.body", { time: prevTimeText }));
+                    } catch {
+                      failed(() => {});
+                    }
+                  })(),
+              }
+            : undefined,
+        });
+      } else if (result.changed && result.token) {
+        const token = result.token;
+        const lineCode =
+          scheduleRef.current.status === "ready"
+            ? (scheduleRef.current.data.lineInfo.get(row.lineId)?.code ?? row.lineId)
+            : row.lineId;
+        const stopName =
+          scheduleRef.current.status === "ready" ? (scheduleRef.current.data.stopNames.get(row.stopId) ?? "") : "";
+        const effectiveAt = patch.observedAt ?? row.observedAt;
+        const timeText = hhmm(effectiveAt);
+
+        toast.show({
+          title: t("toast.record_changed.title"),
+          body: t("toast.record_changed.body", { line: lineCode, stop_name: stopName, time: timeText }),
+          haptic: "success",
+          action: {
+            label: t("toast.action.undo"),
+            run: () =>
+              void (async () => {
+                try {
+                  await registro.restore(token, nowRef.current());
+                  await reload();
+                  undone(t("toast.undo_record.body", { time: prevTimeText }));
+                } catch {
+                  failed(() => {});
+                }
+              })(),
+          },
+        });
+      }
+
+      if (result.changed) {
+        await reload();
+        void settle();
+      }
+      return result;
+    },
+    [registro, state.observations, failed, undone, reload, settle, toast],
+  );
+
+  const chooseManual = useCallback(
+    async (
+      id: string,
+      choice: { tripId: string; position: number; serviceDate: string; lineId?: string },
+    ): Promise<ManualResult> => {
+      const at = nowRef.current();
+      const row = state.observations.find((o) => o.id === id);
+      if (!row) throw new Error("registro não encontrado");
+      let result: ManualResult;
+      try {
+        result = await registro.chooseManual(id, choice, at);
+      } catch {
+        failed(() => void chooseManual(id, choice));
+        return { ok: false, problem: "failed" };
+      }
+
+      if (!result.ok) {
+        const body =
+          result.problem === "alight_conflict"
+            ? t("sheet_verify.problem.alight_conflict")
+            : t("toast.save_failed.body");
+        toast.show({
+          title: t("toast.save_failed.title"),
+          body,
+          haptic: "error",
+        });
+        return result;
+      }
+
+      const token = result.token;
+      const isOtherLine = Boolean(choice.lineId && choice.lineId !== row.lineId);
+      const targetLineId = choice.lineId ?? row.lineId;
+      const lineCode =
+        scheduleRef.current.status === "ready"
+          ? (scheduleRef.current.data.lineInfo.get(targetLineId)?.code ?? targetLineId)
+          : targetLineId;
+
+      const trip =
+        scheduleRef.current.status === "ready"
+          ? scheduleRef.current.data.trips.find((t) => t.id === choice.tripId)
+          : undefined;
+      const firstBase = trip ? baseTimeAt(trip, trip.firstPosition) : null;
+      const tripTime = firstBase ? clockText(displayCenter(firstBase.minute)) : "";
+
+      const body = isOtherLine
+        ? t("toast.verified_other_line.body", { line: lineCode, time: tripTime })
+        : t("toast.verified.body", { line: lineCode, time: tripTime });
+
+      toast.show({
+        title: t("toast.verified.title"),
+        body,
+        haptic: "success",
+        action: {
+          label: t("toast.action.undo"),
+          run: () =>
+            void (async () => {
+              try {
+                await registro.restore(token, nowRef.current());
+                await reload();
+                undone(t("toast.undo_verify.body"));
+              } catch {
+                failed(() => {});
+              }
+            })(),
+        },
+      });
+
+      await reload();
+      void settle();
+      return result;
+    },
+    [registro, state.observations, failed, undone, reload, settle, toast],
+  );
+
+  const dismissReview = useCallback(
+    async (id: string): Promise<void> => {
+      const at = nowRef.current();
+      let token: EditToken | null;
+      try {
+        token = await registro.dismissReview(id, at);
+      } catch {
+        failed(() => void dismissReview(id));
+        return;
+      }
+
+      toast.show({
+        title: t("toast.dont_know.title"),
+        body: t("toast.dont_know.body"),
+        action: token
+          ? {
+              label: t("toast.action.undo"),
+              run: () =>
+                void (async () => {
+                  try {
+                    await registro.restore(token, nowRef.current());
+                    await reload();
+                    undone(t("toast.undo_verify.body"));
+                  } catch {
+                    failed(() => {});
+                  }
+                })(),
+            }
+          : undefined,
+      });
+
+      await reload();
+      void settle();
+    },
+    [registro, failed, undone, reload, settle, toast],
+  );
+
+  const remove = useCallback(
+    async (id: string): Promise<{ pair: boolean; token: EditToken }> => {
+      const at = nowRef.current();
+      const row = state.observations.find((o) => o.id === id);
+      if (!row) throw new Error("registro não encontrado");
+      let result: { pair: boolean; token: EditToken };
+      try {
+        result = await registro.remove(id, at);
+      } catch {
+        failed(() => void remove(id));
+        throw new Error("falha ao apagar registro");
+      }
+
+      const lineCode =
+        scheduleRef.current.status === "ready"
+          ? (scheduleRef.current.data.lineInfo.get(row.lineId)?.code ?? row.lineId)
+          : row.lineId;
+      const timeText = hhmm(row.observedAt);
+
+      toast.show({
+        title: result.pair ? t("toast.record_deleted_pair.title") : t("toast.record_deleted.title"),
+        body: t("toast.record_deleted.body", { line: lineCode, time: timeText }),
+        action: {
+          label: t("toast.action.undo"),
+          run: () =>
+            void (async () => {
+              try {
+                await registro.restore(result.token, nowRef.current());
+                await reload();
+                undone(t("toast.undo_delete.body"));
+              } catch {
+                failed(() => {});
+              }
+            })(),
+        },
+      });
+
+      await reload();
+      void settle();
+      return result;
+    },
+    [registro, state.observations, failed, undone, reload, settle, toast],
   );
 
   const alight = useCallback(
@@ -320,8 +592,40 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
 
   const exclusive = registro.exclusive;
   const value = useMemo<RegistroValue>(
-    () => ({ status: state.status, observations: state.observations, records, tripCard, board, alight, notBoarded, dismiss, exclusive, refresh: settle }),
-    [state.status, state.observations, records, tripCard, board, alight, notBoarded, dismiss, exclusive, settle],
+    () => ({
+      status: state.status,
+      observations: state.observations,
+      rides: state.rides,
+      records,
+      tripCard,
+      board,
+      alight,
+      notBoarded,
+      dismiss,
+      edit,
+      chooseManual,
+      dismissReview,
+      remove,
+      exclusive,
+      refresh: settle,
+    }),
+    [
+      state.status,
+      state.observations,
+      state.rides,
+      records,
+      tripCard,
+      board,
+      alight,
+      notBoarded,
+      dismiss,
+      edit,
+      chooseManual,
+      dismissReview,
+      remove,
+      exclusive,
+      settle,
+    ],
   );
   return <RegistroContext.Provider value={value}>{children}</RegistroContext.Provider>;
 }

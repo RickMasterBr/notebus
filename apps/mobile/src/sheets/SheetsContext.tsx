@@ -1,8 +1,8 @@
 /** Estado da pilha de folhas para a árvore de componentes. A lógica está em `stack.ts` (testada no Node). */
 import { useNow } from "../data/NowProvider";
 import { DIAG_SCROLL, recordOpenRequest } from "./diagScroll";
-import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useMemo, useReducer, useRef } from "react";
-import { type SheetAction, type SheetStackState, initialSheetState, sheetReducer } from "./stack";
+import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
+import { type SheetAction, type SheetContent, type SheetStackState, initialSheetState, sheetReducer } from "./stack";
 
 interface SheetsValue {
   state: SheetStackState;
@@ -21,6 +21,16 @@ const StopPickContext = createContext<StopPickValue | null>(null);
 
 const SheetsContext = createContext<SheetsValue | null>(null);
 
+let sheetOpener: ((sheet: SheetContent) => void) | null = null;
+
+export function openRecordSheet(observationId: string): void {
+  sheetOpener?.({ kind: "record", observationId });
+}
+
+export function openVerifySheet(observationId: string): void {
+  sheetOpener?.({ kind: "verify", observationId });
+}
+
 export function SheetsProvider({ children }: { children: ReactNode }) {
   const [state, rawDispatch] = useReducer(sheetReducer, initialSheetState);
   // `dispatch` tem identidade fixa: o "agora" muda quando o relógio de teste liga, troca ou desliga, e uma `dispatch` nova
@@ -33,6 +43,14 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
     if (DIAG_SCROLL && action.type === "push") recordOpenRequest(action.sheet.kind, nowRef.current());
     rawDispatch(action);
   }, []);
+
+  useEffect(() => {
+    sheetOpener = (sheet) => dispatch({ type: "push", sheet });
+    return () => {
+      sheetOpener = null;
+    };
+  }, [dispatch]);
+
   const value = useMemo(() => ({ state, dispatch }), [state, dispatch]);
   const pick = useRef<StopPick | null>(null);
   const stopPick = useMemo<StopPickValue>(
