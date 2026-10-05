@@ -83,17 +83,17 @@ export function normalizedDistance(deviation: number, config: DomainConfig = DOM
 }
 
 /**
- * Casa um registro com as viagens (Fase 1 §4.2): candidatos = pares (viagem, posição) da linha, neste ponto, com
- * desvio de −5 a +15 inclusive, olhando o dia de serviço de hoje e o de ontem (viagens depois da meia-noite, D-016).
- * Um candidato → `auto`; vários → `ambiguous`; nenhum → `orphan`, com o mais perto em `nearest`.
- * Com uma viagem em curso da mesma linha (D-071), só contam as passagens dessa viagem nesse dia de serviço.
+ * Todos os pares (viagem, posição) da linha neste ponto, nos dias de serviço de hoje e de ontem, cada um com o seu desvio
+ * e a distância normalizada, do mais perto ao mais longe. É a base do casamento (`matchObservation`) e das opções da
+ * TL-09 (`verifyOptions`, E-04); com uma viagem em curso da mesma linha (D-071) só contam as passagens dela.
+ * `lineId` troca a linha olhada (as opções de "outra linha" avaliam o mesmo ponto e a mesma hora em outra linha).
  */
-export function matchObservation(
+export function evaluatePassages(
   fact: Pick<ObservationFact, "stopId" | "lineId" | "observedAt" | "observedEndAt">,
   network: MatchNetwork,
   ride: OngoingRide | null = null,
   config: DomainConfig = DOMAIN_CONFIG,
-): MatchResult {
+): MatchCandidate[] {
   const instant = matchInstant(fact);
   const seconds = (((instant % MINUTE_MS) + MINUTE_MS) % MINUTE_MS) / MINUTE_MS;
   const { today, yesterday } = serviceDaysAt(instant, network.calendar);
@@ -134,6 +134,22 @@ export function matchObservation(
   }
 
   evaluated.sort((a, b) => a.distance - b.distance || a.base.minute - b.base.minute);
+  return evaluated;
+}
+
+/**
+ * Casa um registro com as viagens (Fase 1 §4.2): candidatos = pares (viagem, posição) da linha, neste ponto, com
+ * desvio de −5 a +15 inclusive, olhando o dia de serviço de hoje e o de ontem (viagens depois da meia-noite, D-016).
+ * Um candidato → `auto`; vários → `ambiguous`; nenhum → `orphan`, com o mais perto em `nearest`.
+ * Com uma viagem em curso da mesma linha (D-071), só contam as passagens dessa viagem nesse dia de serviço.
+ */
+export function matchObservation(
+  fact: Pick<ObservationFact, "stopId" | "lineId" | "observedAt" | "observedEndAt">,
+  network: MatchNetwork,
+  ride: OngoingRide | null = null,
+  config: DomainConfig = DOMAIN_CONFIG,
+): MatchResult {
+  const evaluated = evaluatePassages(fact, network, ride, config);
   const candidates = evaluated.filter((c) => c.deviation >= -config.matchEarlyMinutes - EPS && c.deviation <= config.matchLateMinutes + EPS);
   const status = candidates.length === 1 ? "auto" : candidates.length > 1 ? "ambiguous" : "orphan";
   return { status, candidates, nearest: evaluated[0] ?? null };

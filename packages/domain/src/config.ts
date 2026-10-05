@@ -39,6 +39,14 @@ export interface DomainConfig {
   rideEndToleranceMinutes: number;
   /** `ride` sem viagem conhecida (sem fim de percurso) fecha sozinho isto depois do embarque (Q-85: 3 h). */
   rideWithoutTripHours: number;
+  /** Edição (E-04 §3.1): "mais ou menos" em minutos para cada lado do centro (máximo 20 min no total, invariante 4). */
+  intervalHalfMinutes: readonly number[];
+  /** O seletor de hora vale para a ocorrência mais recente no passado, até estas horas atrás (Q-44, T-42). */
+  pickedTimeLookbackHours: number;
+  /** TL-09: só entram como vizinhas da órfã as passagens com desvio absoluto até isto (proposta do bloco 1 da E-04). */
+  verifyMaxDeviationMinutes: number;
+  /** TL-09 "Ou foi outra linha?": uma passagem a até isto da hora anotada (E-04 §4.3). */
+  verifyOtherLineWindowMinutes: number;
 }
 
 export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
@@ -61,4 +69,8 @@ export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
   inRideMinHalfRangeMinutes: 2,
   rideEndToleranceMinutes: 30,
   rideWithoutTripHours: 3,
+  intervalHalfMinutes: Object.freeze([2, 5, 10]),
+  pickedTimeLookbackHours: 24,
+  verifyMaxDeviationMinutes: 30,
+  verifyOtherLineWindowMinutes: 15,
 });
