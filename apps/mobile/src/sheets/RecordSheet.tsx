@@ -9,7 +9,7 @@
 import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { lisbonWallClock, previewMatch } from "@notebus/domain";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Platform,
@@ -17,6 +17,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRegistro } from "../data/RegistroProvider";
@@ -44,8 +45,24 @@ import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CrossGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
+import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
-import { StackedSheet, useCloseSheet } from "./StackedSheet";
+import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
+import { containerHeightOf, detentMetrics } from "./scrollInset";
+
+const HeightContext = createContext<(height: number) => void>(() => {});
+
+function RecordHandle({ onClose }: { onClose: () => void }) {
+  const setHandleHeight = useContext(HeightContext);
+  return (
+    <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
+      <SheetHandle kind="close" onPress={onClose} />
+    </View>
+  );
+}
+
+/** Canvas: a folha tem 806 px num iPhone de 844 (≈ 95%). */
+const DETENTS: StackedDetents = { snapPoints: ["95%"], initialIndex: 0, Handle: RecordHandle };
 
 const EXACT_CHIPS = [-10, -5, -2, -1, 1] as const;
 const RANGE_CHIPS = [2, 5, 10] as const;
@@ -109,8 +126,18 @@ function RecordSheetLoaded({
   insets: ReturnType<typeof useSafeAreaInsets>;
   colors: ReturnType<typeof useTheme>["colors"];
 }) {
+  const window = useWindowDimensions();
+  const [handleHeight, setHandleHeight] = useState(0);
   const [draft, setDraft] = useState(() => initDraft(initialRow));
   const [showPicker, setShowPicker] = useState(false);
+
+  const scrollAreaHeight = Math.max(
+    80,
+    Math.round(
+      detentMetrics(DETENTS.snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]
+        ?.scrollAreaHeight ?? 0,
+    ),
+  );
 
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -221,30 +248,30 @@ function RecordSheetLoaded({
   const plusOneDisabled = isPlusOneDisabled(draft, instant);
 
   return (
-    <StackedSheet id={id} tall>
-      <View style={styles.container}>
-        {/* Cabeçalho */}
-        <View style={styles.header}>
-          <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
-            {t("sheet_record.title")}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("common.close")}
-            onPress={close}
-            style={styles.closeHitTarget}
+    <HeightContext.Provider value={setHandleHeight}>
+      <StackedSheet id={id} detents={DETENTS}>
+        <View collapsable={false} style={{ height: scrollAreaHeight, overflow: "hidden" }}>
+          <BottomSheetScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + space.lg }]}
+            showsVerticalScrollIndicator={false}
           >
-            <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
-              <CrossGlyph color={colors.textSecondary} />
+            {/* Cabeçalho */}
+            <View style={styles.header}>
+              <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
+                {t("sheet_record.title")}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("common.close")}
+                onPress={close}
+                style={styles.closeHitTarget}
+              >
+                <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
+                  <CrossGlyph color={colors.textSecondary} />
+                </View>
+              </Pressable>
             </View>
-          </Pressable>
-        </View>
-
-        <BottomSheetScrollView
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + space.lg }]}
-          showsVerticalScrollIndicator={false}
-        >
           {/* Card Resumo (Linha, Ponto, Dia, Descida) */}
           <View style={[styles.summaryCard, { backgroundColor: colors.fill }]}>
             {/* Linha */}
@@ -569,6 +596,7 @@ function RecordSheetLoaded({
             </Text>
           </Pressable>
         </BottomSheetScrollView>
+        </View>
 
         {/* DateTimePicker Nativo */}
         {showPicker && (
@@ -625,8 +653,8 @@ function RecordSheetLoaded({
             />
           )
         )}
-      </View>
-    </StackedSheet>
+      </StackedSheet>
+    </HeightContext.Provider>
   );
 }
 
@@ -655,6 +683,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   scrollContent: {
+    paddingHorizontal: space.md,
     gap: space.md,
   },
   summaryCard: {
