@@ -205,10 +205,14 @@ function RecordSheetLoaded({
           date: `${wall.date.slice(8, 10)}/${wall.date.slice(5, 7)}`,
         });
 
-  const handleDelete = useCallback(() => {
-    isDeletedRef.current = true;
-    close();
-    void registro.remove(initialRow.id);
+  const handleDelete = useCallback(async () => {
+    try {
+      await registro.remove(initialRow.id);
+      isDeletedRef.current = true;
+      close();
+    } catch {
+      /* o provider já mostrou o toast de falha com "Tentar de novo" */
+    }
   }, [close, registro, initialRow.id]);
 
   const timeLabel = formatDraftTime(draft);
