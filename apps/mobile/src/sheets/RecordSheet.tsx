@@ -43,7 +43,7 @@ import { dateNumbers, hhmm, weekdayName } from "../data/testClockPicker";
 import { useNowTick } from "../data/useNowTick";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
-import { CrossGlyph } from "../ui/Glyphs";
+import { CheckGlyph, CrossGlyph, InfoGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
@@ -514,9 +514,9 @@ function RecordSheetLoaded({
               <View role="status" aria-live="polite" style={styles.matchPhraseContainer}>
                 <View style={styles.matchIconWrapper}>
                   {matchPhrase.kind === "auto" ? (
-                    <Text style={[styles.infoMark, { color: colors.textSecondary }]}>✓</Text>
+                    <CheckGlyph color={colors.textSecondary} />
                   ) : (
-                    <Text style={[styles.infoMark, { color: colors.textSecondary }]}>ℹ</Text>
+                    <InfoGlyph color={colors.textSecondary} />
                   )}
                 </View>
                 <Text style={[type.caption, styles.num, styles.matchText, { color: colors.text }]}>
