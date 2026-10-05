@@ -53,6 +53,27 @@ export function PinGlyph({ color }: { color: string }) {
   );
 }
 
+/** Ícone de informação de 14 px: círculo com borda e ponto/haste verticais, sem caractere Unicode. */
+export function InfoGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.info} {...HIDDEN}>
+      <View style={[styles.infoRing, { borderColor: color }]}>
+        <View style={[styles.infoDot, { backgroundColor: color }]} />
+        <View style={[styles.infoBar, { backgroundColor: color }]} />
+      </View>
+    </View>
+  );
+}
+
+/** Ícone de confirmação (check) de 14 px: duas hastes em ângulo reto desenhadas com bordas e rotacionadas em 45°. */
+export function CheckGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.check} {...HIDDEN}>
+      <View style={[styles.checkStem, { borderColor: color }]} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   plus: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
   plusBar: { position: "absolute", borderRadius: 1.2 },
@@ -65,4 +86,25 @@ const styles = StyleSheet.create({
   handle: { position: "absolute", left: 11, top: 14, width: 7, height: 2, borderRadius: 1, transform: [{ rotate: "45deg" }] },
   cross: { width: 14, height: 14, alignItems: "center", justifyContent: "center" },
   bar: { position: "absolute", width: 16, height: 2, borderRadius: 1 },
+  info: { width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  infoRing: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1.5,
+  },
+  infoDot: { width: 1.6, height: 1.6, borderRadius: 0.8 },
+  infoBar: { width: 1.6, height: 4.5, borderRadius: 0.8 },
+  check: { width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  checkStem: {
+    width: 4.5,
+    height: 8.5,
+    borderBottomWidth: 1.8,
+    borderRightWidth: 1.8,
+    borderRadius: 0.5,
+    transform: [{ rotate: "45deg" }, { translateY: -1 }],
+  },
 });

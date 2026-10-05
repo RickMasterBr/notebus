@@ -207,8 +207,7 @@ export function HomeSheet() {
               contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
             >
-              <NearbyStops />
-              {state.detent === 1 && pendingInfo ? (
+              {state.detent >= 1 && pendingInfo ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={pendingInfo.text}
@@ -227,6 +226,7 @@ export function HomeSheet() {
                   <Text style={{ color: colors.textSecondary, fontSize: 16 }}>→</Text>
                 </Pressable>
               ) : null}
+              <NearbyStops />
               <HiddenBelowSpacer snapPoints={snapPoints} />
             </BottomSheetScrollView>
           </View>
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: space.xs,
-    marginTop: space.sm,
+    marginBottom: space.sm,
   },
 });
 

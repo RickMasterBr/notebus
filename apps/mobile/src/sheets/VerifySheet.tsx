@@ -24,7 +24,7 @@ import { matchNetworkOf } from "../data/records";
 import { dateNumbers, hhmm, weekdayName } from "../data/testClockPicker";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
-import { CrossGlyph } from "../ui/Glyphs";
+import { CrossGlyph, InfoGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
@@ -214,7 +214,9 @@ export function VerifySheet({ id, observationId }: { id: number; observationId: 
 
             {/* Frase explicativa */}
             <View style={styles.explanationRow}>
-              <Text style={[styles.infoMark, { color: colors.textSecondary }]}>ℹ</Text>
+              <View style={styles.infoMark}>
+                <InfoGlyph color={colors.textSecondary} />
+              </View>
               <Text style={[type.body, styles.num, styles.explanationText, { color: colors.text }]}>
                 {explanation}
               </Text>
@@ -423,9 +425,7 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   infoMark: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginTop: 2,
+    marginTop: 3,
   },
   explanationText: {
     flex: 1,
