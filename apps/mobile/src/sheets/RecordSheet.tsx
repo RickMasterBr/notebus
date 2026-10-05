@@ -11,6 +11,7 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { lisbonWallClock, previewMatch } from "@notebus/domain";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -56,7 +57,7 @@ function RecordHandle({ onClose }: { onClose: () => void }) {
   const setHandleHeight = useContext(HeightContext);
   return (
     <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
-      <SheetHandle kind="close" onPress={onClose} />
+      <SheetHandle kind="close" hideCloseButton onPress={onClose} />
     </View>
   );
 }
@@ -130,6 +131,39 @@ function RecordSheetLoaded({
   const [handleHeight, setHandleHeight] = useState(0);
   const [draft, setDraft] = useState(() => initDraft(initialRow));
   const [showPicker, setShowPicker] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollRef = useRef<React.ElementRef<typeof BottomSheetScrollView>>(null);
+  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const handleNoteFocus = useCallback(() => {
+    if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+    focusTimeoutRef.current = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+    };
+  }, []);
 
   const scrollAreaHeight = Math.max(
     80,
@@ -252,8 +286,12 @@ function RecordSheetLoaded({
       <StackedSheet id={id} detents={DETENTS}>
         <View collapsable={false} style={{ height: scrollAreaHeight, overflow: "hidden" }}>
           <BottomSheetScrollView
+            ref={scrollRef}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + space.lg }]}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: insets.bottom + space.lg + keyboardHeight },
+            ]}
             showsVerticalScrollIndicator={false}
           >
             {/* Cabeçalho */}
@@ -570,6 +608,7 @@ function RecordSheetLoaded({
               placeholder={t("sheet_record.note.placeholder")}
               placeholderTextColor={colors.textSecondary}
               style={[styles.noteInput, { backgroundColor: colors.fill, color: colors.text }]}
+              onFocus={handleNoteFocus}
             />
           </View>
 

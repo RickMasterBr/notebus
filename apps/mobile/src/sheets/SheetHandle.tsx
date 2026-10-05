@@ -14,6 +14,7 @@ type Props =
   | {
       kind: "close";
       onPress: () => void;
+      hideCloseButton?: boolean;
     }
   | {
       kind: "adjustable";
@@ -47,7 +48,7 @@ export function SheetHandle(props: Props) {
         >
           {bar}
         </Pressable>
-        <CloseButton onPress={props.onPress} />
+        {!props.hideCloseButton && <CloseButton onPress={props.onPress} />}
       </View>
     );
   }
