@@ -11,6 +11,12 @@ export interface TextSegment {
   bold: boolean;
 }
 
+/**
+ * Largura mínima da coluna de hora da TL-05 (Item 7) para acomodar "~HH:MM"
+ * com algarismos tabulares e negrito sem quebrar em duas linhas.
+ */
+export const AHEAD_TIME_WIDTH = 60;
+
 /** Parte "texto **negrito** texto" do catálogo em trechos (a 4.6 marca o negrito com `**`). */
 export function boldSegments(text: string): TextSegment[] {
   return text
