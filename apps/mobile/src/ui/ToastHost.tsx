@@ -41,7 +41,7 @@ export function ToastHost() {
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
   const reduceMotion = useReduceMotion();
-  const { toast, press, dismiss } = useToast();
+  const { toast, press, pressSecondary, dismiss } = useToast();
 
   const panResponder = useMemo(
     () =>
@@ -80,6 +80,15 @@ export function ToastHost() {
               style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
             >
               <Text style={[type.subtitle, { color: colors.toastAction }]}>{toast.action.label}</Text>
+            </Pressable>
+          ) : null}
+          {toast.secondaryAction ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={pressSecondary}
+              style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+            >
+              <Text style={[type.subtitle, { color: colors.toastAction }]}>{toast.secondaryAction.label}</Text>
             </Pressable>
           ) : null}
         </Animated.View>

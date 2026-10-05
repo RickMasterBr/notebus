@@ -18,6 +18,7 @@ export interface ToastSpec {
   /** `error`: não some sozinho (um erro que some em 5 s pode não ser visto por quem registra sem olhar a tela). */
   kind?: "info" | "error";
   action?: ToastAction;
+  secondaryAction?: ToastAction;
   /** O VoiceOver está ligado: 8 s em vez de 5 s. */
   screenReader?: boolean;
 }
@@ -63,6 +64,13 @@ export function createToastController<Handle>(timers: ToastTimers<Handle>, onCha
     /** Toque na ação: o toast some na hora, depois a ação roda (ela pode mostrar outro toast). */
     press(): void {
       const action = current?.action;
+      if (!action) return;
+      cancel();
+      set(null);
+      action.run();
+    },
+    pressSecondary(): void {
+      const action = current?.secondaryAction;
       if (!action) return;
       cancel();
       set(null);
