@@ -172,6 +172,31 @@ describe("B3, T-46: tempo real de trecho (Fase 1 §4.5 passo 2)", () => {
     const one = run({ ...l3, rideMinutes: [10] });
     expect(fmt(one.arriveAt)).toBe("08:17");
   });
+
+  it("item 0: trecho com deslocamentos usa o tempo oficial da tabela, não a diferença dos centros esperados", () => {
+    // Tabela: P1 pos 1 (08:10) até pos 10 (08:30) = 20 min oficial.
+    // Registro de +8 só na descida (pos 10).
+    const option: BusOption = {
+      id: "oficial-trecho",
+      pattern: P1,
+      boardPosition: 1,
+      alightPosition: 10,
+      walkToBoard: walkNone,
+      walkAfterAlight: { min: 5, max: null },
+      rideMinutes: [24, 26],
+    };
+    const T0810 = hm(8, 10);
+    const trips = TRIPS.filter((t) => t.id === tripId(P1, "weekday", T0810));
+    const alightStopId = P1.stops.find((s) => s.position === 10)!.stopId;
+    const records = [rec({ pattern: P1, start: T0810, position: 10, stopId: alightStopId, deviation: 8 })];
+    const [c] = busCandidates(option, input({ busOptions: [option], trips, records, now: EARLY }));
+    // Oficial da tabela = 20 min. Mediana de [24, 26] = 25.
+    // Trecho encolhido = (2·25 + 3·20)/5 = 22 min.
+    // Embarque: base 08:10, 1 registro na viagem (+8) encolhido com k=3 → centro = 08:12 (492 min).
+    // Chega = centro no embarque (08:12) + 22 + 5 = 08:39.
+    // Com o bug (alight.center - board.center = 26), o trecho dava 25,6 e a chegada dava 08:43.
+    expect(fmt(c!.arriveAt)).toBe("08:39");
+  });
 });
 
 describe("B2: limites e recusas", () => {
