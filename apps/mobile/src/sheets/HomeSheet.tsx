@@ -23,7 +23,7 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, StyleSheet, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBackup } from "../data/BackupProvider";
@@ -31,9 +31,10 @@ import { useRecentStops } from "../data/RecentStopsProvider";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
+import { homePendingInfo } from "../data/homePending";
 import { initialDetent } from "../data/homeStart";
 import { t } from "../i18n";
-import { elevation, radius, space, useTheme } from "../theme";
+import { elevation, radius, space, type, useTheme } from "../theme";
 import { REGISTER_BUTTON_HEIGHT, RegisterButton } from "../ui/RegisterButton";
 import { SearchPill } from "../ui/SearchPill";
 import { BackupReminderCard, TripCard } from "../ui/TripCard";
@@ -57,7 +58,8 @@ export function HomeSheet() {
   const schedule = useSchedule();
   const recent = useRecentStops();
   const listReady = stops.status !== "loading" && schedule.status !== "loading" && recent.status !== "loading";
-  const { tripCard, notBoarded, dismiss } = useRegistro();
+  const { tripCard, notBoarded, dismiss, observations } = useRegistro();
+  const pendingInfo = useMemo(() => homePendingInfo(observations), [observations]);
   const backup = useBackup();
   const reminder = backup.reminder.show
     ? backup.reminder.daysSince === null
@@ -206,6 +208,25 @@ export function HomeSheet() {
               showsVerticalScrollIndicator={false}
             >
               <NearbyStops />
+              {state.detent === 1 && pendingInfo ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={pendingInfo.text}
+                  onPress={() =>
+                    dispatch({
+                      type: "push",
+                      sheet: { kind: "verify", observationId: pendingInfo.targetObservationId },
+                    })
+                  }
+                  style={({ pressed }) => [
+                    styles.pendingRow,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <Text style={[type.body, { color: colors.textSecondary }]}>{pendingInfo.text}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 16 }}>→</Text>
+                </Pressable>
+              ) : null}
               <HiddenBelowSpacer snapPoints={snapPoints} />
             </BottomSheetScrollView>
           </View>
@@ -227,6 +248,14 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: space.md },
   card: { paddingBottom: space.md, gap: space.sm },
   fab: { position: "absolute", top: 0, right: space.md },
+  pendingRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: space.xs,
+    marginTop: space.sm,
+  },
 });
 
 /** Handle da folha inicial: o rótulo e o valor acompanham o detent; os ajustes do VoiceOver movem a folha. */

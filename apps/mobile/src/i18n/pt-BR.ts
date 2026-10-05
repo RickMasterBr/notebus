@@ -203,6 +203,82 @@ export const ptBR = {
   "toast.import_undone.title": "Importação desfeita",
   "toast.import_failed.title": "Backup não importado",
   "toast.import_failed.body": "Nada foi gravado.",
+  // E-04 (TL-06, TL-09, Início, 4.6 §3.11)
+  "toast.action.adjust": "Ajustar",
+  "sheet_verify.title": "Conferir registro",
+  "sheet_verify.record": "{{weekday}} {{date}} · {{time}} · {{kind}}",
+  "sheet_verify.orphan": "Nenhuma viagem da linha {{line}} costuma passar aqui às {{time}}. Até você conferir, este registro fica fora da estimativa.",
+  "sheet_verify.ambiguous": "Duas viagens da linha {{line}} passam aqui perto das {{time}}. Até você conferir, este registro fica fora da estimativa.",
+  "sheet_verify.which": "Qual foi?",
+  "sheet_verify.trip.late": "A das {{time}}, {{minutes}} min atrasada",
+  "sheet_verify.trip.early": "A das {{time}}, {{minutes}} min adiantada",
+  "sheet_verify.trip.on_time": "A das {{time}}, na hora",
+  "sheet_verify.trip.detail": "→ {{destination}} · sai do {{first_stop}} às {{time}}",
+  "sheet_verify.other_line": "Ou foi outra linha?",
+  "sheet_verify.ride_hint": "Sua descida em {{stop_name}} às {{time}} bate com esta",
+  "sheet_verify.fix_time": "Corrigir a hora",
+  "sheet_verify.dont_know": "Não sei",
+  "toast.verified.title": "Registro conferido",
+  "toast.verified.body": "Linha {{line}} · viagem das {{time}} · entra na estimativa",
+  "toast.verified_other_line.body": "Trocado para a linha {{line}} · viagem das {{time}}",
+  "toast.dont_know.title": "Fica para depois",
+  "toast.dont_know.body": "Fora da estimativa. Está em Registros.",
+  "toast.undo_verify.body": "Voltou para conferir",
+  "sheet_record.title": "Registro",
+  "sheet_record.field.line": "Linha",
+  "sheet_record.field.stop": "Ponto",
+  "sheet_record.field.day": "Dia",
+  "sheet_record.field.alight": "Descida",
+  "sheet_record.alight.none": "ainda em viagem",
+  "sheet_record.day.today": "Hoje · {{weekday}} {{date}}",
+  "sheet_record.kind.boarded": "Embarquei",
+  "sheet_record.kind.passed": "Só vi passar",
+  "common.kind.boarded.short": "embarquei",
+  "sheet_record.time": "Hora",
+  "sheet_record.time.exact": "Exata",
+  "sheet_record.time.range": "Mais ou menos",
+  "sheet_record.time.aria": "Hora {{time}}, tocar para escolher",
+  "sheet_record.adjust.before.aria": "{{count}} minuto(s) antes",
+  "sheet_record.adjust.after.aria": "{{count}} minuto(s) depois",
+  "sheet_record.range.chip": "± {{minutes}} min",
+  "sheet_record.match.auto": "Casa com a viagem das {{trip_time}} · pela tabela passa aqui às {{time}} · você: {{relative}}",
+  "sheet_record.relative.late": "{{minutes}} min depois",
+  "sheet_record.relative.early": "{{minutes}} min antes",
+  "sheet_record.relative.on_time": "na hora",
+  "sheet_record.match.orphan": "Nenhuma viagem da linha {{line}} costuma passar aqui às {{time}}. Vai ficar para conferir, fora da estimativa.",
+  "sheet_record.match.orphan_range": "Nenhuma viagem da linha {{line}} costuma passar aqui entre {{start}} e {{end}}. Vai ficar para conferir, fora da estimativa.",
+  "sheet_record.match.ambiguous": "Duas viagens podem ter sido essa. Vai ficar para conferir.",
+  "sheet_record.memory": "Anotei de memória",
+  "sheet_record.memory.detail": "Não tenho certeza da hora · pesa menos na estimativa",
+  "sheet_record.note": "Nota (opcional)",
+  "sheet_record.note.placeholder": "ex.: ônibus lotado",
+  "sheet_record.delete": "Apagar registro",
+  "toast.record_changed.title": "Registro alterado",
+  "toast.record_changed.body": "Linha {{line}} · {{stop_name}} · {{time}}",
+  "toast.record_deleted.title": "Registro apagado",
+  "toast.record_deleted.body": "Embarque das {{time}} · linha {{line}}",
+  "toast.undo_record.body": "Voltou para {{time}}",
+  "toast.undo_delete.body": "O embarque voltou",
+  "alight_picker.second_pass": "{{ordinal}} passagem · segue para a {{destination}}",
+  "common.end_of_route": "fim do percurso",
+  "home.pending": "{{count}} registros para conferir",
+  "home.pending_review": "{{count}} registros para conferir",
+  // Q-91 (textos provisórios para o Rick aprovar ou trocar)
+  "toast.record_not_saved.title": "Alteração não gravada", // Q-91
+  "sheet_record.problem.before_boarding": "A descida não pode ser antes do embarque", // Q-91
+  "sheet_record.problem.position_not_after": "A descida precisa ser depois do embarque, no mesmo percurso", // Q-91
+  "sheet_record.problem.pattern_differs": "Embarque e descida precisam ser do mesmo percurso", // Q-91
+  "sheet_record.problem.future": "A hora não pode ser no futuro", // Q-91
+  "sheet_record.problem.invalid_interval": "O intervalo não pode passar de 30 minutos", // Q-91
+  "sheet_record.kind_passed_warning": "Ao trocar para “vi passar”, a descida deste registro será apagada. O Desfazer devolve.", // Q-91
+  "sheet_record.day.other": "{{weekday}} {{date}}", // Q-91
+  "toast.record_deleted_pair.title": "Embarque e descida apagados", // Q-91
+  "common.kind.passed.short": "vi passar", // Q-91
+  "common.kind.alighted.short": "desci", // Q-91
+  "sheet_verify.problem.alight_conflict": "Este embarque já tem descida: apague a descida antes de trocar de linha", // Q-91
+  "trip_card.unmatched_next": "próxima às {{time}}", // Q-91
+  "trip_card.unmatched_next_day": "próxima: {{weekday}}, {{time}}", // Q-91
+  "home.pending_one": "1 registro para conferir", // Q-91
 } as const;
 
 export type MessageKey = keyof typeof ptBR;

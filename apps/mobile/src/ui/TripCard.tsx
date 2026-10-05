@@ -63,7 +63,8 @@ export function TripCard({
       : t("home.trip.title_no_destination");
   const subtitle = t("home.trip.subtitle", { time: card.boardedTime, stop_name: card.stopName });
   const eta = card.eta ? `${card.eta.approximate ? "~" : ""}${card.eta.time}` : null;
-  const headLabel = [title, subtitle, eta ? t("home.trip.eta.a11y", { time: eta }) : null].filter(Boolean).join(", ");
+  const nextText = card.unmatched ? card.unmatchedNext : null;
+  const headLabel = [title, nextText, subtitle, eta ? t("home.trip.eta.a11y", { time: eta }) : null].filter(Boolean).join(", ");
 
   return (
     <Animated.View
@@ -82,6 +83,9 @@ export function TripCard({
           {card.line ? <LineBadge code={card.line.code} color={card.line.color} /> : null}
           <View style={styles.titles}>
             <Text style={[type.bodyStrong, { color: colors.text }]}>{title}</Text>
+            {card.unmatched && card.unmatchedNext ? (
+              <Text style={[type.caption, styles.num, { color: colors.tripText2 }]}>{card.unmatchedNext}</Text>
+            ) : null}
             <Text style={[type.caption, styles.num, { color: colors.tripText2 }]}>{subtitle}</Text>
           </View>
           {eta ? <Text style={[styles.eta, { color: colors.text }]}>{eta}</Text> : null}
