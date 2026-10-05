@@ -31,14 +31,15 @@ import {
   ride,
   route,
   walkTime,
-  type ObservationRow,
-  type OptionRow,
-  type RideRow,
-  type RouteRow,
-  type WalkTimeRow,
 } from "../db/schema";
 import { passageRecords } from "./records";
 import type { ScheduleSnapshot } from "./schedule";
+
+export type ObservationRow = typeof observation.$inferSelect;
+export type OptionRow = typeof option.$inferSelect;
+export type RideRow = typeof ride.$inferSelect;
+export type RouteRow = typeof route.$inferSelect;
+export type WalkTimeRow = typeof walkTime.$inferSelect;
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
 

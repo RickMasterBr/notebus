@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createTestClock } from "./src/data/clock";
 import { TestClockProvider } from "./src/data/TestClockProvider";
 import { RecentStopsProvider } from "./src/data/RecentStopsProvider";
+import { PlacesProvider } from "./src/data/PlacesProvider";
 import { RegistroProvider } from "./src/data/RegistroProvider";
 import { ScheduleProvider } from "./src/data/ScheduleProvider";
 import { StopIndexProvider } from "./src/data/StopIndexProvider";
@@ -74,9 +75,11 @@ export default function App() {
                 <ScheduleProvider db={db}>
                   <RecentStopsProvider db={db}>
                     <RegistroProvider db={db}>
-                      <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
-                        <Home />
-                      </BackupProvider>
+                      <PlacesProvider db={db}>
+                        <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
+                          <Home />
+                        </BackupProvider>
+                      </PlacesProvider>
                     </RegistroProvider>
                   </RecentStopsProvider>
                 </ScheduleProvider>
