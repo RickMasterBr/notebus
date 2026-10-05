@@ -207,11 +207,12 @@ function RecordSheetLoaded({
         });
 
   const handleDelete = useCallback(async () => {
+    isDeletedRef.current = true;
     try {
       await registro.remove(initialRow.id);
-      isDeletedRef.current = true;
       close();
     } catch {
+      isDeletedRef.current = false;
       /* o provider já mostrou o toast de falha com "Tentar de novo" */
     }
   }, [close, registro, initialRow.id]);
