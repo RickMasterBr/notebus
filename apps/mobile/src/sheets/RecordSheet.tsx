@@ -28,12 +28,12 @@ import {
   applyPickedTime,
   applyPrecision,
   applySpread,
+  closeCommit,
   draftInterval,
   formatDraftTime,
   formatMatchPreview,
   initDraft,
   isPlusOneDisabled,
-  toPatch,
   validateDraft,
 } from "../data/recordDraft";
 import type { ObservationRow } from "../data/registro";
@@ -118,16 +118,18 @@ function RecordSheetLoaded({
   const rowRef = useRef(initialRow);
   rowRef.current = initialRow;
 
+  const registroRef = useRef(registro);
+  registroRef.current = registro;
+
   // Fechar grava (D-062): commit no useEffect de desmontagem via ref
   useEffect(() => {
     return () => {
-      if (isDeletedRef.current) return;
-      const patch = toPatch(draftRef.current, rowRef.current);
-      if (Object.keys(patch).length > 0) {
-        void registro.edit(rowRef.current.id, patch);
+      const patch = closeCommit(draftRef.current, rowRef.current, isDeletedRef.current);
+      if (patch) {
+        void registroRef.current.edit(rowRef.current.id, patch);
       }
     };
-  }, [registro]);
+  }, []);
 
   // Busca dados associados (linha, ponto, descida/embarque par)
   const scheduleData = schedule.status === "ready" ? schedule.data : null;

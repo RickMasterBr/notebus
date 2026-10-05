@@ -120,6 +120,20 @@ export function toPatch(draft: RecordDraft, row: ObservationRow): EditPatch {
   return patch;
 }
 
+/**
+ * Regra pura de commit ao fechar a TL-06 (D-062):
+ * Devolve `null` se `deleted` ou se o patch é vazio; senão devolve o `EditPatch`.
+ */
+export function closeCommit(
+  draft: RecordDraft,
+  row: ObservationRow,
+  deleted: boolean,
+): EditPatch | null {
+  if (deleted) return null;
+  const patch = toPatch(draft, row);
+  return Object.keys(patch).length > 0 ? patch : null;
+}
+
 /** Formata o texto de exibição da hora no cabeçalho/botão da TL-06 ("08:13" ou "08:08–08:18"). */
 export function formatDraftTime(draft: RecordDraft): string {
   if (draft.precision === "range") {
