@@ -29,7 +29,9 @@ import { type Ahead, buildAhead } from "./ahead";
 import { passageTarget } from "./records";
 import type { ObservationRow } from "./registro";
 import type { ScheduleSnapshot } from "./schedule";
-import { clockText } from "./stopCard";
+import { buildStopCard, clockText } from "./stopCard";
+import { weekdayName } from "./testClockPicker";
+import { t } from "../i18n";
 
 type BoardingFact = Pick<ObservationRow, "stopId" | "lineId" | "observedAt" | "observedEndAt" | "kind" | "mode">;
 
@@ -103,6 +105,34 @@ export interface TripCardModel {
   ahead: Ahead | null;
   /** Q-88: true quando o embarque não casou (orphan) e a viagem mais próxima está a > 30 min (ou não existe). */
   unmatched: boolean;
+  /** Q-89: "próxima às HH:MM" ou "próxima: sábado, 09:00" quando unmatched: true. */
+  unmatchedNext?: string | null;
+}
+
+/**
+ * Próxima passagem da linha embarcada no ponto do embarque (Q-89, D-092):
+ * "próxima às HH:MM" se passar hoje, ou "próxima: <dia>, HH:MM" se for em outro dia de serviço.
+ */
+export function computeUnmatchedNext(
+  stopId: string,
+  lineCode: string | undefined,
+  data: ScheduleSnapshot,
+  now: number,
+): string | null {
+  if (!lineCode) return null;
+  const card = buildStopCard(stopId, data, now);
+  if (!card) return null;
+  const lineCard = card.lines.find((l) => l.code === lineCode);
+  if (!lineCard) return null;
+  const { state } = lineCard;
+  if (state.status === "next") {
+    return t("trip_card.unmatched_next", { time: state.time });
+  }
+  if (state.status === "later") {
+    const weekday = weekdayName(state.date);
+    return t("trip_card.unmatched_next_day", { weekday, time: state.time });
+  }
+  return null;
 }
 
 /**
@@ -124,7 +154,7 @@ export function buildTripCard(
   const start = deduction.nearest;
   const rideDeviation = deduction.matchStatus === "auto" ? deduction.deviation : null;
   const boardedTime = clockText(lisbonWallClock(boarding.observedAt).minute);
-  const base: Omit<TripCardModel, "destination" | "eta" | "trip" | "ahead" | "tripStart" | "unmatched"> = {
+  const base: Omit<TripCardModel, "destination" | "eta" | "trip" | "ahead" | "tripStart" | "unmatched" | "unmatchedNext"> = {
     rideId,
     line: line ? { code: line.code, color: line.color } : null,
     boardedTime,
@@ -136,13 +166,15 @@ export function buildTripCard(
   // ou não há nearest, monta o cartão como "sem viagem": destino, chegada e viagem nulos, unmatched: true.
   const isOrphanDistant = deduction.matchStatus === "orphan" && (!start || Math.abs(start.deviation) > 30);
   if (isOrphanDistant) {
-    return { ...base, destination: null, eta: null, trip: null, tripStart: null, ahead: null, unmatched: true };
+    const unmatchedNext = computeUnmatchedNext(boarding.stopId, line?.code, data, now);
+    return { ...base, destination: null, eta: null, trip: null, tripStart: null, ahead: null, unmatched: true, unmatchedNext };
   }
 
   const trip = start ? data.trips.find((t) => t.id === start.tripId) : undefined;
   const pattern = trip ? data.patterns.find((p) => p.id === trip.patternId) : undefined;
   if (!start || !trip || !pattern) {
-    return { ...base, destination: null, eta: null, trip: null, tripStart: null, ahead: null, unmatched: true };
+    const unmatchedNext = computeUnmatchedNext(boarding.stopId, line?.code, data, now);
+    return { ...base, destination: null, eta: null, trip: null, tripStart: null, ahead: null, unmatched: true, unmatchedNext };
   }
 
   const next = nextDestination(data, pattern.id, trip.id, start.position);
@@ -170,6 +202,7 @@ export function buildTripCard(
     // deslocado (492 + 0,5 = 492,5) arredondaria para 08:13.
     ahead: ahead ? { ...ahead, tripStart: tripStart ?? ahead.tripStart, here: { ...ahead.here, time: boardedTime } } : null,
     unmatched: false,
+    unmatchedNext: null,
   };
 }
 
