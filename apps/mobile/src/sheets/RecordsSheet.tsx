@@ -5,7 +5,8 @@
  * Apagar por deslize à esquerda com Desfazer (D-098, D-052).
  */
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { lisbonWallClock } from "@notebus/domain";
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import ReanimatedSwipeable, {
   type SwipeableMethods,
@@ -46,6 +47,172 @@ type ListItem =
   | { type: "header"; id: string; title: string }
   | { type: "row"; id: string; row: RecordListRow };
 
+const RecordHeader = memo(function RecordHeader({ title }: { title: string }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.sectionHeaderContainer}>
+      <Text accessibilityRole="header" style={[type.label, { color: colors.textSecondary }]}>
+        {title}
+      </Text>
+    </View>
+  );
+});
+
+interface RecordRowProps {
+  row: RecordListRow;
+  onPress: (row: RecordListRow) => void;
+  onDelete: (id: string) => void;
+  onWillOpen: (methods: SwipeableMethods) => void;
+  onClose: (methods: SwipeableMethods) => void;
+}
+
+const RecordRow = memo(function RecordRow({
+  row,
+  onPress,
+  onDelete,
+  onWillOpen,
+  onClose,
+}: RecordRowProps) {
+  const { colors } = useTheme();
+  const swipeableRef = useRef<SwipeableMethods | null>(null);
+
+  const handleRowPress = useCallback(() => {
+    onPress(row);
+  }, [row, onPress]);
+
+  const handleDeleteAction = useCallback(
+    (methods: SwipeableMethods) => {
+      methods.close();
+      onDelete(row.id);
+    },
+    [row.id, onDelete],
+  );
+
+  const handleAccessibilityDelete = useCallback(() => {
+    swipeableRef.current?.close();
+    onDelete(row.id);
+  }, [row.id, onDelete]);
+
+  const handleWillOpen = useCallback(() => {
+    if (swipeableRef.current) {
+      onWillOpen(swipeableRef.current);
+    }
+  }, [onWillOpen]);
+
+  const handleSwipeClose = useCallback(() => {
+    if (swipeableRef.current) {
+      onClose(swipeableRef.current);
+    }
+  }, [onClose]);
+
+  const renderRightActions = useCallback(
+    (
+      _progress: unknown,
+      _translation: unknown,
+      swipeableMethods: SwipeableMethods,
+    ) => (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("sheet_records.action.delete")}
+        onPress={() => handleDeleteAction(swipeableMethods)}
+        style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+      >
+        <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
+          {t("sheet_records.action.delete")}
+        </Text>
+      </Pressable>
+    ),
+    [colors.danger, handleDeleteAction],
+  );
+
+  const stateLabel =
+    row.verifyState === "pending"
+      ? t("sheet_records.row.state_pending")
+      : row.verifyState === "notVerified"
+        ? t("sheet_records.row.state_not_verified")
+        : "";
+  const kindLabel =
+    row.kind === "boarded"
+      ? t("common.kind.boarded.short")
+      : row.kind === "alighted"
+        ? t("common.kind.alighted.short")
+        : row.kind === "passed"
+          ? t("common.kind.passed.short")
+          : "";
+
+  const a11yLabel = t("sheet_records.row.a11y", {
+    time: row.time,
+    line: row.line.code,
+    stop: row.stop.name,
+    kind: kindLabel,
+    state: stateLabel,
+  });
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeableRef}
+      friction={2}
+      enableTrackpadTwoFingerGesture
+      rightThreshold={40}
+      renderRightActions={renderRightActions}
+      overshootRight={false}
+      onSwipeableWillOpen={handleWillOpen}
+      onSwipeableClose={handleSwipeClose}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityActions={[{ name: "delete", label: t("sheet_records.action.delete") }]}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "delete") {
+            handleAccessibilityDelete();
+          }
+        }}
+        accessibilityLabel={a11yLabel}
+        onPress={handleRowPress}
+        style={({ pressed }) => [
+          styles.rowContainer,
+          {
+            backgroundColor: colors.surface,
+            borderBottomColor: colors.divider,
+            opacity: pressed ? 0.7 : 1,
+          },
+        ]}
+      >
+        {/* Hora */}
+        <Text style={[type.bodyStrong, styles.timeText, { color: colors.text }]}>{row.time}</Text>
+
+        {/* Selo da Linha */}
+        <LineBadge code={row.line.code} color={row.line.color} />
+
+        {/* Glifo do tipo */}
+        <View style={styles.glyphBox}>
+          {row.kind === "boarded" && <BoardGlyph color={colors.textSecondary} />}
+          {row.kind === "alighted" && <AlightGlyph color={colors.textSecondary} />}
+          {row.kind === "passed" && <PassGlyph color={colors.textSecondary} />}
+        </View>
+
+        {/* Nome do Ponto */}
+        <Text style={[type.body, styles.stopText, { color: colors.text }]} numberOfLines={1}>
+          {row.stop.name}
+        </Text>
+
+        {/* Chip de estado */}
+        {row.verifyState === "pending" && (
+          <View style={[styles.chip, { borderColor: colors.accent }]}>
+            <InfoGlyph color={colors.accent} />
+            <Text style={[type.caption, { color: colors.accent }]}>{t("sheet_records.chip.pending")}</Text>
+          </View>
+        )}
+        {row.verifyState === "notVerified" && (
+          <View style={[styles.chip, { borderColor: colors.textSecondary }]}>
+            <Text style={[type.caption, { color: colors.textSecondary }]}>{t("sheet_records.chip.not_verified")}</Text>
+          </View>
+        )}
+      </Pressable>
+    </ReanimatedSwipeable>
+  );
+});
+
 export function RecordsSheet({ id }: { id: number }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -60,7 +227,6 @@ export function RecordsSheet({ id }: { id: number }) {
   const [windowDays, setWindowDays] = useState(14);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const openSwipeableRef = useRef<SwipeableMethods | null>(null);
-  const rowRefs = useRef<Map<string, SwipeableMethods>>(new Map());
 
   // Limpa referência de swipeable ao desmontar a folha
   useEffect(() => {
@@ -98,9 +264,11 @@ export function RecordsSheet({ id }: { id: number }) {
     return registro.observations.filter((o) => !deletedIds.has(o.id));
   }, [registro.observations, deletedIds]);
 
+  const nowDay = useMemo(() => lisbonWallClock(instant).date, [instant]);
+
   const model = useMemo(() => {
     return buildRecordsList(liveObservations, scheduleData, instant, windowDays);
-  }, [liveObservations, scheduleData, instant, windowDays]);
+  }, [liveObservations, scheduleData, nowDay, windowDays]);
 
   const handleLoadMore = useCallback(() => {
     if (model.hasMore) {
@@ -180,140 +348,33 @@ export function RecordsSheet({ id }: { id: number }) {
     dispatch({ type: "push", sheet: { kind: "board", stopId: null } });
   }, [dispatch]);
 
+  const handleSwipeableWillOpen = useCallback((methods: SwipeableMethods) => {
+    openSwipeableRef.current = openSingleSwipeable(openSwipeableRef.current, methods);
+  }, []);
+
+  const handleSwipeableClose = useCallback((methods: SwipeableMethods) => {
+    if (openSwipeableRef.current === methods) {
+      openSwipeableRef.current = null;
+    }
+  }, []);
+
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => {
       if (item.type === "header") {
-        return (
-          <View style={styles.sectionHeaderContainer}>
-            <Text accessibilityRole="header" style={[type.label, { color: colors.textSecondary }]}>
-              {item.title}
-            </Text>
-          </View>
-        );
+        return <RecordHeader title={item.title} />;
       }
 
-      const r = item.row;
-      const stateLabel =
-        r.verifyState === "pending"
-          ? t("sheet_records.row.state_pending")
-          : r.verifyState === "notVerified"
-            ? t("sheet_records.row.state_not_verified")
-            : "";
-      const kindLabel =
-        r.kind === "boarded"
-          ? t("common.kind.boarded.short")
-          : r.kind === "alighted"
-            ? t("common.kind.alighted.short")
-            : t("common.kind.passed.short");
-
-      const a11yLabel = t("sheet_records.row.a11y", {
-        time: r.time,
-        line: r.line.code,
-        stop: r.stop.name,
-        kind: kindLabel,
-        state: stateLabel,
-      });
-
-      const renderRightActions = (
-        _progress: unknown,
-        _translation: unknown,
-        swipeableMethods: SwipeableMethods,
-      ) => (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("sheet_records.action.delete")}
-          onPress={() => {
-            swipeableMethods.close();
-            void handleDelete(r.id);
-          }}
-          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
-        >
-          <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
-            {t("sheet_records.action.delete")}
-          </Text>
-        </Pressable>
-      );
-
       return (
-        <ReanimatedSwipeable
-          key={r.id}
-          ref={(el) => {
-            if (el) {
-              rowRefs.current.set(r.id, el);
-            } else {
-              rowRefs.current.delete(r.id);
-            }
-          }}
-          onSwipeableWillOpen={() => {
-            const currentMethods = rowRefs.current.get(r.id) ?? null;
-            openSwipeableRef.current = openSingleSwipeable(openSwipeableRef.current, currentMethods);
-          }}
-          onSwipeableClose={() => {
-            const currentMethods = rowRefs.current.get(r.id);
-            if (openSwipeableRef.current === currentMethods) {
-              openSwipeableRef.current = null;
-            }
-          }}
-          friction={2}
-          enableTrackpadTwoFingerGesture
-          rightThreshold={40}
-          renderRightActions={renderRightActions}
-          overshootRight={false}
-        >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityActions={[{ name: "delete", label: t("sheet_records.action.delete") }]}
-            onAccessibilityAction={(event) => {
-              if (event.nativeEvent.actionName === "delete") {
-                void handleDelete(r.id);
-              }
-            }}
-            accessibilityLabel={a11yLabel}
-            onPress={() => handleRowPress(r)}
-            style={({ pressed }) => [
-              styles.rowContainer,
-              {
-                backgroundColor: colors.surface,
-                borderBottomColor: colors.divider,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            {/* Hora */}
-            <Text style={[type.bodyStrong, styles.timeText, { color: colors.text }]}>{r.time}</Text>
-
-            {/* Selo da Linha */}
-            <LineBadge code={r.line.code} color={r.line.color} />
-
-            {/* Glifo do tipo */}
-            <View style={styles.glyphBox}>
-              {r.kind === "boarded" && <BoardGlyph color={colors.textSecondary} />}
-              {r.kind === "alighted" && <AlightGlyph color={colors.textSecondary} />}
-              {r.kind === "passed" && <PassGlyph color={colors.textSecondary} />}
-            </View>
-
-            {/* Nome do Ponto */}
-            <Text style={[type.body, styles.stopText, { color: colors.text }]} numberOfLines={1}>
-              {r.stop.name}
-            </Text>
-
-            {/* Chip de estado */}
-            {r.verifyState === "pending" && (
-              <View style={[styles.chip, { borderColor: colors.accent }]}>
-                <InfoGlyph color={colors.accent} />
-                <Text style={[type.caption, { color: colors.accent }]}>{t("sheet_records.chip.pending")}</Text>
-              </View>
-            )}
-            {r.verifyState === "notVerified" && (
-              <View style={[styles.chip, { borderColor: colors.textSecondary }]}>
-                <Text style={[type.caption, { color: colors.textSecondary }]}>{t("sheet_records.chip.not_verified")}</Text>
-              </View>
-            )}
-          </Pressable>
-        </ReanimatedSwipeable>
+        <RecordRow
+          row={item.row}
+          onPress={handleRowPress}
+          onDelete={handleDelete}
+          onWillOpen={handleSwipeableWillOpen}
+          onClose={handleSwipeableClose}
+        />
       );
     },
-    [colors, handleDelete, handleRowPress],
+    [handleRowPress, handleDelete, handleSwipeableWillOpen, handleSwipeableClose],
   );
 
   return (
@@ -342,6 +403,10 @@ export function RecordsSheet({ id }: { id: number }) {
             data={listItems}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
+            initialNumToRender={12}
+            windowSize={7}
+            maxToRenderPerBatch={10}
+            removeClippedSubviews={false}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
             onScrollBeginDrag={() => {
