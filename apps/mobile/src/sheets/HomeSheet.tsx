@@ -163,6 +163,9 @@ export function HomeSheet() {
     >
       <BottomSheet
         index={startIndex}
+        accessible={false}
+        accessibilityRole={null}
+        accessibilityLabel={null}
         animateOnMount={false}
         backdropComponent={renderBackdrop}
         snapPoints={snapPoints}
