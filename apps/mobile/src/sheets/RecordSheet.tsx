@@ -34,6 +34,7 @@ import {
   formatMatchPreview,
   initDraft,
   isPlusOneDisabled,
+  pickerValue,
   validateDraft,
 } from "../data/recordDraft";
 import type { ObservationRow } from "../data/registro";
@@ -583,7 +584,7 @@ function RecordSheetLoaded({
                   onPress={(e) => e.stopPropagation()}
                 >
                   <DateTimePicker
-                    value={new Date(draft.centerMs)}
+                    value={pickerValue(draft.centerMs)}
                     mode="time"
                     is24Hour={true}
                     display="spinner"
@@ -608,7 +609,7 @@ function RecordSheetLoaded({
             </Modal>
           ) : (
             <DateTimePicker
-              value={new Date(draft.centerMs)}
+              value={pickerValue(draft.centerMs)}
               mode="time"
               is24Hour={true}
               display="default"

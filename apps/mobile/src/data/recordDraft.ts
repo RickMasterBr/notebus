@@ -134,6 +134,20 @@ export function closeCommit(
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
+/**
+ * Monta um Date local cujos getHours() e getMinutes() correspondem à hora de parede de Lisboa (Q-93).
+ * Evita que o seletor nativo mostre a hora convertida para o fuso local do dispositivo.
+ */
+export function pickerValue(centerMs: number): Date {
+  const wall = lisbonWallClock(centerMs);
+  const year = Number(wall.date.slice(0, 4));
+  const month = Number(wall.date.slice(5, 7));
+  const day = Number(wall.date.slice(8, 10));
+  const hour = (wall.minute / 60) | 0;
+  const minute = wall.minute % 60;
+  return new Date(year, month - 1, day, hour, minute);
+}
+
 /** Formata o texto de exibição da hora no cabeçalho/botão da TL-06 ("08:13" ou "08:08–08:18"). */
 export function formatDraftTime(draft: RecordDraft): string {
   if (draft.precision === "range") {
