@@ -249,3 +249,14 @@ export function validateDraft(
 
   return null;
 }
+
+/**
+ * Indica se a hora do rascunho pertence a hoje ou a ontem em relação ao instante atual (Q-94 = A).
+ * Puro: sem React nem banco.
+ */
+export function dayHint(draft: RecordDraft, now: number): "today" | "yesterday" {
+  const draftDate = lisbonWallClock(draft.centerMs).date;
+  const nowDate = lisbonWallClock(now).date;
+  return draftDate === nowDate ? "today" : "yesterday";
+}
+

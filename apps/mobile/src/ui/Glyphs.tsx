@@ -74,6 +74,36 @@ export function CheckGlyph({ color }: { color: string }) {
   );
 }
 
+/** Glifo de embarque de 14 px: seta apontando para cima, desenhada com Views. */
+export function BoardGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.arrow} {...HIDDEN}>
+      <View style={[styles.arrowHeadUp, { borderColor: color }]} />
+      <View style={[styles.arrowStemV, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+/** Glifo de descida de 14 px: seta apontando para baixo, desenhada com Views. */
+export function AlightGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.arrow} {...HIDDEN}>
+      <View style={[styles.arrowStemV, { backgroundColor: color }]} />
+      <View style={[styles.arrowHeadDown, { borderColor: color }]} />
+    </View>
+  );
+}
+
+/** Glifo de vi passar de 14 px: seta horizontal apontando para a direita, desenhada com Views. */
+export function PassGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.arrow} {...HIDDEN}>
+      <View style={[styles.arrowStemH, { backgroundColor: color }]} />
+      <View style={[styles.arrowHeadRight, { borderColor: color }]} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   plus: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
   plusBar: { position: "absolute", borderRadius: 1.2 },
@@ -107,4 +137,32 @@ const styles = StyleSheet.create({
     borderRadius: 0.5,
     transform: [{ rotate: "45deg" }, { translateY: -1 }],
   },
+  arrow: { width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  arrowHeadUp: {
+    width: 6,
+    height: 6,
+    borderTopWidth: 1.8,
+    borderLeftWidth: 1.8,
+    transform: [{ rotate: "45deg" }],
+    marginBottom: -1,
+  },
+  arrowHeadDown: {
+    width: 6,
+    height: 6,
+    borderBottomWidth: 1.8,
+    borderRightWidth: 1.8,
+    transform: [{ rotate: "45deg" }],
+    marginTop: -1,
+  },
+  arrowHeadRight: {
+    position: "absolute",
+    right: 1,
+    width: 6,
+    height: 6,
+    borderTopWidth: 1.8,
+    borderRightWidth: 1.8,
+    transform: [{ rotate: "45deg" }],
+  },
+  arrowStemV: { width: 1.8, height: 6.5, borderRadius: 0.9 },
+  arrowStemH: { width: 7.5, height: 1.8, borderRadius: 0.9, alignSelf: "center", marginLeft: -2 },
 });

@@ -31,6 +31,7 @@ import {
   applyPrecision,
   applySpread,
   closeCommit,
+  dayHint,
   draftInterval,
   formatDraftTime,
   formatMatchPreview,
@@ -253,9 +254,10 @@ function RecordSheetLoaded({
     });
   }, [draft, initialRow, instant, pairedAlightRow, pairedBoardingRow]);
 
-  // Formatação do Dia
+  // Formatação do Dia e dica de ontem (Q-94 = A)
   const wall = lisbonWallClock(draft.centerMs);
   const nowWall = lisbonWallClock(instant);
+  const isYesterday = dayHint(draft, instant) === "yesterday";
   const dayText =
     wall.date === nowWall.date
       ? t("sheet_record.day.today", {
@@ -335,12 +337,25 @@ function RecordSheetLoaded({
               style={[
                 styles.summaryRow,
                 initialRow.kind === "boarded" ? { borderBottomColor: colors.divider } : null,
+                isYesterday ? [styles.summaryRowHighlighted, { backgroundColor: colors.highlight }] : null,
               ]}
             >
-              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
+              <Text
+                style={[
+                  styles.summaryLabel,
+                  { color: isYesterday ? colors.accent : colors.textSecondary },
+                ]}
+              >
                 {t("sheet_record.field.day")}
               </Text>
-              <Text style={[type.bodyStrong, styles.summaryValue, styles.num, { color: colors.text }]}>
+              <Text
+                style={[
+                  type.bodyStrong,
+                  styles.summaryValue,
+                  styles.num,
+                  { color: isYesterday ? colors.accent : colors.text },
+                ]}
+              >
                 {dayText}
               </Text>
             </View>
@@ -477,13 +492,24 @@ function RecordSheetLoaded({
             {/* Display do Horário Central (abre DateTimePicker ao toque) */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t("sheet_record.time.aria", { time: timeLabel })}
+              accessibilityLabel={
+                isYesterday
+                  ? `${t("sheet_record.time.aria", { time: timeLabel })}, ${t("sheet_record.yesterday")}`
+                  : t("sheet_record.time.aria", { time: timeLabel })
+              }
               onPress={() => setShowPicker(true)}
               style={[styles.timeDisplay, { backgroundColor: colors.fill }]}
             >
-              <Text style={[type.timeLg, styles.num, { color: colors.text, fontSize: 32 }]}>
-                {timeLabel}
-              </Text>
+              <View style={styles.timeDisplayInner}>
+                <Text style={[type.timeLg, styles.num, { color: colors.text, fontSize: 32 }]}>
+                  {timeLabel}
+                </Text>
+                {isYesterday && (
+                  <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
+                    {t("sheet_record.yesterday")}
+                  </Text>
+                )}
+              </View>
             </Pressable>
 
             {/* Chips de Ajuste */}
@@ -785,6 +811,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
+  },
+  timeDisplayInner: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: space.xs,
+  },
+  summaryRowHighlighted: {
+    paddingHorizontal: space.xs,
+    borderRadius: radius.sm,
   },
   chipsRow: {
     flexDirection: "row",

@@ -279,6 +279,20 @@ export const ptBR = {
   "trip_card.unmatched_next": "próxima às {{time}}", // Q-91
   "trip_card.unmatched_next_day": "próxima: {{weekday}}, {{time}}", // Q-91
   "home.pending_one": "1 registro para conferir", // Q-91
+  // E-04 Bloco 3 (TL-08 Registros, Início, Ontem)
+  "common.yesterday": "Ontem",
+  "sheet_records.title": "Registros",
+  "sheet_records.section.pending": "Para conferir",
+  "sheet_records.chip.pending": "para conferir",
+  "sheet_records.chip.not_verified": "não conferido",
+  "sheet_records.empty.title": "Nenhum registro ainda",
+  "sheet_records.empty.action": "Registrar",
+  "sheet_records.action.delete": "Apagar",
+  "sheet_records.row.a11y": "{{time}}, Linha {{line}}, {{stop}}, {{kind}}{{state}}",
+  "sheet_records.row.state_pending": ", para conferir",
+  "sheet_records.row.state_not_verified": ", não conferido",
+  "home.section.all_records": "Todos os registros",
+  "sheet_record.yesterday": "ontem",
 } as const;
 
 export type MessageKey = keyof typeof ptBR;
