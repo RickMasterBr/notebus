@@ -38,6 +38,7 @@ import {
   initDraft,
   isPlusOneDisabled,
   pickerValue,
+  timeLabelWithDay,
   validateDraft,
 } from "../data/recordDraft";
 import type { ObservationRow } from "../data/registro";
@@ -257,7 +258,7 @@ function RecordSheetLoaded({
   // Formatação do Dia e dica de ontem (Q-94 = A)
   const wall = lisbonWallClock(draft.centerMs);
   const nowWall = lisbonWallClock(instant);
-  const isYesterday = dayHint(draft, instant) === "yesterday";
+  const { text: timeLabel, yesterday: isYesterday } = timeLabelWithDay(draft, instant);
   const dayText =
     wall.date === nowWall.date
       ? t("sheet_record.day.today", {
@@ -280,7 +281,6 @@ function RecordSheetLoaded({
     }
   }, [close, registro, initialRow.id]);
 
-  const timeLabel = formatDraftTime(draft);
   const plusOneDisabled = isPlusOneDisabled(draft, instant);
 
   return (
@@ -492,23 +492,19 @@ function RecordSheetLoaded({
             {/* Display do Horário Central (abre DateTimePicker ao toque) */}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={
-                isYesterday
-                  ? `${t("sheet_record.time.aria", { time: timeLabel })}, ${t("sheet_record.yesterday")}`
-                  : t("sheet_record.time.aria", { time: timeLabel })
-              }
+              accessibilityLabel={t("sheet_record.time.aria", { time: timeLabel })}
               onPress={() => setShowPicker(true)}
               style={[styles.timeDisplay, { backgroundColor: colors.fill }]}
             >
               <View style={styles.timeDisplayInner}>
-                <Text style={[type.timeLg, styles.num, { color: colors.text, fontSize: 32 }]}>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                  style={[type.timeLg, styles.num, { color: colors.text, fontSize: 32 }]}
+                >
                   {timeLabel}
                 </Text>
-                {isYesterday && (
-                  <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
-                    {t("sheet_record.yesterday")}
-                  </Text>
-                )}
               </View>
             </Pressable>
 

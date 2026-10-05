@@ -238,6 +238,7 @@ export const ptBR = {
   "sheet_record.time.exact": "Exata",
   "sheet_record.time.range": "Mais ou menos",
   "sheet_record.time.aria": "Hora {{time}}, tocar para escolher",
+  "sheet_record.time.yesterday_at": "ontem às {{time}}",
   "sheet_record.adjust.before.aria": "{{count}} minuto(s) antes",
   "sheet_record.adjust.after.aria": "{{count}} minuto(s) depois",
   "sheet_record.range.chip": "± {{minutes}} min",
