@@ -9,6 +9,7 @@ import { StackDiagStrip } from "./diagScroll";
 import { ClockPickerSheet } from "./ClockPickerSheet";
 import { HomeSheet } from "./HomeSheet";
 import { RecordSheet } from "./RecordSheet";
+import { RecordsSheet } from "./RecordsSheet";
 import { SearchSheet } from "./SearchSheet";
 import { SettingsSheet } from "./SettingsSheet";
 import { useSheets } from "./SheetsContext";
@@ -82,6 +83,8 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
       return <RecordSheet id={entry.id} observationId={entry.observationId} />;
     case "verify":
       return <VerifySheet id={entry.id} observationId={entry.observationId} />;
+    case "records":
+      return <RecordsSheet id={entry.id} />;
     case "home":
       return null;
   }

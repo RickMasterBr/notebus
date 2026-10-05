@@ -30,7 +30,9 @@ export type SheetContent =
   /** TL-06 Registro detalhado (E-04). */
   | { kind: "record"; observationId: string }
   /** TL-09 Conferir registro (E-04). */
-  | { kind: "verify"; observationId: string };
+  | { kind: "verify"; observationId: string }
+  /** TL-08 Registros (E-04 Bloco 3). */
+  | { kind: "records" };
 
 export type SheetKind = SheetContent["kind"];
 
