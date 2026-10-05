@@ -8,6 +8,7 @@
  * da descida sairia vazia); "Não embarquei" e "Dispensar" continuam.
  * Desce 12 px e aparece em 250 ms; com "Reduzir movimento", só esmaece (4.5 §2.5).
  */
+import { useRef } from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeIn, withTiming } from "react-native-reanimated";
@@ -47,11 +48,15 @@ export function TripCard({
   const { colors } = useTheme();
   const reduceMotion = useReduceMotion();
   const canList = !card.unmatched && card.ahead !== null;
+  const pulled = useRef(false);
   const pull = Gesture.Pan()
     .runOnJS(true)
     .enabled(canList)
     .activeOffsetY(-12)
     .failOffsetX([-24, 24])
+    .onStart(() => {
+      pulled.current = true;
+    })
     .onEnd((event) => {
       if (event.translationY <= -PULL_PX) onOpenList();
     });
@@ -77,7 +82,13 @@ export function TripCard({
           accessibilityLabel={headLabel}
           accessibilityHint={canList ? t("home.trip.a11y.open_list") : undefined}
           disabled={!canList}
-          onPress={onOpenList}
+          onPressIn={() => {
+            pulled.current = false;
+          }}
+          onPress={() => {
+            if (pulled.current) return;
+            onOpenList();
+          }}
           style={styles.head}
         >
           {card.line ? <LineBadge code={card.line.code} color={card.line.color} /> : null}
