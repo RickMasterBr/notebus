@@ -260,3 +260,25 @@ export function dayHint(draft: RecordDraft, now: number): "today" | "yesterday" 
   return draftDate === nowDate ? "today" : "yesterday";
 }
 
+/**
+ * Rótulo e indicação de ontem para a linha de horário da TL-06 (Item 3).
+ * Se o rascunho for do dia anterior, inclui "ontem às" no texto.
+ */
+export function timeLabelWithDay(
+  draft: RecordDraft,
+  now: number,
+): { text: string; yesterday: boolean } {
+  const isYesterday = dayHint(draft, now) === "yesterday";
+  const time = formatDraftTime(draft);
+  if (isYesterday) {
+    return {
+      text: t("sheet_record.time.yesterday_at", { time }),
+      yesterday: true,
+    };
+  }
+  return {
+    text: time,
+    yesterday: false,
+  };
+}
+

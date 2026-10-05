@@ -8,16 +8,13 @@ import type { ObservationRow } from "./registro";
 import type { ScheduleSnapshot, LineInfo } from "./schedule";
 import { clockText } from "./stopCard";
 import type { SheetContent } from "../sheets/stack";
+import { type MessageKey, t } from "../i18n";
+import { colors } from "../theme/tokens";
 
 export interface RecordListRow {
   id: string;
   time: string;
-  hora: string;
   line: {
-    code: string;
-    color: string;
-  };
-  linha: {
     code: string;
     color: string;
   };
@@ -25,13 +22,7 @@ export interface RecordListRow {
     id: string;
     name: string;
   };
-  ponto: {
-    id: string;
-    name: string;
-  };
-  stopName: string;
   kind: "boarded" | "alighted" | "passed";
-  tipo: "boarded" | "alighted" | "passed";
   verifyState: "pending" | "notVerified" | null;
   observedAt: number;
   serviceDate: string;
@@ -40,10 +31,8 @@ export interface RecordListRow {
 
 export interface RecordDayGroup {
   serviceDate: string;
-  date: string;
   label: string;
   rows: RecordListRow[];
-  records: RecordListRow[];
 }
 
 export interface RecordsListModel {
@@ -61,13 +50,21 @@ export type RecordsSnapshotDeps =
       stopNames?: Map<string, string>;
     };
 
-const SHORT_WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"] as const;
+const SHORT_WEEKDAY_KEYS = [
+  "common.weekday.short.0",
+  "common.weekday.short.1",
+  "common.weekday.short.2",
+  "common.weekday.short.3",
+  "common.weekday.short.4",
+  "common.weekday.short.5",
+  "common.weekday.short.6",
+] as const satisfies readonly MessageKey[];
 
 export function formatDayHeader(serviceDate: string, nowDate: string): string {
-  if (serviceDate === nowDate) return "Hoje";
-  if (serviceDate === addDays(nowDate, -1)) return "Ontem";
+  if (serviceDate === nowDate) return t("common.today");
+  if (serviceDate === addDays(nowDate, -1)) return t("common.yesterday");
   const dow = dayOfWeek(serviceDate);
-  const weekday = SHORT_WEEKDAYS[dow] ?? "";
+  const weekday = SHORT_WEEKDAY_KEYS[dow] ? t(SHORT_WEEKDAY_KEYS[dow]) : "";
   const dd = serviceDate.slice(8, 10);
   const mm = serviceDate.slice(5, 7);
   return `${weekday} ${dd}/${mm}`;
@@ -94,7 +91,7 @@ function makeRecordListRow(
   const lineInfo = snapshot?.lineInfo?.get(row.lineId);
   const line = {
     code: lineInfo?.code ?? row.lineId,
-    color: lineInfo?.color ?? "#000000",
+    color: lineInfo?.color ?? colors.light.textSecondary,
   };
   const stopName = snapshot?.stopNames?.get(row.stopId) ?? row.stopId;
   const stop = {
@@ -107,14 +104,9 @@ function makeRecordListRow(
   return {
     id: row.id,
     time,
-    hora: time,
     line,
-    linha: line,
     stop,
-    ponto: stop,
-    stopName,
     kind: row.kind,
-    tipo: row.kind,
     verifyState,
     observedAt: row.observedAt,
     serviceDate,
@@ -184,10 +176,8 @@ export function buildRecordsList(
     const label = formatDayHeader(sDate, nowDate);
     return {
       serviceDate: sDate,
-      date: sDate,
       label,
       rows: mappedRows,
-      records: mappedRows,
     };
   });
 
@@ -198,11 +188,4 @@ export function buildRecordsList(
     windowDays,
     loadMore: (daysToAdd = 14) => buildRecordsList(observations, snapshot, now, windowDays + daysToAdd),
   };
-}
-
-export const recordsListModel = buildRecordsList;
-export const recordsList = buildRecordsList;
-
-export function loadMore(model: RecordsListModel, days = 14): RecordsListModel {
-  return model.loadMore(days);
 }

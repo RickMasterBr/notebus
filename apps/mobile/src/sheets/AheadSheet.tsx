@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSchedule } from "../data/ScheduleProvider";
 import { type Ahead, type AheadStopRow, type TimelineItem, buildAhead, timelineItems } from "../data/ahead";
 import {
+  AHEAD_TIME_WIDTH,
   boldSegments,
   contextText,
   gapText,
@@ -34,8 +35,8 @@ import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 
-/** Canvas: hora de 48 px, ponto de 14, trilho de 4; o trilho passa pelo centro da coluna do ponto. */
-const TIME_WIDTH = 48;
+/** Canvas: hora de 60 px (Item 7), ponto de 14, trilho de 4; o trilho passa pelo centro da coluna do ponto. */
+const TIME_WIDTH = AHEAD_TIME_WIDTH;
 const DOT_COLUMN = 20;
 const GAP = 12;
 const RAIL = 4;
@@ -179,7 +180,12 @@ function StopRow({ row, isHere, lineColor, stacked }: { row: AheadStopRow; isHer
   const tag = isHere ? t("terminal_detail.you_are_here") : returnTag(row);
   const strong = isHere || row.isTimepoint || row.returnsHere;
   const time = (
-    <Text style={[type.timeMd, styles.time, { color: colors.text, fontWeight: isHere || row.isTimepoint ? "700" : "500" }]}>
+    <Text
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.85}
+      style={[type.timeMd, styles.time, { color: colors.text, fontWeight: isHere || row.isTimepoint ? "700" : "500" }]}
+    >
       {stopTimeText(row)}
     </Text>
   );
