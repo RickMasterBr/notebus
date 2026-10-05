@@ -3,7 +3,6 @@ import { addDays, lisbonWallClock } from "@notebus/domain";
 import {
   buildRecordsList,
   formatDayHeader,
-  loadMore,
   rowTarget,
   serviceDateOfRow,
 } from "./recordsList";
@@ -186,7 +185,7 @@ describe("recordsList", () => {
     expect(initialModel.hasMore).toBe(true);
 
     // loadMore amplia por mais 14 dias (28 dias)
-    const expandedModel = loadMore(initialModel, 14);
+    const expandedModel = initialModel.loadMore(14);
     expect(expandedModel.days).toHaveLength(28);
     expect(expandedModel.days[0]!.serviceDate).toBe(TODAY);
     expect(expandedModel.days[27]!.serviceDate).toBe(addDays(TODAY, -27));
