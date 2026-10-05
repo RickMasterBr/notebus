@@ -77,6 +77,31 @@ export function checkObservationInterval(observedAt: number, observedEndAt: numb
   return null;
 }
 
+/** Por que um par embarque/descida quebra o invariante 5 (códigos estáveis para a TL-06, E-04 §3.3). */
+export type RideProblemCode = "pattern_differs" | "position_not_after" | "before_boarding";
+
+const RIDE_PROBLEM_TEXT: Record<RideProblemCode, string> = {
+  pattern_differs: "embarque e descida em percursos diferentes",
+  position_not_after: "descida não vem depois do embarque",
+  before_boarding: "descida antes do embarque",
+};
+
+/**
+ * Invariante 5 pelo código: percurso igual, posição maior e hora maior ou igual (E-03 §4), nesta ordem.
+ * `patternId` e `position` nulos (a passagem não foi deduzida) deixam só a hora a conferir.
+ */
+export function checkRideCode(
+  board: { patternId: string | null; position: number | null; observedAt: number },
+  alight: { patternId: string | null; position: number | null; observedAt: number },
+): RideProblemCode | null {
+  if (board.patternId !== null && alight.patternId !== null && board.position !== null && alight.position !== null) {
+    if (board.patternId !== alight.patternId) return "pattern_differs";
+    if (alight.position <= board.position) return "position_not_after";
+  }
+  if (alight.observedAt < board.observedAt) return "before_boarding";
+  return null;
+}
+
 /**
  * Invariante 5: um `Ride` liga embarque e descida do **mesmo percurso**, com a descida em posição maior e hora
  * maior ou igual (E-03 §4). Cada lado é a passagem deduzida do registro e o seu instante (epoch ms).
@@ -85,8 +110,6 @@ export function checkRide(
   board: { patternId: string; position: number; observedAt: number },
   alight: { patternId: string; position: number; observedAt: number },
 ): string | null {
-  if (board.patternId !== alight.patternId) return "embarque e descida em percursos diferentes";
-  if (alight.position <= board.position) return "descida não vem depois do embarque";
-  if (alight.observedAt < board.observedAt) return "descida antes do embarque";
-  return null;
+  const code = checkRideCode(board, alight);
+  return code === null ? null : RIDE_PROBLEM_TEXT[code];
 }

@@ -22,17 +22,22 @@ import {
   type OngoingRide,
   type RideState,
   alightRide,
+  baseTimeAt,
+  checkAlightEdit,
+  checkObservationInterval,
   deduceObservation,
   displayCenter,
   dismissRide,
   expireRide,
   expireRideWithoutTrip,
+  matchInstant,
+  modeFor,
   notBoarded as domainNotBoarded,
   uuidv7,
 } from "@notebus/domain";
 import { selectLive } from "../db/query";
 import { observation, ride } from "../db/schema";
-import { resolveBoarding } from "./rideView";
+import { resolveBoarding, serviceMinuteOn } from "./rideView";
 import { patternStopKey, type ScheduleSnapshot } from "./schedule";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
@@ -75,6 +80,59 @@ export interface DeductionRun {
   done: number;
   failed: number;
 }
+
+/**
+ * O que o Desfazer das edições da E-04 guarda: uma **cópia das linhas que a operação mudou**, inteiras (fato **e**
+ * dedução, inclusive `manual`, `tripId`, `patternStopId`, `deviationMin`, `reviewDismissedAt`, `deletedAt`), mais os
+ * `ride` que ela criou (o Desfazer os apaga). Fica na memória: o app não guarda histórico (E-04 §4.1).
+ */
+export interface EditToken {
+  observations: ObservationRow[];
+  rides: RideRow[];
+  createdRideIds: string[];
+}
+
+/** Por que uma parte da edição foi descartada (a TL-06 mostra "Alteração não gravada"). Nada inválido é gravado. */
+export type EditRejection = {
+  field: "observedAt" | "observedEndAt" | "kind" | "stopId" | "alight";
+  code: "future" | "invalid_interval" | "before_boarding" | "position_not_after" | "pattern_differs" | "kind_locked" | "stop_locked" | "no_alight";
+};
+
+/** A descida do mesmo `ride` (a mesma estrutura serve para o `alight` do embarque e para a edição direta da descida). */
+export interface AlightPatch {
+  observedAt?: number;
+  stopId?: string;
+  /** A passagem escolhida na lista da descida, para conferir o invariante 5 (como em `alight`). */
+  patternId?: string;
+  position?: number;
+}
+
+/** O que a TL-06 pode mudar no fato (E-04 §3.1). `undefined` = não mexe. */
+export interface EditPatch {
+  observedAt?: number;
+  observedEndAt?: number | null;
+  /** Só entre `boarded` e `passed` (D-099). */
+  kind?: "boarded" | "passed";
+  /** O switch "Anotei de memória" (D-067). */
+  memory?: boolean;
+  note?: string | null;
+  /** Só num embarque cujo `ride` tem descida. */
+  alight?: AlightPatch;
+  /** Só em `kind = alighted`: hora, ponto, nota e memória (§3.1). Num embarque o ponto não se edita. */
+  stopId?: string;
+  patternId?: string;
+  position?: number;
+}
+
+export interface EditResult {
+  /** `false` = nada foi gravado (nem `updated_at`): a folha fecha calada. */
+  changed: boolean;
+  rejected: EditRejection[];
+  /** O Desfazer; `null` quando nada foi gravado. */
+  token: EditToken | null;
+}
+
+export type ManualResult = { ok: true; token: EditToken } | { ok: false; problem: string };
 
 /** Minutos de viagem para mostrar: arredonda como o resto do app, meio minuto sobe (34,5 → 35; D-092). */
 export function rideMinutes(boardedAt: number, alightedAt: number): number {
@@ -329,25 +387,33 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
 
   // ─── Dedução (fila) ──────────────────────────────────────────────────────
 
+  /**
+   * D-071: dentro de uma viagem em curso só contam as passagens dela. O embarque que abriu o `ride` não se apoia nele;
+   * uma descida (ou outro registro do mesmo `ride`) sim, se o embarque já tem viagem (`auto` ou `manual`).
+   */
+  async function ongoingFor(row: ObservationRow): Promise<OngoingRide | null> {
+    const parent = row.rideId ? await rideById(row.rideId) : undefined;
+    if (!parent || parent.boardingObservationId === row.id) return null;
+    const boarding = await observationById(parent.boardingObservationId);
+    if (boarding?.tripId && boarding.serviceDate && (boarding.matchStatus === "auto" || boarding.matchStatus === "manual")) {
+      return { lineId: boarding.lineId, tripId: boarding.tripId, serviceDate: boarding.serviceDate };
+    }
+    return null;
+  }
+
+  const factOfRow = (row: ObservationRow): ObservationFact => ({
+    stopId: row.stopId,
+    lineId: row.lineId,
+    observedAt: row.observedAt,
+    observedEndAt: row.observedEndAt,
+    kind: row.kind,
+    mode: row.mode,
+  });
+
   async function deduceOne(row: ObservationRow, network: MatchNetwork, now: number): Promise<void> {
     const parent = row.rideId ? await rideById(row.rideId) : undefined;
-    // D-071: dentro de uma viagem em curso só contam as passagens dela. O embarque que abriu o `ride` não se apoia nele.
-    let ongoing: OngoingRide | null = null;
-    if (parent && parent.boardingObservationId !== row.id) {
-      const boarding = await observationById(parent.boardingObservationId);
-      if (boarding?.tripId && boarding.serviceDate && (boarding.matchStatus === "auto" || boarding.matchStatus === "manual")) {
-        ongoing = { lineId: boarding.lineId, tripId: boarding.tripId, serviceDate: boarding.serviceDate };
-      }
-    }
-    const fact: ObservationFact = {
-      stopId: row.stopId,
-      lineId: row.lineId,
-      observedAt: row.observedAt,
-      observedEndAt: row.observedEndAt,
-      kind: row.kind,
-      mode: row.mode,
-    };
-    const result = await deduce(fact, network, ongoing);
+    const ongoing = await ongoingFor(row);
+    const result = await deduce(factOfRow(row), network, ongoing);
     const snapshot = deps.snapshot();
     const auto = result.matchStatus === "auto";
     const newServiceDate = result.serviceDate;
@@ -430,6 +496,425 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     });
   }
 
+  // ─── Editar, conferir e apagar (E-04 bloco 1) ────────────────────────────
+
+  type ObservationSet = Partial<typeof observation.$inferInsert>;
+  interface Before {
+    observations: ObservationRow[];
+    rides: RideRow[];
+  }
+  /** As colunas da dedução; limpas quando o fato muda e refeitas logo depois (ou na vez seguinte, T-22). */
+  const CLEARED_DEDUCTION = {
+    serviceDate: null,
+    serviceMinute: null,
+    patternStopId: null,
+    tripId: null,
+    matchStatus: null,
+    deviationMin: null,
+    matchRuleVersion: null,
+    reviewDismissedAt: null,
+  } as const;
+
+  const sameRow = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
+
+  /** Cópia das linhas vivas, antes de a operação mexer nelas. */
+  async function captureBefore(observationIds: (string | undefined)[], rideIds: (string | undefined)[]): Promise<Before> {
+    const observations: ObservationRow[] = [];
+    const rides: RideRow[] = [];
+    for (const id of new Set(observationIds)) {
+      const found = id ? await observationById(id) : undefined;
+      if (found) observations.push({ ...found });
+    }
+    for (const id of new Set(rideIds)) {
+      const found = id ? await rideById(id) : undefined;
+      if (found) rides.push({ ...found });
+    }
+    return { observations, rides };
+  }
+
+  /** O Desfazer do que mudou desde `before`: só entram as linhas que ficaram diferentes (ou apagadas). */
+  async function tokenSince(before: Before, createdRideIds: string[] = []): Promise<EditToken> {
+    const observations: ObservationRow[] = [];
+    for (const o of before.observations) {
+      const now = await observationById(o.id);
+      if (!now || !sameRow(now, o)) observations.push(o);
+    }
+    const rides: RideRow[] = [];
+    for (const r of before.rides) {
+      const now = await rideById(r.id);
+      if (!now || !sameRow(now, r)) rides.push(r);
+    }
+    return { observations, rides, createdRideIds };
+  }
+
+  /** A passagem gravada na dedução de um registro (percurso e posição), ou `null`. */
+  function passageOfRow(row: ObservationRow): { patternId: string; position: number } | null {
+    const found = row.patternStopId ? deps.snapshot()?.patternStopById.get(row.patternStopId) : undefined;
+    return found ? { patternId: found.patternId, position: found.position } : null;
+  }
+
+  /** O lado do embarque para o invariante 5: a dedução gravada; sem ela, o par mais perto (como o `alight`); senão só a hora. */
+  function boardPointOf(boarding: ObservationRow, observedAt: number) {
+    const stored = passageOfRow(boarding);
+    if (stored) return { ...stored, observedAt };
+    const network = deps.network();
+    const near = network ? resolveBoarding(boarding, network) : null;
+    return { patternId: near?.patternId ?? null, position: near?.position ?? null, observedAt };
+  }
+
+  async function alightRowOf(parent: RideRow | undefined): Promise<ObservationRow | undefined> {
+    return parent?.alightingObservationId ? observationById(parent.alightingObservationId) : undefined;
+  }
+
+  /**
+   * Edita o fato (TL-06, E-04 §3.1) e refaz a dedução na hora, na mesma fila. A hora do toque (`recorded_at`) nunca muda.
+   * - Sem mudança real: nada é gravado (nem `updated_at`).
+   * - D-097: mudar a hora ou o intervalo derruba a escolha `manual`, limpa a marca "Não sei" e recalcula do zero; mudar
+   *   só nota, memória ou tipo não mexe na escolha.
+   * - D-099: embarquei → vi passar fecha o `ride` como `dismissed` e apaga a descida; vi passar → embarquei cria um
+   *   `ride` novo já `closed`, sem cartão "Em viagem".
+   * - §3.3: hora no futuro, intervalo inválido e descida que quebra o invariante 5 descartam **só essa mudança**
+   *   (`rejected`); o resto grava. Nunca grava estado inválido.
+   * - Se o cálculo da dedução falhar, o fato fica salvo e a fila refaz na vez seguinte (T-22).
+   */
+  function edit(id: string, patch: EditPatch, at: number): Promise<EditResult> {
+    return enqueue(async (): Promise<EditResult> => {
+      const row = await observationById(id);
+      if (!row) throw new Error("registro não encontrado");
+      const network = deps.network();
+      const parent = row.rideId ? await rideById(row.rideId) : undefined;
+      const isAlight = row.kind === "alighted";
+      const ownRide = parent !== undefined && parent.boardingObservationId === row.id ? parent : undefined;
+      const alightRow = ownRide ? await alightRowOf(ownRide) : undefined;
+      const boardingRow = isAlight && parent ? await observationById(parent.boardingObservationId) : undefined;
+      const before = await captureBefore([row.id, alightRow?.id], [parent?.id]);
+      const rejected: EditRejection[] = [];
+      const set: ObservationSet = {};
+
+      // Tipo (D-099): só entre embarquei e vi passar.
+      let kindChange: "boarded" | "passed" | null = null;
+      if (patch.kind !== undefined && patch.kind !== row.kind) {
+        if (isAlight) rejected.push({ field: "kind", code: "kind_locked" });
+        else kindChange = patch.kind;
+      }
+      const becomesPassed = kindChange === "passed";
+
+      // Hora e intervalo (§3.1): o ponto médio não pode estar no futuro e o intervalo respeita a invariante 4.
+      let timeChanged = false;
+      let nextAt = row.observedAt;
+      let nextEnd = row.observedEndAt;
+      if (patch.observedAt !== undefined || patch.observedEndAt !== undefined) {
+        const wantAt = patch.observedAt ?? row.observedAt;
+        const wantEnd = patch.observedEndAt !== undefined ? patch.observedEndAt : row.observedEndAt;
+        if (wantAt !== row.observedAt || wantEnd !== row.observedEndAt) {
+          if (checkObservationInterval(wantAt, wantEnd) !== null) rejected.push({ field: "observedEndAt", code: "invalid_interval" });
+          else if (matchInstant({ observedAt: wantAt, observedEndAt: wantEnd }) > at) rejected.push({ field: "observedAt", code: "future" });
+          else {
+            timeChanged = true;
+            nextAt = wantAt;
+            nextEnd = wantEnd;
+          }
+        }
+      }
+      const dropTime = () => {
+        timeChanged = false;
+        nextAt = row.observedAt;
+        nextEnd = row.observedEndAt;
+      };
+
+      // O ponto não se edita num embarque; numa descida sim (§3.1).
+      let stopChanged = false;
+      if (patch.stopId !== undefined && patch.stopId !== row.stopId) {
+        if (isAlight) stopChanged = true;
+        else rejected.push({ field: "stopId", code: "stop_locked" });
+      }
+
+      // Edição direta da descida: confere o invariante 5 contra o embarque (§3.3).
+      if (isAlight && boardingRow && (timeChanged || stopChanged || patch.patternId !== undefined || patch.position !== undefined)) {
+        const stored = passageOfRow(row);
+        const alightPoint = {
+          patternId: patch.patternId ?? (stopChanged ? null : (stored?.patternId ?? null)),
+          position: patch.position ?? (stopChanged ? null : (stored?.position ?? null)),
+          observedAt: nextAt,
+        };
+        const code = checkAlightEdit(boardPointOf(boardingRow, boardingRow.observedAt), alightPoint);
+        if (code) {
+          rejected.push({ field: "alight", code });
+          dropTime();
+          stopChanged = false;
+        }
+      }
+
+      // A descida de um embarque, editada pelo embarque (§3.1): hora e ponto, conferidos contra a passagem do embarque.
+      let alightSet: ObservationSet | null = null;
+      let alightPoint: { patternId: string | null; position: number | null; observedAt: number } | null = null;
+      if (patch.alight !== undefined) {
+        if (!alightRow || becomesPassed) rejected.push({ field: "alight", code: "no_alight" });
+        else {
+          const a = patch.alight;
+          const newAt = a.observedAt ?? alightRow.observedAt;
+          const newStop = a.stopId ?? alightRow.stopId;
+          const stopMoved = newStop !== alightRow.stopId;
+          if (newAt !== alightRow.observedAt || stopMoved) {
+            const stored = passageOfRow(alightRow);
+            const point = {
+              patternId: a.patternId ?? (stopMoved ? null : (stored?.patternId ?? null)),
+              position: a.position ?? (stopMoved ? null : (stored?.position ?? null)),
+              observedAt: newAt,
+            };
+            const code = newAt > at ? "future" : checkAlightEdit(boardPointOf(row, nextAt), point);
+            if (code) rejected.push({ field: "alight", code });
+            else {
+              alightPoint = point;
+              alightSet = {
+                observedAt: newAt,
+                stopId: newStop,
+                mode: modeFor({ memory: alightRow.mode === "memory", observedAt: newAt, recordedAt: alightRow.recordedAt }),
+                ...CLEARED_DEDUCTION,
+              };
+            }
+          }
+        }
+      }
+
+      // Mudar a hora de um embarque que já tem descida: a mesma conferência (§3.3). Embarque que vira órfão não se confere.
+      if (timeChanged && alightRow && !becomesPassed && network) {
+        let preview: Deduction | null = null;
+        try {
+          preview = await deduce({ ...factOfRow(row), observedAt: nextAt, observedEndAt: nextEnd }, network, null);
+        } catch {
+          preview = null; // sem cálculo agora: a mudança passa e a fila refaz
+        }
+        if (preview?.matchStatus === "auto" && preview.patternId !== null && preview.position !== null) {
+          const stored = passageOfRow(alightRow);
+          const alight = alightPoint ?? { patternId: stored?.patternId ?? null, position: stored?.position ?? null, observedAt: alightRow.observedAt };
+          const code = checkAlightEdit({ patternId: preview.patternId, position: preview.position, observedAt: nextAt }, alight);
+          if (code) {
+            rejected.push({ field: "observedAt", code });
+            dropTime();
+          }
+        }
+      }
+
+      // Nota, memória e modo (D-055, D-067): o modo só se refaz quando a hora ou a memória mudam.
+      if (patch.note !== undefined) {
+        const note = patch.note === "" ? null : patch.note;
+        if (note !== row.note) set.note = note;
+      }
+      const memoryWas = row.mode === "memory";
+      const memoryNow = patch.memory !== undefined ? patch.memory : memoryWas;
+      if (timeChanged || memoryNow !== memoryWas) {
+        const mode = modeFor({ memory: memoryNow, observedAt: nextAt, recordedAt: row.recordedAt });
+        if (mode !== row.mode) set.mode = mode;
+      }
+      if (timeChanged) {
+        set.observedAt = nextAt;
+        set.observedEndAt = nextEnd;
+      }
+      const refact = timeChanged || stopChanged;
+      if (stopChanged) set.stopId = patch.stopId!;
+      if (refact) Object.assign(set, CLEARED_DEDUCTION); // D-097: a escolha `manual` cai e tudo se recalcula
+      if (kindChange) set.kind = kindChange;
+
+      const createdRideIds: string[] = [];
+      const touchesRide = kindChange !== null;
+      if (Object.keys(set).length === 0 && alightSet === null && !touchesRide) {
+        return { changed: false, rejected, token: null };
+      }
+
+      await inTransaction(async () => {
+        if (kindChange === "passed" && ownRide) {
+          // Embarquei → vi passar: o `ride` fecha como `dismissed` e a descida deixa de valer (D-099).
+          await db.update(ride).set({ status: "dismissed", alightingObservationId: null, updatedAt: at }).where(eq(ride.id, ownRide.id));
+          if (alightRow) await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, alightRow.id));
+        } else if (kindChange === "boarded") {
+          // Vi passar → embarquei: `ride` novo, já `closed`, sem cartão "Em viagem"; o `dismissed` antigo sai (D-099).
+          if (parent && parent.status === "dismissed") {
+            await db.update(ride).set({ deletedAt: at, updatedAt: at }).where(eq(ride.id, parent.id));
+          }
+          const rideId = newId(at);
+          createdRideIds.push(rideId);
+          await db.insert(ride).values({
+            id: rideId,
+            createdAt: at,
+            updatedAt: at,
+            source: "user",
+            boardingObservationId: row.id,
+            alightingObservationId: null,
+            tripId: row.matchStatus === "auto" || row.matchStatus === "manual" ? row.tripId : null,
+            status: "closed",
+          });
+          set.rideId = rideId;
+        }
+        if (Object.keys(set).length > 0) {
+          await db.update(observation).set({ ...set, updatedAt: at }).where(eq(observation.id, row.id));
+        }
+        if (refact && ownRide && !becomesPassed) {
+          await db.update(ride).set({ tripId: null, updatedAt: at }).where(eq(ride.id, ownRide.id));
+        }
+        if (alightSet && alightRow) {
+          await db.update(observation).set({ ...alightSet, updatedAt: at }).where(eq(observation.id, alightRow.id));
+        }
+      });
+
+      // A dedução depois do fato (T-22): se o cálculo falhar, o fato fica salvo e a fila refaz.
+      if (network) {
+        const redo = async (observationId: string) => {
+          const fresh = await observationById(observationId);
+          if (!fresh || fresh.matchStatus === "manual") return;
+          try {
+            await deduceOne(fresh, network, at);
+          } catch {
+            /* a fila refaz na próxima vez */
+          }
+        };
+        if (refact) await redo(row.id);
+        if (alightRow && !becomesPassed && (timeChanged || alightSet)) await redo(alightRow.id);
+      }
+
+      return { changed: true, rejected, token: await tokenSince(before, createdRideIds) };
+    });
+  }
+
+  /**
+   * TL-09: escolhe a passagem de um registro `ambiguous` ou `orphan`. Fica `manual`, com o desvio como é (+18), entra na
+   * estimativa (D-022) e limpa a marca "Não sei". Outra `lineId` muda o fato (`line_id`) e vale o mesmo caminho.
+   * `serviceDate` é o dia de serviço da passagem escolhida (hoje ou ontem, como na lista das opções).
+   */
+  function chooseManual(
+    id: string,
+    input: { tripId: string; position: number; serviceDate: string; lineId?: string },
+    at: number,
+  ): Promise<ManualResult> {
+    return enqueue(async (): Promise<ManualResult> => {
+      const row = await observationById(id);
+      if (!row) throw new Error("registro não encontrado");
+      const network = deps.network();
+      const snapshot = deps.snapshot();
+      if (!network || !snapshot) return { ok: false, problem: "horários ainda não carregaram" };
+      const trip = network.trips.find((t) => t.id === input.tripId);
+      const pattern = trip ? network.patterns.find((p) => p.id === trip.patternId) : undefined;
+      const lineId = input.lineId ?? row.lineId;
+      if (!trip || !pattern || pattern.lineId !== lineId) return { ok: false, problem: "viagem fora da linha" };
+      if (pattern.stops.find((s) => s.position === input.position)?.stopId !== row.stopId) return { ok: false, problem: "a passagem não é deste ponto" };
+      const base = baseTimeAt(trip, input.position);
+      const patternStopId = snapshot.patternStopIds.get(patternStopKey(pattern.id, input.position));
+      const instant = matchInstant(row);
+      const minute = serviceMinuteOn(input.serviceDate, instant);
+      if (!base || patternStopId === undefined || minute === null) return { ok: false, problem: "passagem sem horário no dia" };
+      const observedMinute = minute + (((instant % 60_000) + 60_000) % 60_000) / 60_000;
+
+      const parent = row.rideId ? await rideById(row.rideId) : undefined;
+      const ownRide = parent !== undefined && parent.boardingObservationId === row.id ? parent : undefined;
+      const alightRow = ownRide ? await alightRowOf(ownRide) : undefined;
+      if (alightRow && lineId !== row.lineId) return { ok: false, problem: "alight_conflict" };
+      // Invariante 5 com a descida (ou com o embarque, se este registro é a descida).
+      const boardingRow = row.kind === "alighted" && parent ? await observationById(parent.boardingObservationId) : undefined;
+      const chosen = { patternId: pattern.id, position: input.position, observedAt: row.observedAt };
+      if (alightRow) {
+        const stored = passageOfRow(alightRow);
+        const code = checkAlightEdit(chosen, { patternId: stored?.patternId ?? null, position: stored?.position ?? null, observedAt: alightRow.observedAt });
+        if (code) return { ok: false, problem: code };
+      } else if (boardingRow) {
+        const code = checkAlightEdit(boardPointOf(boardingRow, boardingRow.observedAt), chosen);
+        if (code) return { ok: false, problem: code };
+      }
+
+      const before = await captureBefore([row.id, alightRow?.id], [parent?.id]);
+      await inTransaction(async () => {
+        await db
+          .update(observation)
+          .set({
+            lineId,
+            serviceDate: input.serviceDate,
+            serviceMinute: Math.floor(observedMinute),
+            patternStopId,
+            tripId: trip.id,
+            matchStatus: "manual",
+            deviationMin: observedMinute - base.minute,
+            matchRuleVersion: MATCH_RULE_VERSION,
+            reviewDismissedAt: null,
+            updatedAt: at,
+          })
+          .where(eq(observation.id, row.id));
+        if (ownRide) await db.update(ride).set({ tripId: trip.id, updatedAt: at }).where(eq(ride.id, ownRide.id));
+      });
+      // A descida se apoia na viagem do embarque (D-071): refaz, a menos que ela mesma seja uma escolha sua.
+      if (alightRow) {
+        const fresh = await observationById(alightRow.id);
+        if (fresh && fresh.matchStatus !== "manual") {
+          try {
+            await deduceOne(fresh, network, at);
+          } catch {
+            /* a fila refaz na próxima vez */
+          }
+        }
+      }
+      return { ok: true, token: await tokenSince(before) };
+    });
+  }
+
+  /**
+   * "Não sei" (D-057): grava `review_dismissed_at`; o registro continua órfão ou ambíguo, fora da estimativa. Reabrir é
+   * abrir a TL-09 de novo; `chooseManual` e a edição da hora limpam a marca. `null` se o registro não precisa de conferência.
+   */
+  function dismissReview(id: string, at: number): Promise<EditToken | null> {
+    return enqueue(async () => {
+      const row = await observationById(id);
+      if (!row) throw new Error("registro não encontrado");
+      if (row.matchStatus !== "ambiguous" && row.matchStatus !== "orphan") return null;
+      const before = await captureBefore([row.id], []);
+      await db.update(observation).set({ reviewDismissedAt: at, updatedAt: at }).where(eq(observation.id, row.id));
+      return tokenSince(before);
+    });
+  }
+
+  /**
+   * Apagar (D-098, D-052): exclusão lógica. Embarque com descida apaga o par e o `ride` (`pair: true`); embarque sem
+   * descida apaga o registro e o `ride`; só a descida deixa o embarque e o `ride` fica `closed` sem descida, sem
+   * reabrir o cartão "Em viagem". Sai da estimativa e da fila de conferir (o filtro `deleted_at` já faz isso).
+   */
+  function remove(id: string, at: number): Promise<{ pair: boolean; token: EditToken }> {
+    return enqueue(async () => {
+      const row = await observationById(id);
+      if (!row) throw new Error("registro não encontrado");
+      const parent = row.rideId ? await rideById(row.rideId) : undefined;
+      const isAlight = row.kind === "alighted";
+      const ownRide = parent !== undefined && parent.boardingObservationId === row.id ? parent : undefined;
+      const alightRow = ownRide ? await alightRowOf(ownRide) : undefined;
+      const before = await captureBefore([row.id, alightRow?.id], [parent?.id]);
+      await inTransaction(async () => {
+        await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, row.id));
+        if (alightRow) await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, alightRow.id));
+        if (ownRide) await db.update(ride).set({ deletedAt: at, updatedAt: at }).where(eq(ride.id, ownRide.id));
+        else if (isAlight && parent) {
+          await db.update(ride).set({ alightingObservationId: null, status: "closed", updatedAt: at }).where(eq(ride.id, parent.id));
+        }
+      });
+      return { pair: alightRow !== undefined, token: await tokenSince(before) };
+    });
+  }
+
+  /**
+   * Desfazer das operações acima: devolve **exatamente** as linhas do token, com `updated_at = at` (nunca o antigo: a
+   * junção do backup decide por `updated_at`, D-085), e apaga os `ride` que a operação criou. Não toca em mais nada.
+   */
+  function restore(token: EditToken, at: number): Promise<void> {
+    return enqueue(() =>
+      inTransaction(async () => {
+        for (const { id, ...rest } of token.observations) {
+          await db.update(observation).set({ ...rest, updatedAt: at }).where(eq(observation.id, id));
+        }
+        for (const { id, ...rest } of token.rides) {
+          await db.update(ride).set({ ...rest, updatedAt: at }).where(eq(ride.id, id));
+        }
+        for (const id of token.createdRideIds) {
+          await db.update(ride).set({ deletedAt: at, updatedAt: at }).where(eq(ride.id, id));
+        }
+      }),
+    );
+  }
+
   /** Tudo que as telas leem: os registros e as viagens vivos. Pouca coisa (uns 10 registros por dia). */
   async function load(): Promise<{ observations: ObservationRow[]; rides: RideRow[] }> {
     const [observations, rides] = await Promise.all([selectLive(db, observation), selectLive(db, ride)]);
@@ -441,7 +926,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     return enqueue(job);
   }
 
-  return { board, undoBoard, alight, undoAlight, notBoarded, undoNotBoarded, dismiss, undoDismiss, expire, refreshDeductions, load, exclusive };
+  return { board, undoBoard, alight, undoAlight, notBoarded, undoNotBoarded, dismiss, undoDismiss, expire, refreshDeductions, edit, chooseManual, dismissReview, remove, restore, load, exclusive };
 }
 
 export type Registro = ReturnType<typeof createRegistro>;

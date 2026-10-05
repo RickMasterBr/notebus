@@ -66,6 +66,16 @@ export function lisbonWallClock(instantMs: number): WallClock {
   return { date, minute: Math.floor((local - dateMs(date)) / 60_000) };
 }
 
+/**
+ * Relógio de parede de Lisboa → instantes (epoch ms UTC) em que a parede mostrou essa data e minuto. É a conversão
+ * inversa de `lisbonWallClock`: normalmente um instante; **dois** na hora repetida de outubro (as duas 01:30);
+ * **nenhum** na hora que não existe em março (01:30 do dia da mudança). Do menor para o maior.
+ */
+export function lisbonInstants(date: string, minute: number): number[] {
+  const local = dateMs(date) + minute * 60_000;
+  return [local - 3_600_000, local].filter((instant) => instant + lisbonOffsetMs(instant) === local);
+}
+
 // ─── Tipo de dia (§3.1) ─────────────────────────────────────────────────────
 
 /** Por que a data tem este tipo de dia, pela ordem da Fase 1 §4.0. `weekday` = pelo dia da semana. */

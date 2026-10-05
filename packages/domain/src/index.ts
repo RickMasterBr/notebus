@@ -14,13 +14,16 @@ export {
   checkObservationInterval,
   checkPatternPositions,
   checkRide,
+  checkRideCode,
   checkTripTimes,
 } from "./invariants";
+export type { RideProblemCode } from "./invariants";
 export {
   addDays,
   dayOfWeek,
   dayTypeOf,
   lineServiceOn,
+  lisbonInstants,
   lisbonWallClock,
   serviceDaysAt,
   tripsRunningOn,
@@ -76,8 +79,10 @@ export { DOMAIN_CONFIG } from "./config";
 export type { DomainConfig } from "./config";
 export { ageDays, recordWeight, weightedQuantile } from "./estimate";
 export type { WeightInput } from "./estimate";
-export { deduceObservation, matchInstant, matchObservation, normalizedDistance } from "./matching";
+export { deduceObservation, evaluatePassages, matchInstant, matchObservation, normalizedDistance } from "./matching";
 export type { Deduction, LinePatternData, MatchCandidate, MatchNetwork, MatchResult, ObservationFact, OngoingRide } from "./matching";
+export { checkAlightEdit, intervalAround, modeFor, previewMatch, resolvePickedTime, verifyOptions } from "./edit";
+export type { AlightEditProblem, AlightHint, MatchPreview, VerifyContext, VerifyOptions, VerifyPassage } from "./edit";
 export { alightRide, boardWithOpenRides, dismissRide, expireRide, expireRideWithoutTrip, notBoarded, openRide, rideExpired } from "./ride";
 export type { RidePoint, RideState, RideStatus } from "./ride";
 export {
