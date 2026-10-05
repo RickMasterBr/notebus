@@ -69,4 +69,18 @@ describe("homePendingInfo", () => {
     expect(info?.targetObservationId).toBe("obs-newest");
     expect(info?.text).toBe("3 registros para conferir");
   });
+
+  it("com 1 registro pendente: target aponta para verify do registro", () => {
+    const orphan = makeRow({ id: "obs-1", observedAt: 5000, matchStatus: "orphan" });
+    const info = homePendingInfo([orphan]);
+    expect(info?.target).toEqual({ kind: "verify", observationId: "obs-1" });
+  });
+
+  it("com mais de 1 registro pendente: target aponta para records (TL-08)", () => {
+    const row1 = makeRow({ id: "obs-1", observedAt: 1000, matchStatus: "orphan" });
+    const row2 = makeRow({ id: "obs-2", observedAt: 2000, matchStatus: "orphan" });
+    const info = homePendingInfo([row1, row2]);
+    expect(info?.target).toEqual({ kind: "records" });
+  });
 });
+

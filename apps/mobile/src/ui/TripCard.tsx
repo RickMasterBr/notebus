@@ -8,8 +8,6 @@
  * da descida sairia vazia); "Não embarquei" e "Dispensar" continuam.
  * Desce 12 px e aparece em 250 ms; com "Reduzir movimento", só esmaece (4.5 §2.5).
  */
-import { useRef } from "react";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeIn, withTiming } from "react-native-reanimated";
 import type { TripCardModel } from "../data/rideView";
@@ -19,8 +17,6 @@ import { useReduceMotion } from "../sheets/useReduceMotion";
 import { LineBadge } from "./LineBadge";
 
 const DROP = 12;
-/** Quanto o dedo sobe, em px, para valer como "puxar o cartão". */
-const PULL_PX = 40;
 
 /** Entrada do canvas (`nb-drop`): desce 12 px e aparece, 250 ms. */
 function dropIn() {
@@ -48,18 +44,6 @@ export function TripCard({
   const { colors } = useTheme();
   const reduceMotion = useReduceMotion();
   const canList = !card.unmatched && card.ahead !== null;
-  const pulled = useRef(false);
-  const pull = Gesture.Pan()
-    .runOnJS(true)
-    .enabled(canList)
-    .activeOffsetY(-12)
-    .failOffsetX([-24, 24])
-    .onStart(() => {
-      pulled.current = true;
-    })
-    .onEnd((event) => {
-      if (event.translationY <= -PULL_PX) onOpenList();
-    });
 
   const title = card.unmatched
     ? t("trip_card.unmatched")
@@ -76,32 +60,24 @@ export function TripCard({
       entering={reduceMotion ? FadeIn.duration(motion.normal) : dropIn}
       style={[styles.card, { backgroundColor: colors.trip }]}
     >
-      <GestureDetector gesture={pull}>
-        <Pressable
-          accessibilityRole={canList ? "button" : "text"}
-          accessibilityLabel={headLabel}
-          accessibilityHint={canList ? t("home.trip.a11y.open_list") : undefined}
-          disabled={!canList}
-          onPressIn={() => {
-            pulled.current = false;
-          }}
-          onPress={() => {
-            if (pulled.current) return;
-            onOpenList();
-          }}
-          style={styles.head}
-        >
-          {card.line ? <LineBadge code={card.line.code} color={card.line.color} /> : null}
-          <View style={styles.titles}>
-            <Text style={[type.bodyStrong, { color: colors.text }]}>{title}</Text>
-            {card.unmatched && card.unmatchedNext ? (
-              <Text style={[type.caption, styles.num, { color: colors.tripText2 }]}>{card.unmatchedNext}</Text>
-            ) : null}
-            <Text style={[type.caption, styles.num, { color: colors.tripText2 }]}>{subtitle}</Text>
-          </View>
-          {eta ? <Text style={[styles.eta, { color: colors.text }]}>{eta}</Text> : null}
-        </Pressable>
-      </GestureDetector>
+      <Pressable
+        accessibilityRole={canList ? "button" : "text"}
+        accessibilityLabel={headLabel}
+        accessibilityHint={canList ? t("home.trip.a11y.open_list") : undefined}
+        disabled={!canList}
+        onPress={canList ? onOpenList : undefined}
+        style={styles.head}
+      >
+        {card.line ? <LineBadge code={card.line.code} color={card.line.color} /> : null}
+        <View style={styles.titles}>
+          <Text style={[type.bodyStrong, { color: colors.text }]}>{title}</Text>
+          {card.unmatched && card.unmatchedNext ? (
+            <Text style={[type.caption, styles.num, { color: colors.tripText2 }]}>{card.unmatchedNext}</Text>
+          ) : null}
+          <Text style={[type.caption, styles.num, { color: colors.tripText2 }]}>{subtitle}</Text>
+        </View>
+        {eta ? <Text style={[styles.eta, { color: colors.text }]}>{eta}</Text> : null}
+      </Pressable>
       <View style={styles.actions}>
         {card.trip && !card.unmatched ? (
           <Pressable

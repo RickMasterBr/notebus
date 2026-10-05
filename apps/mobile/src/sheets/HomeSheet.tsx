@@ -214,7 +214,7 @@ export function HomeSheet() {
                   onPress={() =>
                     dispatch({
                       type: "push",
-                      sheet: { kind: "verify", observationId: pendingInfo.targetObservationId },
+                      sheet: pendingInfo.target,
                     })
                   }
                   style={({ pressed }) => [
@@ -227,6 +227,25 @@ export function HomeSheet() {
                 </Pressable>
               ) : null}
               <NearbyStops />
+              {state.detent === 2 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("home.section.all_records")}
+                  onPress={() =>
+                    dispatch({
+                      type: "push",
+                      sheet: { kind: "records" },
+                    })
+                  }
+                  style={({ pressed }) => [
+                    styles.allRecordsRow,
+                    pressed && { opacity: 0.6 },
+                  ]}
+                >
+                  <Text style={[type.body, { color: colors.textSecondary }]}>{t("home.section.all_records")}</Text>
+                  <Text style={{ color: colors.textSecondary, fontSize: 16 }}>→</Text>
+                </Pressable>
+              ) : null}
               <HiddenBelowSpacer snapPoints={snapPoints} />
             </BottomSheetScrollView>
           </View>
@@ -255,6 +274,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: space.xs,
     marginBottom: space.sm,
+  },
+  allRecordsRow: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: space.xs,
+    marginTop: space.sm,
   },
 });
 
