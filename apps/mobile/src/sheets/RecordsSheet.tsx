@@ -5,7 +5,7 @@
  * Apagar por deslize à esquerda com Desfazer (D-098, D-052).
  */
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import ReanimatedSwipeable, {
   type SwipeableMethods,
@@ -27,6 +27,7 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -58,6 +59,20 @@ export function RecordsSheet({ id }: { id: number }) {
   const [handleHeight, setHandleHeight] = useState(0);
   const [windowDays, setWindowDays] = useState(14);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
+  const openSwipeableRef = useRef<SwipeableMethods | null>(null);
+  const rowRefs = useRef<Map<string, SwipeableMethods>>(new Map());
+
+  // Limpa referência de swipeable ao desmontar a folha
+  useEffect(() => {
+    return () => {
+      openSwipeableRef.current = null;
+    };
+  }, []);
+
+  const handleClose = useCallback(() => {
+    openSwipeableRef.current = closeAndClearSwipeable(openSwipeableRef.current);
+    close();
+  }, [close]);
 
   // Limpa IDs de deletedIds quando eles reaparecem vivos (ex.: Desfazer)
   useEffect(() => {
@@ -146,6 +161,7 @@ export function RecordsSheet({ id }: { id: number }) {
 
   const handleDelete = useCallback(
     async (observationId: string) => {
+      openSwipeableRef.current = null;
       setDeletedIds((prev) => new Set(prev).add(observationId));
       try {
         await registro.remove(observationId);
@@ -221,6 +237,23 @@ export function RecordsSheet({ id }: { id: number }) {
       return (
         <ReanimatedSwipeable
           key={r.id}
+          ref={(el) => {
+            if (el) {
+              rowRefs.current.set(r.id, el);
+            } else {
+              rowRefs.current.delete(r.id);
+            }
+          }}
+          onSwipeableWillOpen={() => {
+            const currentMethods = rowRefs.current.get(r.id) ?? null;
+            openSwipeableRef.current = openSingleSwipeable(openSwipeableRef.current, currentMethods);
+          }}
+          onSwipeableClose={() => {
+            const currentMethods = rowRefs.current.get(r.id);
+            if (openSwipeableRef.current === currentMethods) {
+              openSwipeableRef.current = null;
+            }
+          }}
           friction={2}
           enableTrackpadTwoFingerGesture
           rightThreshold={40}
@@ -295,7 +328,7 @@ export function RecordsSheet({ id }: { id: number }) {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("common.close")}
-              onPress={close}
+              onPress={handleClose}
               style={styles.closeHitTarget}
             >
               <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
@@ -311,6 +344,9 @@ export function RecordsSheet({ id }: { id: number }) {
             renderItem={renderItem}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
+            onScrollBeginDrag={() => {
+              openSwipeableRef.current = closeAndClearSwipeable(openSwipeableRef.current);
+            }}
             contentContainerStyle={[
               styles.listContent,
               { paddingBottom: insets.bottom + space.lg },
