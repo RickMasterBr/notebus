@@ -75,6 +75,8 @@ export type {
   StopTimeData,
   TripData,
 } from "./passages";
+export { busCandidates, gotoCards, shrunkRideMinutes, walkTimes } from "./goto";
+export type { BusCandidate, BusOption, GotoCandidate, GotoInput, WalkCandidate, WalkOption, WalkRange } from "./goto";
 export { DOMAIN_CONFIG } from "./config";
 export type { DomainConfig } from "./config";
 export { ageDays, recordWeight, weightedQuantile } from "./estimate";
