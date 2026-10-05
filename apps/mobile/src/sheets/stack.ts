@@ -26,7 +26,11 @@ export type SheetContent =
   | { kind: "settings" }
   | { kind: "clockPicker" }
   /** Prévia da importação do backup (E-03 §5.4), aberta pelo "Importar backup" de Ajustes. O arquivo fica no `BackupProvider`. */
-  | { kind: "backupImport" };
+  | { kind: "backupImport" }
+  /** TL-06 Registro detalhado (E-04). */
+  | { kind: "record"; observationId: string }
+  /** TL-09 Conferir registro (E-04). */
+  | { kind: "verify"; observationId: string };
 
 export type SheetKind = SheetContent["kind"];
 
@@ -89,6 +93,8 @@ function sameSheet(a: SheetContent, b: SheetContent): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === "stop" && b.kind === "stop") return a.stopId === b.stopId;
   if (a.kind === "ahead" && b.kind === "ahead") return a.tripId === b.tripId && a.position === b.position;
+  if (a.kind === "record" && b.kind === "record") return a.observationId === b.observationId;
+  if (a.kind === "verify" && b.kind === "verify") return a.observationId === b.observationId;
   return true;
 }
 
