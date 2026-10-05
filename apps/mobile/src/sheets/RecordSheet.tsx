@@ -56,7 +56,7 @@ function RecordHandle({ onClose }: { onClose: () => void }) {
   const setHandleHeight = useContext(HeightContext);
   return (
     <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
-      <SheetHandle kind="close" onPress={onClose} />
+      <SheetHandle kind="close" hideCloseButton onPress={onClose} />
     </View>
   );
 }
