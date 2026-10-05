@@ -8,10 +8,12 @@ import { TripSheet } from "./TripSheet";
 import { StackDiagStrip } from "./diagScroll";
 import { ClockPickerSheet } from "./ClockPickerSheet";
 import { HomeSheet } from "./HomeSheet";
+import { RecordSheet } from "./RecordSheet";
 import { SearchSheet } from "./SearchSheet";
 import { SettingsSheet } from "./SettingsSheet";
 import { useSheets } from "./SheetsContext";
 import { StopSheet } from "./StopSheet";
+import { VerifySheet } from "./VerifySheet";
 import { CloseSheetProvider } from "./StackedSheet";
 import { type SheetEntry, stackedSheets } from "./stack";
 
@@ -76,6 +78,10 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
       return <ClockPickerSheet id={entry.id} />;
     case "backupImport":
       return <BackupImportSheet id={entry.id} />;
+    case "record":
+      return <RecordSheet id={entry.id} observationId={entry.observationId} />;
+    case "verify":
+      return <VerifySheet id={entry.id} observationId={entry.observationId} />;
     case "home":
       return null;
   }
