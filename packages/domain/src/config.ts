@@ -47,6 +47,11 @@ export interface DomainConfig {
   verifyMaxDeviationMinutes: number;
   /** TL-09 "Ou foi outra linha?": uma passagem a até isto da hora anotada (E-04 §4.3). */
   verifyOtherLineWindowMinutes: number;
+  /** "Ir para X" (E-05 §3.3, D-034): a pé fica acima de um ônibus que ela vence por pelo menos isto (inclusive). */
+  walkBeatsBusMinutes: number;
+  /** "Ir para X" (E-05 §3.1, D-100): viagens viáveis por opção de ônibus e cartões no máximo na folha. */
+  tripsPerOption: number;
+  maxCards: number;
 }
 
 export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
@@ -73,4 +78,7 @@ export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
   pickedTimeLookbackHours: 24,
   verifyMaxDeviationMinutes: 30,
   verifyOtherLineWindowMinutes: 15,
+  walkBeatsBusMinutes: 15,
+  tripsPerOption: 2,
+  maxCards: 6,
 });

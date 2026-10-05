@@ -166,6 +166,9 @@ export function StackedSheet({
     >
       <BottomSheet
         ref={ref}
+        accessible={false}
+        accessibilityRole={null}
+        accessibilityLabel={null}
         index={detents?.initialIndex ?? 0}
         animateOnMount={!reduceMotion}
         animationConfigs={openConfig}
