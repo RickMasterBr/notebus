@@ -104,6 +104,73 @@ export function PassGlyph({ color }: { color: string }) {
   );
 }
 
+/** "-" de 22 px (par de PlusGlyph para os ajustes de -/+ 1 minuto). */
+export function MinusGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.plus} {...HIDDEN}>
+      <View style={[styles.plusBar, { backgroundColor: color, width: 14, height: 2.4 }]} />
+    </View>
+  );
+}
+
+/** Ícone de arrastar para reordenar (duas barras horizontais). */
+export function DragHandleGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.dragHandle} {...HIDDEN}>
+      <View style={[styles.dragBar, { backgroundColor: color }]} />
+      <View style={[styles.dragBar, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+/** Seta chevron para a direita (indicador de navegação de item). */
+export function ChevronRightGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.chevronRight} {...HIDDEN}>
+      <View style={[styles.chevronArm, { borderColor: color }]} />
+    </View>
+  );
+}
+
+/** Ícone de lugar estilizado (casa, faculdade/escola, academia/esporte, estrela, padrão). */
+export function PlaceIconGlyph({ icon, color, size = 20 }: { icon?: string | null; color: string; size?: number }) {
+  switch (icon) {
+    case "house":
+    case "casa":
+      return (
+        <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }} {...HIDDEN}>
+          <View style={{ width: 0, height: 0, borderLeftWidth: size * 0.38, borderRightWidth: size * 0.38, borderBottomWidth: size * 0.35, borderLeftColor: "transparent", borderRightColor: "transparent", borderBottomColor: color }} />
+          <View style={{ width: size * 0.58, height: size * 0.42, backgroundColor: color }} />
+        </View>
+      );
+    case "school":
+    case "facul":
+      return (
+        <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }} {...HIDDEN}>
+          <View style={{ width: size * 0.75, height: size * 0.25, backgroundColor: color, transform: [{ rotate: "-15deg" }] }} />
+          <View style={{ width: size * 0.5, height: size * 0.35, borderWidth: 1.5, borderColor: color, borderTopWidth: 0 }} />
+        </View>
+      );
+    case "gym":
+    case "academia":
+      return (
+        <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 1 }} {...HIDDEN}>
+          <View style={{ width: 3, height: size * 0.6, backgroundColor: color, borderRadius: 1 }} />
+          <View style={{ width: size * 0.35, height: 2.5, backgroundColor: color }} />
+          <View style={{ width: 3, height: size * 0.6, backgroundColor: color, borderRadius: 1 }} />
+        </View>
+      );
+    case "star":
+      return (
+        <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }} {...HIDDEN}>
+          <View style={{ width: size * 0.5, height: size * 0.5, borderWidth: 2, borderColor: color, transform: [{ rotate: "45deg" }] }} />
+        </View>
+      );
+    default:
+      return <PinGlyph color={color} />;
+  }
+}
+
 const styles = StyleSheet.create({
   plus: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
   plusBar: { position: "absolute", borderRadius: 1.2 },
@@ -165,4 +232,15 @@ const styles = StyleSheet.create({
   },
   arrowStemV: { width: 1.8, height: 6.5, borderRadius: 0.9 },
   arrowStemH: { width: 7.5, height: 1.8, borderRadius: 0.9, alignSelf: "center", marginLeft: -2 },
+  dragHandle: { width: 20, height: 20, alignItems: "center", justifyContent: "center", gap: 3 },
+  dragBar: { width: 14, height: 2, borderRadius: 1 },
+  chevronRight: { width: 14, height: 14, alignItems: "center", justifyContent: "center" },
+  chevronArm: {
+    width: 6,
+    height: 6,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    transform: [{ rotate: "45deg" }],
+    marginLeft: -2,
+  },
 });

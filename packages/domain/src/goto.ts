@@ -165,7 +165,8 @@ export function busCandidates(option: BusOption, input: GotoInput): BusCandidate
     const beAtStop = displayBeAtStop(board.beAtStop);
     const leaveAt = Math.floor(beAtStop - toBoard.leave);
     if (leaveAt < nowMinute) continue;
-    const segment = shrunkRideMinutes(option.rideMinutes, alight.center - board.center, config);
+    const official = baseTimeAt(trip, option.alightPosition)!.minute - baseTimeAt(trip, option.boardPosition)!.minute;
+    const segment = shrunkRideMinutes(option.rideMinutes, official, config);
     const arrive = segment === null ? alight.center : board.center + segment;
     const until = segment === null ? alight.rangeEnd : board.rangeEnd + segment;
     found.push({

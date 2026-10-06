@@ -17,6 +17,16 @@ export default ({ config }: ConfigContext): ExpoConfig =>
   applyVariant(
     {
       ...config,
+      plugins: [
+        ...(config.plugins ?? []),
+        [
+          "expo-location",
+          {
+            locationWhenInUsePermission:
+              "O NoteBus usa a sua localização apenas para guardar onde fica este lugar.",
+          },
+        ],
+      ],
       extra: {
         ...(config.extra as Record<string, unknown> | undefined),
         buildSha: gitSha,

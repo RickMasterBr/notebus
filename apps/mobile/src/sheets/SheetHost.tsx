@@ -15,6 +15,11 @@ import { SettingsSheet } from "./SettingsSheet";
 import { useSheets } from "./SheetsContext";
 import { StopSheet } from "./StopSheet";
 import { VerifySheet } from "./VerifySheet";
+import { PlacesSheet } from "./PlacesSheet";
+import { PlaceSheet } from "./PlaceSheet";
+import { RouteSheet } from "./RouteSheet";
+import { OptionSheet } from "./OptionSheet";
+import { AlightPickerSheet } from "./AlightPickerSheet";
 import { CloseSheetProvider } from "./StackedSheet";
 import { type SheetEntry, stackedSheets } from "./stack";
 
@@ -85,6 +90,24 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
       return <VerifySheet id={entry.id} observationId={entry.observationId} />;
     case "records":
       return <RecordsSheet id={entry.id} />;
+    case "places":
+      return <PlacesSheet id={entry.id} />;
+    case "place":
+      return <PlaceSheet id={entry.id} placeId={entry.placeId} />;
+    case "route":
+      return <RouteSheet id={entry.id} routeId={entry.routeId} />;
+    case "option":
+      return <OptionSheet id={entry.id} routeId={entry.routeId} optionId={entry.optionId} />;
+    case "alightPicker":
+      return (
+        <AlightPickerSheet
+          id={entry.id}
+          routeId={entry.routeId}
+          patternId={entry.patternId}
+          boardPosition={entry.boardPosition}
+          currentAlightPatternStopId={entry.currentAlightPatternStopId}
+        />
+      );
     case "home":
       return null;
   }

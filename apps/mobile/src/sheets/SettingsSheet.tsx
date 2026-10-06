@@ -43,6 +43,11 @@ export function SettingsSheet({ id }: { id: number }) {
         {t("settings.title")}
       </Text>
       <ListRow
+        title={t("places.title")}
+        accessibilityLabel={t("places.title")}
+        onPress={() => dispatch({ type: "push", sheet: { kind: "places" } })}
+      />
+      <ListRow
         title={t("settings.export_backup")}
         detail={last}
         accessibilityLabel={t("settings.export_backup.a11y", { last })}

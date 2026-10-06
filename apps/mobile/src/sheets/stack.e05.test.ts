@@ -1,0 +1,95 @@
+import { describe, expect, it } from "vitest";
+import {
+  type SheetAction,
+  type SheetStackState,
+  activeSheet,
+  initialSheetState,
+  sheetReducer,
+  stackedSheets,
+} from "./stack";
+
+const POP = Symbol("pop");
+type Step = SheetAction | typeof POP;
+const closeId = (id: number): SheetAction => ({ type: "close", id });
+const step = (s: SheetStackState, a: Step): SheetStackState =>
+  sheetReducer(s, a === POP ? closeId(activeSheet(s).id) : a);
+const run = (...actions: Step[]): SheetStackState => actions.reduce(step, initialSheetState);
+const kinds = (s: SheetStackState) => s.stack.map((e) => e.kind);
+
+describe("stack.e05 (TL-10 Lugares e trajetos)", () => {
+  it("empilha a hierarquia completa: places → place → route → option → alightPicker", () => {
+    const s = run(
+      { type: "push", sheet: { kind: "places" } },
+      { type: "push", sheet: { kind: "place", placeId: "place-1" } },
+      { type: "push", sheet: { kind: "route", routeId: "route-1" } },
+      { type: "push", sheet: { kind: "option", routeId: "route-1", optionId: "opt-1" } },
+      { type: "push", sheet: { kind: "alightPicker", routeId: "route-1", patternId: "pat-1", boardPosition: 2 } },
+    );
+    expect(kinds(s)).toEqual(["home", "places", "place", "route", "option", "alightPicker"]);
+    expect(activeSheet(s)).toMatchObject({ kind: "alightPicker", patternId: "pat-1", boardPosition: 2 });
+  });
+
+  it("empilhar a mesma folha não duplica na pilha", () => {
+    const sPlaces = run(
+      { type: "push", sheet: { kind: "places" } },
+      { type: "push", sheet: { kind: "places" } },
+    );
+    expect(kinds(sPlaces)).toEqual(["home", "places"]);
+    expect(stackedSheets(sPlaces)).toHaveLength(1);
+
+    const sPlace = run(
+      { type: "push", sheet: { kind: "place", placeId: "place-1" } },
+      { type: "push", sheet: { kind: "place", placeId: "place-1" } },
+    );
+    expect(kinds(sPlace)).toEqual(["home", "place"]);
+    expect(stackedSheets(sPlace)).toHaveLength(1);
+
+    const sRoute = run(
+      { type: "push", sheet: { kind: "route", routeId: "route-1" } },
+      { type: "push", sheet: { kind: "route", routeId: "route-1" } },
+    );
+    expect(kinds(sRoute)).toEqual(["home", "route"]);
+    expect(stackedSheets(sRoute)).toHaveLength(1);
+
+    const sOption = run(
+      { type: "push", sheet: { kind: "option", routeId: "route-1", optionId: "opt-1" } },
+      { type: "push", sheet: { kind: "option", routeId: "route-1", optionId: "opt-1" } },
+    );
+    expect(kinds(sOption)).toEqual(["home", "option"]);
+    expect(stackedSheets(sOption)).toHaveLength(1);
+
+    const sAlight = run(
+      { type: "push", sheet: { kind: "alightPicker", routeId: "route-1", patternId: "pat-1", boardPosition: 2 } },
+      { type: "push", sheet: { kind: "alightPicker", routeId: "route-1", patternId: "pat-1", boardPosition: 2 } },
+    );
+    expect(kinds(sAlight)).toEqual(["home", "alightPicker"]);
+    expect(stackedSheets(sAlight)).toHaveLength(1);
+  });
+
+  it("empilhar place ou option diferentes empilha ambas", () => {
+    const s = run(
+      { type: "push", sheet: { kind: "place", placeId: "place-1" } },
+      { type: "push", sheet: { kind: "place", placeId: "place-2" } },
+    );
+    expect(kinds(s)).toEqual(["home", "place", "place"]);
+    expect(stackedSheets(s)).toHaveLength(2);
+  });
+
+  it("fechando folhas desempilha na ordem correta até home", () => {
+    let s = run(
+      { type: "push", sheet: { kind: "places" } },
+      { type: "push", sheet: { kind: "place", placeId: "place-1" } },
+      { type: "push", sheet: { kind: "route", routeId: "route-1" } },
+    );
+    expect(kinds(s)).toEqual(["home", "places", "place", "route"]);
+
+    s = step(s, POP);
+    expect(kinds(s)).toEqual(["home", "places", "place"]);
+
+    s = step(s, POP);
+    expect(kinds(s)).toEqual(["home", "places"]);
+
+    s = step(s, POP);
+    expect(kinds(s)).toEqual(["home"]);
+  });
+});

@@ -19,6 +19,15 @@ interface StopPickValue {
 }
 const StopPickContext = createContext<StopPickValue | null>(null);
 
+export type AlightPick = (alight: { patternStopId: string; stopId: string; position: number }) => void;
+interface AlightPickValue {
+  /** A folha que pede grava aqui o que fazer com a descida escolhida, antes de empilhar AlightPicker. */
+  request: (callback: AlightPick) => void;
+  /** O seletor de descida entrega a descida escolhida. */
+  resolve: AlightPick;
+}
+const AlightPickContext = createContext<AlightPickValue | null>(null);
+
 const SheetsContext = createContext<SheetsValue | null>(null);
 
 let sheetOpener: ((sheet: SheetContent) => void) | null = null;
@@ -66,9 +75,27 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
     }),
     [],
   );
+
+  const alightCallbackRef = useRef<AlightPick | null>(null);
+  const alightPick = useMemo<AlightPickValue>(
+    () => ({
+      request: (callback) => {
+        alightCallbackRef.current = callback;
+      },
+      resolve: (alight) => {
+        const callback = alightCallbackRef.current;
+        alightCallbackRef.current = null;
+        callback?.(alight);
+      },
+    }),
+    [],
+  );
+
   return (
     <SheetsContext.Provider value={value}>
-      <StopPickContext.Provider value={stopPick}>{children}</StopPickContext.Provider>
+      <StopPickContext.Provider value={stopPick}>
+        <AlightPickContext.Provider value={alightPick}>{children}</AlightPickContext.Provider>
+      </StopPickContext.Provider>
     </SheetsContext.Provider>
   );
 }
@@ -76,6 +103,12 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
 export function useStopPick(): StopPickValue {
   const value = useContext(StopPickContext);
   if (!value) throw new Error("useStopPick fora do SheetsProvider");
+  return value;
+}
+
+export function useAlightPick(): AlightPickValue {
+  const value = useContext(AlightPickContext);
+  if (!value) throw new Error("useAlightPick fora do SheetsProvider");
   return value;
 }
 
