@@ -382,4 +382,32 @@ describe("Item 1, A11 por teste: ida e volta do backup de lugares, trajetos, op�
     expect(dstData.options.map((o) => ({ id: o.id, routeId: o.routeId, kind: o.kind, board: o.boardPatternStopId, alight: o.alightPatternStopId, walk: o.walkMinutes, sort: o.sort })))
       .toEqual(srcData.options.map((o) => ({ id: o.id, routeId: o.routeId, kind: o.kind, board: o.boardPatternStopId, alight: o.alightPatternStopId, walk: o.walkMinutes, sort: o.sort })));
   });
+
+  it("D-175: persistência de última origem em setting e exclusão do backup", async () => {
+    const { placesRepo, importDb } = await setupTestDb();
+    const shopping = await placesRepo.createPlace({ name: "Shopping" }, T0);
+    const trabalho = await placesRepo.createPlace({ name: "Trabalho" }, T0);
+    const facul = await placesRepo.createPlace({ name: "Faculdade" }, T0);
+
+    // Grava última origem para o Shopping
+    await placesRepo.setGotoLastOrigin(shopping.id, trabalho.id, T0 + 100);
+    let origins = await placesRepo.getGotoLastOrigins();
+    expect(origins[shopping.id]).toBe(trabalho.id);
+
+    // Grava última origem para a Faculdade
+    await placesRepo.setGotoLastOrigin(facul.id, shopping.id, T0 + 200);
+    origins = await placesRepo.getGotoLastOrigins();
+    expect(origins[shopping.id]).toBe(trabalho.id);
+    expect(origins[facul.id]).toBe(shopping.id);
+
+    // loadAll também traz o mapa
+    const all = await placesRepo.loadAll();
+    expect(all.gotoLastOrigins[shopping.id]).toBe(trabalho.id);
+    expect(all.gotoLastOrigins[facul.id]).toBe(shopping.id);
+
+    // Verifica que NÃO entra no backup (D-175)
+    const backupInput = await readBackupInput(importDb, { now: T0 + 1000, appVersion: "1.0.0" });
+    const settingRows = backupInput.tables.setting ?? [];
+    expect(settingRows.some((s) => s.key === "goto_last_origin")).toBe(false);
+  });
 });

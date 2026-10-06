@@ -12,9 +12,11 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { checkBusOption, uuidv7 } from "@notebus/domain";
 import { selectLive } from "./query";
-import { option, patternStop, place, route, walkTime } from "./schema";
+import { option, patternStop, place, route, setting, walkTime } from "./schema";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
+
+export const GOTO_LAST_ORIGIN_KEY = "goto_last_origin";
 
 export type PlaceRow = typeof place.$inferSelect;
 export type RouteRow = typeof route.$inferSelect;
@@ -508,19 +510,71 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
     );
   }
 
+  // ─── Preferência de última origem (D-175) ──────────────────────────────────
+
+  async function getGotoLastOrigins(): Promise<Record<string, string>> {
+    const rows = await selectLive(db, setting);
+    const row = rows.find((s) => s.key === GOTO_LAST_ORIGIN_KEY);
+    if (!row) return {};
+    return (row.value as Record<string, string>) ?? {};
+  }
+
+  function setGotoLastOrigin(
+    destinationPlaceId: string,
+    originPlaceId: string,
+    at: number,
+  ): Promise<Record<string, string>> {
+    return enqueue(() =>
+      inTransaction(async () => {
+        const rows = await selectLive(db, setting);
+        const existing = rows.find((s) => s.key === GOTO_LAST_ORIGIN_KEY);
+        const currentMap = ((existing?.value as Record<string, string>) ?? {}) as Record<string, string>;
+        const nextMap: Record<string, string> = {
+          ...currentMap,
+          [destinationPlaceId]: originPlaceId,
+        };
+
+        if (existing) {
+          await db
+            .update(setting)
+            .set({
+              value: nextMap,
+              updatedAt: at,
+            })
+            .where(eq(setting.id, existing.id));
+        } else {
+          await db.insert(setting).values({
+            id: newId(at),
+            key: GOTO_LAST_ORIGIN_KEY,
+            value: nextMap,
+            source: "user",
+            createdAt: at,
+            updatedAt: at,
+            deletedAt: null,
+          });
+        }
+        return nextMap;
+      }),
+    );
+  }
+
   async function loadAll(): Promise<{
     places: PlaceRow[];
     routes: RouteRow[];
     options: OptionRow[];
     walkTimes: WalkTimeRow[];
+    gotoLastOrigins: Record<string, string>;
   }> {
-    const [p, r, o, w] = await Promise.all([
+    const [p, r, o, w, s] = await Promise.all([
       selectLive(db, place),
       selectLive(db, route),
       selectLive(db, option),
       selectLive(db, walkTime),
+      selectLive(db, setting),
     ]);
-    return { places: p, routes: r, options: o, walkTimes: w };
+    const settingRow = s.find((row) => row.key === GOTO_LAST_ORIGIN_KEY);
+    const gotoLastOrigins = (settingRow?.value as Record<string, string>) ?? {};
+    return { places: p, routes: r, options: o, walkTimes: w, gotoLastOrigins };
   }
 
   return {
@@ -543,6 +597,8 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
     removeOption,
     restoreOption,
     reorderOptions,
+    getGotoLastOrigins,
+    setGotoLastOrigin,
     loadAll,
   };
 }
