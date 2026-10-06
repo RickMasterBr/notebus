@@ -14,6 +14,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePlaces } from "../data/PlacesProvider";
 import { useSchedule } from "../data/ScheduleProvider";
+import { defaultPlaceIcon, resolveNewPlaceIconOnNameChange } from "../data/placeIcon";
 import { getPlaceLocation, readNativeLocation } from "../data/placeLocation";
 import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { t } from "../i18n";
@@ -63,8 +64,9 @@ export function PlaceSheet({
   );
 
   const [name, setName] = useState(existingPlace?.name ?? initialName ?? "");
+  const [userPickedIcon, setUserPickedIcon] = useState(existingPlace !== null);
   const [icon, setIcon] = useState<string | null>(
-    existingPlace?.icon ?? "casa",
+    existingPlace?.icon ?? defaultPlaceIcon(initialName ?? ""),
   );
   const [isShortcut, setIsShortcut] = useState(existingPlace?.isShortcut ?? true);
   const [lat, setLat] = useState<number | null>(existingPlace?.lat ?? null);
@@ -76,11 +78,19 @@ export function PlaceSheet({
     if (existingPlace) {
       setName(existingPlace.name);
       setIcon(existingPlace.icon);
+      setUserPickedIcon(true);
       setIsShortcut(existingPlace.isShortcut);
       setLat(existingPlace.lat);
       setLon(existingPlace.lon);
     }
   }, [existingPlace]);
+
+  const handleNameChange = (newName: string) => {
+    setName(newName);
+    if (!existingPlace) {
+      setIcon((current) => resolveNewPlaceIconOnNameChange(newName, current, userPickedIcon));
+    }
+  };
 
   // Trajetos que têm este lugar como destino (ignora trajetos sem opções ativas)
   const routesHere = useMemo(() => {
@@ -194,7 +204,7 @@ export function PlaceSheet({
               </Text>
               <BottomSheetTextInput
                 value={name}
-                onChangeText={setName}
+                onChangeText={handleNameChange}
                 placeholder={t("place.field.name")}
                 placeholderTextColor={colors.textSecondary}
                 style={[
@@ -220,7 +230,10 @@ export function PlaceSheet({
                       accessibilityLabel={t("place.icon.a11y", {
                         name: ic ? ic : t("place.icon.default"),
                       })}
-                      onPress={() => setIcon(ic)}
+                      onPress={() => {
+                        setUserPickedIcon(true);
+                        setIcon(ic);
+                      }}
                       style={[
                         styles.iconButton,
                         { backgroundColor: colors.fill },

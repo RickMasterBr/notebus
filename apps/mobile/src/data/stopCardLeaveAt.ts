@@ -20,19 +20,11 @@ import {
   type WalkTimeRow,
 } from "./gotoData";
 import type { ScheduleSnapshot } from "./schedule";
-import { clockText, type StopCard } from "./stopCard";
+import { clockText } from "./stopCard";
 
 export interface PlaceRef {
   id: string;
   name: string;
-  deletedAt: number | null;
-}
-
-export interface WalkTimeRef {
-  stopId: string;
-  placeId: string;
-  minutesMin: number;
-  minutesMax: number | null;
   deletedAt: number | null;
 }
 
@@ -50,21 +42,7 @@ export interface StopCardLeaveAtSources {
 
 export function stopCardLeaveAtSubtitle(
   sources: StopCardLeaveAtSources,
-): string | null;
-export function stopCardLeaveAtSubtitle(
-  card: StopCard,
-  places: readonly PlaceRef[],
-  walkTimes: readonly WalkTimeRef[],
-): string | null;
-export function stopCardLeaveAtSubtitle(
-  sourcesOrCard: StopCardLeaveAtSources | StopCard,
-  legacyPlaces?: readonly PlaceRef[],
-  legacyWalkTimes?: readonly WalkTimeRef[],
 ): string | null {
-  if (!("routes" in sourcesOrCard)) {
-    return legacyStopCardLeaveAtSubtitle(sourcesOrCard, legacyPlaces ?? [], legacyWalkTimes ?? []);
-  }
-
   const {
     stopId,
     places,
@@ -75,7 +53,7 @@ export function stopCardLeaveAtSubtitle(
     rides = [],
     schedule,
     now,
-  } = sourcesOrCard;
+  } = sources;
 
   if (!schedule) return null;
 
@@ -163,48 +141,3 @@ export function stopCardLeaveAtSubtitle(
   return t("home.stop_card.leave_at_neutral", { time, place: selected.originPlace.name });
 }
 
-function legacyStopCardLeaveAtSubtitle(
-  card: StopCard,
-  places: readonly PlaceRef[],
-  walkTimes: readonly WalkTimeRef[],
-): string | null {
-  const activeWalkTimes = walkTimes.filter(
-    (w) => w.stopId === card.stopId && w.deletedAt === null,
-  );
-  if (activeWalkTimes.length === 0) return null;
-
-  const activePlacesMap = new Map<string, PlaceRef>();
-  for (const p of places) {
-    if (p.deletedAt === null) activePlacesMap.set(p.id, p);
-  }
-
-  // Encontra os pares (walkTime, place)
-  const pairs: { walkTime: WalkTimeRef; place: PlaceRef }[] = [];
-  for (const wt of activeWalkTimes) {
-    const p = activePlacesMap.get(wt.placeId);
-    if (p) pairs.push({ walkTime: wt, place: p });
-  }
-
-  if (pairs.length === 0) return null;
-
-  // Prioriza Casa (D-175), se não houver escolhe o primeiro
-  const casaPair = pairs.find((pair) => pair.place.name.trim().toLowerCase() === "casa");
-  const selected = casaPair ?? pairs[0];
-  if (!selected) return null;
-
-  // Encontra o primeiro ônibus com status "next"
-  const nextLine = card.lines.find((l) => l.state.status === "next");
-  if (!nextLine || nextLine.state.status !== "next") return null;
-
-  const [hStr, mStr] = nextLine.state.beAtStop.split(":");
-  const h = Number(hStr);
-  const m = Number(mStr);
-  if (Number.isNaN(h) || Number.isNaN(m)) return null;
-
-  const beAtStopMinute = h * 60 + m;
-  const walkMinutes = selected.walkTime.minutesMax ?? selected.walkTime.minutesMin;
-  const leaveMinute = ((beAtStopMinute - walkMinutes) % 1440 + 1440) % 1440;
-  const time = formatServiceMinute(leaveMinute);
-
-  return t("home.stop_card.leave_at_neutral", { time, place: selected.place.name });
-}
