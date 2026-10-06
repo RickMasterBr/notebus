@@ -74,8 +74,23 @@ export function OptionSheet({
   const [handleHeight, setHandleHeight] = useState(0);
 
   const route = useMemo(
-    () => (routeId ? places.routes.find((r) => r.id === routeId && r.deletedAt === null) ?? null : null),
-    [places.routes, routeId],
+    () => {
+      if (routeId) {
+        return places.routes.find((r) => r.id === routeId && r.deletedAt === null) ?? null;
+      }
+      if (initialOriginPlaceId && initialDestinationPlaceId) {
+        return (
+          places.routes.find(
+            (r) =>
+              r.originPlaceId === initialOriginPlaceId &&
+              r.destinationPlaceId === initialDestinationPlaceId &&
+              r.deletedAt === null,
+          ) ?? null
+        );
+      }
+      return null;
+    },
+    [places.routes, routeId, initialOriginPlaceId, initialDestinationPlaceId],
   );
 
   const effectiveOriginPlaceId = route?.originPlaceId ?? initialOriginPlaceId;

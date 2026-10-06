@@ -17,6 +17,7 @@ import { useSchedule } from "../data/ScheduleProvider";
 import { defaultPlaceIcon, resolveNewPlaceIconOnNameChange } from "../data/placeIcon";
 import { getPlaceLocation, readNativeLocation } from "../data/placeLocation";
 import { openGotoOrNewOption } from "../data/gotoNavigation";
+import { originSelectionAction } from "./placeOrigin";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CrossGlyph, ChevronRightGlyph, PlaceIconGlyph, PlusGlyph } from "../ui/Glyphs";
@@ -24,6 +25,7 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import type { SheetContent } from "./stack";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -153,11 +155,7 @@ export function PlaceSheet({
     setPickingOrigin(false);
     dispatch({
       type: "push",
-      sheet: {
-        kind: "option",
-        originPlaceId,
-        destinationPlaceId: existingPlace.id,
-      },
+      sheet: originSelectionAction(places.routes, originPlaceId, existingPlace.id),
     });
   };
 
@@ -532,6 +530,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: space.sm,
     padding: space.sm,
+    minHeight: minTouch,
     borderRadius: radius.md,
   },
   cancelOriginButton: {
