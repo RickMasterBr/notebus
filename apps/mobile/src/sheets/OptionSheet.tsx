@@ -363,29 +363,25 @@ export function OptionSheet({
         return;
       }
 
-      // Grava tempos a pé compartilhados
-      await places.setWalkTime(boardInfo.stopId, route.originPlaceId, {
-        minutesMin: walkToMin,
-        minutesMax: walkToMax,
+      // Grava tempos a pé compartilhados e a opção em transação atômica única
+      await places.saveBusOption({
+        routeId: route.id,
+        optionId: existingOption?.id,
+        boardStopId: boardInfo.stopId,
+        originPlaceId: route.originPlaceId,
+        walkToBoard: {
+          minutesMin: walkToMin,
+          minutesMax: walkToMax,
+        },
+        alightStopId: alightInfo.stopId,
+        destinationPlaceId: route.destinationPlaceId,
+        walkAfterAlight: {
+          minutesMin: walkFromMin,
+          minutesMax: walkFromMax,
+        },
+        boardPatternStopId,
+        alightPatternStopId,
       });
-      await places.setWalkTime(alightInfo.stopId, route.destinationPlaceId, {
-        minutesMin: walkFromMin,
-        minutesMax: walkFromMax,
-      });
-
-      if (existingOption) {
-        await places.updateOption(existingOption.id, {
-          boardPatternStopId,
-          alightPatternStopId,
-        });
-      } else {
-        await places.addOption({
-          routeId: route.id,
-          kind: "bus",
-          boardPatternStopId,
-          alightPatternStopId,
-        });
-      }
     } else {
       // Walk option
       if (existingOption) {

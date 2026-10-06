@@ -260,6 +260,73 @@ describe("Item 1: Opções de ônibus e a pé", () => {
     expect(list).toHaveLength(1);
     expect(list[0]!.id).toBe(optWalk.id);
   });
+
+  it("0.5: saveBusOption grava tempos a pé e opção numa única transação; falha forçada reverte tudo", async () => {
+    const { db } = await setupTestDb();
+    const placesRepo = createPlaces(db, { failOnOptionSave: true });
+    const casa = await placesRepo.createPlace({ name: "Casa" }, T0);
+    const facul = await placesRepo.createPlace({ name: "Facul" }, T0);
+    const route = await placesRepo.ensureRoute(casa.id, facul.id, T0);
+
+    const pst = await db.select().from(patternStop);
+    const psPos1 = pst.find((p) => p.position === 1)!;
+    const psPos2 = pst.find((p) => p.position === 2)!;
+
+    // Tentativa de gravar com falha forçada no 3º passo (gravação da opção)
+    await expect(
+      placesRepo.saveBusOption(
+        {
+          routeId: route.id,
+          boardStopId: psPos1.stopId,
+          originPlaceId: casa.id,
+          walkToBoard: { minutesMin: 5, minutesMax: 7 },
+          alightStopId: psPos2.stopId,
+          destinationPlaceId: facul.id,
+          walkAfterAlight: { minutesMin: 10, minutesMax: 12 },
+          boardPatternStopId: psPos1.id,
+          alightPatternStopId: psPos2.id,
+        },
+        T0 + 1000,
+      ),
+    ).rejects.toThrow("falha forçada na gravação da opção");
+
+    // Verifica que NENHUM tempo a pé foi gravado (rollback completo)
+    const wtBoard = await placesRepo.getWalkTime(psPos1.stopId, casa.id);
+    const wtAlight = await placesRepo.getWalkTime(psPos2.stopId, facul.id);
+    expect(wtBoard).toBeNull();
+    expect(wtAlight).toBeNull();
+
+    // Verifica que nenhuma opção foi gravada
+    const options = await placesRepo.listOptions(route.id);
+    expect(options).toHaveLength(0);
+
+    // Agora grava com repositório normal (sem falha forçada)
+    const normalRepo = createPlaces(db);
+    const saved = await normalRepo.saveBusOption(
+      {
+        routeId: route.id,
+        boardStopId: psPos1.stopId,
+        originPlaceId: casa.id,
+        walkToBoard: { minutesMin: 5, minutesMax: 7 },
+        alightStopId: psPos2.stopId,
+        destinationPlaceId: facul.id,
+        walkAfterAlight: { minutesMin: 10, minutesMax: 12 },
+        boardPatternStopId: psPos1.id,
+        alightPatternStopId: psPos2.id,
+      },
+      T0 + 2000,
+    );
+    expect(saved.id).toBeDefined();
+
+    // Agora os tempos a pé e a opção existem
+    const wtBoardSaved = await normalRepo.getWalkTime(psPos1.stopId, casa.id);
+    const wtAlightSaved = await normalRepo.getWalkTime(psPos2.stopId, facul.id);
+    expect(wtBoardSaved?.minutesMin).toBe(5);
+    expect(wtAlightSaved?.minutesMin).toBe(10);
+    const optionsAfter = await normalRepo.listOptions(route.id);
+    expect(optionsAfter).toHaveLength(1);
+    expect(optionsAfter[0]!.id).toBe(saved.id);
+  });
 });
 
 describe("Item 1, A11 por teste: ida e volta do backup de lugares, trajetos, opções e tempos a pé", () => {

@@ -21,6 +21,7 @@ import {
   type OptionToken,
   type PlaceRow,
   type RouteRow,
+  type SaveBusOptionInput,
   type SetWalkTimeInput,
   type UpdateOptionPatch,
   type UpdatePlacePatch,
@@ -45,6 +46,7 @@ export interface PlacesContextValue {
   getWalkTime: (stopId: string, placeId: string) => WalkTimeRow | null;
   addOption: (input: AddOptionInput) => Promise<OptionRow>;
   updateOption: (id: string, patch: UpdateOptionPatch) => Promise<OptionRow>;
+  saveBusOption: (input: SaveBusOptionInput) => Promise<OptionRow>;
   removeOption: (id: string) => Promise<{ token: OptionToken }>;
   restoreOption: (token: OptionToken) => Promise<void>;
   reload: () => Promise<void>;
@@ -181,6 +183,15 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
     [placesRepo, now, reload],
   );
 
+  const handleSaveBusOption = useCallback(
+    async (input: SaveBusOptionInput) => {
+      const o = await placesRepo.saveBusOption(input, now());
+      await reload();
+      return o;
+    },
+    [placesRepo, now, reload],
+  );
+
   const handleRemoveOption = useCallback(
     async (id: string) => {
       const res = await placesRepo.removeOption(id, now());
@@ -222,6 +233,7 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
       getWalkTime,
       addOption: handleAddOption,
       updateOption: handleUpdateOption,
+      saveBusOption: handleSaveBusOption,
       removeOption: handleRemoveOption,
       restoreOption: handleRestoreOption,
       reload,
@@ -241,6 +253,7 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
       getWalkTime,
       handleAddOption,
       handleUpdateOption,
+      handleSaveBusOption,
       handleRemoveOption,
       handleRestoreOption,
       reload,
