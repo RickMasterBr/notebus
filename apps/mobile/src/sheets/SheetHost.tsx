@@ -24,7 +24,7 @@ import { GotoSheet } from "./GotoSheet";
 import { CloseSheetProvider } from "./StackedSheet";
 import { type SheetEntry, stackedSheets } from "./stack";
 
-export function SheetHost() {
+export function SheetHost({ customBase }: { customBase?: React.ReactNode } = {}) {
   const { state } = useSheets();
   const stacked = stackedSheets(state);
   // As folhas de baixo ficam sem toque, para os gesture handlers delas não disputarem o gesto com a folha do topo.
@@ -35,7 +35,7 @@ export function SheetHost() {
         style={StyleSheet.absoluteFill}
         pointerEvents={stacked.length > 0 ? "none" : "box-none"}
       >
-        <HomeSheet />
+        {customBase ?? <HomeSheet />}
       </View>
       {stacked.map((entry, i) => {
         const isTop = i === stacked.length - 1;
@@ -94,7 +94,7 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
     case "places":
       return <PlacesSheet id={entry.id} />;
     case "place":
-      return <PlaceSheet id={entry.id} placeId={entry.placeId} />;
+      return <PlaceSheet id={entry.id} placeId={entry.placeId} initialName={entry.initialName} />;
     case "route":
       return <RouteSheet id={entry.id} routeId={entry.routeId} />;
     case "option":

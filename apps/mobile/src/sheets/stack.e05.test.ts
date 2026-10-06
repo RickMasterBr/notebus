@@ -117,4 +117,16 @@ describe("stack.e05 (TL-10 Lugares e trajetos)", () => {
     expect(kinds(sPopped)).toEqual(["home", "goto"]);
     expect(activeSheet(sPopped)).toMatchObject({ destinationPlaceId: "p-shopping" });
   });
+
+  it("empilha folha place com initialName ('Casa') a partir do Início vazio", () => {
+    const s = run({
+      type: "push",
+      sheet: { kind: "place", initialName: "Casa" },
+    });
+    expect(kinds(s)).toEqual(["home", "place"]);
+    expect(activeSheet(s)).toMatchObject({
+      kind: "place",
+      initialName: "Casa",
+    });
+  });
 });

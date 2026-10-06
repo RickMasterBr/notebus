@@ -52,5 +52,9 @@ describe("textos do cartão de ponto (4.6)", () => {
       "Arrabalde da Ponte. Linha 1, para Estação, próximo às 08:10, esteja no ponto às 08:06, estimado. " +
         "Linha 9, Só circula em dias úteis, próximo: segunda, 07:30",
     );
+    expect(cardA11y(card, "sair às 07:59 · Casa")).toBe(
+      "Arrabalde da Ponte, sair às 07:59 · Casa. Linha 1, para Estação, próximo às 08:10, esteja no ponto às 08:06, estimado. " +
+        "Linha 9, Só circula em dias úteis, próximo: segunda, 07:30",
+    );
   });
 });

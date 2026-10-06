@@ -6,11 +6,13 @@
 import { type ReactNode, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
+import { usePlaces } from "../data/PlacesProvider";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { nearbyIds } from "../data/homeStart";
 import { type StopCard, buildStopCard } from "../data/stopCard";
+import { stopCardLeaveAtSubtitle } from "../data/stopCardLeaveAt";
 import { useNowTick } from "../data/useNowTick";
 import { t } from "../i18n";
 import { space, type, useTheme } from "../theme";
@@ -24,6 +26,7 @@ export function NearbyStops() {
   const stops = useStopIndex();
   const schedule = useSchedule();
   const recent = useRecentStops();
+  const places = usePlaces();
   const instant = useNowTick();
   const openStop = useOpenStop();
   const layout = useReorderTransition();
@@ -47,12 +50,19 @@ export function NearbyStops() {
 
   return (
     <Section>
-      {cards.map((card) => (
-        // D-142: ao abrir um ponto, o cartão sobe e os outros descem com transição de layout.
-        <Animated.View key={card.stopId} layout={layout}>
-          <StopCardView card={card} onPress={() => openStop({ id: card.stopId, name: card.name })} />
-        </Animated.View>
-      ))}
+      {cards.map((card) => {
+        const subtitle = stopCardLeaveAtSubtitle(card, places.places, places.walkTimes);
+        return (
+          // D-142: ao abrir um ponto, o cartão sobe e os outros descem com transição de layout.
+          <Animated.View key={card.stopId} layout={layout}>
+            <StopCardView
+              card={card}
+              subtitle={subtitle}
+              onPress={() => openStop({ id: card.stopId, name: card.name })}
+            />
+          </Animated.View>
+        );
+      })}
     </Section>
   );
 }

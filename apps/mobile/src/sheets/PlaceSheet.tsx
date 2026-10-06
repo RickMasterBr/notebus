@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePlaces } from "../data/PlacesProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { getPlaceLocation, readNativeLocation } from "../data/placeLocation";
+import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CrossGlyph, ChevronRightGlyph, PlaceIconGlyph, PlusGlyph } from "../ui/Glyphs";
@@ -38,7 +39,15 @@ const DETENTS: StackedDetents = { snapPoints: ["95%"], initialIndex: 0, Handle: 
 
 const AVAILABLE_ICONS = ["casa", "facul", "academia", "star", null] as const;
 
-export function PlaceSheet({ id, placeId }: { id: number; placeId?: string }) {
+export function PlaceSheet({
+  id,
+  placeId,
+  initialName,
+}: {
+  id: number;
+  placeId?: string;
+  initialName?: string;
+}) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
@@ -53,8 +62,10 @@ export function PlaceSheet({ id, placeId }: { id: number; placeId?: string }) {
     [places.places, placeId],
   );
 
-  const [name, setName] = useState(existingPlace?.name ?? "");
-  const [icon, setIcon] = useState<string | null>(existingPlace?.icon ?? "casa");
+  const [name, setName] = useState(existingPlace?.name ?? initialName ?? "");
+  const [icon, setIcon] = useState<string | null>(
+    existingPlace?.icon ?? (initialName?.toLowerCase() === "casa" ? "casa" : "casa"),
+  );
   const [isShortcut, setIsShortcut] = useState(existingPlace?.isShortcut ?? true);
   const [lat, setLat] = useState<number | null>(existingPlace?.lat ?? null);
   const [lon, setLon] = useState<number | null>(existingPlace?.lon ?? null);
@@ -374,6 +385,22 @@ export function PlaceSheet({ id, placeId }: { id: number; placeId?: string }) {
               </View>
             ) : null}
 
+            {/* Ação Ir para X (Item 3.4) */}
+            {existingPlace ? (
+              <View style={styles.gotoAction}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("sheet_goto.title", { destination: existingPlace.name })}
+                  onPress={() => void openGotoOrNewOption(dispatch, places, existingPlace.id)}
+                  style={[styles.gotoButton, { backgroundColor: colors.fill }]}
+                >
+                  <Text style={[type.bodyStrong, { color: colors.accent }]}>
+                    {t("sheet_goto.title", { destination: existingPlace.name })}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
+
             {/* Botão Salvar */}
             <View style={styles.actions}>
               <Pressable
@@ -500,6 +527,15 @@ const styles = StyleSheet.create({
   },
   actions: {
     paddingTop: space.sm,
+  },
+  gotoAction: {
+    paddingTop: space.xs,
+  },
+  gotoButton: {
+    minHeight: minTouch,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
   },
   saveButton: {
     minHeight: minTouch,

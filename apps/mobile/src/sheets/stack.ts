@@ -35,7 +35,7 @@ export type SheetContent =
   | { kind: "records" }
   /** TL-10 Lugares e trajetos (E-05 Bloco 2) */
   | { kind: "places" }
-  | { kind: "place"; placeId?: string }
+  | { kind: "place"; placeId?: string; initialName?: string }
   | { kind: "route"; routeId: string }
   | { kind: "option"; routeId: string; optionId?: string }
   | { kind: "alightPicker"; routeId: string; patternId: string; boardPosition: number; currentAlightPatternStopId?: string }
@@ -105,7 +105,7 @@ function sameSheet(a: SheetContent, b: SheetContent): boolean {
   if (a.kind === "ahead" && b.kind === "ahead") return a.tripId === b.tripId && a.position === b.position;
   if (a.kind === "record" && b.kind === "record") return a.observationId === b.observationId;
   if (a.kind === "verify" && b.kind === "verify") return a.observationId === b.observationId;
-  if (a.kind === "place" && b.kind === "place") return a.placeId === b.placeId;
+  if (a.kind === "place" && b.kind === "place") return a.placeId === b.placeId && a.initialName === b.initialName;
   if (a.kind === "route" && b.kind === "route") return a.routeId === b.routeId;
   if (a.kind === "option" && b.kind === "option") return a.routeId === b.routeId && a.optionId === b.optionId;
   if (a.kind === "alightPicker" && b.kind === "alightPicker") return a.routeId === b.routeId && a.patternId === b.patternId && a.boardPosition === b.boardPosition;
