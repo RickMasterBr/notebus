@@ -20,6 +20,7 @@ import { usePlaces } from "../data/PlacesProvider";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useToast } from "../data/ToastProvider";
+import { shouldCheckWalkAfterAlight } from "../data/alightSelection";
 import { buildGotoInputFromSources } from "../data/gotoData";
 import { hhmm } from "../data/testClockPicker";
 import { t } from "../i18n";
@@ -122,8 +123,22 @@ export function OptionSheet({
     existingOption?.alightPatternStopId ?? "",
   );
 
-  // A descida mudou no rascunho? (D-065)
+  // A descida mudou no rascunho? (D-065, T-48)
   const [alightChanged, setAlightChanged] = useState(false);
+  const [walkFromEdited, setWalkFromEdited] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  const showAlightCheck = useMemo(() => {
+    return (
+      alightChanged &&
+      shouldCheckWalkAfterAlight({
+        initialAlightPatternStopId: existingOption?.alightPatternStopId ?? "",
+        currentAlightPatternStopId: alightPatternStopId,
+        walkValueEdited: walkFromEdited,
+        isSaved,
+      })
+    );
+  }, [alightChanged, existingOption, alightPatternStopId, walkFromEdited, isSaved]);
 
   // Paragem de embarque
   const boardInfo = useMemo(() => {
@@ -307,6 +322,7 @@ export function OptionSheet({
     alightPick.request((pickedAlight) => {
       setAlightPatternStopId(pickedAlight.patternStopId);
       setAlightChanged(true);
+      setWalkFromEdited(false);
     });
     dispatch({
       type: "push",
@@ -385,6 +401,7 @@ export function OptionSheet({
       }
     }
 
+    setIsSaved(true);
     close();
   };
 
@@ -675,7 +692,7 @@ export function OptionSheet({
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => {
-                        setAlightChanged(false);
+                        setWalkFromEdited(true);
                         if (walkFromMax === null) {
                           setWalkFromMax(walkFromMin);
                         } else {
@@ -689,7 +706,7 @@ export function OptionSheet({
                       </Text>
                     </Pressable>
                   </View>
-                  {alightChanged ? (
+                  {showAlightCheck ? (
                     <Text style={[type.caption, { color: colors.warning, fontWeight: "600" }]}>
                       {t("option.walk.check")}
                     </Text>
@@ -702,7 +719,7 @@ export function OptionSheet({
                       })}
                       onPress={() => {
                         setWalkFromMin((m) => Math.max(0, m - 1));
-                        setAlightChanged(false);
+                        setWalkFromEdited(true);
                       }}
                       style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
                     >
@@ -726,7 +743,7 @@ export function OptionSheet({
                           }
                           return next;
                         });
-                        setAlightChanged(false);
+                        setWalkFromEdited(true);
                       }}
                       style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
                     >
@@ -745,7 +762,7 @@ export function OptionSheet({
                           })}
                           onPress={() => {
                             setWalkFromMax((max) => (max !== null ? Math.max(walkFromMin, max - 1) : walkFromMin));
-                            setAlightChanged(false);
+                            setWalkFromEdited(true);
                           }}
                           style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
                         >
@@ -758,7 +775,7 @@ export function OptionSheet({
                           })}
                           onPress={() => {
                             setWalkFromMax((max) => (max !== null ? max + 1 : walkFromMin + 1));
-                            setAlightChanged(false);
+                            setWalkFromEdited(true);
                           }}
                           style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
                         >
