@@ -842,16 +842,17 @@ export function OptionSheet({
             )}
 
             {/* Prévia ao vivo (D-064) */}
-            {preview ? (
-              <View style={[styles.previewCard, { backgroundColor: colors.fill }]}>
-                <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
-                  {t("option.preview.title")}
-                </Text>
-                {preview.kind === "bus" ? (
+            <View style={[styles.previewCard, { backgroundColor: colors.fill }]}>
+              <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
+                {t("option.preview.title")}
+              </Text>
+              {preview ? (
+                preview.kind === "bus" ? (
                   <Text style={[type.bodyStrong, styles.num, { color: colors.text }]}>
                     {t("option.preview.detail", {
-                      time: hhmm(preview.beAtStop),
-                      time_arrive: hhmm(preview.arriveAt),
+                      leave: hhmm(preview.leaveAt),
+                      arrive: hhmm(preview.arriveAt),
+                      until: hhmm(preview.until),
                     })}
                   </Text>
                 ) : (
@@ -861,9 +862,13 @@ export function OptionSheet({
                       arrive: hhmm(preview.arriveAt),
                     })}
                   </Text>
-                )}
-              </View>
-            ) : null}
+                )
+              ) : (
+                <Text style={[type.body, { color: colors.textSecondary }]}>
+                  {t("option.preview.no_trips_today")}
+                </Text>
+              )}
+            </View>
 
             {/* Ações: Salvar e Apagar */}
             <View style={styles.actions}>

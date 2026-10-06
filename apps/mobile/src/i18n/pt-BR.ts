@@ -334,7 +334,7 @@ export const ptBR = {
   "route.subtitle": "Com o próximo ônibus · agora {{time}}, {{weekday}}",
   "route.option.alight": "Desce: {{stop_name}}",
   "route.option.walks": "{{to}} min até o ponto · {{from}} min a pé depois",
-  "route.option.detail": "sair às {{time}} · desce ~{{time}}",
+  "route.option.detail": "sair às {{leave}} · desce ~{{arrive}}",
   "route.option.walk_detail": "sair às {{leave}} · chega ~{{arrive}}",
   "route.add_option": "Adicionar opção (ônibus ou a pé)",
   "route.order_hint": "Mesma ordem do “Ir para”: quem chega antes vem primeiro. O mesmo ônibus pode aparecer duas vezes, com descidas diferentes.",
@@ -362,7 +362,8 @@ export const ptBR = {
   "option.walk.shared_hint": "vale para todos os trajetos com este par",
   "option.walk_minutes": "Tempo a pé (minutos)",
   "option.preview.title": "Com o próximo ônibus",
-  "option.preview.detail": "no ponto {{time}} · desce ~{{time}}",
+  "option.preview.detail": "sair às {{leave}} · chega ~{{arrive}} · até {{until}}",
+  "option.preview.no_trips_today": "Sem viagem hoje por esta opção", // provisório
   "option.delete": "Apagar opção",
   "toast.option_deleted.title": "Opção apagada", // provisório
   "toast.undo_option_deleted.body": "A opção voltou", // provisório
