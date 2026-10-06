@@ -17,6 +17,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNow } from "../data/NowProvider";
 import { usePlaces } from "../data/PlacesProvider";
+import type { RouteRow } from "../db/places";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useToast } from "../data/ToastProvider";
@@ -49,10 +50,14 @@ export function OptionSheet({
   id,
   routeId,
   optionId,
+  originPlaceId: initialOriginPlaceId,
+  destinationPlaceId: initialDestinationPlaceId,
 }: {
   id: number;
-  routeId: string;
+  routeId?: string;
   optionId?: string;
+  originPlaceId?: string;
+  destinationPlaceId?: string;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -69,9 +74,12 @@ export function OptionSheet({
   const [handleHeight, setHandleHeight] = useState(0);
 
   const route = useMemo(
-    () => places.routes.find((r) => r.id === routeId && r.deletedAt === null) ?? null,
+    () => (routeId ? places.routes.find((r) => r.id === routeId && r.deletedAt === null) ?? null : null),
     [places.routes, routeId],
   );
+
+  const effectiveOriginPlaceId = route?.originPlaceId ?? initialOriginPlaceId;
+  const effectiveDestinationPlaceId = route?.destinationPlaceId ?? initialDestinationPlaceId;
 
   const existingOption = useMemo(
     () => (optionId ? places.options.find((o) => o.id === optionId && o.deletedAt === null) ?? null : null),
@@ -154,16 +162,16 @@ export function OptionSheet({
 
   // Tempos a pé compartilhados
   const initialWalkTo = useMemo(() => {
-    if (!boardInfo || !route) return { min: 0, max: null };
-    const wt = places.getWalkTime(boardInfo.stopId, route.originPlaceId);
+    if (!boardInfo || !effectiveOriginPlaceId) return { min: 0, max: null };
+    const wt = places.getWalkTime(boardInfo.stopId, effectiveOriginPlaceId);
     return { min: wt?.minutesMin ?? 0, max: wt?.minutesMax ?? null };
-  }, [boardInfo, route, places]);
+  }, [boardInfo, effectiveOriginPlaceId, places]);
 
   const initialWalkFrom = useMemo(() => {
-    if (!alightInfo || !route) return { min: 0, max: null };
-    const wt = places.getWalkTime(alightInfo.stopId, route.destinationPlaceId);
+    if (!alightInfo || !effectiveDestinationPlaceId) return { min: 0, max: null };
+    const wt = places.getWalkTime(alightInfo.stopId, effectiveDestinationPlaceId);
     return { min: wt?.minutesMin ?? 0, max: wt?.minutesMax ?? null };
-  }, [alightInfo, route, places]);
+  }, [alightInfo, effectiveDestinationPlaceId, places]);
 
   const [walkToMin, setWalkToMin] = useState(initialWalkTo.min);
   const [walkToMax, setWalkToMax] = useState<number | null>(initialWalkTo.max);
@@ -195,14 +203,24 @@ export function OptionSheet({
 
   // Prévia ao vivo pelo gotoCards (D-064)
   const preview = useMemo(() => {
-    if (!route || !scheduleData) return null;
+    if ((!route && (!effectiveOriginPlaceId || !effectiveDestinationPlaceId)) || !scheduleData) return null;
 
     const currentMs = now();
+
+    const effectiveRoute: RouteRow = route ?? {
+      id: "preview-route",
+      originPlaceId: effectiveOriginPlaceId!,
+      destinationPlaceId: effectiveDestinationPlaceId!,
+      source: "user",
+      createdAt: currentMs,
+      updatedAt: currentMs,
+      deletedAt: null,
+    };
 
     // Constrói opção draft temporária
     const draftOpt = {
       id: existingOption?.id ?? "preview-option",
-      routeId: route.id,
+      routeId: effectiveRoute.id,
       kind,
       source: "user" as const,
       boardPatternStopId: kind === "bus" ? boardPatternStopId : null,
@@ -218,12 +236,12 @@ export function OptionSheet({
     const updatedWalkTimes = [...places.walkTimes];
     if (boardInfo) {
       const idx = updatedWalkTimes.findIndex(
-        (w) => w.stopId === boardInfo.stopId && w.placeId === route.originPlaceId,
+        (w) => w.stopId === boardInfo.stopId && w.placeId === effectiveOriginPlaceId,
       );
       const row = {
         id: "draft-wt-board",
         stopId: boardInfo.stopId,
-        placeId: route.originPlaceId,
+        placeId: effectiveOriginPlaceId!,
         minutesMin: walkToMin,
         minutesMax: walkToMax,
         source: "user" as const,
@@ -237,12 +255,12 @@ export function OptionSheet({
     }
     if (alightInfo) {
       const idx = updatedWalkTimes.findIndex(
-        (w) => w.stopId === alightInfo.stopId && w.placeId === route.destinationPlaceId,
+        (w) => w.stopId === alightInfo.stopId && w.placeId === effectiveDestinationPlaceId,
       );
       const row = {
         id: "draft-wt-alight",
         stopId: alightInfo.stopId,
-        placeId: route.destinationPlaceId,
+        placeId: effectiveDestinationPlaceId!,
         minutesMin: walkFromMin,
         minutesMax: walkFromMax,
         source: "user" as const,
@@ -257,7 +275,7 @@ export function OptionSheet({
 
     const gotoInput = buildGotoInputFromSources(
       {
-        route,
+        route: effectiveRoute,
         options: [draftOpt],
         walkTimes: updatedWalkTimes,
         observations: registro.observations,
@@ -272,6 +290,8 @@ export function OptionSheet({
     return cards[0] ?? null;
   }, [
     route,
+    effectiveOriginPlaceId,
+    effectiveDestinationPlaceId,
     scheduleData,
     existingOption,
     kind,
@@ -328,7 +348,7 @@ export function OptionSheet({
       type: "push",
       sheet: {
         kind: "alightPicker",
-        routeId,
+        routeId: route?.id ?? "",
         patternId,
         boardPosition: boardInfo.position,
         currentAlightPatternStopId: alightPatternStopId,
@@ -337,7 +357,7 @@ export function OptionSheet({
   };
 
   const handleSave = async () => {
-    if (!route) return;
+    if (!effectiveOriginPlaceId || !effectiveDestinationPlaceId) return;
 
     if (kind === "bus") {
       if (!boardInfo || !alightInfo || !patternId) {
@@ -365,16 +385,16 @@ export function OptionSheet({
 
       // Grava tempos a pé compartilhados e a opção em transação atômica única
       await places.saveBusOption({
-        routeId: route.id,
+        routeId: route?.id,
+        originPlaceId: effectiveOriginPlaceId,
+        destinationPlaceId: effectiveDestinationPlaceId,
         optionId: existingOption?.id,
         boardStopId: boardInfo.stopId,
-        originPlaceId: route.originPlaceId,
         walkToBoard: {
           minutesMin: walkToMin,
           minutesMax: walkToMax,
         },
         alightStopId: alightInfo.stopId,
-        destinationPlaceId: route.destinationPlaceId,
         walkAfterAlight: {
           minutesMin: walkFromMin,
           minutesMax: walkFromMax,
@@ -390,7 +410,9 @@ export function OptionSheet({
         });
       } else {
         await places.addOption({
-          routeId: route.id,
+          routeId: route?.id,
+          originPlaceId: effectiveOriginPlaceId,
+          destinationPlaceId: effectiveDestinationPlaceId,
           kind: "walk",
           walkMinutes,
         });
@@ -422,7 +444,7 @@ export function OptionSheet({
     ),
   );
 
-  if (!route || !scheduleData) return null;
+  if ((!route && (!effectiveOriginPlaceId || !effectiveDestinationPlaceId)) || !scheduleData) return null;
 
   const boardStopName = boardInfo
     ? scheduleData.stopNames.get(boardInfo.stopId) ?? boardInfo.stopId

@@ -21,6 +21,7 @@ import { BACKUP_REMINDER_SNOOZED_UNTIL, LAST_EXPORT_AT, importBackup, readBackup
 import type { BackupStore } from "./migrate";
 import { tables } from "./schema";
 import { SCENARIO_NOW, backupScenario } from "./testing/backupScenario";
+import { createPlaces } from "./places";
 
 const sha256 = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
 const APP = "1.0.0";
@@ -370,3 +371,45 @@ describe("A8 pelo banco: lembrete com data simulada (D-088)", () => {
     expect(backupReminder({ now: later + 20 * DAY, ...(await readReminderState(f.raw)) }).show).toBe(false);
   });
 });
+
+describe("D-175: preferência goto_last_origin fica fora do backup", () => {
+  it("com goto_last_origin gravada em setting, exportar não a inclui no arquivo, e importar num banco que já a tem não a apaga nem a sobrescreve", async () => {
+    const src = await backupScenario();
+    const placesRepoSrc = createPlaces(src.db);
+    await placesRepoSrc.setGotoLastOrigin("place-dest", "place-src-choice", SCENARIO_NOW);
+
+    // Confere que goto_last_origin foi gravada em setting no banco de origem
+    const srcSettingRows = all(src, "SELECT * FROM setting WHERE key = 'goto_last_origin'");
+    expect(srcSettingRows).toHaveLength(1);
+    expect((await placesRepoSrc.getGotoLastOrigins())["place-dest"]).toBe("place-src-choice");
+
+    // Exporta o banco
+    const text = await exportText(src);
+
+    // Prova 1: o arquivo exportado não inclui goto_last_origin
+    expect(text.includes("goto_last_origin")).toBe(false);
+    const parsedBackup = JSON.parse(text) as BackupFile;
+    const backupSettingRows = parsedBackup.tables.setting ?? [];
+    expect(backupSettingRows.some((row: any) => row.key === "goto_last_origin" || row[1] === "goto_last_origin")).toBe(false);
+
+    // Banco de destino já possui sua própria preferência de origem
+    const dst = await fixture();
+    const placesRepoDst = createPlaces(dst.db);
+    await placesRepoDst.setGotoLastOrigin("place-dest", "place-dst-existing", SCENARIO_NOW);
+
+    const dstBefore = await placesRepoDst.getGotoLastOrigins();
+    expect(dstBefore["place-dest"]).toBe("place-dst-existing");
+
+    // Importa o backup no banco de destino
+    await importText(dst, text);
+
+    // Prova 2: importar não apaga nem sobrescreve goto_last_origin existente
+    const dstAfter = await placesRepoDst.getGotoLastOrigins();
+    expect(dstAfter["place-dest"]).toBe("place-dst-existing");
+
+    const dstSettingRows = all(dst, "SELECT * FROM setting WHERE key = 'goto_last_origin'");
+    expect(dstSettingRows).toHaveLength(1);
+    expect((await placesRepoDst.getGotoLastOrigins())["place-dest"]).toBe("place-dst-existing");
+  });
+});
+

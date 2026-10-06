@@ -8,6 +8,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { usePlaces } from "../data/PlacesProvider";
 import { useRecentStops } from "../data/RecentStopsProvider";
+import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { nearbyIds } from "../data/homeStart";
@@ -27,6 +28,7 @@ export function NearbyStops() {
   const schedule = useSchedule();
   const recent = useRecentStops();
   const places = usePlaces();
+  const registro = useRegistro();
   const instant = useNowTick();
   const openStop = useOpenStop();
   const layout = useReorderTransition();
@@ -51,7 +53,17 @@ export function NearbyStops() {
   return (
     <Section>
       {cards.map((card) => {
-        const subtitle = stopCardLeaveAtSubtitle(card, places.places, places.walkTimes);
+        const subtitle = stopCardLeaveAtSubtitle({
+          stopId: card.stopId,
+          places: places.places,
+          routes: places.routes,
+          options: places.options,
+          walkTimes: places.walkTimes,
+          observations: registro.observations,
+          rides: registro.rides,
+          schedule: schedule.status === "ready" ? schedule.data : null,
+          now: instant,
+        });
         return (
           // D-142: ao abrir um ponto, o cartão sobe e os outros descem com transição de layout.
           <Animated.View key={card.stopId} layout={layout}>

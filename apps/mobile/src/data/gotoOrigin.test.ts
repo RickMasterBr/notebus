@@ -185,4 +185,117 @@ describe("Regra de resolução da origem no TL-04 (D-175)", () => {
       expect(res.originPlaceId).toBe(trabalho.id);
     }
   });
+
+  // Novos testes do Bloco 3b (correção D-175)
+  it("7. Casa sem trajeto + outro lugar com trajeto → resolve o outro", () => {
+    // Casa existe mas não tem trajeto até shopping; Trabalho tem trajeto com opção
+    const rTrabalho = makeRoute("r-trab", trabalho.id, shopping.id, T0);
+    const opt: OptionRow = {
+      id: "opt-1",
+      routeId: rTrabalho.id,
+      kind: "bus",
+      boardPatternStopId: "ps-1",
+      alightPatternStopId: "ps-2",
+      walkMinutes: null,
+      sort: 0,
+      source: "user",
+      createdAt: T0,
+      updatedAt: T0,
+      deletedAt: null,
+    };
+
+    const res = resolveGotoOrigin({
+      destinationPlaceId: shopping.id,
+      places: [casa, trabalho, shopping],
+      routes: [rTrabalho],
+      options: [opt],
+      lastOriginMap: {},
+    });
+
+    expect(res.kind).toBe("resolved");
+    if (res.kind === "resolved") {
+      expect(res.originPlaceId).toBe(trabalho.id);
+      expect(res.originPlace.name).toBe("Trabalho");
+    }
+  });
+
+  it("8. Escolha salva sem trajeto → ignorada", () => {
+    // Escolha salva era Trabalho, mas só Casa tem trajeto com opção até shopping
+    const rCasa = makeRoute("r-casa", casa.id, shopping.id, T0);
+    const opt: OptionRow = {
+      id: "opt-casa",
+      routeId: rCasa.id,
+      kind: "bus",
+      boardPatternStopId: "ps-1",
+      alightPatternStopId: "ps-2",
+      walkMinutes: null,
+      sort: 0,
+      source: "user",
+      createdAt: T0,
+      updatedAt: T0,
+      deletedAt: null,
+    };
+
+    const res = resolveGotoOrigin({
+      destinationPlaceId: shopping.id,
+      places: [casa, trabalho, shopping],
+      routes: [rCasa],
+      options: [opt],
+      lastOriginMap: { [shopping.id]: trabalho.id },
+    });
+
+    expect(res.kind).toBe("resolved");
+    if (res.kind === "resolved") {
+      expect(res.originPlaceId).toBe(casa.id);
+      expect(res.originPlace.name).toBe("Casa");
+    }
+  });
+
+  it("9. Trajeto existente mas sem opções não conta", () => {
+    // Casa tem trajeto sem opção; Trabalho tem trajeto com opção
+    const rCasaVazia = makeRoute("r-casa-vazia", casa.id, shopping.id, T0);
+    const rTrabalho = makeRoute("r-trab", trabalho.id, shopping.id, T0 + 10);
+    const opt: OptionRow = {
+      id: "opt-trab",
+      routeId: rTrabalho.id,
+      kind: "bus",
+      boardPatternStopId: "ps-1",
+      alightPatternStopId: "ps-2",
+      walkMinutes: null,
+      sort: 0,
+      source: "user",
+      createdAt: T0,
+      updatedAt: T0,
+      deletedAt: null,
+    };
+
+    const res = resolveGotoOrigin({
+      destinationPlaceId: shopping.id,
+      places: [casa, trabalho, shopping],
+      routes: [rCasaVazia, rTrabalho],
+      options: [opt],
+      lastOriginMap: {},
+    });
+
+    expect(res.kind).toBe("resolved");
+    if (res.kind === "resolved") {
+      expect(res.originPlaceId).toBe(trabalho.id);
+    }
+  });
+
+  it("10. Tudo sem opção → no_route", () => {
+    // Casa e Trabalho têm rotas, mas nenhuma opção em options
+    const rCasa = makeRoute("r-casa", casa.id, shopping.id, T0);
+    const rTrabalho = makeRoute("r-trab", trabalho.id, shopping.id, T0 + 10);
+
+    const res = resolveGotoOrigin({
+      destinationPlaceId: shopping.id,
+      places: [casa, trabalho, shopping],
+      routes: [rCasa, rTrabalho],
+      options: [],
+      lastOriginMap: { [shopping.id]: trabalho.id },
+    });
+
+    expect(res.kind).toBe("no_route");
+  });
 });

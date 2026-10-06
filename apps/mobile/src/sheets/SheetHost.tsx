@@ -98,7 +98,15 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
     case "route":
       return <RouteSheet id={entry.id} routeId={entry.routeId} />;
     case "option":
-      return <OptionSheet id={entry.id} routeId={entry.routeId} optionId={entry.optionId} />;
+      return (
+        <OptionSheet
+          id={entry.id}
+          routeId={"routeId" in entry ? entry.routeId : undefined}
+          optionId={"optionId" in entry ? entry.optionId : undefined}
+          originPlaceId={"originPlaceId" in entry ? entry.originPlaceId : undefined}
+          destinationPlaceId={"destinationPlaceId" in entry ? entry.destinationPlaceId : undefined}
+        />
+      );
     case "alightPicker":
       return (
         <AlightPickerSheet

@@ -131,7 +131,7 @@ export function GotoSheet({
     (p) => p.id === activeOriginId && p.deletedAt === null,
   );
 
-  // Trajeto ativo para o par origem ↔ destino
+  // Trajeto ativo para o par origem ↔ destino (ignora trajeto sem opção ativa)
   const activeRoute = useMemo(() => {
     if (!activeOriginId) return null;
     return (
@@ -139,10 +139,11 @@ export function GotoSheet({
         (r) =>
           r.originPlaceId === activeOriginId &&
           r.destinationPlaceId === destinationPlaceId &&
-          r.deletedAt === null,
+          r.deletedAt === null &&
+          places.options.some((o) => o.routeId === r.id && o.deletedAt === null),
       ) ?? null
     );
-  }, [places.routes, activeOriginId, destinationPlaceId]);
+  }, [places.routes, places.options, activeOriginId, destinationPlaceId]);
 
   // Opções de ônibus cadastradas nesta rota
   const routeBusOptions = useMemo(() => {
@@ -218,8 +219,6 @@ export function GotoSheet({
     setIsChoosingOrigin(false);
     // Atualiza preferência na tabela setting (D-175)
     await places.setGotoLastOrigin(destinationPlaceId, newOriginId);
-    // Garante que o trajeto existe no banco
-    await places.ensureRoute(newOriginId, destinationPlaceId);
   };
 
   const lastIndex = useRef<number | null>(null);
@@ -473,15 +472,27 @@ export function GotoSheet({
                 <Text style={[type.body, { color: colors.textSecondary }]}>
                   {t("route.no_options")}
                 </Text>
-                {activeRoute ? (
+                {activeOriginId ? (
                   <Pressable
                     accessibilityRole="button"
+                    accessibilityLabel={t("route.add_option")}
                     onPress={() => {
-                      const rId = activeRoute.id;
-                      dispatch({
-                        type: "push",
-                        sheet: { kind: "option", routeId: rId },
-                      });
+                      if (activeRoute) {
+                        const rId = activeRoute.id;
+                        dispatch({
+                          type: "push",
+                          sheet: { kind: "option", routeId: rId },
+                        });
+                      } else {
+                        dispatch({
+                          type: "push",
+                          sheet: {
+                            kind: "option",
+                            originPlaceId: activeOriginId,
+                            destinationPlaceId,
+                          },
+                        });
+                      }
                     }}
                     style={[styles.addOptionButton, { backgroundColor: colors.fill }]}
                   >

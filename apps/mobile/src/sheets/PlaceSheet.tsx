@@ -64,7 +64,7 @@ export function PlaceSheet({
 
   const [name, setName] = useState(existingPlace?.name ?? initialName ?? "");
   const [icon, setIcon] = useState<string | null>(
-    existingPlace?.icon ?? (initialName?.toLowerCase() === "casa" ? "casa" : "casa"),
+    existingPlace?.icon ?? "casa",
   );
   const [isShortcut, setIsShortcut] = useState(existingPlace?.isShortcut ?? true);
   const [lat, setLat] = useState<number | null>(existingPlace?.lat ?? null);
@@ -82,13 +82,16 @@ export function PlaceSheet({
     }
   }, [existingPlace]);
 
-  // Trajetos que têm este lugar como destino
+  // Trajetos que têm este lugar como destino (ignora trajetos sem opções ativas)
   const routesHere = useMemo(() => {
     if (!existingPlace) return [];
     return places.routes.filter(
-      (r) => r.destinationPlaceId === existingPlace.id && r.deletedAt === null,
+      (r) =>
+        r.destinationPlaceId === existingPlace.id &&
+        r.deletedAt === null &&
+        places.options.some((o) => o.routeId === r.id && o.deletedAt === null),
     );
-  }, [places.routes, existingPlace]);
+  }, [places.routes, places.options, existingPlace]);
 
   // Outros lugares para criar novo trajeto até aqui
   const otherPlaces = useMemo(() => {
@@ -135,11 +138,17 @@ export function PlaceSheet({
     close();
   };
 
-  const handleCreateRouteFrom = async (originPlaceId: string) => {
+  const handleCreateRouteFrom = (originPlaceId: string) => {
     if (!existingPlace) return;
     setPickingOrigin(false);
-    const newRoute = await places.ensureRoute(originPlaceId, existingPlace.id);
-    dispatch({ type: "push", sheet: { kind: "route", routeId: newRoute.id } });
+    dispatch({
+      type: "push",
+      sheet: {
+        kind: "option",
+        originPlaceId,
+        destinationPlaceId: existingPlace.id,
+      },
+    });
   };
 
   const scrollAreaHeight = Math.max(
