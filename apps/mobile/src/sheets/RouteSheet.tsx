@@ -181,7 +181,10 @@ const OptionRowItem = memo(function OptionRowItem({
             </View>
             {card ? (
               <Text style={[type.caption, styles.num, { color: colors.text }]}>
-                {`sair às ${hhmm(card.leaveAt)} · chega ~${hhmm(card.arriveAt)}`}
+                {t("route.option.walk_detail", {
+                  leave: hhmm(card.leaveAt),
+                  arrive: hhmm(card.arriveAt),
+                })}
               </Text>
             ) : null}
           </>

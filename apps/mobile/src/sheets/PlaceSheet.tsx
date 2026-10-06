@@ -197,7 +197,9 @@ export function PlaceSheet({ id, placeId }: { id: number; placeId?: string }) {
                     <Pressable
                       key={ic ?? "default"}
                       accessibilityRole="button"
-                      accessibilityLabel={`Ícone ${ic ?? "padrão"}`}
+                      accessibilityLabel={t("place.icon.a11y", {
+                        name: ic ? ic : t("place.icon.default"),
+                      })}
                       onPress={() => setIcon(ic)}
                       style={[
                         styles.iconButton,
@@ -332,7 +334,7 @@ export function PlaceSheet({ id, placeId }: { id: number; placeId?: string }) {
                 {pickingOrigin ? (
                   <View style={styles.originPickerBox}>
                     <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
-                      Origem do novo trajeto:
+                      {t("place.new_route.origin_label")}
                     </Text>
                     {otherPlaces.map((op) => (
                       <Pressable

@@ -447,7 +447,7 @@ export function OptionSheet({
             </View>
 
             {/* Alternador de Tipo: Ônibus / A pé */}
-            <View role="radiogroup" aria-label="Tipo de opção" style={styles.kindGroup}>
+            <View role="radiogroup" aria-label={t("option.type.a11y")} style={styles.kindGroup}>
               <Pressable
                 role="radio"
                 aria-checked={kind === "bus"}
@@ -536,7 +536,7 @@ export function OptionSheet({
                   </Text>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`${t("option.field.boarding")}: ${boardStopName || "escolher ponto"}`}
+                    accessibilityLabel={`${t("option.field.boarding")}: ${boardStopName || t("option.pick_boarding.placeholder")}`}
                     onPress={handlePickBoarding}
                     style={[styles.pickerButton, { backgroundColor: colors.fill }]}
                   >
@@ -558,7 +558,7 @@ export function OptionSheet({
                   </Text>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`${t("option.field.alight")}: ${alightStopName || "escolher descida"}`}
+                    accessibilityLabel={`${t("option.field.alight")}: ${alightStopName || t("option.pick_alight.placeholder")}`}
                     disabled={!boardInfo}
                     onPress={handlePickAlight}
                     style={[
@@ -578,11 +578,28 @@ export function OptionSheet({
                   </Pressable>
                 </View>
 
-                {/* A pé até o embarque */}
+                {/* A pé até o embarque (D-100) */}
                 <View style={styles.section}>
-                  <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
-                    {t("option.walk_to")}
-                  </Text>
+                  <View style={styles.walkHeaderRow}>
+                    <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
+                      {t("option.walk_to")}
+                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        if (walkToMax === null) {
+                          setWalkToMax(walkToMin);
+                        } else {
+                          setWalkToMax(null);
+                        }
+                      }}
+                      style={[styles.rangeToggleBtn, { backgroundColor: colors.fill }]}
+                    >
+                      <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
+                        {walkToMax === null ? t("option.walk.range_button") : t("option.walk.no_range_button")}
+                      </Text>
+                    </Pressable>
+                  </View>
                   <View style={styles.stepperRow}>
                     <Pressable
                       accessibilityRole="button"
@@ -602,22 +619,76 @@ export function OptionSheet({
                       accessibilityLabel={t("option.walk.plus.aria", {
                         target: t("option.walk_to"),
                       })}
-                      onPress={() => setWalkToMin((m) => m + 1)}
+                      onPress={() => {
+                        setWalkToMin((m) => {
+                          const next = m + 1;
+                          if (walkToMax !== null && next > walkToMax) {
+                            setWalkToMax(next);
+                          }
+                          return next;
+                        });
+                      }}
                       style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
                     >
                       <PlusGlyph color={colors.text} />
                     </Pressable>
+
+                    {walkToMax !== null ? (
+                      <View style={styles.maxStepperGroup}>
+                        <Text style={[type.caption, { color: colors.textSecondary }]}>
+                          {t("option.walk.max_label")}
+                        </Text>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t("option.walk.max_minus.aria", {
+                            target: t("option.walk_to"),
+                          })}
+                          onPress={() => setWalkToMax((max) => (max !== null ? Math.max(walkToMin, max - 1) : walkToMin))}
+                          style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
+                        >
+                          <MinusGlyph color={colors.text} />
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t("option.walk.max_plus.aria", {
+                            target: t("option.walk_to"),
+                          })}
+                          onPress={() => setWalkToMax((max) => (max !== null ? max + 1 : walkToMin + 1))}
+                          style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
+                        >
+                          <PlusGlyph color={colors.text} />
+                        </Pressable>
+                      </View>
+                    ) : null}
                   </View>
                   <Text style={[type.caption, { color: colors.textSecondary }]}>
                     {t("option.walk.shared_hint")}
                   </Text>
                 </View>
 
-                {/* A pé depois da descida */}
+                {/* A pé depois da descida (D-100) */}
                 <View style={styles.section}>
-                  <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
-                    {t("option.walk_from")}
-                  </Text>
+                  <View style={styles.walkHeaderRow}>
+                    <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
+                      {t("option.walk_from")}
+                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setAlightChanged(false);
+                        if (walkFromMax === null) {
+                          setWalkFromMax(walkFromMin);
+                        } else {
+                          setWalkFromMax(null);
+                        }
+                      }}
+                      style={[styles.rangeToggleBtn, { backgroundColor: colors.fill }]}
+                    >
+                      <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
+                        {walkFromMax === null ? t("option.walk.range_button") : t("option.walk.no_range_button")}
+                      </Text>
+                    </Pressable>
+                  </View>
                   {alightChanged ? (
                     <Text style={[type.caption, { color: colors.warning, fontWeight: "600" }]}>
                       {t("option.walk.check")}
@@ -648,13 +719,53 @@ export function OptionSheet({
                         target: t("option.walk_from"),
                       })}
                       onPress={() => {
-                        setWalkFromMin((m) => m + 1);
+                        setWalkFromMin((m) => {
+                          const next = m + 1;
+                          if (walkFromMax !== null && next > walkFromMax) {
+                            setWalkFromMax(next);
+                          }
+                          return next;
+                        });
                         setAlightChanged(false);
                       }}
                       style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
                     >
                       <PlusGlyph color={colors.text} />
                     </Pressable>
+
+                    {walkFromMax !== null ? (
+                      <View style={styles.maxStepperGroup}>
+                        <Text style={[type.caption, { color: colors.textSecondary }]}>
+                          {t("option.walk.max_label")}
+                        </Text>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t("option.walk.max_minus.aria", {
+                            target: t("option.walk_from"),
+                          })}
+                          onPress={() => {
+                            setWalkFromMax((max) => (max !== null ? Math.max(walkFromMin, max - 1) : walkFromMin));
+                            setAlightChanged(false);
+                          }}
+                          style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
+                        >
+                          <MinusGlyph color={colors.text} />
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t("option.walk.max_plus.aria", {
+                            target: t("option.walk_from"),
+                          })}
+                          onPress={() => {
+                            setWalkFromMax((max) => (max !== null ? max + 1 : walkFromMin + 1));
+                            setAlightChanged(false);
+                          }}
+                          style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
+                        >
+                          <PlusGlyph color={colors.text} />
+                        </Pressable>
+                      </View>
+                    ) : null}
                   </View>
                   <Text style={[type.caption, { color: colors.textSecondary }]}>
                     {t("option.walk.shared_hint")}
@@ -710,7 +821,10 @@ export function OptionSheet({
                   </Text>
                 ) : (
                   <Text style={[type.bodyStrong, styles.num, { color: colors.text }]}>
-                    {`sair às ${hhmm(preview.leaveAt)} · chega ~${hhmm(preview.arriveAt)}`}
+                    {t("route.option.walk_detail", {
+                      leave: hhmm(preview.leaveAt),
+                      arrive: hhmm(preview.arriveAt),
+                    })}
                   </Text>
                 )}
               </View>
@@ -785,6 +899,18 @@ const styles = StyleSheet.create({
   section: {
     gap: space.xs,
   },
+  walkHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  rangeToggleBtn: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+    minHeight: 28,
+    justifyContent: "center",
+  },
   linesRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -804,11 +930,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
+    flexWrap: "wrap",
+  },
+  maxStepperGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginLeft: space.xs,
   },
   stepperBtn: {
     width: minTouch,
     height: minTouch,
     borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperBtnSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.sm,
     alignItems: "center",
     justifyContent: "center",
   },
