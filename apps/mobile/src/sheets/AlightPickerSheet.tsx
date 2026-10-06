@@ -11,6 +11,7 @@ import { createContext, useContext, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSchedule } from "../data/ScheduleProvider";
+import { filterAlightStops, formatAlightSubtitle } from "../data/alightSelection";
 import { patternStopKey } from "../data/schedule";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
@@ -74,7 +75,7 @@ export function AlightPickerSheet({
 
   const stopsAfterBoard = useMemo(() => {
     if (!pattern) return [];
-    return pattern.stops.filter((s) => s.position > boardPosition);
+    return filterAlightStops(pattern.stops, boardPosition);
   }, [pattern, boardPosition]);
 
   const timepoints = useMemo(
@@ -147,20 +148,13 @@ export function AlightPickerSheet({
                 const stopName = scheduleData.stopNames.get(ps.stopId) ?? ps.stopId;
                 const info = passageInfo(pattern, timepoints, ps.position);
                 const isLast = idx === stopsAfterBoard.length - 1;
-
-                let subtitle = "";
-                if (info.number && info.number > 1) {
-                  const destStop = pattern.stops[pattern.stops.length - 1];
-                  const destName = destStop
-                    ? scheduleData.stopNames.get(destStop.stopId) ?? ""
-                    : "";
-                  subtitle = t("alight_picker.second_pass", {
-                    ordinal: `${info.number}ª`,
-                    destination: destName,
-                  });
-                } else if (isLast) {
-                  subtitle = t("common.end_of_route");
-                }
+                const destStop = pattern.stops[pattern.stops.length - 1];
+                const destName = destStop ? scheduleData.stopNames.get(destStop.stopId) ?? "" : "";
+                const subtitle = formatAlightSubtitle(
+                  { passageNumber: info.number, isLast, destinationName: destName },
+                  (ord, dest) => t("alight_picker.second_pass", { ordinal: ord, destination: dest }),
+                  t("common.end_of_route"),
+                );
 
                 return (
                   <Pressable

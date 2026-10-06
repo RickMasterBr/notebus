@@ -92,4 +92,41 @@ describe("stack.e05 (TL-10 Lugares e trajetos)", () => {
     s = step(s, POP);
     expect(kinds(s)).toEqual(["home"]);
   });
+
+  it("empilha TL-04 'goto' (Ir para X) e não duplica mesma folha", () => {
+    const s = run(
+      { type: "push", sheet: { kind: "goto", destinationPlaceId: "p-shopping", originPlaceId: "p-casa" } },
+      { type: "push", sheet: { kind: "goto", destinationPlaceId: "p-shopping", originPlaceId: "p-casa" } },
+    );
+    expect(kinds(s)).toEqual(["home", "goto"]);
+    expect(activeSheet(s)).toMatchObject({
+      kind: "goto",
+      destinationPlaceId: "p-shopping",
+      originPlaceId: "p-casa",
+    });
+
+    // Destino diferente empilha
+    const sDiff = step(s, {
+      type: "push",
+      sheet: { kind: "goto", destinationPlaceId: "p-facul" },
+    });
+    expect(kinds(sDiff)).toEqual(["home", "goto", "goto"]);
+
+    // Fecha volta para o primeiro goto
+    const sPopped = step(sDiff, POP);
+    expect(kinds(sPopped)).toEqual(["home", "goto"]);
+    expect(activeSheet(sPopped)).toMatchObject({ destinationPlaceId: "p-shopping" });
+  });
+
+  it("empilha folha place com initialName ('Casa') a partir do Início vazio", () => {
+    const s = run({
+      type: "push",
+      sheet: { kind: "place", initialName: "Casa" },
+    });
+    expect(kinds(s)).toEqual(["home", "place"]);
+    expect(activeSheet(s)).toMatchObject({
+      kind: "place",
+      initialName: "Casa",
+    });
+  });
 });

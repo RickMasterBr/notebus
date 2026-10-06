@@ -23,18 +23,21 @@ import BottomSheet, {
 } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBackup } from "../data/BackupProvider";
+import { usePlaces } from "../data/PlacesProvider";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
+import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { homePendingInfo } from "../data/homePending";
 import { initialDetent } from "../data/homeStart";
 import { t } from "../i18n";
 import { elevation, radius, space, type, useTheme } from "../theme";
+import { PlaceIconGlyph, PlusGlyph } from "../ui/Glyphs";
 import { REGISTER_BUTTON_HEIGHT, RegisterButton } from "../ui/RegisterButton";
 import { SearchPill } from "../ui/SearchPill";
 import { BackupReminderCard, TripCard } from "../ui/TripCard";
@@ -57,6 +60,7 @@ export function HomeSheet() {
   const stops = useStopIndex();
   const schedule = useSchedule();
   const recent = useRecentStops();
+  const places = usePlaces();
   const listReady = stops.status !== "loading" && schedule.status !== "loading" && recent.status !== "loading";
   const { tripCard, notBoarded, dismiss, observations } = useRegistro();
   const pendingInfo = useMemo(() => homePendingInfo(observations), [observations]);
@@ -210,6 +214,53 @@ export function HomeSheet() {
               contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.md }}
               showsVerticalScrollIndicator={false}
             >
+              {/* Faixa horizontal de atalhos de destino (E-05 §4.3, Item 3.1) */}
+              {places.status === "ready" ? (
+                <View style={styles.shortcutsContainer}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.shortcutsStrip}
+                  >
+                    {places.shortcuts.map((place) => (
+                      <Pressable
+                        key={place.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={place.name}
+                        onPress={() => void openGotoOrNewOption(dispatch, places, place.id)}
+                        style={({ pressed }) => [styles.shortcutItem, pressed && { opacity: 0.6 }]}
+                      >
+                        <View style={[styles.shortcutCircle, { backgroundColor: colors.fill }]}>
+                          <PlaceIconGlyph icon={place.icon} color={colors.accent} size={24} />
+                        </View>
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={[type.caption, { color: colors.text, fontWeight: "500", textAlign: "center" }]}
+                        >
+                          {place.name}
+                        </Text>
+                      </Pressable>
+                    ))}
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("home.shortcut.add")}
+                      onPress={() => dispatch({ type: "push", sheet: { kind: "place" } })}
+                      style={({ pressed }) => [styles.shortcutItem, pressed && { opacity: 0.6 }]}
+                    >
+                      <View style={[styles.shortcutCircle, styles.addShortcutCircle, { borderColor: colors.textSecondary }]}>
+                        <PlusGlyph color={colors.textSecondary} />
+                      </View>
+                      <Text
+                        numberOfLines={1}
+                        style={[type.caption, { color: colors.textSecondary, fontWeight: "500", textAlign: "center" }]}
+                      >
+                        {t("home.shortcut.add")}
+                      </Text>
+                    </Pressable>
+                  </ScrollView>
+                </View>
+              ) : null}
               {state.detent >= 1 && pendingInfo ? (
                 <Pressable
                   accessibilityRole="button"
@@ -285,6 +336,30 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: space.xs,
     marginTop: space.sm,
+  },
+  shortcutsContainer: {
+    marginBottom: space.sm,
+  },
+  shortcutsStrip: {
+    flexDirection: "row",
+    gap: space.sm,
+    paddingVertical: space.xs,
+  },
+  shortcutItem: {
+    width: 68,
+    alignItems: "center",
+    gap: 6,
+  },
+  shortcutCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addShortcutCircle: {
+    borderWidth: 1.5,
+    borderStyle: "dashed",
   },
 });
 

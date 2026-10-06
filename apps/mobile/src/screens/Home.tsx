@@ -3,6 +3,7 @@
  * Sem nenhum ponto no banco ("Começar do zero"): o Início vazio da 4.5 §8.5 (`EmptyHome`).
  */
 import { View } from "react-native";
+import { usePlaces } from "../data/PlacesProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { SheetHost } from "../sheets/SheetHost";
 import { SheetsProvider } from "../sheets/SheetsContext";
@@ -14,12 +15,19 @@ import { EmptyHome } from "./EmptyHome";
 export function Home() {
   const { colors } = useTheme();
   const stops = useStopIndex();
-  if (stops.status === "ready" && stops.stops.length === 0) return <EmptyHome />;
+  const places = usePlaces();
+
+  const isEmpty =
+    stops.status === "ready" &&
+    places.status === "ready" &&
+    stops.stops.length === 0 &&
+    places.shortcuts.length === 0;
+
   return (
     <SheetsProvider>
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
         <SettingsButton />
-        <SheetHost />
+        <SheetHost customBase={isEmpty ? <EmptyHome /> : undefined} />
         {/* O toast fica por último: acima das folhas, sem entrar no layout delas. */}
         <ToastHost />
       </View>

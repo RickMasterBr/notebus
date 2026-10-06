@@ -171,6 +171,27 @@ export function PlaceIconGlyph({ icon, color, size = 20 }: { icon?: string | nul
   }
 }
 
+/** Ícone de caminhada/a pé. */
+export function WalkingGlyph({ color, size = 18 }: { color: string; size?: number }) {
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }} {...HIDDEN}>
+      <View
+        style={{
+          width: size * 0.28,
+          height: size * 0.28,
+          borderRadius: size * 0.14,
+          backgroundColor: color,
+          marginBottom: 1,
+        }}
+      />
+      <View style={{ flexDirection: "row", gap: 1 }}>
+        <View style={{ width: 2, height: size * 0.45, backgroundColor: color, transform: [{ rotate: "15deg" }] }} />
+        <View style={{ width: 2, height: size * 0.45, backgroundColor: color, transform: [{ rotate: "-15deg" }] }} />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   plus: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
   plusBar: { position: "absolute", borderRadius: 1.2 },

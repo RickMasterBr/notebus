@@ -21,6 +21,7 @@ import {
   type OptionToken,
   type PlaceRow,
   type RouteRow,
+  type SaveBusOptionInput,
   type SetWalkTimeInput,
   type UpdateOptionPatch,
   type UpdatePlacePatch,
@@ -45,8 +46,11 @@ export interface PlacesContextValue {
   getWalkTime: (stopId: string, placeId: string) => WalkTimeRow | null;
   addOption: (input: AddOptionInput) => Promise<OptionRow>;
   updateOption: (id: string, patch: UpdateOptionPatch) => Promise<OptionRow>;
+  saveBusOption: (input: SaveBusOptionInput) => Promise<OptionRow>;
   removeOption: (id: string) => Promise<{ token: OptionToken }>;
   restoreOption: (token: OptionToken) => Promise<void>;
+  gotoLastOrigins: Record<string, string>;
+  setGotoLastOrigin: (destinationPlaceId: string, originPlaceId: string) => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -62,12 +66,14 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
     routes: RouteRow[];
     options: OptionRow[];
     walkTimes: WalkTimeRow[];
+    gotoLastOrigins: Record<string, string>;
   }>({
     status: "loading",
     places: [],
     routes: [],
     options: [],
     walkTimes: [],
+    gotoLastOrigins: {},
   });
 
   const reload = useCallback(async () => {
@@ -79,6 +85,7 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
         routes: data.routes,
         options: data.options,
         walkTimes: data.walkTimes,
+        gotoLastOrigins: data.gotoLastOrigins,
       });
     } catch {
       setState((cur) => ({ ...cur, status: "ready" }));
@@ -96,6 +103,7 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
           routes: data.routes,
           options: data.options,
           walkTimes: data.walkTimes,
+          gotoLastOrigins: data.gotoLastOrigins,
         });
       },
       () => {
@@ -181,6 +189,15 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
     [placesRepo, now, reload],
   );
 
+  const handleSaveBusOption = useCallback(
+    async (input: SaveBusOptionInput) => {
+      const o = await placesRepo.saveBusOption(input, now());
+      await reload();
+      return o;
+    },
+    [placesRepo, now, reload],
+  );
+
   const handleRemoveOption = useCallback(
     async (id: string) => {
       const res = await placesRepo.removeOption(id, now());
@@ -193,6 +210,14 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
   const handleRestoreOption = useCallback(
     async (token: OptionToken) => {
       await placesRepo.restoreOption(token, now());
+      await reload();
+    },
+    [placesRepo, now, reload],
+  );
+
+  const handleSetGotoLastOrigin = useCallback(
+    async (destinationPlaceId: string, originPlaceId: string) => {
+      await placesRepo.setGotoLastOrigin(destinationPlaceId, originPlaceId, now());
       await reload();
     },
     [placesRepo, now, reload],
@@ -214,6 +239,7 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
       routes: state.routes,
       options: state.options,
       walkTimes: state.walkTimes,
+      gotoLastOrigins: state.gotoLastOrigins,
       createPlace: handleCreatePlace,
       updatePlace: handleUpdatePlace,
       reorderShortcuts: handleReorderShortcuts,
@@ -222,8 +248,10 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
       getWalkTime,
       addOption: handleAddOption,
       updateOption: handleUpdateOption,
+      saveBusOption: handleSaveBusOption,
       removeOption: handleRemoveOption,
       restoreOption: handleRestoreOption,
+      setGotoLastOrigin: handleSetGotoLastOrigin,
       reload,
     }),
     [
@@ -233,6 +261,7 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
       state.routes,
       state.options,
       state.walkTimes,
+      state.gotoLastOrigins,
       handleCreatePlace,
       handleUpdatePlace,
       handleReorderShortcuts,
@@ -241,8 +270,10 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
       getWalkTime,
       handleAddOption,
       handleUpdateOption,
+      handleSaveBusOption,
       handleRemoveOption,
       handleRestoreOption,
+      handleSetGotoLastOrigin,
       reload,
     ],
   );

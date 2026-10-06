@@ -12,9 +12,11 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { checkBusOption, uuidv7 } from "@notebus/domain";
 import { selectLive } from "./query";
-import { option, patternStop, place, route, walkTime } from "./schema";
+import { option, patternStop, place, route, setting, walkTime } from "./schema";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
+
+export const GOTO_LAST_ORIGIN_KEY = "goto_last_origin";
 
 export type PlaceRow = typeof place.$inferSelect;
 export type RouteRow = typeof route.$inferSelect;
@@ -23,6 +25,20 @@ export type WalkTimeRow = typeof walkTime.$inferSelect;
 
 export interface PlacesDeps {
   newId?: (now: number) => string;
+  failOnOptionSave?: boolean;
+}
+
+export interface SaveBusOptionInput {
+  optionId?: string;
+  routeId: string;
+  boardPatternStopId: string;
+  alightPatternStopId: string;
+  boardStopId: string;
+  originPlaceId: string;
+  walkToBoard: SetWalkTimeInput;
+  alightStopId: string;
+  destinationPlaceId: string;
+  walkAfterAlight: SetWalkTimeInput;
 }
 
 export interface CreatePlaceInput {
@@ -268,58 +284,63 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
     return rows.find((w) => w.stopId === stopId && w.placeId === placeId) ?? null;
   }
 
+  async function applySetWalkTime(
+    stopId: string,
+    placeId: string,
+    input: SetWalkTimeInput,
+    at: number,
+  ): Promise<WalkTimeRow> {
+    // Busca existente incluindo apagados para respeitar a chave única do par
+    const existingRows = await db
+      .select()
+      .from(walkTime)
+      .where(and(eq(walkTime.stopId, stopId), eq(walkTime.placeId, placeId)));
+    const existing = existingRows[0] ?? null;
+
+    const nextMin = input.minutesMin;
+    const nextMax = input.minutesMax ?? null;
+
+    if (existing) {
+      const changed =
+        existing.minutesMin !== nextMin ||
+        existing.minutesMax !== nextMax ||
+        existing.deletedAt !== null;
+
+      if (!changed) {
+        return existing;
+      }
+
+      const updated: WalkTimeRow = {
+        ...existing,
+        minutesMin: nextMin,
+        minutesMax: nextMax,
+        origin: "manual",
+        deletedAt: null,
+        updatedAt: at,
+      };
+      await db.update(walkTime).set(updated).where(eq(walkTime.id, existing.id));
+      return updated;
+    }
+
+    const id = newId(at);
+    const created: WalkTimeRow = {
+      id,
+      stopId,
+      placeId,
+      minutesMin: nextMin,
+      minutesMax: nextMax,
+      origin: "manual",
+      source: "user",
+      createdAt: at,
+      updatedAt: at,
+      deletedAt: null,
+    };
+    await db.insert(walkTime).values(created);
+    return created;
+  }
+
   function setWalkTime(stopId: string, placeId: string, input: SetWalkTimeInput, at: number): Promise<WalkTimeRow> {
-    return enqueue(() =>
-      inTransaction(async () => {
-        // Busca existente incluindo apagados para respeitar a chave única do par
-        const existingRows = await db
-          .select()
-          .from(walkTime)
-          .where(and(eq(walkTime.stopId, stopId), eq(walkTime.placeId, placeId)));
-        const existing = existingRows[0] ?? null;
-
-        const nextMin = input.minutesMin;
-        const nextMax = input.minutesMax ?? null;
-
-        if (existing) {
-          const changed =
-            existing.minutesMin !== nextMin ||
-            existing.minutesMax !== nextMax ||
-            existing.deletedAt !== null;
-
-          if (!changed) {
-            return existing;
-          }
-
-          const updated: WalkTimeRow = {
-            ...existing,
-            minutesMin: nextMin,
-            minutesMax: nextMax,
-            origin: "manual",
-            deletedAt: null,
-            updatedAt: at,
-          };
-          await db.update(walkTime).set(updated).where(eq(walkTime.id, existing.id));
-          return updated;
-        }
-
-        const id = newId(at);
-        const created: WalkTimeRow = {
-          id,
-          stopId,
-          placeId,
-          minutesMin: nextMin,
-          minutesMax: nextMax,
-          origin: "manual",
-          source: "user",
-          createdAt: at,
-          updatedAt: at,
-          deletedAt: null,
-        };
-        await db.insert(walkTime).values(created);
-        return created;
-      }),
-    );
+    return enqueue(() => inTransaction(() => applySetWalkTime(stopId, placeId, input, at)));
   }
 
   // ─── Opções ───────────────────────────────────────────────────────────────
@@ -346,72 +367,108 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
     }
   }
 
+  async function applyAddOption(input: AddOptionInput, at: number): Promise<OptionRow> {
+    if (input.kind === "bus") {
+      await validateBusStops(input.boardPatternStopId, input.alightPatternStopId);
+    }
+
+    const current = await listOptions(input.routeId);
+    const maxSort = current.reduce((max, o) => Math.max(max, o.sort), -1);
+    const sortOrder = maxSort + 1;
+
+    const id = newId(at);
+    const newRow: OptionRow = {
+      id,
+      routeId: input.routeId,
+      kind: input.kind,
+      boardPatternStopId: input.kind === "bus" ? input.boardPatternStopId : null,
+      alightPatternStopId: input.kind === "bus" ? input.alightPatternStopId : null,
+      walkMinutes: input.kind === "walk" ? input.walkMinutes : null,
+      sort: sortOrder,
+      source: "user",
+      createdAt: at,
+      updatedAt: at,
+      deletedAt: null,
+    };
+
+    await db.insert(option).values(newRow);
+    return newRow;
+  }
+
   function addOption(input: AddOptionInput, at: number): Promise<OptionRow> {
-    return enqueue(() =>
-      inTransaction(async () => {
-        if (input.kind === "bus") {
-          await validateBusStops(input.boardPatternStopId, input.alightPatternStopId);
-        }
+    return enqueue(() => inTransaction(() => applyAddOption(input, at)));
+  }
 
-        const current = await listOptions(input.routeId);
-        const maxSort = current.reduce((max, o) => Math.max(max, o.sort), -1);
-        const sortOrder = maxSort + 1;
+  async function applyUpdateOption(id: string, patch: UpdateOptionPatch, at: number): Promise<OptionRow> {
+    const rows = await selectLive(db, option);
+    const existing = rows.find((o) => o.id === id);
+    if (!existing) throw new Error("opção não encontrada");
 
-        const id = newId(at);
-        const newRow: OptionRow = {
-          id,
-          routeId: input.routeId,
-          kind: input.kind,
-          boardPatternStopId: input.kind === "bus" ? input.boardPatternStopId : null,
-          alightPatternStopId: input.kind === "bus" ? input.alightPatternStopId : null,
-          walkMinutes: input.kind === "walk" ? input.walkMinutes : null,
-          sort: sortOrder,
-          source: "user",
-          createdAt: at,
-          updatedAt: at,
-          deletedAt: null,
-        };
+    const nextBoard = patch.boardPatternStopId !== undefined ? patch.boardPatternStopId : existing.boardPatternStopId;
+    const nextAlight = patch.alightPatternStopId !== undefined ? patch.alightPatternStopId : existing.alightPatternStopId;
+    const nextWalk = patch.walkMinutes !== undefined ? patch.walkMinutes : existing.walkMinutes;
 
-        await db.insert(option).values(newRow);
-        return newRow;
-      }),
-    );
+    if (existing.kind === "bus" && nextBoard && nextAlight) {
+      await validateBusStops(nextBoard, nextAlight);
+    }
+
+    const changed =
+      nextBoard !== existing.boardPatternStopId ||
+      nextAlight !== existing.alightPatternStopId ||
+      nextWalk !== existing.walkMinutes;
+
+    if (!changed) {
+      return existing;
+    }
+
+    const updated: OptionRow = {
+      ...existing,
+      boardPatternStopId: nextBoard,
+      alightPatternStopId: nextAlight,
+      walkMinutes: nextWalk,
+      updatedAt: at,
+    };
+
+    await db.update(option).set(updated).where(eq(option.id, id));
+    return updated;
   }
 
   function updateOption(id: string, patch: UpdateOptionPatch, at: number): Promise<OptionRow> {
+    return enqueue(() => inTransaction(() => applyUpdateOption(id, patch, at)));
+  }
+
+  function saveBusOption(input: SaveBusOptionInput, at: number): Promise<OptionRow> {
     return enqueue(() =>
       inTransaction(async () => {
-        const rows = await selectLive(db, option);
-        const existing = rows.find((o) => o.id === id);
-        if (!existing) throw new Error("opção não encontrada");
-
-        const nextBoard = patch.boardPatternStopId !== undefined ? patch.boardPatternStopId : existing.boardPatternStopId;
-        const nextAlight = patch.alightPatternStopId !== undefined ? patch.alightPatternStopId : existing.alightPatternStopId;
-        const nextWalk = patch.walkMinutes !== undefined ? patch.walkMinutes : existing.walkMinutes;
-
-        if (existing.kind === "bus" && nextBoard && nextAlight) {
-          await validateBusStops(nextBoard, nextAlight);
+        // 1. Grava tempo a pé até o embarque
+        await applySetWalkTime(input.boardStopId, input.originPlaceId, input.walkToBoard, at);
+        // 2. Grava tempo a pé depois da descida
+        await applySetWalkTime(input.alightStopId, input.destinationPlaceId, input.walkAfterAlight, at);
+        // Falha forçada para teste da terceira operação
+        if (deps.failOnOptionSave) {
+          throw new Error("falha forçada na gravação da opção");
         }
-
-        const changed =
-          nextBoard !== existing.boardPatternStopId ||
-          nextAlight !== existing.alightPatternStopId ||
-          nextWalk !== existing.walkMinutes;
-
-        if (!changed) {
-          return existing;
+        // 3. Grava opção (insert ou update)
+        if (input.optionId) {
+          return await applyUpdateOption(
+            input.optionId,
+            {
+              boardPatternStopId: input.boardPatternStopId,
+              alightPatternStopId: input.alightPatternStopId,
+            },
+            at,
+          );
+        } else {
+          return await applyAddOption(
+            {
+              kind: "bus",
+              routeId: input.routeId,
+              boardPatternStopId: input.boardPatternStopId,
+              alightPatternStopId: input.alightPatternStopId,
+            },
+            at,
+          );
         }
-
-        const updated: OptionRow = {
-          ...existing,
-          boardPatternStopId: nextBoard,
-          alightPatternStopId: nextAlight,
-          walkMinutes: nextWalk,
-          updatedAt: at,
-        };
-
-        await db.update(option).set(updated).where(eq(option.id, id));
-        return updated;
       }),
     );
   }
@@ -453,19 +510,71 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
     );
   }
 
+  // ─── Preferência de última origem (D-175) ──────────────────────────────────
+
+  async function getGotoLastOrigins(): Promise<Record<string, string>> {
+    const rows = await selectLive(db, setting);
+    const row = rows.find((s) => s.key === GOTO_LAST_ORIGIN_KEY);
+    if (!row) return {};
+    return (row.value as Record<string, string>) ?? {};
+  }
+
+  function setGotoLastOrigin(
+    destinationPlaceId: string,
+    originPlaceId: string,
+    at: number,
+  ): Promise<Record<string, string>> {
+    return enqueue(() =>
+      inTransaction(async () => {
+        const rows = await selectLive(db, setting);
+        const existing = rows.find((s) => s.key === GOTO_LAST_ORIGIN_KEY);
+        const currentMap = ((existing?.value as Record<string, string>) ?? {}) as Record<string, string>;
+        const nextMap: Record<string, string> = {
+          ...currentMap,
+          [destinationPlaceId]: originPlaceId,
+        };
+
+        if (existing) {
+          await db
+            .update(setting)
+            .set({
+              value: nextMap,
+              updatedAt: at,
+            })
+            .where(eq(setting.id, existing.id));
+        } else {
+          await db.insert(setting).values({
+            id: newId(at),
+            key: GOTO_LAST_ORIGIN_KEY,
+            value: nextMap,
+            source: "user",
+            createdAt: at,
+            updatedAt: at,
+            deletedAt: null,
+          });
+        }
+        return nextMap;
+      }),
+    );
+  }
+
   async function loadAll(): Promise<{
     places: PlaceRow[];
     routes: RouteRow[];
     options: OptionRow[];
     walkTimes: WalkTimeRow[];
+    gotoLastOrigins: Record<string, string>;
   }> {
-    const [p, r, o, w] = await Promise.all([
+    const [p, r, o, w, s] = await Promise.all([
       selectLive(db, place),
       selectLive(db, route),
       selectLive(db, option),
       selectLive(db, walkTime),
+      selectLive(db, setting),
     ]);
-    return { places: p, routes: r, options: o, walkTimes: w };
+    const settingRow = s.find((row) => row.key === GOTO_LAST_ORIGIN_KEY);
+    const gotoLastOrigins = (settingRow?.value as Record<string, string>) ?? {};
+    return { places: p, routes: r, options: o, walkTimes: w, gotoLastOrigins };
   }
 
   return {
@@ -484,9 +593,12 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
     listOptions,
     addOption,
     updateOption,
+    saveBusOption,
     removeOption,
     restoreOption,
     reorderOptions,
+    getGotoLastOrigins,
+    setGotoLastOrigin,
     loadAll,
   };
 }

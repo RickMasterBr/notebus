@@ -88,7 +88,8 @@ export function lineA11y(line: StopCardLine): string {
   ].join(", ");
 }
 
-/** O cartão é lido como um bloco: o ponto, depois cada linha (4.6 §5.2; ordem de leitura do prompt do bloco 3c). */
-export function cardA11y(card: StopCard): string {
-  return [card.name, ...card.lines.map(lineA11y)].join(". ");
+/** O cartão é lido como um bloco: o ponto e subtítulo opcional, depois cada linha (4.6 §5.2; ordem de leitura do prompt do bloco 3c). */
+export function cardA11y(card: StopCard, subtitle?: string | null): string {
+  const header = subtitle ? `${card.name}, ${subtitle}` : card.name;
+  return [header, ...card.lines.map(lineA11y)].join(". ");
 }

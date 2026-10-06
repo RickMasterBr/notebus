@@ -14,11 +14,24 @@ import { radius, space, type, useTheme } from "../theme";
 import { ConfidenceSeal } from "./ConfidenceSeal";
 import { LineBadge } from "./LineBadge";
 
-export function StopCardView({ card, onPress }: { card: StopCard; onPress?: () => void }) {
+export function StopCardView({
+  card,
+  subtitle,
+  onPress,
+}: {
+  card: StopCard;
+  subtitle?: string | null;
+  onPress?: () => void;
+}) {
   const { colors } = useTheme();
   const body = (
     <>
-      <Text style={[type.bodyStrong, { color: colors.text }]}>{card.name}</Text>
+      <View style={styles.header}>
+        <Text style={[type.bodyStrong, { color: colors.text, flexShrink: 1 }]}>{card.name}</Text>
+        {subtitle ? (
+          <Text style={[type.caption, styles.num, { color: colors.textSecondary }]}>{subtitle}</Text>
+        ) : null}
+      </View>
       {card.lines.map((line, i) => (
         <View key={line.code} style={[styles.line, i > 0 && [styles.separator, { borderTopColor: colors.divider }]]}>
           <LineRow line={line} />
@@ -26,9 +39,10 @@ export function StopCardView({ card, onPress }: { card: StopCard; onPress?: () =
       ))}
     </>
   );
+  const a11yLabel = cardA11y(card, subtitle);
   if (!onPress) {
     return (
-      <View accessible accessibilityLabel={cardA11y(card)} style={[styles.card, { borderColor: colors.divider }]}>
+      <View accessible accessibilityLabel={a11yLabel} style={[styles.card, { borderColor: colors.divider }]}>
         {body}
       </View>
     );
@@ -36,7 +50,7 @@ export function StopCardView({ card, onPress }: { card: StopCard; onPress?: () =
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={cardA11y(card)}
+      accessibilityLabel={a11yLabel}
       onPress={onPress}
       style={({ pressed }) => [styles.card, { borderColor: colors.divider }, pressed && { opacity: 0.6 }]}
     >
@@ -96,6 +110,12 @@ const styles = StyleSheet.create({
   line: { gap: 10 },
   separator: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  header: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: space.xs,
+  },
   middle: { flex: 1, gap: 2 },
   right: { alignItems: "flex-end" },
   num: { fontVariant: ["tabular-nums"] },
