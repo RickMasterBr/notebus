@@ -542,7 +542,7 @@ export function OptionSheet({
                         <Pressable
                           key={lId}
                           accessibilityRole="button"
-                          accessibilityLabel={`Linha ${lInfo.code}`}
+                          accessibilityLabel={t("option.line.aria", { code: lInfo.code })}
                           onPress={() => {
                             setSelectedLineId(lId);
                             const pat = scheduleData.patterns.find(
