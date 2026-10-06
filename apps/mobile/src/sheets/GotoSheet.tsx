@@ -34,7 +34,6 @@ import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import {
   ChevronRightGlyph,
-  CrossGlyph,
   PlaceIconGlyph,
   PlusGlyph,
   WalkingGlyph,
@@ -43,7 +42,7 @@ import { LineBadge } from "../ui/LineBadge";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
-import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
+import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { type Detent } from "./stack";
 
@@ -88,7 +87,6 @@ export function GotoSheet({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
-  const close = useCloseSheet();
   const { dispatch } = useSheets();
   const places = usePlaces();
   const registro = useRegistro();
@@ -399,36 +397,24 @@ export function GotoSheet({
               onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
               style={styles.header}
             >
-              <View style={styles.headerLeft}>
-                <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
-                  {t("sheet_goto.title", {
-                    destination: destinationPlace?.name ?? "",
-                  })}
-                </Text>
+              <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
+                {t("sheet_goto.title", {
+                  destination: destinationPlace?.name ?? "",
+                })}
+              </Text>
 
-                {/* Seletor de origem */}
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t("sheet_goto.origin_change")}: ${originPlace?.name ?? ""}`}
-                  onPress={() => setIsChoosingOrigin((v) => !v)}
-                  style={[styles.originSelector, { backgroundColor: colors.fill }]}
-                >
-                  <PlaceIconGlyph icon={originPlace?.icon} color={colors.accent} size={16} />
-                  <Text style={[type.body, { color: colors.text }]}>
-                    {`${t("sheet_goto.origin_label", { origin: originPlace?.name ?? "" })} ▾`}
-                  </Text>
-                </Pressable>
-              </View>
-
+              {/* Seletor de origem */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t("common.close")}
-                onPress={close}
-                style={styles.closeHitTarget}
+                accessibilityLabel={`${t("sheet_goto.origin_change")}: ${originPlace?.name ?? ""}`}
+                onPress={() => setIsChoosingOrigin((v) => !v)}
+                hitSlop={space.xs}
+                style={[styles.originSelector, { backgroundColor: colors.fill }]}
               >
-                <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
-                  <CrossGlyph color={colors.textSecondary} />
-                </View>
+                <PlaceIconGlyph icon={originPlace?.icon} color={colors.accent} size={16} />
+                <Text style={[type.body, { color: colors.text }]}>
+                  {`${t("sheet_goto.origin_label", { origin: originPlace?.name ?? "" })} ▾`}
+                </Text>
               </Pressable>
             </View>
 
@@ -554,15 +540,8 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    paddingTop: space.xs,
-  },
-  headerLeft: {
-    flex: 1,
     gap: space.xs,
-    paddingRight: space.sm,
+    paddingTop: space.xs,
   },
   originSelector: {
     flexDirection: "row",
@@ -572,19 +551,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: radius.sm,
-  },
-  closeHitTarget: {
-    minWidth: minTouch,
-    minHeight: minTouch,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeIconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
   },
   originMenu: {
     borderRadius: radius.md,
