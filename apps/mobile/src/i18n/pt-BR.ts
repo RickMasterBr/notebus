@@ -343,6 +343,7 @@ export const ptBR = {
   "option.type.bus": "Ônibus",
   "option.type.a11y": "Tipo de opção",
   "option.field.line": "Linha",
+  "option.line.aria": "Linha {{code}}", // provisório
   "option.field.boarding": "Embarque",
   "option.field.alight": "Descida",
   "option.pick_boarding.placeholder": "escolher ponto",
