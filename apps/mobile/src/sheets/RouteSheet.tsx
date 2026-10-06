@@ -163,8 +163,8 @@ const OptionRowItem = memo(function OptionRowItem({
             {card ? (
               <Text style={[type.caption, styles.num, { color: colors.text }]}>
                 {t("route.option.detail", {
-                  time: hhmm(card.leaveAt),
-                  time_arrive: hhmm(card.arriveAt),
+                  leave: hhmm(card.leaveAt),
+                  arrive: hhmm(card.arriveAt),
                 })}
               </Text>
             ) : null}
