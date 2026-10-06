@@ -9,6 +9,7 @@ import { patternStop, stop } from "./schema";
 import { createHash } from "node:crypto";
 import { readBackupInput, importBackup } from "./backup";
 import type { BackupStore } from "./migrate";
+import { resolveGotoOrigin } from "../data/gotoOrigin";
 
 const sha256 = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
 
@@ -409,5 +410,185 @@ describe("Item 1, A11 por teste: ida e volta do backup de lugares, trajetos, op�
     const backupInput = await readBackupInput(importDb, { now: T0 + 1000, appVersion: "1.0.0" });
     const settingRows = backupInput.tables.setting ?? [];
     expect(settingRows.some((s) => s.key === "goto_last_origin")).toBe(false);
+  });
+});
+
+describe("Item 2 (Bloco 3b): O trajeto só nasce com a primeira opção (D-063)", () => {
+  it("salvar a primeira opção de um rascunho cria trajeto e opção juntos", async () => {
+    const { placesRepo, db } = await setupTestDb();
+    const casa = await placesRepo.createPlace({ name: "Casa" }, T0);
+    const facul = await placesRepo.createPlace({ name: "Facul" }, T0 + 100);
+
+    // Antes: nenhum trajeto entre Casa e Facul
+    const routesBefore = await placesRepo.listRoutesTo(facul.id);
+    expect(routesBefore).toHaveLength(0);
+
+    const pst = await db.select().from(patternStop);
+    const ps1 = pst.find((p) => p.position === 1)!;
+    const ps2 = pst.find((p) => p.position === 2)!;
+
+    // Salva opção em modo rascunho (sem routeId)
+    const savedOption = await placesRepo.saveBusOption(
+      {
+        originPlaceId: casa.id,
+        destinationPlaceId: facul.id,
+        boardStopId: ps1.stopId,
+        boardPatternStopId: ps1.id,
+        walkToBoard: { minutesMin: 6, minutesMax: 8 },
+        alightStopId: ps2.stopId,
+        alightPatternStopId: ps2.id,
+        walkAfterAlight: { minutesMin: 4, minutesMax: 5 },
+      },
+      T0 + 500,
+    );
+
+    expect(savedOption.id).toBeDefined();
+
+    // Depois: trajeto foi criado e ligado à opção
+    const routesAfter = await placesRepo.listRoutesTo(facul.id);
+    expect(routesAfter).toHaveLength(1);
+    expect(routesAfter[0]!.originPlaceId).toBe(casa.id);
+    expect(savedOption.routeId).toBe(routesAfter[0]!.id);
+
+    // Opção existe na rota
+    const options = await placesRepo.listOptions(routesAfter[0]!.id);
+    expect(options).toHaveLength(1);
+    expect(options[0]!.id).toBe(savedOption.id);
+
+    // Tempos a pé foram criados
+    const wtBoard = await placesRepo.getWalkTime(ps1.stopId, casa.id);
+    expect(wtBoard?.minutesMin).toBe(6);
+  });
+
+  it("falha forçada na gravação da opção não deixa trajeto (rollback atômico)", async () => {
+    const { db } = await setupTestDb();
+    // Repositório configurado para forçar falha na gravação da opção
+    const failRepo = createPlaces(db, { failOnOptionSave: true });
+
+    const casa = await failRepo.createPlace({ name: "Casa" }, T0);
+    const shopping = await failRepo.createPlace({ name: "Shopping" }, T0 + 100);
+
+    const pst = await db.select().from(patternStop);
+    const ps1 = pst.find((p) => p.position === 1)!;
+    const ps2 = pst.find((p) => p.position === 2)!;
+
+    await expect(
+      failRepo.saveBusOption(
+        {
+          originPlaceId: casa.id,
+          destinationPlaceId: shopping.id,
+          boardStopId: ps1.stopId,
+          boardPatternStopId: ps1.id,
+          walkToBoard: { minutesMin: 5, minutesMax: null },
+          alightStopId: ps2.stopId,
+          alightPatternStopId: ps2.id,
+          walkAfterAlight: { minutesMin: 10, minutesMax: null },
+        },
+        T0 + 500,
+      ),
+    ).rejects.toThrow("falha forçada na gravação da opção");
+
+    // Trajeto NÃO deve existir (desfeito pelo rollback)
+    const routes = await failRepo.listRoutesTo(shopping.id);
+    expect(routes).toHaveLength(0);
+
+    // Tempos a pé também não devem existir
+    const wtBoard = await failRepo.getWalkTime(ps1.stopId, casa.id);
+    expect(wtBoard).toBeNull();
+  });
+
+  it("cancelar não cria trajeto", async () => {
+    const { placesRepo } = await setupTestDb();
+    const casa = await placesRepo.createPlace({ name: "Casa" }, T0);
+    const trabalho = await placesRepo.createPlace({ name: "Trabalho" }, T0 + 100);
+
+    // Ao abrir em modo rascunho com o par (casa, trabalho), nenhum trajeto é gravado
+    // Se o usuário cancela/fecha a folha sem salvar, a contagem de rotas permanece 0
+    const routes = await placesRepo.listRoutesTo(trabalho.id);
+    expect(routes).toHaveLength(0);
+  });
+
+  it("trajeto vazio já existente some das listas", async () => {
+    const { placesRepo, db } = await setupTestDb();
+    const casa = await placesRepo.createPlace({ name: "Casa" }, T0);
+    const mercado = await placesRepo.createPlace({ name: "Mercado" }, T0 + 100);
+    const facul = await placesRepo.createPlace({ name: "Facul" }, T0 + 200);
+
+    // Cria trajeto vazio no banco (como os criados em testes anteriores) para Mercado
+    const emptyRoute = await placesRepo.ensureRoute(casa.id, mercado.id, T0 + 300);
+    expect(emptyRoute.id).toBeDefined();
+
+    // Cria trajeto com opção para Facul
+    const routeWithOpt = await placesRepo.ensureRoute(casa.id, facul.id, T0 + 400);
+    const pst = await db.select().from(patternStop);
+    const ps1 = pst.find((p) => p.position === 1)!;
+    const ps2 = pst.find((p) => p.position === 2)!;
+    await placesRepo.addOption(
+      {
+        kind: "bus",
+        routeId: routeWithOpt.id,
+        boardPatternStopId: ps1.id,
+        alightPatternStopId: ps2.id,
+      },
+      T0 + 500,
+    );
+
+    const allData = await placesRepo.loadAll();
+
+    // 1. "Trajetos até aqui" (PlaceSheet) ignora o trajeto vazio para Mercado
+    const routesToMercadoWithActiveOptions = allData.routes.filter(
+      (r) =>
+        r.destinationPlaceId === mercado.id &&
+        r.deletedAt === null &&
+        allData.options.some((o) => o.routeId === r.id && o.deletedAt === null),
+    );
+    expect(routesToMercadoWithActiveOptions).toHaveLength(0);
+
+    // "Trajetos até aqui" traz o trajeto com opção para Facul
+    const routesToFaculWithActiveOptions = allData.routes.filter(
+      (r) =>
+        r.destinationPlaceId === facul.id &&
+        r.deletedAt === null &&
+        allData.options.some((o) => o.routeId === r.id && o.deletedAt === null),
+    );
+    expect(routesToFaculWithActiveOptions).toHaveLength(1);
+
+    // 2. "routes_to" em Lugares (PlacesSheet) ignora trajeto vazio
+    const countMercado = allData.routes.filter(
+      (r) =>
+        r.destinationPlaceId === mercado.id &&
+        r.deletedAt === null &&
+        allData.options.some((o) => o.routeId === r.id && o.deletedAt === null),
+    ).length;
+    expect(countMercado).toBe(0);
+
+    const countFacul = allData.routes.filter(
+      (r) =>
+        r.destinationPlaceId === facul.id &&
+        r.deletedAt === null &&
+        allData.options.some((o) => o.routeId === r.id && o.deletedAt === null),
+    ).length;
+    expect(countFacul).toBe(1);
+
+    // 3. Resolução da origem (TL-04) ignora trajeto vazio e devolve no_route para Mercado
+    const resMercado = resolveGotoOrigin({
+      destinationPlaceId: mercado.id,
+      places: allData.places,
+      routes: allData.routes,
+      options: allData.options,
+    });
+    expect(resMercado.kind).toBe("no_route");
+
+    // Resolução da origem para Facul resolve Casa
+    const resFacul = resolveGotoOrigin({
+      destinationPlaceId: facul.id,
+      places: allData.places,
+      routes: allData.routes,
+      options: allData.options,
+    });
+    expect(resFacul.kind).toBe("resolved");
+    if (resFacul.kind === "resolved") {
+      expect(resFacul.originPlaceId).toBe(casa.id);
+    }
   });
 });

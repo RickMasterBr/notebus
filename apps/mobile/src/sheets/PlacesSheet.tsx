@@ -190,7 +190,10 @@ export function PlacesSheet({ id }: { id: number }) {
 
   const renderNonShortcutCard = (place: PlaceRow) => {
     const routesCount = places.routes.filter(
-      (r) => r.destinationPlaceId === place.id && r.deletedAt === null,
+      (r) =>
+        r.destinationPlaceId === place.id &&
+        r.deletedAt === null &&
+        places.options.some((o) => o.routeId === r.id && o.deletedAt === null),
     ).length;
 
     return (
@@ -261,7 +264,10 @@ export function PlacesSheet({ id }: { id: number }) {
               <View style={styles.list}>
                 {shortcuts.map((p, idx) => {
                   const routesCount = places.routes.filter(
-                    (r) => r.destinationPlaceId === p.id && r.deletedAt === null,
+                    (r) =>
+                      r.destinationPlaceId === p.id &&
+                      r.deletedAt === null &&
+                      places.options.some((o) => o.routeId === r.id && o.deletedAt === null),
                   ).length;
                   return (
                     <ShortcutCardItem

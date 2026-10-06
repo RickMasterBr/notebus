@@ -129,4 +129,35 @@ describe("stack.e05 (TL-10 Lugares e trajetos)", () => {
       initialName: "Casa",
     });
   });
+
+  it("cobre a igualdade/mesma folha para option em modo rascunho (Item 2)", () => {
+    // 1. Empilhar a mesma folha rascunho não duplica na pilha
+    const sDraft = run(
+      { type: "push", sheet: { kind: "option", originPlaceId: "p-casa", destinationPlaceId: "p-facul" } },
+      { type: "push", sheet: { kind: "option", originPlaceId: "p-casa", destinationPlaceId: "p-facul" } },
+    );
+    expect(kinds(sDraft)).toEqual(["home", "option"]);
+    expect(stackedSheets(sDraft)).toHaveLength(1);
+    expect(activeSheet(sDraft)).toMatchObject({
+      kind: "option",
+      originPlaceId: "p-casa",
+      destinationPlaceId: "p-facul",
+    });
+
+    // 2. Destinos/origens diferentes empilham ambas
+    const sDiff = step(sDraft, {
+      type: "push",
+      sheet: { kind: "option", originPlaceId: "p-casa", destinationPlaceId: "p-academia" },
+    });
+    expect(kinds(sDiff)).toEqual(["home", "option", "option"]);
+    expect(stackedSheets(sDiff)).toHaveLength(2);
+
+    // 3. Option com routeId vs option rascunho são folhas diferentes e empilham
+    const sRouteOpt = step(sDiff, {
+      type: "push",
+      sheet: { kind: "option", routeId: "route-1" },
+    });
+    expect(kinds(sRouteOpt)).toEqual(["home", "option", "option", "option"]);
+    expect(stackedSheets(sRouteOpt)).toHaveLength(3);
+  });
 });

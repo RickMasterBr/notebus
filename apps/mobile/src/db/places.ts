@@ -30,7 +30,7 @@ export interface PlacesDeps {
 
 export interface SaveBusOptionInput {
   optionId?: string;
-  routeId: string;
+  routeId?: string;
   boardPatternStopId: string;
   alightPatternStopId: string;
   boardStopId: string;
@@ -65,13 +65,17 @@ export interface SetWalkTimeInput {
 export type AddOptionInput =
   | {
       kind: "bus";
-      routeId: string;
+      routeId?: string;
+      originPlaceId?: string;
+      destinationPlaceId?: string;
       boardPatternStopId: string;
       alightPatternStopId: string;
     }
   | {
       kind: "walk";
-      routeId: string;
+      routeId?: string;
+      originPlaceId?: string;
+      destinationPlaceId?: string;
       walkMinutes: number;
     };
 
@@ -252,29 +256,29 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
     return selectLive(db, route);
   }
 
-  function ensureRoute(originPlaceId: string, destinationPlaceId: string, at: number): Promise<RouteRow> {
-    return enqueue(() =>
-      inTransaction(async () => {
-        const routes = await selectLive(db, route);
-        const existing = routes.find(
-          (r) => r.originPlaceId === originPlaceId && r.destinationPlaceId === destinationPlaceId,
-        );
-        if (existing) return existing;
-
-        const id = newId(at);
-        const newRow: RouteRow = {
-          id,
-          originPlaceId,
-          destinationPlaceId,
-          source: "user",
-          createdAt: at,
-          updatedAt: at,
-          deletedAt: null,
-        };
-        await db.insert(route).values(newRow);
-        return newRow;
-      }),
+  async function applyEnsureRoute(originPlaceId: string, destinationPlaceId: string, at: number): Promise<RouteRow> {
+    const routes = await selectLive(db, route);
+    const existing = routes.find(
+      (r) => r.originPlaceId === originPlaceId && r.destinationPlaceId === destinationPlaceId,
     );
+    if (existing) return existing;
+
+    const id = newId(at);
+    const newRow: RouteRow = {
+      id,
+      originPlaceId,
+      destinationPlaceId,
+      source: "user",
+      createdAt: at,
+      updatedAt: at,
+      deletedAt: null,
+    };
+    await db.insert(route).values(newRow);
+    return newRow;
+  }
+
+  function ensureRoute(originPlaceId: string, destinationPlaceId: string, at: number): Promise<RouteRow> {
+    return enqueue(() => inTransaction(() => applyEnsureRoute(originPlaceId, destinationPlaceId, at)));
   }
 
   // ─── Tempo a pé do par (D-069, D-087) ────────────────────────────────────
@@ -368,18 +372,27 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
   }
 
   async function applyAddOption(input: AddOptionInput, at: number): Promise<OptionRow> {
+    let routeId = input.routeId;
+    if (!routeId) {
+      if (!input.originPlaceId || !input.destinationPlaceId) {
+        throw new Error("routeId ou par originPlaceId/destinationPlaceId obrigatório");
+      }
+      const r = await applyEnsureRoute(input.originPlaceId, input.destinationPlaceId, at);
+      routeId = r.id;
+    }
+
     if (input.kind === "bus") {
       await validateBusStops(input.boardPatternStopId, input.alightPatternStopId);
     }
 
-    const current = await listOptions(input.routeId);
+    const current = await listOptions(routeId);
     const maxSort = current.reduce((max, o) => Math.max(max, o.sort), -1);
     const sortOrder = maxSort + 1;
 
     const id = newId(at);
     const newRow: OptionRow = {
       id,
-      routeId: input.routeId,
+      routeId,
       kind: input.kind,
       boardPatternStopId: input.kind === "bus" ? input.boardPatternStopId : null,
       alightPatternStopId: input.kind === "bus" ? input.alightPatternStopId : null,
@@ -440,6 +453,12 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
   function saveBusOption(input: SaveBusOptionInput, at: number): Promise<OptionRow> {
     return enqueue(() =>
       inTransaction(async () => {
+        let routeId = input.routeId;
+        if (!routeId) {
+          const r = await applyEnsureRoute(input.originPlaceId, input.destinationPlaceId, at);
+          routeId = r.id;
+        }
+
         // 1. Grava tempo a pé até o embarque
         await applySetWalkTime(input.boardStopId, input.originPlaceId, input.walkToBoard, at);
         // 2. Grava tempo a pé depois da descida
@@ -462,7 +481,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
           return await applyAddOption(
             {
               kind: "bus",
-              routeId: input.routeId,
+              routeId,
               boardPatternStopId: input.boardPatternStopId,
               alightPatternStopId: input.alightPatternStopId,
             },

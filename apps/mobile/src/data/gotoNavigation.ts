@@ -13,7 +13,8 @@ import type { SheetAction } from "../sheets/stack";
 export interface NavigationPlaces {
   places: readonly { id: string; name: string; deletedAt: number | null }[];
   routes: readonly { id: string; destinationPlaceId: string; deletedAt: number | null }[];
-  ensureRoute: (originPlaceId: string, destinationPlaceId: string) => Promise<{ id: string }>;
+  options?: readonly { id: string; routeId: string; deletedAt: number | null }[];
+  ensureRoute?: (originPlaceId: string, destinationPlaceId: string) => Promise<{ id: string }>;
 }
 
 export async function openGotoOrNewOption(
@@ -22,7 +23,10 @@ export async function openGotoOrNewOption(
   destinationPlaceId: string,
 ): Promise<void> {
   const routesToDest = places.routes.filter(
-    (r) => r.destinationPlaceId === destinationPlaceId && r.deletedAt === null,
+    (r) =>
+      r.destinationPlaceId === destinationPlaceId &&
+      r.deletedAt === null &&
+      (!places.options || places.options.some((o) => o.routeId === r.id && o.deletedAt === null)),
   );
 
   if (routesToDest.length > 0) {
@@ -39,8 +43,14 @@ export async function openGotoOrNewOption(
   const origin = casa ?? otherPlaces[0];
 
   if (origin) {
-    const route = await places.ensureRoute(origin.id, destinationPlaceId);
-    dispatch({ type: "push", sheet: { kind: "option", routeId: route.id } });
+    dispatch({
+      type: "push",
+      sheet: {
+        kind: "option",
+        originPlaceId: origin.id,
+        destinationPlaceId,
+      },
+    });
   } else {
     // Sem nenhum outro lugar: abre a tela goto para exibir o motivo de sem opções (T-50)
     dispatch({ type: "push", sheet: { kind: "goto", destinationPlaceId } });

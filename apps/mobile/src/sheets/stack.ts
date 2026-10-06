@@ -38,6 +38,7 @@ export type SheetContent =
   | { kind: "place"; placeId?: string; initialName?: string }
   | { kind: "route"; routeId: string }
   | { kind: "option"; routeId: string; optionId?: string }
+  | { kind: "option"; originPlaceId: string; destinationPlaceId: string }
   | { kind: "alightPicker"; routeId: string; patternId: string; boardPosition: number; currentAlightPatternStopId?: string }
   /** TL-04 Ir para X (E-05 Bloco 3) */
   | { kind: "goto"; destinationPlaceId: string; originPlaceId?: string };
@@ -107,7 +108,13 @@ function sameSheet(a: SheetContent, b: SheetContent): boolean {
   if (a.kind === "verify" && b.kind === "verify") return a.observationId === b.observationId;
   if (a.kind === "place" && b.kind === "place") return a.placeId === b.placeId && a.initialName === b.initialName;
   if (a.kind === "route" && b.kind === "route") return a.routeId === b.routeId;
-  if (a.kind === "option" && b.kind === "option") return a.routeId === b.routeId && a.optionId === b.optionId;
+  if (a.kind === "option" && b.kind === "option") {
+    if ("routeId" in a && "routeId" in b) return a.routeId === b.routeId && a.optionId === b.optionId;
+    if ("originPlaceId" in a && "originPlaceId" in b) {
+      return a.originPlaceId === b.originPlaceId && a.destinationPlaceId === b.destinationPlaceId;
+    }
+    return false;
+  }
   if (a.kind === "alightPicker" && b.kind === "alightPicker") return a.routeId === b.routeId && a.patternId === b.patternId && a.boardPosition === b.boardPosition;
   if (a.kind === "goto" && b.kind === "goto") return a.destinationPlaceId === b.destinationPlaceId && a.originPlaceId === b.originPlaceId;
   return true;

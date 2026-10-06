@@ -26,7 +26,7 @@ describe("openGotoOrNewOption", () => {
     expect(ensureRoute).not.toHaveBeenCalled();
   });
 
-  it("abre editor de opção pré-preenchido com Casa quando destino não tem trajetos", async () => {
+  it("abre editor de opção pré-preenchido com Casa quando destino não tem trajetos (modo rascunho, sem ensureRoute)", async () => {
     const dispatch = vi.fn<(action: SheetAction) => void>();
     const ensureRoute = vi.fn().mockResolvedValue({ id: "r-new" });
     const places: NavigationPlaces = {
@@ -41,10 +41,10 @@ describe("openGotoOrNewOption", () => {
 
     await openGotoOrNewOption(dispatch, places, "p-academia");
 
-    expect(ensureRoute).toHaveBeenCalledWith("p-casa", "p-academia");
+    expect(ensureRoute).not.toHaveBeenCalled();
     expect(dispatch).toHaveBeenCalledWith({
       type: "push",
-      sheet: { kind: "option", routeId: "r-new" },
+      sheet: { kind: "option", originPlaceId: "p-casa", destinationPlaceId: "p-academia" },
     });
   });
 
@@ -62,10 +62,10 @@ describe("openGotoOrNewOption", () => {
 
     await openGotoOrNewOption(dispatch, places, "p-academia");
 
-    expect(ensureRoute).toHaveBeenCalledWith("p-trabalho", "p-academia");
+    expect(ensureRoute).not.toHaveBeenCalled();
     expect(dispatch).toHaveBeenCalledWith({
       type: "push",
-      sheet: { kind: "option", routeId: "r-new-2" },
+      sheet: { kind: "option", originPlaceId: "p-trabalho", destinationPlaceId: "p-academia" },
     });
   });
 
@@ -86,6 +86,27 @@ describe("openGotoOrNewOption", () => {
     expect(dispatch).toHaveBeenCalledWith({
       type: "push",
       sheet: { kind: "goto", destinationPlaceId: "p-academia" },
+    });
+  });
+
+  it("trajeto existente mas sem opções ativas é ignorado e abre editor de opção em rascunho", async () => {
+    const dispatch = vi.fn<(action: SheetAction) => void>();
+    const places: NavigationPlaces = {
+      places: [
+        { id: "p-casa", name: "Casa", deletedAt: null },
+        { id: "p-facul", name: "Facul", deletedAt: null },
+      ],
+      routes: [
+        { id: "r-vazia", destinationPlaceId: "p-facul", deletedAt: null },
+      ],
+      options: [],
+    };
+
+    await openGotoOrNewOption(dispatch, places, "p-facul");
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: "push",
+      sheet: { kind: "option", originPlaceId: "p-casa", destinationPlaceId: "p-facul" },
     });
   });
 });
