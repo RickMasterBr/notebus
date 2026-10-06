@@ -64,7 +64,7 @@ export function PlaceSheet({
 
   const [name, setName] = useState(existingPlace?.name ?? initialName ?? "");
   const [icon, setIcon] = useState<string | null>(
-    existingPlace?.icon ?? (initialName?.toLowerCase() === "casa" ? "casa" : "casa"),
+    existingPlace?.icon ?? "casa",
   );
   const [isShortcut, setIsShortcut] = useState(existingPlace?.isShortcut ?? true);
   const [lat, setLat] = useState<number | null>(existingPlace?.lat ?? null);
