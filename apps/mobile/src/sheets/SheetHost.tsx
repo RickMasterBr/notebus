@@ -20,6 +20,7 @@ import { PlaceSheet } from "./PlaceSheet";
 import { RouteSheet } from "./RouteSheet";
 import { OptionSheet } from "./OptionSheet";
 import { AlightPickerSheet } from "./AlightPickerSheet";
+import { GotoSheet } from "./GotoSheet";
 import { CloseSheetProvider } from "./StackedSheet";
 import { type SheetEntry, stackedSheets } from "./stack";
 
@@ -106,6 +107,14 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
           patternId={entry.patternId}
           boardPosition={entry.boardPosition}
           currentAlightPatternStopId={entry.currentAlightPatternStopId}
+        />
+      );
+    case "goto":
+      return (
+        <GotoSheet
+          id={entry.id}
+          destinationPlaceId={entry.destinationPlaceId}
+          originPlaceId={entry.originPlaceId}
         />
       );
     case "home":

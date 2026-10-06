@@ -384,9 +384,9 @@ export const ptBR = {
   "sheet_goto.origin_label": "de {{origin}}",
   "sheet_goto.origin_change": "Trocar origem",
   "sheet_goto.origin_select_title": "Escolher origem",
-  "sheet_goto.no_service_today": "Sem viagens para esta opção hoje", // provisório
-  "sheet_goto.no_trips_left": "Nenhuma opção viável hoje", // provisório
-  "sheet_goto.next_service": "Próximo serviço: {{day}}", // provisório
+  "sheet_goto.no_service_today": "Nenhum serviço hoje",
+  "sheet_goto.no_trips_left": "Sem mais viagens hoje",
+  "sheet_goto.next_service": "Próximo serviço: {{day}}",
   "sheet_goto.a11y.bus_card": "Sair às {{leave}}, esteja no ponto às {{be_at}}, chega por volta das {{arrive}}, até {{until}}, Linha {{line}}, ponto {{stop}}",
   "sheet_goto.a11y.walk_card": "A pé, sair às {{leave}}, chega por volta das {{arrive}}",
   "home.stop_card.leave_at_neutral": "sair às {{time}} · {{place}}", // provisório

@@ -38,7 +38,9 @@ export type SheetContent =
   | { kind: "place"; placeId?: string }
   | { kind: "route"; routeId: string }
   | { kind: "option"; routeId: string; optionId?: string }
-  | { kind: "alightPicker"; routeId: string; patternId: string; boardPosition: number; currentAlightPatternStopId?: string };
+  | { kind: "alightPicker"; routeId: string; patternId: string; boardPosition: number; currentAlightPatternStopId?: string }
+  /** TL-04 Ir para X (E-05 Bloco 3) */
+  | { kind: "goto"; destinationPlaceId: string; originPlaceId?: string };
 
 export type SheetKind = SheetContent["kind"];
 
@@ -107,6 +109,7 @@ function sameSheet(a: SheetContent, b: SheetContent): boolean {
   if (a.kind === "route" && b.kind === "route") return a.routeId === b.routeId;
   if (a.kind === "option" && b.kind === "option") return a.routeId === b.routeId && a.optionId === b.optionId;
   if (a.kind === "alightPicker" && b.kind === "alightPicker") return a.routeId === b.routeId && a.patternId === b.patternId && a.boardPosition === b.boardPosition;
+  if (a.kind === "goto" && b.kind === "goto") return a.destinationPlaceId === b.destinationPlaceId && a.originPlaceId === b.originPlaceId;
   return true;
 }
 
