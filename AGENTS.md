@@ -15,6 +15,7 @@ App de caderno de horários de ônibus (MOBILIS Leiria), Expo SDK 57, React Nati
 
 ## Código
 
+- **Antes de mexer em tela, folha ou texto, leia `DESIGN.md` (raiz do repositório).** Tokens, quadro das folhas (D-150), um só ✕, textos pelo catálogo, vocabulário da tela. Se uma regra dele contradisser o plano, **pare e relate**.
 - Textos só no catálogo (`pt-BR.ts`), nunca soltos no componente. Sem emoji.
 - Rolagem de folhas: siga a skill `diagnostico-rolagem-bottom-sheet` (lista numa `View` de altura fixa, `detentMetrics`/`scrollInset.ts`, sem constante nova). Não invente painel de diagnóstico.
 - Alvo de toque ≥ 44 pt. Respeite "Reduzir movimento".
