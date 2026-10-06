@@ -53,6 +53,8 @@ export function EmptyHome() {
           <Text style={[type.body, { color: colors.textSecondary }]}>{t("home.empty.body")}</Text>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={t("home.empty.action")}
+            onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })}
             style={({ pressed }) => [styles.button, { backgroundColor: colors.accent }, pressed && { opacity: 0.6 }]}
           >
             <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("home.empty.action")}</Text>
