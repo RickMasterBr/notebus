@@ -442,6 +442,7 @@ export const ptBR = {
   "alarm.summary.until": "até {{date}}", // provisório
   "alarms.line.leave": "sair ~{{time}}", // provisório
   "alarms.title": "Avisos", // provisório
+  "alarms.delete": "Apagar", // provisório
   "alarms.on_count": "Avisos ligados: {{count}}", // provisório
   "alarms.empty": "Nenhum aviso ligado. Ligue um no cartão de uma opção.", // provisório
   "alarms.edit_hint": "Para mudar o horário de sair, ligue um aviso no cartão correspondente.", // provisório
