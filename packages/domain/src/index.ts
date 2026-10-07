@@ -21,6 +21,7 @@ export type { RideProblemCode } from "./invariants";
 export {
   addDays,
   dayOfWeek,
+  excludedBySeason,
   dayTypeOf,
   lineServiceOn,
   lisbonInstants,
