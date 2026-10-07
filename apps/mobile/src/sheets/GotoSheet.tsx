@@ -11,9 +11,22 @@
  * - Caso sem serviço (T-50): motivo e próximo serviço.
  */
 import { BottomSheetScrollView, useBottomSheet } from "@gorhom/bottom-sheet";
-import { gotoCards, lisbonWallClock, type BusCandidate, type WalkCandidate } from "@notebus/domain";
+import {
+  gotoCards,
+  lisbonWallClock,
+  type BusCandidate,
+  type WalkCandidate,
+} from "@notebus/domain";
 import * as Haptics from "expo-haptics";
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Pressable,
   StyleSheet,
@@ -44,7 +57,18 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
-import { type Detent } from "./stack";
+import { type Detent, activeSheet } from "./stack";
+import { useToast } from "../data/ToastProvider";
+import { useTestClock } from "../data/TestClockProvider";
+import { realNow } from "../data/clock";
+import { ensureAlarmPermission } from "../notifications/permission";
+import { expoPort } from "../notifications/expoPort";
+import { requestReschedule } from "../notifications/runtime";
+import { sharedAlarms, type AlarmRow } from "../db/alarms";
+import { getSharedDb } from "../db/sharedDb";
+import { alarmFromCard, alarmOfCard, alarmSummary, createAskController } from "../data/alarmsUi";
+import { hasShownAlarmFocusHint, markAlarmFocusHintShown } from "../db/appState";
+import { formatServiceMinute } from "@notebus/domain";
 
 const START_INDEX = 0;
 const LAST_INDEX = 2;
@@ -87,12 +111,31 @@ export function GotoSheet({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
-  const { dispatch } = useSheets();
+  const { state, dispatch } = useSheets();
+  const toast = useToast();
+  const testClock = useTestClock();
   const places = usePlaces();
   const registro = useRegistro();
   const schedule = useSchedule();
   const scheduleData = schedule.status === "ready" ? schedule.data : null;
   const instant = useNowTick();
+
+  const [alarms, setAlarms] = useState<AlarmRow[]>([]);
+  const loadAlarms = useCallback(async () => {
+    const db = getSharedDb();
+    if (!db) return;
+    try {
+      const list = await sharedAlarms(db).listAlarms();
+      setAlarms(list);
+    } catch {
+      // Ignora erro de leitura
+    }
+  }, []);
+
+  const isTop = activeSheet(state).id === id;
+  useEffect(() => {
+    if (isTop) void loadAlarms();
+  }, [isTop, loadAlarms]);
 
   const [detent, setDetent] = useState<Detent>(START_INDEX);
   const [handleHeight, setHandleHeight] = useState(0);
@@ -288,51 +331,202 @@ export function GotoSheet({
     });
 
     const boardPos = boardStopInfo?.position ?? 1;
+    const trip = scheduleData?.trips.find((t) => t.id === card.tripId);
+    const cardAlarm = trip ? alarmOfCard(card, alarms, trip, boardPos) : undefined;
+    const isAlarmOn = cardAlarm !== undefined;
+
+    const handleToggleAlarm = async () => {
+      const db = getSharedDb();
+      if (!db || !trip) return;
+      if (isAlarmOn && cardAlarm) {
+        // Desligar
+        await sharedAlarms(db).deleteAlarm(cardAlarm.id, realNow());
+        requestReschedule();
+        await loadAlarms();
+        toast.show({
+          title: t("toast.alarm_cancelled.title"),
+          action: {
+            label: t("toast.action.undo"),
+            run: async () => {
+              await sharedAlarms(db).saveAlarm(cardAlarm, realNow());
+              requestReschedule();
+              await loadAlarms();
+            },
+          },
+        });
+        return;
+      }
+
+      // Ligar
+      // 1. Relógio de teste ligado (D-095)
+      if (testClock.chosen !== null) {
+        toast.show({
+          title: t("alarm.test_clock"),
+          kind: "error",
+        });
+        return;
+      }
+
+      // 2. Permissão
+      const ask = async () => {
+        const askCtrl = createAskController();
+        dispatch({
+          type: "push",
+          sheet: {
+            kind: "alarmIntro",
+            mode: "reason",
+            onResolve: (accepted: boolean) => askCtrl.resolve(accepted),
+          } as any,
+        });
+        return askCtrl.wait();
+      };
+      const perm = await ensureAlarmPermission(expoPort, { ask });
+      if (perm === "denied") {
+        dispatch({
+          type: "push",
+          sheet: { kind: "alarmIntro", mode: "denied" } as any,
+        });
+        return;
+      }
+      if (perm !== "granted") {
+        return;
+      }
+
+      // 3. Gravar
+      const wall = lisbonWallClock(instant);
+      const newAlarmInput = alarmFromCard(card, trip, boardPos, wall.date);
+      const saveResult = await sharedAlarms(db).saveAlarm(newAlarmInput, realNow());
+      await loadAlarms();
+
+      if (saveResult.replaced.length > 0) {
+        const rep = saveResult.replaced[0]!;
+        const oldAlarm = alarms.find((a) => a.id === rep.alarmId);
+        const repDays = rep.weekdays.length > 0
+          ? rep.weekdays.map((d) => t(`common.weekday.plural.${d}` as any)).join(" ")
+          : t("alarm.repeat.once");
+        const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
+        toast.show({
+          title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
+          action: {
+            label: t("toast.action.undo"),
+            run: async () => {
+              await saveResult.undo(realNow());
+              requestReschedule();
+              await loadAlarms();
+            },
+          },
+        });
+      } else {
+        toast.show({
+          title: t("toast.alarm_set.title"),
+          body: t("toast.alarm_set.body", { time: clockText(card.leaveAt), line: lineInfo?.code ?? "" }),
+          haptic: "success",
+        });
+      }
+
+      // 4. Reagendar
+      requestReschedule();
+
+      // 5. Orientação do modo Foco, uma vez
+      const shown = await hasShownAlarmFocusHint(db);
+      if (!shown) {
+        await markAlarmFocusHintShown(db, realNow());
+        dispatch({
+          type: "push",
+          sheet: { kind: "alarmIntro", mode: "focus" } as any,
+        });
+      }
+    };
 
     return (
-      <Pressable
+      <View
         key={`${card.tripId}-${card.optionId}`}
-        accessibilityRole="button"
-        accessibilityLabel={a11yLabel}
-        onPress={() => openAhead(card.tripId, boardPos)}
         onLayout={isFirst ? (e) => setFirstCardHeight(e.nativeEvent.layout.height) : undefined}
-        style={({ pressed }) => [
-          styles.card,
-          { backgroundColor: colors.fill },
-          pressed && { opacity: 0.8 },
-        ]}
+        style={[styles.busCard, { backgroundColor: colors.fill }]}
       >
-        <View style={styles.cardMain}>
-          {/* Cabeçalho do cartão: Linha + sair às + chegada */}
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.cardBadgeWrap}>
-              <LineBadge code={lineInfo?.code ?? ""} color={lineInfo?.color ?? colors.accent} />
-              <Text style={[type.bodyStrong, { color: colors.text }]}>
-                {`${t("sheet_goto.leave_at")} ${clockText(card.leaveAt)}`}
-              </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={a11yLabel}
+          onPress={() => openAhead(card.tripId, boardPos)}
+          style={({ pressed }) => [styles.cardTop, pressed && { opacity: 0.8 }]}
+        >
+          <View style={styles.cardMain}>
+            {/* Cabeçalho do cartão: Linha + sair às + chegada */}
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.cardBadgeWrap}>
+                <LineBadge code={lineInfo?.code ?? ""} color={lineInfo?.color ?? colors.accent} />
+                <Text style={[type.bodyStrong, { color: colors.text }]}>
+                  {`${t("sheet_goto.leave_at")} ${clockText(card.leaveAt)}`}
+                </Text>
+              </View>
+              <View style={styles.arriveWrap}>
+                <Text style={[type.bodyStrong, { color: colors.accent }]}>
+                  {`${t("sheet_goto.arrive_label")} ~${clockText(card.arriveAt)}`}
+                </Text>
+                <Text style={[type.caption, { color: colors.textSecondary }]}>
+                  {t("sheet_goto.arrive_worst_case", { time: clockText(card.until) })}
+                </Text>
+              </View>
             </View>
-            <View style={styles.arriveWrap}>
-              <Text style={[type.bodyStrong, { color: colors.accent }]}>
-                {`${t("sheet_goto.arrive_label")} ~${clockText(card.arriveAt)}`}
-              </Text>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {t("sheet_goto.arrive_worst_case", { time: clockText(card.until) })}
-              </Text>
-            </View>
-          </View>
 
-          {/* Subtítulo: no ponto HH:MM · Ponto de embarque */}
-          <View style={styles.cardFooterRow}>
-            <Text style={[type.caption, { color: colors.textSecondary }]}>
-              {t("sheet_goto.stop_at", {
-                time: clockText(card.beAtStop),
-                stop_name: boardStopName,
-              })}
-            </Text>
+            {/* Subtítulo: no ponto HH:MM · Ponto de embarque */}
+            <View style={styles.cardFooterRow}>
+              <Text style={[type.caption, { color: colors.textSecondary }]}>
+                {t("sheet_goto.stop_at", {
+                  time: clockText(card.beAtStop),
+                  stop_name: boardStopName,
+                })}
+              </Text>
+            </View>
           </View>
+          <ChevronRightGlyph color={colors.textSecondary} />
+        </Pressable>
+
+        {/* Linha com botão "Avisar para sair" e "Repetir" (Item 2) */}
+        <View style={styles.cardAlarmRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: isAlarmOn }}
+            accessibilityLabel={
+              isAlarmOn
+                ? t("sheet_goto.alarm.active_button", { time: clockText(card.leaveAt) })
+                : t("sheet_goto.alarm.set_button")
+            }
+            onPress={() => void handleToggleAlarm()}
+            style={({ pressed }) => [
+              styles.alarmButton,
+              isAlarmOn
+                ? { backgroundColor: colors.accent }
+                : { borderColor: colors.divider, borderWidth: 1, backgroundColor: "transparent" },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={[type.label, { color: isAlarmOn ? colors.onAccent : colors.text }]}>
+              {isAlarmOn
+                ? t("sheet_goto.alarm.active_button", { time: clockText(card.leaveAt) })
+                : t("sheet_goto.alarm.set_button")}
+            </Text>
+          </Pressable>
+
+          {isAlarmOn && cardAlarm ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${t("alarm.repeat.title")}, ${alarmSummary(cardAlarm.weekdays, cardAlarm.validTo)}`}
+              onPress={() =>
+                dispatch({
+                  type: "push",
+                  sheet: { kind: "repeat", alarmId: cardAlarm.id } as any,
+                })
+              }
+              style={styles.repeatButton}
+            >
+              <Text style={[type.body, { color: colors.textSecondary }]}>
+                {alarmSummary(cardAlarm.weekdays, cardAlarm.validTo)}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
-        <ChevronRightGlyph color={colors.textSecondary} />
-      </Pressable>
+      </View>
     );
   };
 
@@ -582,6 +776,36 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
     borderRadius: radius.md,
     minHeight: 64,
+  },
+  busCard: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.md,
+    gap: space.xs,
+  },
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  cardAlarmRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    paddingTop: space.xs,
+  },
+  alarmButton: {
+    minHeight: minTouch,
+    paddingHorizontal: space.md,
+    borderRadius: radius.full,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  repeatButton: {
+    minHeight: minTouch,
+    justifyContent: "center",
+    paddingHorizontal: space.xs,
   },
   cardMain: {
     flex: 1,

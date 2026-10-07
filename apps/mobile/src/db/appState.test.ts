@@ -18,4 +18,13 @@ describe("primeiro uso", () => {
     });
     expect(await needsFirstRun(outro)).toBe(false);
   });
+
+  it("orientação do modo foco: começa falso, marcado vira verdadeiro e não duplica", async () => {
+    const { hasShownAlarmFocusHint, markAlarmFocusHintShown } = await import("./appState");
+    const db = testDb();
+    expect(await hasShownAlarmFocusHint(db)).toBe(false);
+    await markAlarmFocusHintShown(db, 10);
+    await markAlarmFocusHintShown(db, 20); // idempotente
+    expect(await hasShownAlarmFocusHint(db)).toBe(true);
+  });
 });

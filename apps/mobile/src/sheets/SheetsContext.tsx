@@ -1,6 +1,6 @@
 /** Estado da pilha de folhas para a árvore de componentes. A lógica está em `stack.ts` (testada no Node). */
 import { useNow } from "../data/NowProvider";
-import { notifyPendingIntent } from "../notifications/pendingIntent";
+import { notifyPendingIntent, onPendingIntent, peekPendingIntent, takePendingIntent } from "../notifications/pendingIntent";
 import { DIAG_SCROLL, recordOpenRequest } from "./diagScroll";
 import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 import { type SheetAction, type SheetContent, type SheetStackState, initialSheetState, sheetReducer } from "./stack";
@@ -63,6 +63,18 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
     return () => {
       sheetOpener = null;
     };
+  }, [dispatch]);
+
+  // Consumo do pendingIntent goto (E-06 Bloco 3, Item 2): corpo do aviso abre a tela "Ir para" do destino
+  useEffect(() => {
+    const consume = () => {
+      const intent = peekPendingIntent();
+      if (intent?.kind !== "goto") return;
+      takePendingIntent();
+      dispatch({ type: "push", sheet: { kind: "goto", destinationPlaceId: intent.placeId } });
+    };
+    consume();
+    return onPendingIntent(consume);
   }, [dispatch]);
 
   const value = useMemo(() => ({ state, dispatch }), [state, dispatch]);
