@@ -34,6 +34,13 @@ jobs:
       - name: Gerar o projeto nativo (prebuild)
         working-directory: apps/mobile
         run: npx expo prebuild --platform ios
+      # Apple ID gratuito não usa push; o aviso local não precisa do aps-environment; removido para o SideStore não recusar a assinatura.
+      - name: Remover aps-environment dos entitlements
+        working-directory: apps/mobile
+        run: |
+          ENT=$(ls ios/*/*.entitlements)
+          /usr/libexec/PlistBuddy -c "Delete :aps-environment" "$ENT" || true
+          cat "$ENT"
       - name: Compilar sem assinatura
         working-directory: apps/mobile/ios
         run: |
