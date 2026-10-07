@@ -72,10 +72,10 @@ import {
   alarmOfCard,
   alarmSummary,
   createAskController,
+  minuteText,
   weekdayPluralKey,
 } from "../data/alarmsUi";
 import { hasShownAlarmFocusHint, markAlarmFocusHintShown } from "../db/appState";
-import { formatServiceMinute } from "@notebus/domain";
 
 const START_INDEX = 0;
 const LAST_INDEX = 2;
@@ -366,7 +366,7 @@ export function GotoSheet({
                     rep.weekdays.length > 0
                       ? rep.weekdays.map((d) => t(weekdayPluralKey(d))).join(" ")
                       : t("alarm.repeat.once");
-                  const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
+                  const repTime = oldAlarm ? minuteText(oldAlarm.anchorBaseMinute) : "";
                   toast.show({
                     title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
                     action: {
@@ -445,7 +445,7 @@ export function GotoSheet({
         const repDays = rep.weekdays.length > 0
           ? rep.weekdays.map((d) => t(weekdayPluralKey(d))).join(" ")
           : t("alarm.repeat.once");
-        const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
+        const repTime = oldAlarm ? minuteText(oldAlarm.anchorBaseMinute) : "";
         toast.show({
           title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
           action: {

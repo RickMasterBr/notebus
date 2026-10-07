@@ -29,7 +29,10 @@ import { useToast } from "../data/ToastProvider";
 import {
   alarmFromRow,
   alarmLine,
+  alarmRowA11yActions,
   historyList,
+  isDeleteAction,
+  minuteText,
   upcomingList,
   weekdayPluralKey,
   type HistoryItem,
@@ -93,7 +96,7 @@ export function AlarmsSheet({ id }: { id: number }) {
       setUpcoming(upcomingList(scheduled));
 
       const events = await repo.listEvents();
-      setHistory(historyList(events));
+      setHistory(historyList(events, realNow()));
     } catch {
       // Ignora erro
     }
@@ -131,7 +134,7 @@ export function AlarmsSheet({ id }: { id: number }) {
           }
         }
       }
-      const leaveTime = formatServiceMinute(alarm.anchorBaseMinute);
+      const leaveTime = minuteText(alarm.anchorBaseMinute);
       return { placeName, lineCode, leaveTime, baseMinute: alarm.anchorBaseMinute };
     },
     [places.options, places.places, places.routes, schedule],
@@ -167,7 +170,7 @@ export function AlarmsSheet({ id }: { id: number }) {
                     : t("alarm.repeat.once");
                 const currentAlarms = await sharedAlarms(db).listAlarms();
                 const oldAlarm = currentAlarms.find((a) => a.id === rep.alarmId);
-                const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
+                const repTime = oldAlarm ? minuteText(oldAlarm.anchorBaseMinute) : "";
                 toast.show({
                   title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
                   action: {
@@ -334,7 +337,7 @@ export function AlarmsSheet({ id }: { id: number }) {
                           {h.time}
                         </Text>
                         <Text style={[type.caption, { color: colors.textSecondary }]}>
-                          {h.serviceDate.slice(5).replace("-", "/")}
+                          {h.dateText}
                         </Text>
                       </View>
                       <Text style={[type.body, { color: colors.textSecondary, flex: 1 }]}>
@@ -425,6 +428,12 @@ function AlarmListItem({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={lineText}
+        accessibilityActions={alarmRowA11yActions()}
+        onAccessibilityAction={(event) => {
+          if (isDeleteAction(event.nativeEvent.actionName)) {
+            onDelete();
+          }
+        }}
         onPress={onPress}
         style={({ pressed }) => [
           styles.alarmRow,

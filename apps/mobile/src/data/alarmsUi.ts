@@ -122,6 +122,11 @@ export function shortDateText(date: string): string {
   return `${parts[2]}/${parts[1]}`;
 }
 
+/** Converte minuto de serviço em texto HH:MM sem fração. */
+export function minuteText(minute: number): string {
+  return formatServiceMinute(Math.floor(minute));
+}
+
 /** 2. Resumo curto do aviso a partir de weekdays e validTo. */
 export function alarmSummary(weekdays: readonly number[], validTo: string | null): string {
   let text: string;
@@ -286,6 +291,7 @@ export interface HistoryItem {
   id: string;
   plannedAt: number;
   serviceDate: string;
+  dateText: string;
   state: AlarmEventState;
   skipReason: SkipReason | null;
   statusLabel: string;
@@ -293,8 +299,12 @@ export interface HistoryItem {
 }
 
 /** 6. Histórico das linhas de alarm_event, mais novas primeiro, máx 30. */
-export function historyList(events: readonly AlarmEventRow[]): HistoryItem[] {
-  return [...events]
+export function historyList(
+  events: readonly AlarmEventRow[],
+  now?: number,
+): HistoryItem[] {
+  const filtered = now !== undefined ? events.filter((e) => e.plannedAt <= now) : events;
+  return [...filtered]
     .sort((a, b) => b.plannedAt - a.plannedAt)
     .slice(0, 30)
     .map((e) => {
@@ -303,6 +313,7 @@ export function historyList(events: readonly AlarmEventRow[]): HistoryItem[] {
         id: e.id,
         plannedAt: e.plannedAt,
         serviceDate: e.serviceDate,
+        dateText: shortDateText(e.serviceDate),
         state: e.state,
         skipReason: e.skipReason,
         statusLabel: alarmEventLabel(e.state, e.skipReason),
@@ -384,3 +395,13 @@ export function createAskController(): AskController {
     },
   };
 }
+
+/** Ações de acessibilidade para o VoiceOver na linha de aviso (E-06 Item 2). */
+export function alarmRowA11yActions(): { name: string; label: string }[] {
+  return [{ name: "delete", label: t("alarms.delete") }];
+}
+
+export function isDeleteAction(name: string): boolean {
+  return name === "delete";
+}
+
