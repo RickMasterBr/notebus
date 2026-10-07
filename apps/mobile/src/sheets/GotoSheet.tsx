@@ -66,7 +66,14 @@ import { expoPort } from "../notifications/expoPort";
 import { requestReschedule } from "../notifications/runtime";
 import { sharedAlarms, type AlarmRow } from "../db/alarms";
 import { getSharedDb } from "../db/sharedDb";
-import { alarmFromCard, alarmFromRow, alarmOfCard, alarmSummary, createAskController } from "../data/alarmsUi";
+import {
+  alarmFromCard,
+  alarmFromRow,
+  alarmOfCard,
+  alarmSummary,
+  createAskController,
+  weekdayPluralKey,
+} from "../data/alarmsUi";
 import { hasShownAlarmFocusHint, markAlarmFocusHintShown } from "../db/appState";
 import { formatServiceMinute } from "@notebus/domain";
 
@@ -357,7 +364,7 @@ export function GotoSheet({
                   const oldAlarm = alarms.find((a) => a.id === rep.alarmId);
                   const repDays =
                     rep.weekdays.length > 0
-                      ? rep.weekdays.map((d) => t(`common.weekday.plural.${d}` as any)).join(" ")
+                      ? rep.weekdays.map((d) => t(weekdayPluralKey(d))).join(" ")
                       : t("alarm.repeat.once");
                   const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
                   toast.show({
@@ -410,7 +417,7 @@ export function GotoSheet({
             kind: "alarmIntro",
             mode: "reason",
             onResolve: (accepted: boolean) => askCtrl.resolve(accepted),
-          } as any,
+          },
         });
         return askCtrl.wait();
       };
@@ -418,7 +425,7 @@ export function GotoSheet({
       if (perm === "denied") {
         dispatch({
           type: "push",
-          sheet: { kind: "alarmIntro", mode: "denied" } as any,
+          sheet: { kind: "alarmIntro", mode: "denied" },
         });
         return;
       }
@@ -436,7 +443,7 @@ export function GotoSheet({
         const rep = saveResult.replaced[0]!;
         const oldAlarm = alarms.find((a) => a.id === rep.alarmId);
         const repDays = rep.weekdays.length > 0
-          ? rep.weekdays.map((d) => t(`common.weekday.plural.${d}` as any)).join(" ")
+          ? rep.weekdays.map((d) => t(weekdayPluralKey(d))).join(" ")
           : t("alarm.repeat.once");
         const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
         toast.show({
@@ -474,7 +481,7 @@ export function GotoSheet({
         await markAlarmFocusHintShown(db, realNow());
         dispatch({
           type: "push",
-          sheet: { kind: "alarmIntro", mode: "focus" } as any,
+          sheet: { kind: "alarmIntro", mode: "focus" },
         });
       }
     };
@@ -556,7 +563,7 @@ export function GotoSheet({
               onPress={() =>
                 dispatch({
                   type: "push",
-                  sheet: { kind: "repeat", alarmId: cardAlarm.id } as any,
+                  sheet: { kind: "repeat", alarmId: cardAlarm.id },
                 })
               }
               style={styles.repeatButton}

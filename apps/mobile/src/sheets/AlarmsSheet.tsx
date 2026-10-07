@@ -31,6 +31,7 @@ import {
   alarmLine,
   historyList,
   upcomingList,
+  weekdayPluralKey,
   type HistoryItem,
   type UpcomingItem,
 } from "../data/alarmsUi";
@@ -162,7 +163,7 @@ export function AlarmsSheet({ id }: { id: number }) {
                 const rep = saveResult.replaced[0]!;
                 const repDays =
                   rep.weekdays.length > 0
-                    ? rep.weekdays.map((d) => t(`common.weekday.plural.${d}` as any)).join(" ")
+                    ? rep.weekdays.map((d) => t(weekdayPluralKey(d))).join(" ")
                     : t("alarm.repeat.once");
                 const currentAlarms = await sharedAlarms(db).listAlarms();
                 const oldAlarm = currentAlarms.find((a) => a.id === rep.alarmId);
