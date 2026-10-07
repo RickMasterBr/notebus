@@ -176,9 +176,26 @@ export function planDepartures(input: PlanInput): DeparturePlan {
       if (departure && departure.leaveAt >= nowMinuteMs) departures.push(departure);
     }
   }
-  departures.sort((a, b) => a.leaveAt - b.leaveAt || compareText(a.alarmId, b.alarmId) || compareText(a.serviceDate, b.serviceDate));
+  const unique = dedupeDepartures(departures, input.alarms);
+  unique.sort((a, b) => a.leaveAt - b.leaveAt || compareText(a.alarmId, b.alarmId) || compareText(a.serviceDate, b.serviceDate));
   skipped.sort((a, b) => compareText(a.serviceDate, b.serviceDate) || compareText(a.alarmId, b.alarmId));
-  return { departures, skipped };
+  return { departures: unique, skipped };
+}
+
+/**
+ * Dois avisos que dão a mesma saída (mesma opção, mesma `serviceDate`, mesmo `leaveAt`) valem uma só (D-176): fica a do
+ * aviso de data única; se ambos repetem (ou ambos são de data única), a do menor `id` de aviso.
+ */
+function dedupeDepartures(departures: readonly PlannedDeparture[], alarms: readonly AlarmRule[]): PlannedDeparture[] {
+  const isOnce = new Set(alarms.filter((a) => a.weekdays.length === 0).map((a) => a.id));
+  const kept = new Map<string, PlannedDeparture>();
+  for (const d of departures) {
+    const key = `${d.optionId}|${d.serviceDate}|${d.leaveAt}`;
+    const current = kept.get(key);
+    const wins = !current || (isOnce.has(d.alarmId) && !isOnce.has(current.alarmId)) || (isOnce.has(d.alarmId) === isOnce.has(current.alarmId) && compareText(d.alarmId, current.alarmId) < 0);
+    if (wins) kept.set(key, d);
+  }
+  return [...kept.values()];
 }
 
 function compareText(a: string, b: string): number {

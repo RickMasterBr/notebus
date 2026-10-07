@@ -244,8 +244,11 @@ describe("T-51 e T-52: janela de 50", () => {
   });
 
   it("T-52 (parte pura): planejar e montar a janela duas vezes dá o mesmo resultado, com a ordem dos avisos trocada", () => {
-    const alarms = [1, 2, 3, 4, 5, 6, 7].map((n) => alarm({ id: `A${n}`, weekdays: [0, 1, 2, 3, 4, 5, 6], anchorBaseMinute: hm(8, 12) }));
-    const run = (list: AlarmRule[]) => buildWindow(plan(list, { forceWeekdayTrips: true }).departures);
+    // Uma opção por aviso: dois avisos da mesma opção com a mesma saída valem um só (D-176).
+    const options = [1, 2, 3, 4, 5, 6, 7].map((n) => ({ ...OPTION, id: `opt${n}` }));
+    const alarms = options.map((o, n) => alarm({ id: `A${n + 1}`, optionId: o.id, weekdays: [0, 1, 2, 3, 4, 5, 6], anchorBaseMinute: hm(8, 12) }));
+    const run = (list: AlarmRule[]) =>
+      buildWindow(planDepartures({ alarms: list, options, now: NOW, dayData: dayDataFor({ forceWeekdayTrips: true }) }).departures);
     const first = run(alarms);
     expect(run(alarms)).toEqual(first);
     expect(run([...alarms].reverse())).toEqual(first);
@@ -318,6 +321,39 @@ describe("T-58: estados do histórico", () => {
   });
   it("pulado vence tudo, com o motivo", () => {
     expect(state({ skipReason: "holiday", action: "boarded", inTray: true, plannedAt: 3000 })).toEqual({ state: "skipped", skipReason: "holiday" });
+  });
+});
+
+describe("D-176: dois avisos que dão a mesma saída valem uma só", () => {
+  const once = alarm({ id: "Z-once", weekdays: [], onceDate: "2026-10-07" });
+  const repeats = alarm({ id: "A-rep", weekdays: [3], validTo: "2026-10-07" });
+
+  it("data única + repete: fica a de data única, uma saída só", () => {
+    const p = plan([repeats, once]);
+    expect(p.departures.map((d) => [d.alarmId, d.serviceDate])).toEqual([["Z-once", "2026-10-07"]]);
+  });
+
+  it("os dois repetem: fica o de menor id, em qualquer ordem de entrada", () => {
+    const a = alarm({ id: "B", weekdays: [3], validTo: "2026-10-07" });
+    const b = alarm({ id: "A", weekdays: [3], validTo: "2026-10-07" });
+    expect(plan([a, b]).departures.map((d) => d.alarmId)).toEqual(["A"]);
+    expect(plan([b, a]).departures.map((d) => d.alarmId)).toEqual(["A"]);
+  });
+
+  it("a janela não gasta duas vagas com a mesma saída", () => {
+    const { window } = buildWindow(plan([repeats, once]).departures);
+    expect(window).toHaveLength(1);
+  });
+
+  it("opções diferentes, ou datas diferentes, não se anulam", () => {
+    const other = { ...OPTION, id: "outra" };
+    const twoOptions = planDepartures({
+      alarms: [alarm({ id: "A", validTo: "2026-10-07" }), alarm({ id: "B", optionId: "outra", validTo: "2026-10-07" })],
+      options: [OPTION, other],
+      now: NOW,
+      dayData: dayDataFor(),
+    });
+    expect(twoOptions.departures).toHaveLength(2);
   });
 });
 
