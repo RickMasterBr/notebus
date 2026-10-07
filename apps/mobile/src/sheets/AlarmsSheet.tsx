@@ -29,7 +29,9 @@ import { useToast } from "../data/ToastProvider";
 import {
   alarmFromRow,
   alarmLine,
+  alarmRowA11yActions,
   historyList,
+  isDeleteAction,
   minuteText,
   upcomingList,
   weekdayPluralKey,
@@ -426,6 +428,12 @@ function AlarmListItem({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={lineText}
+        accessibilityActions={alarmRowA11yActions()}
+        onAccessibilityAction={(event) => {
+          if (isDeleteAction(event.nativeEvent.actionName)) {
+            onDelete();
+          }
+        }}
         onPress={onPress}
         style={({ pressed }) => [
           styles.alarmRow,

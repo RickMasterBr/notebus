@@ -395,3 +395,13 @@ export function createAskController(): AskController {
     },
   };
 }
+
+/** Ações de acessibilidade para o VoiceOver na linha de aviso (E-06 Item 2). */
+export function alarmRowA11yActions(): { name: string; label: string }[] {
+  return [{ name: "delete", label: t("alarms.delete") }];
+}
+
+export function isDeleteAction(name: string): boolean {
+  return name === "delete";
+}
+
