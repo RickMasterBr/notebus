@@ -403,6 +403,73 @@ export const ptBR = {
   "home.stop_card.leave_at_neutral": "sair às {{time}} · {{place}}", // provisório
   "home.shortcut.add": "Adicionar",
   "empty_home.dashed_casa": "Casa",
+  // E-06 Bloco 3: Aviso de saída
+  "sheet_goto.alarm.set_button": "Avisar para sair",
+  "sheet_goto.alarm.active_button": "Aviso às {{time}}",
+  "toast.alarm_set.title": "Aviso marcado",
+  "toast.alarm_set.body": "Saia às {{time}} para a linha {{line}}",
+  "toast.alarm_cancelled.title": "Aviso cancelado",
+  "alarm.test_clock": "O relógio de teste está ligado: o aviso não é agendado", // provisório
+  "toast.alarm_replaced": "Substituiu o aviso das {{time}} nas {{days}}", // provisório
+  "alarm.repeat.title": "Repetir", // provisório
+  "alarm.repeat.once": "Só hoje", // provisório
+  "alarm.repeat.daily": "Todo dia", // provisório
+  "alarm.repeat.weekdays": "Seg a sex", // provisório
+  "alarm.repeat.weekly": "Toda semana às {{day}}", // provisório
+  "alarm.repeat.custom": "Personalizado", // provisório
+  "alarm.repeat.until": "Até", // provisório
+  "alarm.repeat.until_none": "Sem fim", // provisório
+  "alarm.repeat.until_date": "Uma data", // provisório
+  "alarm.repeat.done": "Pronto", // provisório
+  "common.weekday.plural.0": "domingos", // provisório
+  "common.weekday.plural.1": "segundas", // provisório
+  "common.weekday.plural.2": "terças", // provisório
+  "common.weekday.plural.3": "quartas", // provisório
+  "common.weekday.plural.4": "quintas", // provisório
+  "common.weekday.plural.5": "sextas", // provisório
+  "common.weekday.plural.6": "sábados", // provisório
+  "alarm.summary.once": "só hoje", // provisório
+  "alarm.summary.daily": "todo dia", // provisório
+  "alarm.summary.weekdays": "seg a sex", // provisório
+  "alarm.summary.until": "até {{date}}", // provisório
+  "alarms.line.leave": "sair ~{{time}}", // provisório
+  "alarms.title": "Avisos", // provisório
+  "alarms.on_count": "Avisos ligados: {{count}}", // provisório
+  "alarms.empty": "Nenhum aviso ligado. Ligue um no cartão de uma opção.", // provisório
+  "alarms.edit_hint": "Para mudar o horário de sair, ligue um aviso no cartão correspondente.", // provisório
+  "alarms.test_button": "Enviar aviso de teste em 1 minuto", // provisório
+  "alarms.test_hint": "Neste teste, Registrar embarque grava um embarque de verdade. Use Desfazer na confirmação.", // provisório
+  "alarms.test_scheduled": "Aviso de teste agendado para {{time}}", // provisório
+  "alarms.test_no_option": "Cadastre uma opção de ônibus primeiro", // provisório
+  "alarms.next": "Próximos avisos", // provisório
+  "alarms.history": "Histórico", // provisório
+  "alarms.history_note": "Sem confirmação quer dizer que o aviso não foi tocado por você: pode ter sido apagado ou pode não ter tocado.", // provisório
+  "alarms.focus_row": "Modo Foco", // provisório
+  "alarm.history.boarded": "Registrou pelo aviso", // provisório
+  "alarm.history.snoozed": "Adiado", // provisório
+  "alarm.history.dismissed": "Dispensado", // provisório
+  "alarm.history.delivered": "Entregue", // provisório
+  "alarm.history.unconfirmed": "Sem confirmação", // provisório
+  "alarm.history.scheduled": "Agendado", // provisório
+  "alarm.history.skipped": "Pulado: {{reason}}", // provisório
+  "alarm.history.reason.holiday": "feriado", // provisório
+  "alarm.history.reason.override": "exceção de data", // provisório
+  "alarm.history.reason.no_trip": "sem a viagem", // provisório
+  "alarm.history.reason.season": "fora de temporada", // provisório
+  "alarm.intro.title": "Avisar para sair", // provisório
+  "alarm.intro.reason": "O NoteBus avisa a hora de sair para o seu ônibus, mesmo sem internet.", // provisório
+  "alarm.intro.continue": "Continuar", // provisório
+  "alarm.intro.later": "Agora não", // provisório
+  "alarm.denied.title": "Avisos desativados", // provisório
+  "alarm.denied.body": "Para receber o aviso de saída, ative as notificações do NoteBus nos Ajustes do iPhone.", // provisório
+  "alarm.denied.open": "Abrir Ajustes do iPhone", // provisório
+  "alarm.focus.title": "Modo Foco", // provisório
+  "alarm.focus.body": "Com um modo Foco ativado no iPhone, os avisos podem ser silenciados e não aparecer na tela.", // provisório
+  "alarm.focus.step1": "Abra os Ajustes do iPhone", // provisório
+  "alarm.focus.step2": "Toque em Foco e escolha o seu Foco ativo", // provisório
+  "alarm.focus.step3": "Toque em Apps", // provisório
+  "alarm.focus.step4": "Adicione o NoteBus à lista de permitidos", // provisório
+  "alarm.focus.done": "Entendi", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;
