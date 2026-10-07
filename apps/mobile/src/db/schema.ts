@@ -270,6 +270,35 @@ export const option = sqliteTable("option", {
   sort: integer("sort").notNull(),
 });
 
+/**
+ * Aviso de saída (E-06 §3.1, D-101): uma opção + a viagem-âncora (o horário-base no embarque) + dias da semana + intervalo
+ * de datas. Sem dias, vale só em `once_date`. Vai no backup (D-104).
+ */
+export const departureAlarm = sqliteTable("departure_alarm", {
+  ...common(),
+  optionId: text("option_id").notNull(),
+  anchorTripId: text("anchor_trip_id").notNull(),
+  anchorBaseMinute: integer("anchor_base_minute").notNull(), // minuto de serviço (D-016)
+  weekdays: text("weekdays", { mode: "json" }).$type<number[]>().notNull().default([]), // 0 = domingo … 6 = sábado; vazio = só `once_date`
+  onceDate: text("once_date"), // YYYY-MM-DD
+  validFrom: text("valid_from").notNull(), // YYYY-MM-DD
+  validTo: text("valid_to"), // vazio = sem fim
+  enabled: integer("enabled", { mode: "boolean" }).notNull(),
+});
+
+/** Uma saída planejada de um aviso e o que aconteceu com ela (E-06 §6, D-103). Fora do backup (D-104). */
+export const alarmEvent = sqliteTable("alarm_event", {
+  ...common(),
+  alarmId: text("alarm_id").notNull(),
+  plannedAt: integer("planned_at").notNull(), // epoch ms UTC
+  serviceDate: text("service_date").notNull(),
+  tripId: text("trip_id"),
+  state: text("state", { enum: ["scheduled", "delivered", "unconfirmed", "skipped", "boarded", "snoozed", "dismissed"] }).notNull(),
+  skipReason: text("skip_reason", { enum: ["holiday", "override", "no_trip", "season"] }),
+  actedAt: integer("acted_at"),
+  snoozedTo: integer("snoozed_to"),
+});
+
 /** Margem, rede ativa, data do último backup exportado (D-082). */
 export const setting = sqliteTable("setting", {
   ...common(),
@@ -283,4 +312,5 @@ export const tables = {
   dayType, holiday, dateOverride, season, timetable, trip, tripDayType, stopTime, frequency, frequencyDayType,
   observation, ride,
   place, walkTime, route, option, setting,
+  departureAlarm, alarmEvent,
 };
