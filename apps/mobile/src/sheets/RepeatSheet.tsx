@@ -10,7 +10,7 @@
  */
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { dayOfWeek, formatServiceMinute } from "@notebus/domain";
+import { dayOfWeek } from "@notebus/domain";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   Modal,
@@ -28,6 +28,7 @@ import {
   alarmSummary,
   applyPreset,
   applyUntil,
+  minuteText,
   presetOf,
   toggleWeekday,
   weekdayFullKey,
@@ -133,7 +134,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
             rep.weekdays.length > 0
               ? rep.weekdays.map((d) => t(weekdayPluralKey(d))).join(" ")
               : t("alarm.repeat.once");
-          const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
+          const repTime = oldAlarm ? minuteText(oldAlarm.anchorBaseMinute) : "";
           toast.show({
             title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
             action: {

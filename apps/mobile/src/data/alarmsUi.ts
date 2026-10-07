@@ -122,6 +122,11 @@ export function shortDateText(date: string): string {
   return `${parts[2]}/${parts[1]}`;
 }
 
+/** Converte minuto de serviço em texto HH:MM sem fração. */
+export function minuteText(minute: number): string {
+  return formatServiceMinute(Math.floor(minute));
+}
+
 /** 2. Resumo curto do aviso a partir de weekdays e validTo. */
 export function alarmSummary(weekdays: readonly number[], validTo: string | null): string {
   let text: string;

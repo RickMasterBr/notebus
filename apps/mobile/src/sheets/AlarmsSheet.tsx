@@ -30,6 +30,7 @@ import {
   alarmFromRow,
   alarmLine,
   historyList,
+  minuteText,
   upcomingList,
   weekdayPluralKey,
   type HistoryItem,
@@ -131,7 +132,7 @@ export function AlarmsSheet({ id }: { id: number }) {
           }
         }
       }
-      const leaveTime = formatServiceMinute(alarm.anchorBaseMinute);
+      const leaveTime = minuteText(alarm.anchorBaseMinute);
       return { placeName, lineCode, leaveTime, baseMinute: alarm.anchorBaseMinute };
     },
     [places.options, places.places, places.routes, schedule],
@@ -167,7 +168,7 @@ export function AlarmsSheet({ id }: { id: number }) {
                     : t("alarm.repeat.once");
                 const currentAlarms = await sharedAlarms(db).listAlarms();
                 const oldAlarm = currentAlarms.find((a) => a.id === rep.alarmId);
-                const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
+                const repTime = oldAlarm ? minuteText(oldAlarm.anchorBaseMinute) : "";
                 toast.show({
                   title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
                   action: {
