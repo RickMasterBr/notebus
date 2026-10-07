@@ -52,6 +52,10 @@ export interface DomainConfig {
   /** "Ir para X" (E-05 §3.1, D-100): viagens viáveis por opção de ônibus e cartões no máximo na folha. */
   tripsPerOption: number;
   maxCards: number;
+  /** Aviso de saída (E-06 §3.2): janela de avisos agendados (o iOS guarda 64), horizonte em dias e o "Adiar" em minutos. */
+  alarmWindowSize: number;
+  alarmHorizonDays: number;
+  alarmSnoozeMinutes: number;
 }
 
 export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
@@ -81,4 +85,7 @@ export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
   walkBeatsBusMinutes: 15,
   tripsPerOption: 2,
   maxCards: 6,
+  alarmWindowSize: 50,
+  alarmHorizonDays: 14,
+  alarmSnoozeMinutes: 5,
 });
