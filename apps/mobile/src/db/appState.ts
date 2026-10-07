@@ -35,3 +35,19 @@ export async function markFirstRunDone(db: AnyDb, now = realNow()): Promise<void
     .values({ id: uuidv7(now), createdAt: now, updatedAt: now, source: "user", key: FIRST_RUN_DONE, value: true })
     .onConflictDoNothing();
 }
+
+export const ALARM_FOCUS_HINT_SHOWN = "alarm_focus_hint_shown";
+
+/** Verifica se a orientação do modo Foco já foi mostrada uma vez (Item 2). */
+export async function hasShownAlarmFocusHint(db: AnyDb): Promise<boolean> {
+  const marked = await selectLive(db, setting, eq(setting.key, ALARM_FOCUS_HINT_SHOWN)).limit(1);
+  return marked.length > 0;
+}
+
+/** Grava que a orientação do modo Foco já foi exibida. */
+export async function markAlarmFocusHintShown(db: AnyDb, now = realNow()): Promise<void> {
+  await db
+    .insert(setting)
+    .values({ id: uuidv7(now), createdAt: now, updatedAt: now, source: "user", key: ALARM_FOCUS_HINT_SHOWN, value: true })
+    .onConflictDoNothing();
+}

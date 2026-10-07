@@ -5,12 +5,14 @@
  * faixa vermelha continua sendo o jeito de desligar). O resto da TL-12 fica para a E-08.
  * Versão: o `version` do `app.json`; build: o curto do commit (`EXPO_PUBLIC_BUILD_SHA`, definido pelo `app.config.ts`).
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, StyleSheet, Text, View } from "react-native";
 import appJson from "../../app.json";
 import { lisbonDateText, useBackup } from "../data/BackupProvider";
 import { realNow } from "../data/clock";
 import { createTapCounter } from "../data/testClockPicker";
+import { sharedAlarms } from "../db/alarms";
+import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import { type, useTheme } from "../theme";
 import { ListRow } from "../ui/ListRow";
@@ -34,6 +36,19 @@ export function SettingsSheet({ id }: { id: number }) {
     wasCovered.current = !isTop;
   }, [isTop]);
 
+  const [activeAlarmsCount, setActiveAlarmsCount] = useState(0);
+  const db = getSharedDb();
+
+  useEffect(() => {
+    if (isTop && db) {
+      void sharedAlarms(db)
+        .listAlarms()
+        .then((list) => {
+          setActiveAlarmsCount(list.filter((a) => a.enabled).length);
+        });
+    }
+  }, [isTop, db]);
+
   const backup = useBackup();
   const last = backup.lastExportAt === null ? t("settings.never_exported") : t("settings.last_backup", { date: lisbonDateText(backup.lastExportAt) });
 
@@ -46,6 +61,12 @@ export function SettingsSheet({ id }: { id: number }) {
         title={t("places.title")}
         accessibilityLabel={t("places.title")}
         onPress={() => dispatch({ type: "push", sheet: { kind: "places" } })}
+      />
+      <ListRow
+        title={t("alarms.title")}
+        detail={t("alarms.on_count", { count: activeAlarmsCount })}
+        accessibilityLabel={`${t("alarms.title")}. ${t("alarms.on_count", { count: activeAlarmsCount })}`}
+        onPress={() => dispatch({ type: "push", sheet: { kind: "alarms" } })}
       />
       <ListRow
         title={t("settings.export_backup")}

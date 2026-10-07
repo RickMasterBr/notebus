@@ -112,14 +112,27 @@ describe("T-55: Registrar embarque sem abrir o app", () => {
     expect(s.counts.board).toBe(1);
   });
 
-  it("um aviso de teste (sem linha em alarm_event) também grava o fato", async () => {
+  it("um aviso de teste (sem linha em alarm_event) também grava o fato, não cria alarm_event e Desfazer apaga o registro", async () => {
     const s = await setup();
     s.setNow(TAP);
     const test = await s.scheduler.scheduleTestAlarm();
     expect(test.ok).toBe(true);
     const request = s.port.scheduled.get((test as { eventId: string }).eventId)!;
     await s.handler.handle({ actionId: "board", notification: { id: request.id, deliveredAt: TAP + 60_000, data: request.data } });
+
     expect(await observations(s)).toHaveLength(1);
+    expect(await s.alarmsRepo.getEvent(request.id)).toBeNull();
+    const events = await s.alarmsRepo.listEvents();
+    expect(events.some((e) => e.id === request.id)).toBe(false);
+
+    const confirmation = [...s.port.presented.values()][0]!;
+    expect(confirmation).toBeDefined();
+    await s.handler.handle({
+      actionId: "undo",
+      notification: { id: confirmation.id, deliveredAt: TAP + 60_000, data: confirmation.data },
+    });
+    const rows = await observations(s);
+    expect(rows[0]!.deletedAt).not.toBeNull();
   });
 
   it("sem o esquema do banco: não grava e registra o fato por log", async () => {

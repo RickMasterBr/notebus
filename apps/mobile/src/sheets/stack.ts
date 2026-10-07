@@ -41,7 +41,11 @@ export type SheetContent =
   | { kind: "option"; originPlaceId: string; destinationPlaceId: string }
   | { kind: "alightPicker"; routeId: string; patternId: string; boardPosition: number; currentAlightPatternStopId?: string }
   /** TL-04 Ir para X (E-05 Bloco 3) */
-  | { kind: "goto"; destinationPlaceId: string; originPlaceId?: string };
+  | { kind: "goto"; destinationPlaceId: string; originPlaceId?: string }
+  /** E-06 Bloco 3: Avisos */
+  | { kind: "repeat"; alarmId: string }
+  | { kind: "alarms" }
+  | { kind: "alarmIntro"; mode: "reason" | "denied" | "focus"; onResolve?: (value: boolean) => void };
 
 export type SheetKind = SheetContent["kind"];
 
