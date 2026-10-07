@@ -11,7 +11,7 @@ import {
   type SkipReason,
   type TripData,
 } from "@notebus/domain";
-import type { AlarmEventRow, NewAlarm } from "../db/alarms";
+import type { AlarmEventRow, AlarmRow, NewAlarm } from "../db/alarms";
 import { t } from "../i18n";
 import { DEPARTURE_CATEGORY } from "../notifications/categories";
 import { readDeparture } from "../notifications/payload";
@@ -29,6 +29,58 @@ const ALL_WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 const WORK_WEEKDAYS = [1, 2, 3, 4, 5];
 // Ordem segunda a domingo (1..6, 0)
 export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+export type WeekdayPluralKey = `common.weekday.plural.${0 | 1 | 2 | 3 | 4 | 5 | 6}`;
+export type WeekdayShortKey = `common.weekday.short.${0 | 1 | 2 | 3 | 4 | 5 | 6}`;
+export type WeekdayFullKey = `common.weekday.full.${0 | 1 | 2 | 3 | 4 | 5 | 6}`;
+
+const WEEKDAY_PLURAL_KEYS: readonly WeekdayPluralKey[] = [
+  "common.weekday.plural.0",
+  "common.weekday.plural.1",
+  "common.weekday.plural.2",
+  "common.weekday.plural.3",
+  "common.weekday.plural.4",
+  "common.weekday.plural.5",
+  "common.weekday.plural.6",
+] as const;
+
+export function weekdayPluralKey(d: number): WeekdayPluralKey {
+  const key = WEEKDAY_PLURAL_KEYS[d];
+  if (!key) throw new Error(`dia da semana inválido: ${d}`);
+  return key;
+}
+
+const WEEKDAY_SHORT_KEYS: readonly WeekdayShortKey[] = [
+  "common.weekday.short.0",
+  "common.weekday.short.1",
+  "common.weekday.short.2",
+  "common.weekday.short.3",
+  "common.weekday.short.4",
+  "common.weekday.short.5",
+  "common.weekday.short.6",
+] as const;
+
+export function weekdayShortKey(d: number): WeekdayShortKey {
+  const key = WEEKDAY_SHORT_KEYS[d];
+  if (!key) throw new Error(`dia da semana inválido: ${d}`);
+  return key;
+}
+
+const WEEKDAY_FULL_KEYS: readonly WeekdayFullKey[] = [
+  "common.weekday.full.0",
+  "common.weekday.full.1",
+  "common.weekday.full.2",
+  "common.weekday.full.3",
+  "common.weekday.full.4",
+  "common.weekday.full.5",
+  "common.weekday.full.6",
+] as const;
+
+export function weekdayFullKey(d: number): WeekdayFullKey {
+  const key = WEEKDAY_FULL_KEYS[d];
+  if (!key) throw new Error(`dia da semana inválido: ${d}`);
+  return key;
+}
 
 function sameDays(a: readonly number[], b: readonly number[]): boolean {
   if (a.length !== b.length) return false;
@@ -83,7 +135,7 @@ export function alarmSummary(weekdays: readonly number[], validTo: string | null
     // Dias separados por espaço na ordem seg a dom
     const active = new Set(weekdays);
     const names = WEEKDAY_ORDER.filter((d) => active.has(d)).map((d) =>
-      t(`common.weekday.short.${d}` as any),
+      t(weekdayShortKey(d)),
     );
     text = names.join(" ");
   }
@@ -125,6 +177,23 @@ export function alarmFromCard(
     enabled: true,
     weekdays: [],
     onceDate: serviceDate,
+  };
+}
+
+/**
+ * Recria o aviso para o Desfazer do cancelamento (E-06 Item 0):
+ * descarta o id e os campos da linha (createdAt, updatedAt, deletedAt, source) e mantém os campos de regra.
+ */
+export function alarmFromRow(row: AlarmRow): NewAlarm {
+  return {
+    optionId: row.optionId,
+    anchorTripId: row.anchorTripId,
+    anchorBaseMinute: row.anchorBaseMinute,
+    weekdays: [...row.weekdays],
+    onceDate: row.onceDate,
+    validFrom: row.validFrom,
+    validTo: row.validTo,
+    enabled: row.enabled,
   };
 }
 

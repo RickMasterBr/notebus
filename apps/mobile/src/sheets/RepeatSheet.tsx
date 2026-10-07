@@ -30,6 +30,9 @@ import {
   applyUntil,
   presetOf,
   toggleWeekday,
+  weekdayFullKey,
+  weekdayPluralKey,
+  weekdayShortKey,
 } from "../data/alarmsUi";
 import { realNow } from "../data/clock";
 import { sharedAlarms, type AlarmRow } from "../db/alarms";
@@ -128,7 +131,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
           const oldAlarm = allAlarms.find((a) => a.id === rep.alarmId);
           const repDays =
             rep.weekdays.length > 0
-              ? rep.weekdays.map((d) => t(`common.weekday.plural.${d}` as any)).join(" ")
+              ? rep.weekdays.map((d) => t(weekdayPluralKey(d))).join(" ")
               : t("alarm.repeat.once");
           const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
           toast.show({
@@ -136,9 +139,16 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
             action: {
               label: t("toast.action.undo"),
               run: async () => {
-                await saveResult.undo(realNow());
-                requestReschedule();
-                await loadAlarm();
+                try {
+                  await saveResult.undo(realNow());
+                  requestReschedule();
+                  await loadAlarm();
+                } catch {
+                  toast.show({
+                    title: t("alarms.undo_failed"),
+                    kind: "error",
+                  });
+                }
               },
             },
           });
@@ -200,7 +210,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
     { key: "weekdays" as const, label: t("alarm.repeat.weekdays"), selected: !customMode && currentPreset === "weekdays" },
     {
       key: "weekly" as const,
-      label: t("alarm.repeat.weekly", { day: t(`common.weekday.plural.${serviceWeekday}` as any) }),
+      label: t("alarm.repeat.weekly", { day: t(weekdayPluralKey(serviceWeekday)) }),
       selected: !customMode && currentPreset === "weekly",
     },
     { key: "custom" as const, label: t("alarm.repeat.custom"), selected: customMode || currentPreset === "custom" },
@@ -265,7 +275,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
                 <View style={styles.chipsRow}>
                   {WEEKDAY_CHIPS.map((d) => {
                     const isSelected = alarm.weekdays.includes(d);
-                    const shortName = t(`common.weekday.short.${d}` as any);
+                    const shortName = t(weekdayShortKey(d));
                     const capitalized =
                       shortName.charAt(0).toUpperCase() + shortName.slice(1);
                     return (
@@ -275,7 +285,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
                         selected={isSelected}
                         label={capitalized}
                         minWidth={44}
-                        accessibilityLabel={t(`common.weekday.full.${d}` as any)}
+                        accessibilityLabel={t(weekdayFullKey(d))}
                         onPress={() => void handleToggleDay(d)}
                       />
                     );
