@@ -102,6 +102,7 @@ export const expoPort: NotificationsPort = {
     const last = await Notifications.getLastNotificationResponseAsync();
     return last ? responseOf(last) : null;
   },
+  clearLastResponse: () => Notifications.clearLastNotificationResponseAsync(),
   onResponse(listener) {
     const subscription = Notifications.addNotificationResponseReceivedListener((r) => listener(responseOf(r)));
     return () => subscription.remove();

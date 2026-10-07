@@ -62,6 +62,8 @@ export interface NotificationsPort {
   /** Com o app aberto, o aviso aparece e toca igual (o padrão do iOS seria calar). */
   showInForeground(): void;
   getLastResponse(): Promise<NotificationResponse | null>;
+  /** Esquece a última resposta: sem isso, toda partida a frio a devolve de novo. */
+  clearLastResponse(): Promise<void>;
   /** Devolve o `remove` do ouvinte. */
   onResponse(listener: (response: NotificationResponse) => void): () => void;
 }

@@ -81,6 +81,10 @@ export function createFakePort(permission: PermissionState = "granted"): FakePor
     async getLastResponse() {
       return port.lastResponse;
     },
+    async clearLastResponse() {
+      port.calls.push("clearLastResponse");
+      port.lastResponse = null;
+    },
     onResponse(listener) {
       port.calls.push("onResponse");
       listeners.add(listener);

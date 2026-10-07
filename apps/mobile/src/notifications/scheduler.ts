@@ -15,7 +15,7 @@ import {
 } from "@notebus/domain";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { loadSchedule as loadScheduleFromDb, type ScheduleSnapshot } from "../data/schedule";
-import { createAlarms, ruleOf, type PlannedEventInput } from "../db/alarms";
+import { ruleOf, sharedAlarms, type PlannedEventInput } from "../db/alarms";
 import { t } from "../i18n";
 import { DEPARTURE_CATEGORY } from "./categories";
 import { departureData, type DeparturePayload } from "./payload";
@@ -54,7 +54,7 @@ export function departureText(p: Pick<DeparturePayload, "lineCode" | "busTime" |
 
 export function createScheduler(deps: SchedulerDeps) {
   const { port, db } = deps;
-  const repo = createAlarms(db);
+  const repo = sharedAlarms(db);
   const loadSchedule = deps.loadSchedule ?? loadScheduleFromDb;
   let queue: Promise<unknown> = Promise.resolve();
 

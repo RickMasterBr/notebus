@@ -80,6 +80,15 @@ function sameRule(row: AlarmRow, rule: AlarmRule): boolean {
   );
 }
 
+const repos = new WeakMap<object, ReturnType<typeof createAlarms>>();
+
+/** Um repositório só por banco: o agendador e o tratador dos botões dividem a mesma fila de gravações. */
+export function sharedAlarms(db: AnyDb) {
+  let repo = repos.get(db);
+  if (!repo) repos.set(db, (repo = createAlarms(db)));
+  return repo;
+}
+
 export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
   const newId = deps.newId ?? ((now: number) => uuidv7(now));
   let queue: Promise<unknown> = Promise.resolve();
