@@ -32,6 +32,11 @@ export interface RecordEventInput {
   skipReason?: SkipReason | null;
 }
 
+/** Uma saída planejada com `id` determinístico (`"{alarmId}:{serviceDate}"`), para gravar de novo sem duplicar. */
+export interface PlannedEventInput extends RecordEventInput {
+  id: string;
+}
+
 export interface EventPatch {
   state?: AlarmEventState;
   actedAt?: number | null;
@@ -73,6 +78,15 @@ function sameRule(row: AlarmRow, rule: AlarmRule): boolean {
     a.validTo === rule.validTo &&
     a.enabled === rule.enabled
   );
+}
+
+const repos = new WeakMap<object, ReturnType<typeof createAlarms>>();
+
+/** Um repositório só por banco: o agendador e o tratador dos botões dividem a mesma fila de gravações. */
+export function sharedAlarms(db: AnyDb) {
+  let repo = repos.get(db);
+  if (!repo) repos.set(db, (repo = createAlarms(db)));
+  return repo;
 }
 
 export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
@@ -223,6 +237,51 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
     );
   }
 
+  async function getEvent(id: string): Promise<AlarmEventRow | null> {
+    return (await selectLive(db, alarmEvent)).find((e) => e.id === id) ?? null;
+  }
+
+  /**
+   * Grava as saídas do agendamento por `id` determinístico, numa transação (o reagendamento roda várias vezes).
+   * Linha nova entra como veio; linha que já tem ação gravada (`acted_at`) **não é reescrita**; as outras só mudam se a
+   * hora planejada, a viagem ou o motivo mudaram (um aviso que já passou e foi marcado `delivered`/`unconfirmed` fica).
+   */
+  function upsertPlannedEvents(inputs: readonly PlannedEventInput[], at: number): Promise<void> {
+    return enqueue(() =>
+      inTransaction(async () => {
+        const existing = new Map((await selectLive(db, alarmEvent)).map((e) => [e.id, e]));
+        for (const input of inputs) {
+          const row = existing.get(input.id);
+          if (!row) {
+            await db.insert(alarmEvent).values({
+              id: input.id,
+              alarmId: input.alarmId,
+              plannedAt: input.plannedAt,
+              serviceDate: input.serviceDate,
+              tripId: input.tripId,
+              state: input.state,
+              skipReason: input.skipReason ?? null,
+              actedAt: null,
+              snoozedTo: null,
+              source: "user",
+              createdAt: at,
+              updatedAt: at,
+              deletedAt: null,
+            });
+            continue;
+          }
+          if (row.actedAt !== null) continue;
+          const skipReason = input.skipReason ?? null;
+          if (row.plannedAt === input.plannedAt && row.tripId === input.tripId && row.skipReason === skipReason) continue;
+          await db
+            .update(alarmEvent)
+            .set({ plannedAt: input.plannedAt, tripId: input.tripId, state: input.state, skipReason, updatedAt: at })
+            .where(eq(alarmEvent.id, input.id));
+        }
+      }),
+    );
+  }
+
   /** Atualiza o estado do evento (o botão do aviso, a central de notificações). `updated_at` só muda se algo mudou. */
   function updateEvent(id: string, patch: EventPatch, at: number): Promise<AlarmEventRow> {
     return enqueue(() =>
@@ -247,6 +306,6 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
     return rows.filter((e) => alarmId === undefined || e.alarmId === alarmId).sort((a, b) => a.plannedAt - b.plannedAt || (a.id < b.id ? -1 : 1));
   }
 
-  return { listAlarms, getAlarm, createAlarm, setEnabled, deleteAlarm, saveAlarm, recordEvent, updateEvent, listEvents };
+  return { listAlarms, getAlarm, createAlarm, setEnabled, deleteAlarm, saveAlarm, recordEvent, getEvent, upsertPlannedEvents, updateEvent, listEvents };
 }
 

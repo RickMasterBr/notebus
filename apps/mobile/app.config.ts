@@ -19,6 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig =>
       ...config,
       plugins: [
         ...(config.plugins ?? []),
+        "expo-notifications",
         [
           "expo-location",
           {

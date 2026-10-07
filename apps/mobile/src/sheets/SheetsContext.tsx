@@ -1,5 +1,6 @@
 /** Estado da pilha de folhas para a árvore de componentes. A lógica está em `stack.ts` (testada no Node). */
 import { useNow } from "../data/NowProvider";
+import { notifyPendingIntent } from "../notifications/pendingIntent";
 import { DIAG_SCROLL, recordOpenRequest } from "./diagScroll";
 import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 import { type SheetAction, type SheetContent, type SheetStackState, initialSheetState, sheetReducer } from "./stack";
@@ -32,6 +33,9 @@ const SheetsContext = createContext<SheetsValue | null>(null);
 
 let sheetOpener: ((sheet: SheetContent) => void) | null = null;
 
+/** As folhas já estão montadas? */
+export const sheetsAvailable = (): boolean => sheetOpener !== null;
+
 export function openRecordSheet(observationId: string): void {
   sheetOpener?.({ kind: "record", observationId });
 }
@@ -55,6 +59,7 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     sheetOpener = (sheet) => dispatch({ type: "push", sheet });
+    notifyPendingIntent(); // quem esperava as folhas (o "Ajustar" do aviso, E-06 §5.3) tenta de novo
     return () => {
       sheetOpener = null;
     };

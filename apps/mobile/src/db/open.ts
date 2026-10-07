@@ -82,3 +82,22 @@ export async function expoBackupStore(main: SQLite.SQLiteDatabase): Promise<Back
     },
   };
 }
+
+/**
+ * Abre o banco **sem rodar migração** (E-06 §4.2): para o tratador dos botões do aviso quando o app ainda não abriu o
+ * banco (o iOS acorda o app em segundo plano, sem tela). `busy_timeout` cobre o caso de o app abrir ao mesmo tempo.
+ * Devolve `null` se o esquema ainda não existe (build nova que o app nunca abriu): quem chama não grava, só registra o fato.
+ */
+export async function openExistingNotebusDb(): Promise<ReturnType<typeof drizzle<typeof schema>> | null> {
+  const sqlite = await SQLite.openDatabaseAsync(DB_NAME);
+  await sqlite.execAsync("PRAGMA busy_timeout = 5000");
+  const needed = ["observation", "ride", "departure_alarm", "alarm_event"];
+  const found = await sqlite.getAllAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${needed.map((n) => `'${n}'`).join(", ")})`,
+  );
+  if (found.length < needed.length) {
+    await sqlite.closeAsync();
+    return null;
+  }
+  return drizzle(sqlite, { schema });
+}

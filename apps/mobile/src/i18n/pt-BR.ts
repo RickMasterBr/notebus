@@ -142,6 +142,15 @@ export const ptBR = {
   "sheet_alight.sort_hint": "Mais provável agora primeiro",
   "sheet_alight.stop.subtitle": "esperado {{time}} · ID {{id}}",
   "sheet_stop.register_here": "Registrar aqui",
+  "notif.title": "Saia agora",
+  "notif.body": "Linha {{line}} às ~{{time}} na {{stop_name}}. Esteja lá às {{arrive_time}}.",
+  "notif.action.board": "Registrar embarque",
+  "notif.action.snooze": "Adiar 5 min",
+  "notif.action.dismiss": "Dispensar",
+  "notif.snoozed": "Novo aviso às {{time}}",
+  "notif.snoozed_body": "Assim você chega ao ponto depois das {{stop_time}}",
+  "notif.renew": "Abra o NoteBus para renovar os avisos", // provisório
+  "notif.test.title": "Aviso de teste", // provisório
   "toast.board.title": "Embarque registrado",
   "toast.board.body": "Linha {{line}} · {{stop_name}} · {{time}}",
   "toast.alight.title": "Desembarque registrado",

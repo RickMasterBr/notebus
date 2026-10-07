@@ -13,6 +13,7 @@ import {
   useState,
 } from "react";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { requestReschedule } from "../notifications/runtime";
 import { useNow } from "./NowProvider";
 import {
   type AddOptionInput,
@@ -87,6 +88,8 @@ export function PlacesProvider({ db, children }: { db: AnyDb; children: ReactNod
         walkTimes: data.walkTimes,
         gotoLastOrigins: data.gotoLastOrigins,
       });
+      // Uma opção, um tempo a pé ou um backup importado mudam as horas do aviso (E-06 §3.2); não espera.
+      requestReschedule();
     } catch {
       setState((cur) => ({ ...cur, status: "ready" }));
     }
