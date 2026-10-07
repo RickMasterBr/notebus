@@ -112,6 +112,7 @@ export {
   BACKUP_SNOOZE_DAYS,
   BACKUP_TABLES,
   BACKUP_V1_COLUMNS,
+  BACKUP_V2_COLUMNS,
   OFFICIAL_EDIT_TABLES,
   backupFileName,
   backupReminder,
