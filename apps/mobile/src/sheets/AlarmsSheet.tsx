@@ -94,7 +94,7 @@ export function AlarmsSheet({ id }: { id: number }) {
       setUpcoming(upcomingList(scheduled));
 
       const events = await repo.listEvents();
-      setHistory(historyList(events));
+      setHistory(historyList(events, realNow()));
     } catch {
       // Ignora erro
     }
@@ -335,7 +335,7 @@ export function AlarmsSheet({ id }: { id: number }) {
                           {h.time}
                         </Text>
                         <Text style={[type.caption, { color: colors.textSecondary }]}>
-                          {h.serviceDate.slice(5).replace("-", "/")}
+                          {h.dateText}
                         </Text>
                       </View>
                       <Text style={[type.body, { color: colors.textSecondary, flex: 1 }]}>

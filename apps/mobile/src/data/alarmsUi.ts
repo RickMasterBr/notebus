@@ -291,6 +291,7 @@ export interface HistoryItem {
   id: string;
   plannedAt: number;
   serviceDate: string;
+  dateText: string;
   state: AlarmEventState;
   skipReason: SkipReason | null;
   statusLabel: string;
@@ -298,8 +299,12 @@ export interface HistoryItem {
 }
 
 /** 6. Histórico das linhas de alarm_event, mais novas primeiro, máx 30. */
-export function historyList(events: readonly AlarmEventRow[]): HistoryItem[] {
-  return [...events]
+export function historyList(
+  events: readonly AlarmEventRow[],
+  now?: number,
+): HistoryItem[] {
+  const filtered = now !== undefined ? events.filter((e) => e.plannedAt <= now) : events;
+  return [...filtered]
     .sort((a, b) => b.plannedAt - a.plannedAt)
     .slice(0, 30)
     .map((e) => {
@@ -308,6 +313,7 @@ export function historyList(events: readonly AlarmEventRow[]): HistoryItem[] {
         id: e.id,
         plannedAt: e.plannedAt,
         serviceDate: e.serviceDate,
+        dateText: shortDateText(e.serviceDate),
         state: e.state,
         skipReason: e.skipReason,
         statusLabel: alarmEventLabel(e.state, e.skipReason),
