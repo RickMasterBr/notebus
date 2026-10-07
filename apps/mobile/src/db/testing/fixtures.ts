@@ -37,5 +37,12 @@ const v1 = [
   `INSERT INTO setting (id, created_at, updated_at, source, key, value) VALUES ('set', ${c}, 'user', 'margin_minutes', '2')`,
 ];
 
+/** Versão 2 (0001, E-06): as linhas da v1 mais um aviso de saída e um evento do aviso (as duas tabelas novas). */
+const v2 = [
+  ...v1,
+  `INSERT INTO departure_alarm (id, created_at, updated_at, source, option_id, anchor_trip_id, anchor_base_minute, weekdays, once_date, valid_from, valid_to, enabled) VALUES ('alarm', ${c}, 'user', 'opt', 'trip', 492, '[1,3,5]', NULL, '2026-10-01', '2027-01-31', 1)`,
+  `INSERT INTO alarm_event (id, created_at, updated_at, source, alarm_id, planned_at, service_date, trip_id, state, skip_reason, acted_at, snoozed_to) VALUES ('alarm-ev', ${c}, 'user', 'alarm', ${T}, '2026-10-07', 'trip', 'boarded', NULL, ${T + 5_000}, NULL)`,
+];
+
 /** Fixture de cada versão, pelo número da versão (= quantas migrações reais rodaram). */
-export const fixtures: Record<number, readonly string[]> = { 1: v1 };
+export const fixtures: Record<number, readonly string[]> = { 1: v1, 2: v2 };

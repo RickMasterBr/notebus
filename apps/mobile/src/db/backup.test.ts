@@ -7,7 +7,7 @@ import { getTableConfig } from "drizzle-orm/sqlite-core";
 import {
   BACKUP_SETTING_KEYS,
   BACKUP_TABLES,
-  BACKUP_V1_COLUMNS,
+  BACKUP_V2_COLUMNS,
   type BackupFile,
   backupReminder,
   parseBackup,
@@ -76,9 +76,9 @@ describe("contrato do formato v1 contra o esquema (D-090)", () => {
       const c = getTableConfig(t as never);
       return [c.name, c.columns.map((x) => x.name)];
     }));
-    for (const t of BACKUP_TABLES) expect([t, BACKUP_V1_COLUMNS[t]]).toEqual([t, schema[t]]);
+    for (const t of BACKUP_TABLES) expect([t, BACKUP_V2_COLUMNS[t]]).toEqual([t, schema[t]]);
     // Toda tabela do esquema está no backup, menos `dataset` (fato da importação da MOBILIS).
-    expect(Object.keys(schema).filter((t) => !(BACKUP_TABLES as string[]).includes(t))).toEqual(["dataset"]);
+    expect(Object.keys(schema).filter((t) => !(BACKUP_TABLES as string[]).includes(t))).toEqual(["dataset", "alarm_event"]);
   });
 });
 
@@ -344,11 +344,11 @@ describe("arquivos de exemplo por formatVersion (D-090, §5.6)", () => {
     }
   });
 
-  it("o format-v1.json é exatamente o que o exportador de hoje gera do cenário (formato mudou sem subir a versão → quebra)", async () => {
-    const text = await exportText(await backupScenario());
+  it("o format-v2.json é exatamente o que o exportador de hoje gera do cenário (formato mudou sem subir a versão → quebra)", async () => {
+    const text = await exportText(await backupScenario({ withAlarm: true }));
     // Gerar de novo (só ao criar uma formatVersion nova): NOTEBUS_WRITE_BACKUP_FIXTURE=1 npx vitest run src/db/backup.test.ts
-    if (process.env.NOTEBUS_WRITE_BACKUP_FIXTURE === "1") writeFileSync(join(dir, "format-v1.json"), text);
-    expect(text).toBe(readFileSync(join(dir, "format-v1.json"), "utf8"));
+    if (process.env.NOTEBUS_WRITE_BACKUP_FIXTURE === "1") writeFileSync(join(dir, "format-v2.json"), text);
+    expect(text).toBe(readFileSync(join(dir, "format-v2.json"), "utf8"));
   });
 });
 

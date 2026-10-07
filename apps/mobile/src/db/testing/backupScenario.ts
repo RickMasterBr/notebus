@@ -9,7 +9,8 @@
  * 3. embarque L1 na Arrabalde 12:00 (nenhuma viagem: `orphan`); outro às 13:00, depois escolhido à mão → `manual`;
  * 4. embarque L1 no Estádio 08:54 (pos. 6 da 08:10 e pos. 3 da 08:40: `ambiguous`) → fecha o ride anterior; fica `open`;
  * 5. embarque L2 na Arrabalde 08:31 e Desfazer → registro e ride apagados (`deleted_at`), o ride 4 reabre (D-157);
- * mais um lugar, um tempo a pé, duas preferências (vão), dois estados do aparelho (não vão) e uma edição oficial.
+ * mais um lugar, um tempo a pé, duas preferências (vão), dois estados do aparelho (não vão), uma edição oficial e,
+ * com `withAlarm` (o exemplo da formatVersion 2, E-06, D-104), um aviso de saída (vai) e um evento do aviso (não vai).
  */
 import { migrations } from "../migrations";
 import { THURSDAY, fixture, lineId, lisbon, stopId, tripIdOf, type Fixture } from "../../data/registroFixture";
@@ -17,7 +18,7 @@ import { THURSDAY, fixture, lineId, lisbon, stopId, tripIdOf, type Fixture } fro
 /** Instante da dedução e das gravações à mão (fixo, para o arquivo não mudar entre execuções). */
 export const SCENARIO_NOW = lisbon(THURSDAY, "18:00");
 
-export async function backupScenario(): Promise<Fixture & { ids: Record<string, string> }> {
+export async function backupScenario(opts: { withAlarm?: boolean } = {}): Promise<Fixture & { ids: Record<string, string> }> {
   let n = 0;
   const f = await fixture({ newId: () => `0199c3a0-0000-7000-8000-${String(++n).padStart(12, "0")}` });
   await f.raw.exec(`PRAGMA user_version = ${migrations.length}`);
@@ -53,6 +54,17 @@ export async function backupScenario(): Promise<Fixture & { ids: Record<string, 
     ["set-export", "last_export_at", String(t - 86_400_000)],
   ] as const) {
     await f.raw.run("INSERT INTO setting (id, created_at, updated_at, source, `key`, value) VALUES (?, ?, ?, 'user', ?, ?)", [id, t, t, key, value]);
+  }
+  // Um aviso de saída (seg, qua e sex, viagem das 08:10) e um evento dele: o aviso vai no arquivo, o evento não (D-104).
+  if (opts.withAlarm) {
+    await f.raw.run(
+      "INSERT INTO departure_alarm (id, created_at, updated_at, source, option_id, anchor_trip_id, anchor_base_minute, weekdays, once_date, valid_from, valid_to, enabled) VALUES ('alarm-facul', ?, ?, 'user', 'option-facul', ?, 492, '[1,3,5]', NULL, '2026-10-01', '2027-01-31', 1)",
+      [t, t, tripIdOf("1", "0810")],
+    );
+    await f.raw.run(
+      "INSERT INTO alarm_event (id, created_at, updated_at, source, alarm_id, planned_at, service_date, trip_id, state, skip_reason, acted_at, snoozed_to) VALUES ('alarm-event-1', ?, ?, 'user', 'alarm-facul', ?, '2026-10-09', ?, 'boarded', NULL, ?, NULL)",
+      [t, t, t + 3_600_000, tripIdOf("1", "0810"), t + 3_660_000],
+    );
   }
   // Uma edição sua num dado oficial: um apelido e uma nota na Arrabalde (`official_edited`).
   await f.raw.run(

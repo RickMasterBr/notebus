@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   BACKUP_TABLES,
   BACKUP_V1_COLUMNS,
+  BACKUP_V2_COLUMNS,
   type BackupInput,
   type BackupRow,
   backupFileName,
@@ -55,7 +56,7 @@ describe("arquivo: serialização legível e determinística (§5.2)", () => {
     const file = JSON.parse(text);
     expect(Object.keys(file)).toEqual(["format", "formatVersion", "schemaVersion", "appVersion", "exportedAt", "network", "datasets", "counts", "checksum", "tables"]);
     expect(file.format).toBe("notebus-backup");
-    expect(file.formatVersion).toBe(1);
+    expect(file.formatVersion).toBe(2);
     expect(file.exportedAt).toBe("2026-10-25T07:14:02Z");
     expect(file.checksum).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(file.tables.observation.map((o: BackupRow) => o.id)).toEqual(["0001", "0002"]);
@@ -269,6 +270,6 @@ describe("lembrete (D-088)", () => {
 
 describe("contrato", () => {
   it("todas as tabelas do arquivo têm as colunas comuns primeiro", () => {
-    for (const t of BACKUP_TABLES) expect(BACKUP_V1_COLUMNS[t].slice(0, 5)).toEqual(["id", "created_at", "updated_at", "deleted_at", "source"]);
+    for (const t of BACKUP_TABLES) expect(BACKUP_V2_COLUMNS[t].slice(0, 5)).toEqual(["id", "created_at", "updated_at", "deleted_at", "source"]);
   });
 });

@@ -77,6 +77,23 @@ export type {
 } from "./passages";
 export { busCandidates, gotoCards, shrunkRideMinutes, walkTimes } from "./goto";
 export type { BusCandidate, BusOption, GotoCandidate, GotoInput, WalkCandidate, WalkOption, WalkRange } from "./goto";
+export { alarmTextParams, applyAlarm, buildWindow, planDepartures, resolveAlarmEventState, snoozePlan } from "./alarms";
+export type {
+  AlarmAction,
+  AlarmDayData,
+  AlarmEventInput,
+  AlarmEventState,
+  AlarmOption,
+  AlarmReplacement,
+  AlarmRule,
+  ApplyAlarmResult,
+  DeparturePlan,
+  PlannedDeparture,
+  PlanInput,
+  SkipReason,
+  SkippedDeparture,
+  WindowDeparture,
+} from "./alarms";
 export { DOMAIN_CONFIG } from "./config";
 export type { DomainConfig } from "./config";
 export { ageDays, recordWeight, weightedQuantile } from "./estimate";
@@ -95,6 +112,7 @@ export {
   BACKUP_SNOOZE_DAYS,
   BACKUP_TABLES,
   BACKUP_V1_COLUMNS,
+  BACKUP_V2_COLUMNS,
   OFFICIAL_EDIT_TABLES,
   backupFileName,
   backupReminder,

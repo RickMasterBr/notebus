@@ -12,13 +12,14 @@ import { fixtures } from "./testing/fixtures";
 import { NodeSqlite, nodeBackupStore } from "./testing/nodeSqlite";
 import { testAdditiveMigration, testBrokenMigration } from "./testing/testMigrations";
 
-/** As 23 tabelas da E-01 §4.3–§4.6. */
+/** As 23 tabelas da E-01 §4.3–§4.6 e as 2 do aviso de saída (E-06 §3.1). */
 const PLAN_TABLES = [
   "network", "dataset", "stop", "line", "pattern", "pattern_stop",
   "day_type", "holiday", "date_override", "season", "timetable", "trip", "trip_day_type", "stop_time",
   "frequency", "frequency_day_type",
   "observation", "ride",
   "place", "walk_time", "route", "option", "setting",
+  "departure_alarm", "alarm_event",
 ];
 
 function setup() {
@@ -56,7 +57,7 @@ function expectNoRowLost(before: ReturnType<typeof snapshot>, after: ReturnType<
 }
 
 describe("migração v1 (0000_init)", () => {
-  it("vazio → v1: cria as 23 tabelas do plano, com as colunas de schema.ts", async () => {
+  it("vazio → v1: cria as 25 tabelas do plano, com as colunas de schema.ts", async () => {
     const { conn, migrate } = setup();
     expect(await migrate(migrations)).toMatchObject({ status: "migrated", from: 0, to: migrations.length });
     expect(await conn.userVersion()).toBe(migrations.length);
