@@ -21,6 +21,9 @@ import { RouteSheet } from "./RouteSheet";
 import { OptionSheet } from "./OptionSheet";
 import { AlightPickerSheet } from "./AlightPickerSheet";
 import { GotoSheet } from "./GotoSheet";
+import { RepeatSheet } from "./RepeatSheet";
+import { AlarmsSheet } from "./AlarmsSheet";
+import { AlarmIntroSheet } from "./AlarmIntroSheet";
 import { CloseSheetProvider } from "./StackedSheet";
 import { type SheetEntry, stackedSheets } from "./stack";
 
@@ -123,6 +126,18 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
           id={entry.id}
           destinationPlaceId={entry.destinationPlaceId}
           originPlaceId={entry.originPlaceId}
+        />
+      );
+    case "repeat":
+      return <RepeatSheet id={entry.id} alarmId={entry.alarmId} />;
+    case "alarms":
+      return <AlarmsSheet id={entry.id} />;
+    case "alarmIntro":
+      return (
+        <AlarmIntroSheet
+          id={entry.id}
+          mode={entry.mode}
+          onResolve={entry.onResolve}
         />
       );
     case "home":
