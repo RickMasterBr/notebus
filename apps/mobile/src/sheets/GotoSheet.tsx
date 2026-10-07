@@ -66,7 +66,7 @@ import { expoPort } from "../notifications/expoPort";
 import { requestReschedule } from "../notifications/runtime";
 import { sharedAlarms, type AlarmRow } from "../db/alarms";
 import { getSharedDb } from "../db/sharedDb";
-import { alarmFromCard, alarmOfCard, alarmSummary, createAskController } from "../data/alarmsUi";
+import { alarmFromCard, alarmFromRow, alarmOfCard, alarmSummary, createAskController } from "../data/alarmsUi";
 import { hasShownAlarmFocusHint, markAlarmFocusHintShown } from "../db/appState";
 import { formatServiceMinute } from "@notebus/domain";
 
@@ -348,9 +348,43 @@ export function GotoSheet({
           action: {
             label: t("toast.action.undo"),
             run: async () => {
-              await sharedAlarms(db).saveAlarm(cardAlarm, realNow());
-              requestReschedule();
-              await loadAlarms();
+              try {
+                const saveResult = await sharedAlarms(db).saveAlarm(alarmFromRow(cardAlarm), realNow());
+                requestReschedule();
+                await loadAlarms();
+                if (saveResult.replaced.length > 0) {
+                  const rep = saveResult.replaced[0]!;
+                  const oldAlarm = alarms.find((a) => a.id === rep.alarmId);
+                  const repDays =
+                    rep.weekdays.length > 0
+                      ? rep.weekdays.map((d) => t(`common.weekday.plural.${d}` as any)).join(" ")
+                      : t("alarm.repeat.once");
+                  const repTime = oldAlarm ? formatServiceMinute(oldAlarm.anchorBaseMinute) : "";
+                  toast.show({
+                    title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
+                    action: {
+                      label: t("toast.action.undo"),
+                      run: async () => {
+                        try {
+                          await saveResult.undo(realNow());
+                          requestReschedule();
+                          await loadAlarms();
+                        } catch {
+                          toast.show({
+                            title: t("alarms.undo_failed"),
+                            kind: "error",
+                          });
+                        }
+                      },
+                    },
+                  });
+                }
+              } catch {
+                toast.show({
+                  title: t("alarms.undo_failed"),
+                  kind: "error",
+                });
+              }
             },
           },
         });
@@ -410,9 +444,16 @@ export function GotoSheet({
           action: {
             label: t("toast.action.undo"),
             run: async () => {
-              await saveResult.undo(realNow());
-              requestReschedule();
-              await loadAlarms();
+              try {
+                await saveResult.undo(realNow());
+                requestReschedule();
+                await loadAlarms();
+              } catch {
+                toast.show({
+                  title: t("alarms.undo_failed"),
+                  kind: "error",
+                });
+              }
             },
           },
         });

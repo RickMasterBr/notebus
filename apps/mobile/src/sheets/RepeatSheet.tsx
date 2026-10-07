@@ -136,9 +136,16 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
             action: {
               label: t("toast.action.undo"),
               run: async () => {
-                await saveResult.undo(realNow());
-                requestReschedule();
-                await loadAlarm();
+                try {
+                  await saveResult.undo(realNow());
+                  requestReschedule();
+                  await loadAlarm();
+                } catch {
+                  toast.show({
+                    title: t("alarms.undo_failed"),
+                    kind: "error",
+                  });
+                }
               },
             },
           });

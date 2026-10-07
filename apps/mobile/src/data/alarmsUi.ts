@@ -11,7 +11,7 @@ import {
   type SkipReason,
   type TripData,
 } from "@notebus/domain";
-import type { AlarmEventRow, NewAlarm } from "../db/alarms";
+import type { AlarmEventRow, AlarmRow, NewAlarm } from "../db/alarms";
 import { t } from "../i18n";
 import { DEPARTURE_CATEGORY } from "../notifications/categories";
 import { readDeparture } from "../notifications/payload";
@@ -125,6 +125,23 @@ export function alarmFromCard(
     enabled: true,
     weekdays: [],
     onceDate: serviceDate,
+  };
+}
+
+/**
+ * Recria o aviso para o Desfazer do cancelamento (E-06 Item 0):
+ * descarta o id e os campos da linha (createdAt, updatedAt, deletedAt, source) e mantém os campos de regra.
+ */
+export function alarmFromRow(row: AlarmRow): NewAlarm {
+  return {
+    optionId: row.optionId,
+    anchorTripId: row.anchorTripId,
+    anchorBaseMinute: row.anchorBaseMinute,
+    weekdays: [...row.weekdays],
+    onceDate: row.onceDate,
+    validFrom: row.validFrom,
+    validTo: row.validTo,
+    enabled: row.enabled,
   };
 }
 
