@@ -29,7 +29,9 @@ import { matchNetworkOf, passageRecords } from "./records";
 import { type AlightRow, type TripCardModel, boardingOf, buildTripCard } from "./rideView";
 import { clockText } from "./stopCard";
 import { useNowTick } from "./useNowTick";
-import { openRecordSheet } from "../sheets/SheetsContext";
+import { requestReschedule } from "../notifications/runtime";
+import { onPendingIntent, peekPendingIntent, takePendingIntent } from "../notifications/pendingIntent";
+import { openRecordSheet, sheetsAvailable } from "../sheets/SheetsContext";
 import { t } from "../i18n";
 
 type Db = Parameters<typeof createRegistro>[0];
@@ -119,6 +121,7 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
 
   /** Depois de gravar o fato: mostra o que há, refaz a fila da dedução e mostra de novo. Nada disso bloqueia o toque. */
   const settle = useCallback(async () => {
+    requestReschedule(); // o aviso usa o que você registrou (E-06 §3.2); não espera
     try {
       await reload();
       await registro.refreshDeductions(nowRef.current());
@@ -147,6 +150,19 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
     })();
   }, [scheduleReady, registro, reload]);
 
+  // "Ajustar" da confirmação do embarque (E-06 §5.3): o registro foi gravado sem o app aberto; recarrega e só então abre a
+  // folha (senão ela fecharia, por não achar o registro). O `goto` do toque no corpo é do bloco 3 e fica no intento.
+  useEffect(() => {
+    const consume = () => {
+      const intent = peekPendingIntent();
+      if (intent?.kind !== "adjust" || !sheetsAvailable()) return;
+      takePendingIntent();
+      void settle().then(() => openRecordSheet(intent.observationId));
+    };
+    consume();
+    return onPendingIntent(consume);
+  }, [settle]);
+
   const hasOpenRide = state.rides.some((r) => r.status === "open");
   const expire = useCallback(async () => {
     try {
@@ -161,10 +177,13 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
   }, [instant, scheduleReady, hasOpenRide, expire]);
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
-      if (next === "active" && scheduleReady) void expire();
+      if (next === "active" && scheduleReady) {
+        void expire();
+        void settle(); // o embarque gravado pelo botão do aviso, sem o app aberto, aparece e ganha a dedução
+      }
     });
     return () => sub.remove();
-  }, [scheduleReady, expire]);
+  }, [scheduleReady, expire, settle]);
 
   const data = schedule.status === "ready" ? schedule.data : null;
   const records = useMemo(() => (data ? passageRecords(state.observations, data) : []), [data, state.observations]);

@@ -14,6 +14,8 @@ import { BackupProvider } from "./src/data/BackupProvider";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
 import { pickAndImport } from "./src/db/importFromFile";
 import { expoBackupStore, expoImportDb, openNotebusDb } from "./src/db/open";
+import { setSharedDb } from "./src/db/sharedDb";
+import { useAlarmLifecycle } from "./src/notifications/useAlarmLifecycle";
 import appJson from "./app.json";
 import { FirstRun } from "./src/screens/FirstRun";
 import { Home } from "./src/screens/Home";
@@ -33,6 +35,7 @@ export default function App() {
 
   useEffect(() => {
     openNotebusDb().then(async ({ db: opened, migration }) => {
+      setSharedDb(opened); // o tratador dos botões do aviso usa este banco (E-06 §4.2)
       setDb(opened);
       if (migration.status === "failed") {
         setMigrationFailed(true);
@@ -46,6 +49,8 @@ export default function App() {
   // Identidade fixa: o backup lê e grava pelo SQL cru do mesmo banco (E-03 §5).
   const raw = useMemo(() => (db ? expoImportDb(db.$client) : null), [db]);
   const backups = useCallback(() => expoBackupStore(db!.$client), [db]);
+
+  useAlarmLifecycle(db, phase === "list");
 
   if (!db || !raw || phase === "loading") return null;
 
