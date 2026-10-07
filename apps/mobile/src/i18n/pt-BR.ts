@@ -428,6 +428,14 @@ export const ptBR = {
   "common.weekday.plural.4": "quintas", // provisório
   "common.weekday.plural.5": "sextas", // provisório
   "common.weekday.plural.6": "sábados", // provisório
+  "common.weekday.full.0": "domingo", // provisório
+  "common.weekday.full.1": "segunda-feira", // provisório
+  "common.weekday.full.2": "terça-feira", // provisório
+  "common.weekday.full.3": "quarta-feira", // provisório
+  "common.weekday.full.4": "quinta-feira", // provisório
+  "common.weekday.full.5": "sexta-feira", // provisório
+  "common.weekday.full.6": "sábado", // provisório
+  "alarm.repeat.back": "Atalhos de repetição", // provisório
   "alarm.summary.once": "só hoje", // provisório
   "alarm.summary.daily": "todo dia", // provisório
   "alarm.summary.weekdays": "seg a sex", // provisório

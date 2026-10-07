@@ -7,6 +7,7 @@ import {
   alarmOfCard,
   alarmSummary,
   applyPreset,
+  applyUntil,
   createAskController,
   historyList,
   presetOf,
@@ -261,16 +262,29 @@ describe("Item 1: alarmsUi - Camada de dados das telas fora do React", () => {
     });
 
     it("transições de atalhos e desmarcar todos os chips volta a once", () => {
-      expect(applyPreset("daily", "2026-10-08")).toEqual({
-        weekdays: [0, 1, 2, 3, 4, 5, 6],
-        onceDate: null,
-      });
       expect(applyPreset("once", "2026-10-08")).toEqual({
         weekdays: [],
         onceDate: "2026-10-08",
       });
+      expect(applyPreset("daily", "2026-10-08")).toEqual({
+        weekdays: [0, 1, 2, 3, 4, 5, 6],
+        onceDate: null,
+      });
+      expect(applyPreset("weekdays", "2026-10-08")).toEqual({
+        weekdays: [1, 2, 3, 4, 5],
+        onceDate: null,
+      });
+      expect(applyPreset("weekly", "2026-10-08")).toEqual({
+        weekdays: [4],
+        onceDate: null,
+      });
 
-      // Alternar dias: desmarcar o último chip volta a once
+      // Seletor "Até": "Sem fim" grava null, "Uma data" grava a data
+      expect(applyUntil("none", "2027-01-31")).toBeNull();
+      expect(applyUntil("date", "2027-01-31")).toBe("2027-01-31");
+      expect(applyUntil("date", null)).toBeNull();
+
+      // Alternar dias: desmarcar o último chip volta a once com a data de serviço
       const oneDay = [4];
       const none = toggleWeekday(oneDay, 4, "2026-10-08");
       expect(none).toEqual({ weekdays: [], onceDate: "2026-10-08" });

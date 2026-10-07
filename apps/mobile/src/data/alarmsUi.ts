@@ -283,6 +283,11 @@ export function toggleWeekday(
   return { weekdays: ordered, onceDate: null };
 }
 
+/** Transição do seletor "Até": "none" (sem fim) grava null, "date" grava a data ISO. */
+export function applyUntil(mode: "none" | "date", selectedDate: string | null): string | null {
+  return mode === "none" ? null : selectedDate;
+}
+
 /** Orientação do modo foco só aparece no primeiro aviso ligado (flag não gravada). */
 export function shouldShowFocusHint(flag: boolean | null | undefined): boolean {
   return flag !== true;
