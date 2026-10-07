@@ -12,14 +12,33 @@ import { boardingStoreFor, schedulerFor } from "./runtime";
 
 type Db = NonNullable<Awaited<ReturnType<typeof openExistingNotebusDb>>>;
 
-let ownDb: Promise<Db | null> | null = null;
-
-/** O banco do app, se ele já abriu; senão o próprio tratador abre (sem migração) e guarda. */
-function getDb(): Promise<Db | null> {
-  const shared = getSharedDb();
-  if (shared) return Promise.resolve(shared);
-  return (ownDb ??= openExistingNotebusDb());
+export function createGetDb(
+  openExisting: () => Promise<Db | null> = openExistingNotebusDb,
+  getShared: () => Db | null = getSharedDb,
+) {
+  let ownDb: Db | null = null;
+  let opening: Promise<Db | null> | null = null;
+  return async function getDb(): Promise<Db | null> {
+    const shared = getShared();
+    if (shared) return shared;
+    if (ownDb) return ownDb;
+    if (opening) return opening;
+    opening = openExisting().then(
+      (db) => {
+        opening = null;
+        if (db) ownDb = db;
+        return db;
+      },
+      (err) => {
+        opening = null;
+        throw err;
+      },
+    );
+    return opening;
+  };
 }
+
+const getDb = createGetDb();
 
 export function registerNotificationHandlers(): void {
   const handler = createResponseHandler({

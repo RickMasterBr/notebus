@@ -52,18 +52,19 @@ export function departureText(p: Pick<DeparturePayload, "lineCode" | "busTime" |
   return { title: t("notif.title"), body: lines.join("\n") };
 }
 
+let queue: Promise<unknown> = Promise.resolve();
+
+/** Uma chamada por vez no processo inteiro, na ordem em que chegaram; um erro não trava as seguintes. */
+function enqueue<T>(job: () => Promise<T>): Promise<T> {
+  const run = queue.then(job, job);
+  queue = run.catch(() => undefined);
+  return run;
+}
+
 export function createScheduler(deps: SchedulerDeps) {
   const { port, db } = deps;
   const repo = sharedAlarms(db);
   const loadSchedule = deps.loadSchedule ?? loadScheduleFromDb;
-  let queue: Promise<unknown> = Promise.resolve();
-
-  /** Uma chamada por vez, na ordem em que chegaram; um erro não trava as seguintes. */
-  function enqueue<T>(job: () => Promise<T>): Promise<T> {
-    const run = queue.then(job, job);
-    queue = run.catch(() => undefined);
-    return run;
-  }
 
   function requestOf(d: WindowDeparture, ctx: AlarmPlanContext): ScheduledRequest {
     const meta = ctx.meta.get(d.optionId)!;

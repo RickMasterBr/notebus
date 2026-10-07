@@ -168,6 +168,37 @@ describe("scheduler: linhas de alarm_event (§6)", () => {
     await s.scheduler.reschedule();
     expect(await s.alarmsRepo.getEvent(id)).toEqual(acted);
   });
+
+  it("dois agendadores sobre a mesma porta, reschedule chamado ao mesmo tempo: nunca intercalado", async () => {
+    const s = await setup();
+    const port = createFakePort();
+    const originalScheduleAt = port.scheduleAt.bind(port);
+    port.scheduleAt = async (request) => {
+      await new Promise((r) => setTimeout(r, 2));
+      return originalScheduleAt(request);
+    };
+    const s1 = createScheduler({ port, db: s.db, now: () => WED_0700, loadSchedule: async () => s.data });
+    const s2 = createScheduler({ port, db: s.db, now: () => WED_0700, loadSchedule: async () => s.data });
+    await s.alarmsRepo.createAlarm(s.newAlarm(), WED_0700);
+
+    port.calls.length = 0;
+    await Promise.all([s1.reschedule(), s2.reschedule()]);
+
+    const scheduleCalls = port.calls.filter((c) => c === "cancelAllScheduled" || c.startsWith("scheduleAt:"));
+    const cancelIndices = scheduleCalls.map((c, i) => (c === "cancelAllScheduled" ? i : -1)).filter((i) => i !== -1);
+    expect(cancelIndices).toHaveLength(2);
+    const firstCancel = cancelIndices[0]!;
+    const secondCancel = cancelIndices[1]!;
+
+    const firstRunScheduleAt = scheduleCalls.slice(firstCancel + 1, secondCancel);
+    const secondRunScheduleAt = scheduleCalls.slice(secondCancel + 1);
+
+    expect(firstRunScheduleAt.length).toBeGreaterThan(0);
+    expect(firstRunScheduleAt.every((c) => c.startsWith("scheduleAt:"))).toBe(true);
+    expect(secondRunScheduleAt.length).toBeGreaterThan(0);
+    expect(secondRunScheduleAt.every((c) => c.startsWith("scheduleAt:"))).toBe(true);
+    expect(firstRunScheduleAt.length).toBe(secondRunScheduleAt.length);
+  });
 });
 
 describe("scheduler.scheduleTestAlarm (item 7)", () => {
