@@ -36,3 +36,5 @@ Tabela por item: causa → arquivos mudados → teste → **como saber que passo
 ## Multiagente (Teamwork e /boost)
 
 Antes de pedir ou aceitar um Teamwork, leia `docs/ai/modos-de-execucao.md` (quando usar, orçamento, modelo de prompt). Ponto de partida de leitura: `docs/ai/mapa-para-agentes.md`. Teamwork e /boost seguem todas as regras acima. Agentes especialistas ficam em `.agents/agents/` e são só leitura, salvo pedido explícito.
+
+Em Teamwork de implementação: edite **só** os arquivos da sua frente; arquivo compartilhado é do Lead; área protegida e teste existente não se mexem; não faça push, tag nem workflow `ios`; se precisar de algo fora da sua lista, pare e relate. O relatório segue o formato desta página. Regras completas: `docs/ai/modos-de-execucao.md`.
