@@ -44,3 +44,7 @@ Expo SDK 57 + TypeScript estrito · npm workspaces (sem Turborepo) · `packages/
    - **Para você testar:** passos exatos, se houver.
    - **Dúvidas/desvios do plano:** ou "nenhum".
    - Última linha: **"Bloco N concluído. Abra uma sessão nova para o bloco seguinte."**
+
+## Multiagente (Antigravity)
+
+O Rick usa o Antigravity em três modos: agente normal, /boost e /teamwork. Quem escolhe o modo é a coordenação (chat), e o Rick confirma. Regras, orçamento e modelo de prompt: `docs/ai/modos-de-execucao.md`. Mapa de leitura barata: `docs/ai/mapa-para-agentes.md`.
