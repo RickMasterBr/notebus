@@ -10,3 +10,4 @@ android/
 *.log
 .DS_Store
 *.local.test.ts
+.agents/teamwork/

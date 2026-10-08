@@ -32,3 +32,7 @@ Tabela por item: causa → arquivos mudados → teste → **como saber que passo
 - Marque `[provada por teste]` **só** quando um teste automático falhava antes e passa depois, e diga qual. Comportamento visual, animação, teclado e gesto são `[hipótese, só o aparelho decide]`, mesmo com teste de lógica ao lado.
 - Liste **tudo** que mudou fora do pedido (arquivo e motivo). Se não houver, diga "nada fora do pedido".
 - Resultado dos três comandos de verificação, nome da branch e hash do último commit.
+
+## Multiagente (Teamwork e /boost)
+
+Antes de pedir ou aceitar um Teamwork, leia `docs/ai/modos-de-execucao.md` (quando usar, orçamento, modelo de prompt). Ponto de partida de leitura: `docs/ai/mapa-para-agentes.md`. Teamwork e /boost seguem todas as regras acima. Agentes especialistas ficam em `.agents/agents/` e são só leitura, salvo pedido explícito.
