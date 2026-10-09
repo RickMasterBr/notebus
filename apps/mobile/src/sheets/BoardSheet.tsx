@@ -11,7 +11,7 @@
  */
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { lisbonWallClock } from "@notebus/domain";
-import { createContext, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecentStops } from "../data/RecentStopsProvider";
@@ -21,6 +21,10 @@ import { type BoardChoice, boardChoices, relativeMinutes, suggestStop } from "..
 import { clockText } from "../data/stopCard";
 import { confidenceText } from "../data/stopCardText";
 import { useNowTick } from "../data/useNowTick";
+import { useLastFix, usePositionStore } from "../data/PositionProvider";
+import { useStopLocations } from "../data/StopLocationsProvider";
+import { type SuggestedStop, chooseSuggestedStop, createFreezer, routineRank } from "../data/boardSuggestion";
+import { realNow } from "../data/clock";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { PinGlyph } from "../ui/Glyphs";
@@ -76,11 +80,33 @@ export function BoardSheet({ id, stopId: initialStopId }: { id: number; stopId: 
   const skeleton = useSkeletonVisible(loading);
   const data = schedule.status === "ready" ? schedule.data : null;
 
-  // Ponto: o escolhido em "Trocar", o do "Registrar aqui", ou o sugerido (4.1 §6.1). Escolhido só uma vez pela abertura.
-  const suggested = useMemo(
-    () => (data ? suggestStop(registro.observations, instant, data, recent.ids[0] ?? null) : null),
-    [data, registro.observations, instant, recent.ids],
+  // Permissão da posição: no primeiro toque em Registrar, em segundo plano. A folha não espera a resposta (D-108).
+  const positionStore = usePositionStore();
+  useEffect(() => {
+    positionStore.askOnce();
+  }, [positionStore]);
+
+  // Ponto: o escolhido em "Trocar", o do "Registrar aqui", ou o sugerido (4.1 §6.1). A sugestão é decidida UMA vez, quando
+  // os dados ficam prontos, com a última posição que já está em memória; nunca espera uma posição nova e nunca troca com
+  // a folha aberta (D-108): só "Trocar" muda o ponto.
+  const lastFix = useLastFix();
+  const stopLocations = useStopLocations();
+  const [freeze] = useState(() => createFreezer<SuggestedStop | null>());
+  const suggestion = freeze(
+    data !== null && registro.status === "ready" && recent.status === "ready" && stopLocations.status === "ready",
+    () =>
+      data
+        ? chooseSuggestedStop({
+            fix: lastFix,
+            nowMs: realNow(),
+            located: stopLocations.stops,
+            routineStopId: suggestStop(registro.observations, instant, data, recent.ids[0] ?? null),
+            lastUsedStopId: recent.ids[0] ?? null,
+            routineRank: routineRank(registro.observations, instant, data),
+          })
+        : null,
   );
+  const suggested = suggestion?.stopId ?? null;
   const stopId = picked ?? initialStopId ?? suggested;
   const stopName = stopId && data ? (data.stopNames.get(stopId) ?? null) : null;
   const choices = useMemo(

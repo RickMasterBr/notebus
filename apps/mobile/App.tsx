@@ -9,6 +9,8 @@ import { PlacesProvider } from "./src/data/PlacesProvider";
 import { RegistroProvider } from "./src/data/RegistroProvider";
 import { ScheduleProvider } from "./src/data/ScheduleProvider";
 import { StopIndexProvider } from "./src/data/StopIndexProvider";
+import { PositionProvider } from "./src/data/PositionProvider";
+import { StopLocationsProvider } from "./src/data/StopLocationsProvider";
 import { ToastProvider } from "./src/data/ToastProvider";
 import { BackupProvider } from "./src/data/BackupProvider";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
@@ -79,13 +81,17 @@ export default function App() {
               <StopIndexProvider db={db}>
                 <ScheduleProvider db={db}>
                   <RecentStopsProvider db={db}>
-                    <RegistroProvider db={db}>
-                      <PlacesProvider db={db}>
-                        <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
-                          <Home />
-                        </BackupProvider>
-                      </PlacesProvider>
-                    </RegistroProvider>
+                    <PositionProvider>
+                      <StopLocationsProvider db={db}>
+                        <RegistroProvider db={db}>
+                          <PlacesProvider db={db}>
+                            <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
+                              <Home />
+                            </BackupProvider>
+                          </PlacesProvider>
+                        </RegistroProvider>
+                      </StopLocationsProvider>
+                    </PositionProvider>
                   </RecentStopsProvider>
                 </ScheduleProvider>
               </StopIndexProvider>

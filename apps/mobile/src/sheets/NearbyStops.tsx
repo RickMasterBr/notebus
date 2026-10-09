@@ -12,6 +12,10 @@ import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { nearbyIds } from "../data/homeStart";
+import { realNow } from "../data/clock";
+import { nearbyStopIdsByFix } from "../data/nearbyByFix";
+import { useLastFix } from "../data/PositionProvider";
+import { useStopLocations } from "../data/StopLocationsProvider";
 import { type StopCard, buildStopCard } from "../data/stopCard";
 import { stopCardLeaveAtSubtitle } from "../data/stopCardLeaveAt";
 import { useNowTick } from "../data/useNowTick";
@@ -36,15 +40,23 @@ export function NearbyStops() {
   const loading = stops.status === "loading" || schedule.status === "loading" || recent.status === "loading";
   const skeleton = useSkeletonVisible(loading);
 
+  const fix = useLastFix();
+  const locations = useStopLocations();
+  // Pela posição quando há pontos perto (plano §3.4); senão a regra provisória da E-02, sem mudança. Pode reordenar com o tique.
+  const ids = useMemo(() => {
+    const byFix = nearbyStopIdsByFix(fix, realNow(), locations.stops);
+    return byFix.length > 0 ? byFix : nearbyIds(recent.ids);
+  }, [fix, locations.stops, recent.ids, instant]);
+
   const cards = useMemo(
     () =>
       schedule.status === "ready"
-        ? nearbyIds(recent.ids).flatMap((id): StopCard[] => {
+        ? ids.flatMap((id): StopCard[] => {
             const card = buildStopCard(id, schedule.data, instant);
             return card ? [card] : [];
           })
         : [],
-    [schedule, recent.ids, instant],
+    [schedule, ids, instant],
   );
 
   if (loading || skeleton) return skeleton ? <Section><Skeleton variant="card" /></Section> : null;

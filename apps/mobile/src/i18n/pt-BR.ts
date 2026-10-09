@@ -330,6 +330,15 @@ export const ptBR = {
   "place.location.use_now": "Usar minha localização agora",
   "place.location.reason": "O NoteBus usa a sua localização apenas para guardar onde fica este lugar.",
   "place.location.none": "Sem localização definida", // provisório
+  "stop.location_offer.title": "Guardar a localização deste ponto", // provisório
+  "stop.location_offer.body": "Você registrou aqui {{count}} vezes, sempre no mesmo lugar.", // provisório
+  "stop.location_offer.save": "Guardar", // provisório
+  "stop.location_offer.later": "Agora não", // provisório
+  "stop.location_offer.saved": "Localização guardada", // provisório
+  "stop.location_offer.far": "Fica longe de Leiria. Guardar mesmo assim?", // provisório
+  "stop.location_offer.imprecise": "A posição está imprecisa ({{m}} m). Tente de novo ao ar livre.", // provisório
+  "stop.location_offer.save.a11y": "Guardar a localização deste ponto", // provisório
+  "stop.location_offer.later.a11y": "Agora não guardar a localização deste ponto", // provisório
   "place.shortcut": "Atalho na tela inicial",
   "place.routes_here": "Trajetos até aqui",
   "place.no_routes": "Nenhum trajeto até aqui",
