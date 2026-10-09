@@ -20,6 +20,7 @@ import {
   type MatchNetwork,
   type ObservationFact,
   type OngoingRide,
+  type PositionFix,
   type RideState,
   alightRide,
   baseTimeAt,
@@ -38,6 +39,7 @@ import {
 import { selectLive } from "../db/query";
 import { observation, ride } from "../db/schema";
 import { resolveBoarding, serviceMinuteOn } from "./rideView";
+import { gpsColumns } from "./recordFix";
 import { patternStopKey, type ScheduleSnapshot } from "./schedule";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
@@ -182,9 +184,10 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
 
   /**
    * Fato do embarque: `observed_at` = `recorded_at` (o mesmo instante, com segundos), `kind = boarded`, `mode = live`,
-   * `ride` novo `open`; o `ride` aberto que houver fecha na mesma transação. Sem localização (E-07): nenhum `gps_*`.
+   * `ride` novo `open`; o `ride` aberto que houver fecha na mesma transação. `gps` é a última posição **já em memória**
+   * (até 10 min, quem chama confere): vai em `gps_*` só porque o registro é ao vivo; sem posição, as colunas ficam vazias.
    */
-  function board(input: { stopId: string; lineId: string; at: number }): Promise<BoardToken> {
+  function board(input: { stopId: string; lineId: string; at: number; gps?: PositionFix | null }): Promise<BoardToken> {
     return enqueue(async () => {
       const { at } = input;
       const observationId = newId(at);
@@ -218,6 +221,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
           mode: "live",
           rideId,
           recordedAt: at,
+          ...gpsColumns("live", input.gps),
         });
       });
       return { observationId, rideId, reopenedRideIds };
@@ -249,6 +253,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     patternId: string;
     position: number;
     at: number;
+    gps?: PositionFix | null;
   }): Promise<AlightResult> {
     return enqueue(async (): Promise<AlightResult> => {
       const row = await rideById(input.rideId);
@@ -284,6 +289,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
           mode: "live",
           rideId: row.id,
           recordedAt: input.at,
+          ...gpsColumns("live", input.gps),
         });
         await db
           .update(ride)

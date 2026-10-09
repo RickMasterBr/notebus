@@ -12,6 +12,9 @@ import { AppState } from "react-native";
 import { type PassageRecord, baseTimeAt, displayCenter, lisbonWallClock } from "@notebus/domain";
 import type { BoardChoice } from "./boardChoices";
 import { useNow } from "./NowProvider";
+import { usePositionStore } from "./PositionProvider";
+import { realNow } from "./clock";
+import { fixForRecord } from "./recordFix";
 import { useSchedule } from "./ScheduleProvider";
 import { useToast } from "./ToastProvider";
 import {
@@ -100,6 +103,9 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
   scheduleRef.current = schedule;
   const nowRef = useRef(now);
   nowRef.current = now;
+  const positionStore = usePositionStore();
+  const positionRef = useRef(positionStore);
+  positionRef.current = positionStore;
 
   const registro = useMemo(
     () =>
@@ -215,11 +221,12 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
   const board = useCallback(
     async (stopId: string, choice: BoardChoice): Promise<string | null> => {
       const at = nowRef.current();
+      const gps = fixForRecord(positionRef.current.getFix(), realNow()); // já em memória: nada espera o GPS (D-102)
       const stopName = (scheduleRef.current.status === "ready" ? scheduleRef.current.data.stopNames.get(stopId) : undefined) ?? "";
       const attempt = async (): Promise<string | null> => {
         let token: BoardToken;
         try {
-          token = await registro.board({ stopId, lineId: choice.lineId, at });
+          token = await registro.board({ stopId, lineId: choice.lineId, at, gps });
         } catch {
           failed(() => void attempt());
           return null;
@@ -503,10 +510,11 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
       if (!card.trip) return false;
       const trip = card.trip;
       const at = nowRef.current();
+      const gps = fixForRecord(positionRef.current.getFix(), realNow());
       const attempt = async (): Promise<boolean> => {
         let result: Awaited<ReturnType<typeof registro.alight>>;
         try {
-          result = await registro.alight({ rideId: card.rideId, stopId: row.stopId, patternId: trip.patternId, position: row.position, at });
+          result = await registro.alight({ rideId: card.rideId, stopId: row.stopId, patternId: trip.patternId, position: row.position, at, gps });
         } catch {
           failed(() => void attempt());
           return false;
