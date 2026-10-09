@@ -25,6 +25,7 @@ import { useTestClock } from "../data/TestClockProvider";
 import { useNow } from "../data/NowProvider";
 import { useToast } from "../data/ToastProvider";
 import { realNow } from "../data/clock";
+import { waitForPositionFix } from "../data/mapLocate";
 import {
   canStartMapOpening,
   createMapStarter,
@@ -188,7 +189,15 @@ export function MapBackdrop() {
     }
 
     if (currentPerm === "granted") {
-      const fix = store.getFix();
+      let fix = store.getFix();
+      if (!fix) {
+        fix = await waitForPositionFix({
+          getFix: () => store.getFix(),
+          subscribeFix: (fn) => store.subscribe(fn),
+          warm: () => store.warm(),
+        });
+      }
+
       if (!fix) {
         toast.show({ title: t("map.no_fix") });
         void store.warm();
