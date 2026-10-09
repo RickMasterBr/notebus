@@ -43,6 +43,7 @@ import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
+import { StopLocationOffer } from "./StopLocationOffer";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { type Detent, activeSheet } from "./stack";
 
@@ -183,6 +184,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
           skeleton ? <Skeleton rows={3} /> : null
         ) : day ? (
           <>
+            {detent === 2 ? <StopLocationOffer stopId={stopId} /> : null}
             <View style={styles.chips}>
               {DAY_TYPES.map((type_) => (
                 <Chip
