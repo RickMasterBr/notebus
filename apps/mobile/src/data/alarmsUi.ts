@@ -152,7 +152,7 @@ export function alarmSummary(weekdays: readonly number[], validTo: string | null
   return text;
 }
 
-/** Linha da lista de Ajustes (plano §3.1): "Facul · L1 · sair ~07:59 · seg qua sex · até 31/01". */
+/** Linha da lista de Ajustes (plano §3.1): "Facul · L1 · ônibus ~07:59 · seg qua sex · até 31/01". */
 export function alarmLine(
   alarm: { weekdays: readonly number[]; validTo: string | null },
   meta: { placeName: string; lineCode: string; leaveTime: string },

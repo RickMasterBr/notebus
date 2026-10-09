@@ -67,7 +67,7 @@ describe("Item 1: alarmsUi - Camada de dados das telas fora do React", () => {
         { weekdays: [1, 3, 5], validTo: "2027-01-31" },
         { placeName: "Facul", lineCode: "L1", leaveTime: "07:59" },
       );
-      expect(line).toBe("Facul · L1 · sair ~07:59 · seg qua sex · até 31/01");
+      expect(line).toBe("Facul · L1 · ônibus ~07:59 · seg qua sex · até 31/01");
     });
   });
 

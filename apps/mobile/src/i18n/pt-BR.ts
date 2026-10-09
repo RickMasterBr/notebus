@@ -440,7 +440,7 @@ export const ptBR = {
   "alarm.summary.daily": "todo dia", // provisório
   "alarm.summary.weekdays": "seg a sex", // provisório
   "alarm.summary.until": "até {{date}}", // provisório
-  "alarms.line.leave": "sair ~{{time}}", // provisório
+  "alarms.line.leave": "ônibus ~{{time}}", // provisório
   "alarms.title": "Avisos", // provisório
   "alarms.delete": "Apagar", // provisório
   "alarms.undo_failed": "Não foi possível desfazer", // provisório
