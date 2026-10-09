@@ -8,6 +8,7 @@ import {
   BACKUP_SETTING_KEYS,
   BACKUP_TABLES,
   BACKUP_V2_COLUMNS,
+  BACKUP_V3_COLUMNS,
   type BackupFile,
   backupReminder,
   parseBackup,
@@ -76,9 +77,16 @@ describe("contrato do formato v1 contra o esquema (D-090)", () => {
       const c = getTableConfig(t as never);
       return [c.name, c.columns.map((x) => x.name)];
     }));
-    for (const t of BACKUP_TABLES) expect([t, BACKUP_V2_COLUMNS[t]]).toEqual([t, schema[t]]);
+    for (const t of BACKUP_TABLES) expect([t, BACKUP_V3_COLUMNS[t]]).toEqual([t, schema[t]]);
     // Toda tabela do esquema está no backup, menos `dataset` (fato da importação da MOBILIS).
     expect(Object.keys(schema).filter((t) => !(BACKUP_TABLES as string[]).includes(t))).toEqual(["dataset", "alarm_event"]);
+  });
+
+  it("BACKUP_V2_COLUMNS é contrato congelado: a v3 só acrescenta stop.location_source, depois de lon (D-090)", () => {
+    const stopV2 = BACKUP_V2_COLUMNS.stop as readonly string[];
+    expect(stopV2).not.toContain("location_source");
+    expect(BACKUP_V3_COLUMNS.stop.filter((c) => c !== "location_source")).toEqual(stopV2);
+    for (const t of BACKUP_TABLES.filter((x) => x !== "stop")) expect([t, BACKUP_V3_COLUMNS[t]]).toEqual([t, (BACKUP_V2_COLUMNS as Record<string, readonly string[]>)[t]]);
   });
 });
 
@@ -344,11 +352,11 @@ describe("arquivos de exemplo por formatVersion (D-090, §5.6)", () => {
     }
   });
 
-  it("o format-v2.json é exatamente o que o exportador de hoje gera do cenário (formato mudou sem subir a versão → quebra)", async () => {
-    const text = await exportText(await backupScenario({ withAlarm: true }));
+  it("o format-v3.json é exatamente o que o exportador de hoje gera do cenário (formato mudou sem subir a versão → quebra)", async () => {
+    const text = await exportText(await backupScenario({ withAlarm: true, withLocation: true }));
     // Gerar de novo (só ao criar uma formatVersion nova): NOTEBUS_WRITE_BACKUP_FIXTURE=1 npx vitest run src/db/backup.test.ts
-    if (process.env.NOTEBUS_WRITE_BACKUP_FIXTURE === "1") writeFileSync(join(dir, "format-v2.json"), text);
-    expect(text).toBe(readFileSync(join(dir, "format-v2.json"), "utf8"));
+    if (process.env.NOTEBUS_WRITE_BACKUP_FIXTURE === "1") writeFileSync(join(dir, "format-v3.json"), text);
+    expect(text).toBe(readFileSync(join(dir, "format-v3.json"), "utf8"));
   });
 });
 

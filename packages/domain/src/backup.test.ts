@@ -56,7 +56,7 @@ describe("arquivo: serialização legível e determinística (§5.2)", () => {
     const file = JSON.parse(text);
     expect(Object.keys(file)).toEqual(["format", "formatVersion", "schemaVersion", "appVersion", "exportedAt", "network", "datasets", "counts", "checksum", "tables"]);
     expect(file.format).toBe("notebus-backup");
-    expect(file.formatVersion).toBe(2);
+    expect(file.formatVersion).toBe(3);
     expect(file.exportedAt).toBe("2026-10-25T07:14:02Z");
     expect(file.checksum).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(file.tables.observation.map((o: BackupRow) => o.id)).toEqual(["0001", "0002"]);
