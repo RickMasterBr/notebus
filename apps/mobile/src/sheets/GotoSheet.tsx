@@ -37,6 +37,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNowTick } from "../data/useNowTick";
 import { usePlaces } from "../data/PlacesProvider";
+import { useLastFix } from "../data/PositionProvider";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { buildGotoInputFromSources } from "../data/gotoData";
@@ -122,6 +123,7 @@ export function GotoSheet({
   const toast = useToast();
   const testClock = useTestClock();
   const places = usePlaces();
+  const fix = useLastFix();
   const registro = useRegistro();
   const schedule = useSchedule();
   const scheduleData = schedule.status === "ready" ? schedule.data : null;
@@ -163,8 +165,9 @@ export function GotoSheet({
       routes: places.routes,
       options: places.options,
       lastOriginMap: places.gotoLastOrigins,
+      position: { fix, nowMs: realNow() },
     });
-  }, [destinationPlaceId, places.places, places.routes, places.options, places.gotoLastOrigins]);
+  }, [destinationPlaceId, places.places, places.routes, places.options, places.gotoLastOrigins, fix]);
 
   // Origem selecionada no momento (se initialOriginId foi passado e existe, usa; senão resolvida)
   const [userSelectedOriginId, setUserSelectedOriginId] = useState<string | null>(
