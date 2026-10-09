@@ -161,6 +161,74 @@ describe("onde o mapa abre (mapStart)", () => {
     expect(opening.point).toEqual({ lat: LEIRIA_GPS.lat, lon: LEIRIA_GPS.lon });
   });
 
+  it("com nowMs numérico fixo, GPS com atMs posterior é recusado e cai em Casa (reproduz defeito do bloco 5)", async () => {
+    let currentFix: PositionFix | null = null;
+    const listeners: (() => void)[] = [];
+
+    const fakeSleep = (timeoutMs: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, timeoutMs);
+      });
+
+    setTimeout(() => {
+      currentFix = { ...LEIRIA_GPS, atMs: NOW + 20 };
+      listeners.forEach((l) => l());
+    }, 20);
+
+    const opening = await resolveMapStart({
+      permission: "granted",
+      getFix: () => currentFix,
+      subscribeFix: (fn) => {
+        listeners.push(fn);
+        return () => {};
+      },
+      home: CASA,
+      lastMapPosition: ULTIMA_POSICAO,
+      nowMs: NOW,
+      sleep: fakeSleep,
+    });
+
+    // Como nowMs é numérico fixo de antes do fix, ageMs < 0 e chooseMapOpening recusa o fix
+    expect(opening.source).toBe("home");
+    expect(opening.point).toEqual(CASA);
+  });
+
+  it("com nowMs como função que devolve um relógio que anda, o GPS que chega no meio vale", async () => {
+    let currentFix: PositionFix | null = null;
+    let clockMs = NOW;
+    const listeners: (() => void)[] = [];
+
+    const fakeSleep = (timeoutMs: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(() => {
+          clockMs += timeoutMs;
+          resolve();
+        }, timeoutMs);
+      });
+
+    setTimeout(() => {
+      clockMs = NOW + 20;
+      currentFix = { ...LEIRIA_GPS, atMs: NOW + 20 };
+      listeners.forEach((l) => l());
+    }, 20);
+
+    const opening = await resolveMapStart({
+      permission: "granted",
+      getFix: () => currentFix,
+      subscribeFix: (fn) => {
+        listeners.push(fn);
+        return () => {};
+      },
+      home: CASA,
+      lastMapPosition: ULTIMA_POSICAO,
+      nowMs: () => clockMs,
+      sleep: fakeSleep,
+    });
+
+    expect(opening.source).toBe("gps");
+    expect(opening.point).toEqual({ lat: LEIRIA_GPS.lat, lon: LEIRIA_GPS.lon });
+  });
+
   it("depois de decidido, um fix novo não muda o resultado", async () => {
     let currentFix: PositionFix | null = null;
     const listeners: (() => void)[] = [];

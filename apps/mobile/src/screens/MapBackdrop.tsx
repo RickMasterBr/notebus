@@ -143,7 +143,7 @@ export function MapBackdrop() {
         subscribeFix: (listener) => store.subscribe(listener),
         home,
         lastMapPosition,
-        nowMs: realNow(),
+        nowMs: realNow,
       });
 
       const decided = await starter.resolve();
