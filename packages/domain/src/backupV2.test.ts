@@ -22,7 +22,7 @@ function input(): BackupInput {
 
 describe("T-59: contrato da formatVersion 2", () => {
   it("o contrato da 1 está intacto (22 tabelas, sem aviso) e a 2 acrescenta só departure_alarm, depois das da 1", () => {
-    expect(BACKUP_FORMAT_VERSION).toBe(2);
+    expect(BACKUP_FORMAT_VERSION).toBe(3);
     expect(Object.keys(BACKUP_V1_COLUMNS)).toHaveLength(22);
     expect("departure_alarm" in BACKUP_V1_COLUMNS).toBe(false);
     expect(Object.keys(BACKUP_V2_COLUMNS)).toEqual([...Object.keys(BACKUP_V1_COLUMNS), "departure_alarm"]);
@@ -37,7 +37,7 @@ describe("T-59: contrato da formatVersion 2", () => {
   it("(a, c) exportar com aviso: o arquivo traz departure_alarm e a contagem; alarm_event não aparece em lugar nenhum", async () => {
     const text = await serializeBackup(input(), sha256);
     const file = JSON.parse(text) as BackupFile;
-    expect(file.formatVersion).toBe(2);
+    expect(file.formatVersion).toBe(3);
     expect(file.counts.departure_alarm).toBe(1);
     expect(file.tables.departure_alarm.map((r) => r.id)).toEqual(["a1"]);
     expect(text).not.toContain("alarm_event");
@@ -60,7 +60,7 @@ describe("T-59, D-090: o formato 1 continua lendo", () => {
 
     const parsed = await parseBackup(text, deps);
     if (!parsed.ok) throw new Error(`${parsed.problem}: ${parsed.detail}`);
-    expect(parsed.backup.formatVersion).toBe(2);
+    expect(parsed.backup.formatVersion).toBe(3);
     expect(parsed.backup.tables.departure_alarm).toEqual([]);
     expect(parsed.backup.counts.departure_alarm).toBe(0);
     // O resto do arquivo fica como estava.
@@ -80,7 +80,7 @@ describe("T-59, D-090: o formato 1 continua lendo", () => {
     expect(await parseBackup(text, deps)).toMatchObject({ ok: false, problem: "checksum_mismatch" });
   });
 
-  it("formatVersion 3 (mais nova que o app) → format_newer", () => {
-    expect(migrateBackup({ formatVersion: 3 })).toMatchObject({ ok: false, problem: "format_newer" });
+  it("formatVersion 4 (mais nova que o app) → format_newer", () => {
+    expect(migrateBackup({ formatVersion: 4 })).toMatchObject({ ok: false, problem: "format_newer" });
   });
 });

@@ -1,11 +1,13 @@
 /**
  * Regra de resolução da origem no TL-04 (D-175).
  *
+ * 0. Com posição válida (E-07, 7a): o lugar com localização a até 150 m, se tem trajeto ao destino, vence a escolha salva.
  * 1. Escolha salva tem precedência (chave goto_last_origin).
  * 2. Sem escolha salva: lugar chamado 'Casa' (case-insensitive) vence.
  * 3. Sem 'Casa': primeiro trajeto que chega ao destino (ordenado por opções / criação).
  * 4. Sem nenhum trajeto para o destino: fallback para editor (kind: "no_route").
  */
+import { nearestPlace, type PositionFix } from "@notebus/domain";
 import type { OptionRow, PlaceRow, RouteRow } from "../db/places";
 
 export interface ResolveOriginInput {
@@ -14,6 +16,8 @@ export interface ResolveOriginInput {
   routes: readonly RouteRow[];
   options?: readonly OptionRow[];
   lastOriginMap?: Record<string, string>;
+  /** Posição do aparelho e o "agora" (ms); o lugar perto vale antes da escolha salva (E-07 §3.4, T-66). */
+  position?: { fix: PositionFix | null; nowMs: number };
 }
 
 export type ResolveOriginResult =
@@ -28,7 +32,7 @@ export type ResolveOriginResult =
     };
 
 export function resolveGotoOrigin(input: ResolveOriginInput): ResolveOriginResult {
-  const { destinationPlaceId, places, routes, options, lastOriginMap = {} } = input;
+  const { destinationPlaceId, places, routes, options, lastOriginMap = {}, position } = input;
 
   const activePlaces = places.filter((p) => p.deletedAt === null);
   const activeRoutesToDest = routes.filter(
@@ -45,6 +49,15 @@ export function resolveGotoOrigin(input: ResolveOriginInput): ResolveOriginResul
   // Sem trajeto ativo com opções até o destino -> fallback para editor (no_route)
   if (validRoutesToDest.length === 0) {
     return { kind: "no_route" };
+  }
+
+  // 0. O lugar mais perto da posição vale se tem trajeto ao destino; senão não passa para o segundo mais perto
+  if (position) {
+    const nearPlace = nearestPlace(position.fix, position.nowMs, activePlaces);
+    const route = nearPlace && nearPlace.id !== destinationPlaceId ? validRoutesToDest.find((r) => r.originPlaceId === nearPlace.id) : undefined;
+    if (nearPlace && route) {
+      return { kind: "resolved", originPlaceId: nearPlace.id, originPlace: nearPlace, route };
+    }
   }
 
   // 1. A escolha salva vale só se existe trajeto ativo dessa origem ao destino com pelo menos uma opção

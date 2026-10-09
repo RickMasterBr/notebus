@@ -144,15 +144,23 @@ export function evaluatePassages(
  * Com uma viagem em curso da mesma linha (D-071), só contam as passagens dessa viagem nesse dia de serviço.
  */
 export function matchObservation(
-  fact: Pick<ObservationFact, "stopId" | "lineId" | "observedAt" | "observedEndAt">,
+  fact: Pick<ObservationFact, "stopId" | "lineId" | "observedAt" | "observedEndAt"> & Partial<Pick<ObservationFact, "kind" | "mode">>,
   network: MatchNetwork,
   ride: OngoingRide | null = null,
   config: DomainConfig = DOMAIN_CONFIG,
 ): MatchResult {
   const evaluated = evaluatePassages(fact, network, ride, config);
-  const candidates = evaluated.filter((c) => c.deviation >= -config.matchEarlyMinutes - EPS && c.deviation <= config.matchLateMinutes + EPS);
+  const inWindow = (c: MatchCandidate) => c.deviation >= -config.matchEarlyMinutes - EPS && c.deviation <= config.matchLateMinutes + EPS;
+  let pool = evaluated;
+  // B-01: embarque ao vivo nunca casa com o fim do percurso quando, no mesmo ponto e na janela, existe passagem que parte dali.
+  if (fact.kind === "boarded" && fact.mode === "live") {
+    const lastPositionOf = new Map(network.trips.map((t) => [t.id, t.lastPosition]));
+    const isEnd = (c: MatchCandidate) => c.position === lastPositionOf.get(c.tripId);
+    if (evaluated.some((c) => inWindow(c) && !isEnd(c))) pool = evaluated.filter((c) => !isEnd(c));
+  }
+  const candidates = pool.filter(inWindow);
   const status = candidates.length === 1 ? "auto" : candidates.length > 1 ? "ambiguous" : "orphan";
-  return { status, candidates, nearest: evaluated[0] ?? null };
+  return { status, candidates, nearest: pool[0] ?? null };
 }
 
 /** A dedução de um registro (D-085): o que o app conclui do fato. Recalculável a qualquer momento. */

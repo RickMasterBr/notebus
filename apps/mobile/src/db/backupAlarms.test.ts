@@ -30,7 +30,7 @@ async function importInto(dst: Awaited<ReturnType<typeof fixture>>, text: string
 describe("T-59: avisos no backup (formatVersion 2)", () => {
   it("(a) exportar com avisos e importar num banco vazio com a rede de teste: o aviso volta igual; o Desfazer o tira", async () => {
     const text = await exportText(true);
-    expect((JSON.parse(text) as BackupFile).formatVersion).toBe(2);
+    expect((JSON.parse(text) as BackupFile).formatVersion).toBe(3);
 
     const dst = await fixture();
     expect(rows(dst, "SELECT id FROM departure_alarm")).toEqual([]);

@@ -32,7 +32,6 @@ import {
   applySpread,
   closeCommit,
   dayHint,
-  draftInterval,
   formatDraftTime,
   formatMatchPreview,
   initDraft,
@@ -41,6 +40,7 @@ import {
   timeLabelWithDay,
   validateDraft,
 } from "../data/recordDraft";
+import { recordPreviewFact } from "../data/recordPreviewFact";
 import type { ObservationRow } from "../data/registro";
 import { dateNumbers, hhmm, weekdayName } from "../data/testClockPicker";
 import { useNowTick } from "../data/useNowTick";
@@ -231,12 +231,7 @@ function RecordSheetLoaded({
   const preview = useMemo(() => {
     if (!scheduleData) return null;
     const network = matchNetworkOf(scheduleData);
-    const draftIntervalBounds = draftInterval(draft);
-    const draftFact = {
-      stopId: initialRow.stopId,
-      lineId: initialRow.lineId,
-      ...draftIntervalBounds,
-    };
+    const draftFact = recordPreviewFact(draft, initialRow);
     const ongoing = ongoingOf(initialRow, registro.rides, registro.observations);
     return previewMatch(draftFact, network, ongoing);
   }, [scheduleData, draft, initialRow, registro.rides, registro.observations]);

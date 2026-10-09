@@ -56,6 +56,23 @@ export interface DomainConfig {
   alarmWindowSize: number;
   alarmHorizonDays: number;
   alarmSnoozeMinutes: number;
+  /** Localização (E-07 §3.4): o ponto sugerido exige precisão até `suggestMaxAccuracyM` e posição de até `suggestMaxAgeMs`. */
+  suggestMaxAccuracyM: number;
+  suggestMaxAgeMs: number;
+  /** "Perto": raio em metros até o ponto ou o lugar. */
+  nearRadiusM: number;
+  /** Pontos frente a frente: a menos disto um do outro, vale a rotina. */
+  facingStopsM: number;
+  /** Guardar a localização do ponto (T-69): precisão máxima de cada registro, distância máxima à mediana e mínimo de registros. */
+  guardMaxAccuracyM: number;
+  guardMaxFromMedianM: number;
+  guardMinRecords: number;
+  /** Marcar à mão "usar minha localização agora" (T-70): precisão máxima. */
+  manualMaxAccuracyM: number;
+  /** Mais longe que isto do centro de Leiria o app pergunta antes de guardar (T-70). */
+  farFromLeiriaM: number;
+  /** Centro aproximado de Leiria (a conferir pela coordenação). */
+  leiriaCenter: { lat: number; lon: number };
 }
 
 export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
@@ -88,4 +105,14 @@ export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
   alarmWindowSize: 50,
   alarmHorizonDays: 14,
   alarmSnoozeMinutes: 5,
+  suggestMaxAccuracyM: 100,
+  suggestMaxAgeMs: 120_000,
+  nearRadiusM: 150,
+  facingStopsM: 25,
+  guardMaxAccuracyM: 30,
+  guardMaxFromMedianM: 40,
+  guardMinRecords: 3,
+  manualMaxAccuracyM: 50,
+  farFromLeiriaM: 50_000,
+  leiriaCenter: Object.freeze({ lat: 39.7437, lon: -8.8071 }),
 });
