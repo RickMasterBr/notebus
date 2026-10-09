@@ -9,6 +9,7 @@ import {
   type NativeSyntheticEvent,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -47,13 +48,17 @@ import type { MapOpening } from "@notebus/domain";
 /** A faixa vermelha cobre 28 pt no topo (mais safe area). */
 const BANNER_BAND = 28;
 
-/** Recuo de câmera para a folha pequena (altura de fallback de 120 pt). */
-const SMALL_SHEET_INSET = 120;
+/** Recuo inferior da câmera para a folha do Início (HomeSheet, 40% da tela conforme D-150 / bloco 5). */
+const HOME_SHEET_CAMERA_INSET_RATIO = 0.4;
+
+/** Recuo inferior da câmera para a folha do Ponto (StopSheet, limite de 40% em SMALL_MAX_SHARE). */
+const STOP_SHEET_CAMERA_INSET_RATIO = 0.4;
 
 export function MapBackdrop() {
   const theme = useTheme();
   const { colors } = theme;
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
   const { state } = useSheets();
   const { chosen } = useTestClock();
   const now = useNow();
@@ -62,6 +67,9 @@ export function MapBackdrop() {
   const permission = usePositionPermission();
   const places = usePlaces();
   const reduceMotion = useReduceMotion();
+
+  const homeSheetInset = Math.round(window.height * HOME_SHEET_CAMERA_INSET_RATIO);
+  const stopSheetInset = Math.round(window.height * STOP_SHEET_CAMERA_INSET_RATIO);
 
   const cameraRef = useRef<CameraRef>(null);
   const [opening, setOpening] = useState<MapOpening | null>(null);
@@ -207,12 +215,12 @@ export function MapBackdrop() {
       cameraRef.current?.flyTo({
         center: [fix.lon, fix.lat],
         zoom: 16,
-        padding: { bottom: SMALL_SHEET_INSET },
+        padding: { bottom: homeSheetInset },
         duration: reduceMotion ? 0 : 1200,
       });
       void store.warm();
     }
-  }, [store, toast, reduceMotion]);
+  }, [store, toast, reduceMotion, homeSheetInset]);
 
   if (failed || opening === null) {
     return null;
@@ -245,7 +253,7 @@ export function MapBackdrop() {
             initialViewState={{
               center: [opening.point.lon, opening.point.lat],
               zoom: 14,
-              padding: { bottom: SMALL_SHEET_INSET },
+              padding: { bottom: homeSheetInset },
             }}
             maxZoom={16}
           />
