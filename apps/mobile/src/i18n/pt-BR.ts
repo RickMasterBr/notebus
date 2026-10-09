@@ -491,6 +491,9 @@ export const ptBR = {
   "alarm.focus.step3": "Toque em Apps", // provisório
   "alarm.focus.step4": "Adicione o NoteBus à lista de permitidos", // provisório
   "alarm.focus.done": "Entendi", // provisório
+  "map.locate.a11y": "Onde estou", // provisório
+  "map.permission_denied": "A localização está desligada para o NoteBus. Ligue em Ajustes do iPhone.", // provisório
+  "map.no_fix": "Ainda sem sinal de localização. Tente de novo em instantes.", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;

@@ -192,6 +192,42 @@ export function WalkingGlyph({ color, size = 18 }: { color: string; size?: numbe
   );
 }
 
+/** Glifo de alvo/mira (20 px) para o botão 'onde estou' (sem emoji). */
+export function TargetGlyph({ color, size = 20 }: { color: string; size?: number }) {
+  const ringSize = size * 0.7;
+  const tickSize = size * 0.2;
+  const tickThickness = 1.8;
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }} {...HIDDEN}>
+      <View
+        style={{
+          width: ringSize,
+          height: ringSize,
+          borderRadius: ringSize / 2,
+          borderWidth: 1.8,
+          borderColor: color,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <View
+          style={{
+            width: size * 0.22,
+            height: size * 0.22,
+            borderRadius: (size * 0.22) / 2,
+            backgroundColor: color,
+          }}
+        />
+      </View>
+      <View style={{ position: "absolute", top: 0, width: tickThickness, height: tickSize, backgroundColor: color }} />
+      <View style={{ position: "absolute", bottom: 0, width: tickThickness, height: tickSize, backgroundColor: color }} />
+      <View style={{ position: "absolute", left: 0, height: tickThickness, width: tickSize, backgroundColor: color }} />
+      <View style={{ position: "absolute", right: 0, height: tickThickness, width: tickSize, backgroundColor: color }} />
+    </View>
+  );
+}
+
+
 const styles = StyleSheet.create({
   plus: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
   plusBar: { position: "absolute", borderRadius: 1.2 },

@@ -4,7 +4,7 @@
  */
 import { eq } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import { uuidv7 } from "@notebus/domain";
+import { uuidv7, validateLocation, type GeoPoint } from "@notebus/domain";
 import { realNow } from "../data/clock";
 import { selectLive } from "./query";
 import { dataset, setting } from "./schema";
@@ -51,3 +51,53 @@ export async function markAlarmFocusHintShown(db: AnyDb, now = realNow()): Promi
     .values({ id: uuidv7(now), createdAt: now, updatedAt: now, source: "user", key: ALARM_FOCUS_HINT_SHOWN, value: true })
     .onConflictDoNothing();
 }
+
+export const LAST_MAP_POSITION = "last_map_position";
+export const LAST_MAP_POSITION_KEY = "last_map_position";
+
+/** Lê a última posição conhecida do mapa da tabela setting. Valor inválido ou ausente vale null. */
+export async function readLastMapPosition(db: AnyDb): Promise<GeoPoint | null> {
+  const rows = await selectLive(db, setting, eq(setting.key, LAST_MAP_POSITION)).limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  let raw: unknown = row.value;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const { lat, lon } = raw as Record<string, unknown>;
+  if (typeof lat !== "number" || typeof lon !== "number" || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return null;
+  }
+  const point: GeoPoint = { lat, lon };
+  if (!validateLocation(point, null, "suggested").ok) return null;
+  return point;
+}
+
+/** Grava a última posição vista do mapa na tabela setting (chave last_map_position). */
+export async function writeLastMapPosition(db: AnyDb, point: GeoPoint, now = realNow()): Promise<void> {
+  if (!validateLocation(point, null, "suggested").ok) return;
+  await db
+    .insert(setting)
+    .values({
+      id: uuidv7(now),
+      createdAt: now,
+      updatedAt: now,
+      source: "user",
+      key: LAST_MAP_POSITION,
+      value: { lat: point.lat, lon: point.lon },
+    })
+    .onConflictDoUpdate({
+      target: setting.key,
+      set: {
+        value: { lat: point.lat, lon: point.lon },
+        updatedAt: now,
+        deletedAt: null,
+      },
+    });
+}
+
