@@ -11,7 +11,7 @@
 import {
   BACKUP_SETTING_KEYS,
   BACKUP_TABLES,
-  BACKUP_V2_COLUMNS,
+  BACKUP_V3_COLUMNS,
   type BackupFile,
   type BackupInput,
   type BackupRow,
@@ -30,7 +30,7 @@ export const LAST_EXPORT_AT = "last_export_at";
 export const BACKUP_REMINDER_SNOOZED_UNTIL = "backup_reminder_snoozed_until";
 
 const q = (name: string) => `\`${name}\``;
-const columnsOf = (table: BackupTableName) => BACKUP_V2_COLUMNS[table] as readonly string[];
+const columnsOf = (table: BackupTableName) => BACKUP_V3_COLUMNS[table] as readonly string[];
 const selectColumns = (table: BackupTableName) => columnsOf(table).map(q).join(", ");
 
 async function all(db: ImportDb, sql: string, params: (string | number | null)[] = []): Promise<Record<string, unknown>[]> {

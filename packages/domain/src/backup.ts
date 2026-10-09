@@ -2,8 +2,9 @@
  * Backup (E-03 §5, D-082, D-088, D-089, D-090): o formato do arquivo, a validação, a junção, os órfãos e o lembrete.
  * Puro: sem banco, sem `expo-*`, sem React. O SHA-256 entra por parâmetro (`expo-crypto` no app, `node:crypto` nos testes).
  *
- * **O formato é contrato (D-090).** O que está neste arquivo (tabelas, colunas e a ordem delas) é a `formatVersion` 2;
- * `BACKUP_V1_COLUMNS` é o contrato congelado da 1 e nunca muda (a 2 só acrescenta `departure_alarm`, D-104).
+ * **O formato é contrato (D-090).** O que está neste arquivo (tabelas, colunas e a ordem delas) é a `formatVersion` 3;
+ * `BACKUP_V1_COLUMNS` e `BACKUP_V2_COLUMNS` são contratos congelados e nunca mudam (a 2 acrescenta `departure_alarm`, D-104;
+ * a 3 acrescenta `stop.location_source`, E-07).
  * Mudou uma coluna ou uma tabela? Sobe `BACKUP_FORMAT_VERSION`, acrescenta a conversão em `UPGRADES` e guarda um
  * arquivo de exemplo novo em `fixtures/backup/`. O app sempre lê todas as versões anteriores.
  *
@@ -14,7 +15,7 @@
  */
 
 export const BACKUP_FORMAT = "notebus-backup";
-export const BACKUP_FORMAT_VERSION = 2;
+export const BACKUP_FORMAT_VERSION = 3;
 
 /** Valor de uma coluna como o SQLite guarda (JSON e booleanos já vêm como texto e 0/1). */
 export type BackupValue = string | number | null;
@@ -61,8 +62,8 @@ export const BACKUP_V1_COLUMNS = {
 } as const satisfies Record<string, readonly string[]>;
 
 /**
- * Tabelas e colunas da `formatVersion` 2 (a atual): as da 1 mais `departure_alarm` (E-06, D-104). Iguais ao esquema (um
- * teste do app confere coluna por coluna). `alarm_event` não vai: o histórico dos avisos é do aparelho.
+ * Tabelas e colunas da `formatVersion` 2: as da 1 mais `departure_alarm` (E-06, D-104). Contrato congelado: não muda
+ * nunca. `alarm_event` não vai: o histórico dos avisos é do aparelho.
  */
 export const BACKUP_V2_COLUMNS = {
   ...BACKUP_V1_COLUMNS,
@@ -71,11 +72,20 @@ export const BACKUP_V2_COLUMNS = {
   ],
 } as const satisfies Record<string, readonly string[]>;
 
-export type BackupTableName = keyof typeof BACKUP_V2_COLUMNS;
-export const BACKUP_TABLES = Object.keys(BACKUP_V2_COLUMNS) as BackupTableName[];
+/**
+ * Tabelas e colunas da `formatVersion` 3 (a atual): as da 2 mais `stop.location_source` (E-07, depois de `lon`, na ordem do
+ * esquema). Iguais ao esquema (um teste do app confere coluna por coluna).
+ */
+export const BACKUP_V3_COLUMNS = {
+  ...BACKUP_V2_COLUMNS,
+  stop: [...OFFICIAL, "network_id", "name", "aliases", "external_id", "lat", "lon", "location_source", "note"],
+} as const satisfies Record<string, readonly string[]>;
+
+export type BackupTableName = keyof typeof BACKUP_V3_COLUMNS;
+export const BACKUP_TABLES = Object.keys(BACKUP_V3_COLUMNS) as BackupTableName[];
 
 /** Tabelas que podem ter dados oficiais editados por você (`source = official_edited`). */
-export const OFFICIAL_EDIT_TABLES = BACKUP_TABLES.filter((t) => BACKUP_V2_COLUMNS[t].includes("official_key" as never));
+export const OFFICIAL_EDIT_TABLES = BACKUP_TABLES.filter((t) => BACKUP_V3_COLUMNS[t].includes("official_key" as never));
 
 /**
  * Chaves do `setting` que vão no backup: só as **suas preferências**. Estado do aparelho ou da sessão não vai nem volta
@@ -126,7 +136,7 @@ export interface BackupInput {
 
 /** Linha com as colunas do contrato, nesta ordem. Coluna que faltar vira `null`; coluna a mais é recusada. */
 function orderRow(table: BackupTableName, row: BackupRow): BackupRow {
-  const columns = BACKUP_V2_COLUMNS[table] as readonly string[];
+  const columns = BACKUP_V3_COLUMNS[table] as readonly string[];
   const extra = Object.keys(row).filter((k) => !columns.includes(k));
   if (extra.length > 0) throw new Error(`backup: coluna fora do formato ${BACKUP_FORMAT_VERSION} em ${table}: ${extra.join(", ")}`);
   const out: BackupRow = {};
@@ -259,9 +269,18 @@ export async function parseBackup(text: string, deps: ParseDeps): Promise<Backup
   return { ok: true, backup };
 }
 
+/** Acrescenta uma coluna vazia logo depois de `after`, mantendo a ordem do contrato (a ordem das chaves é conferida). */
+function withColumnAfter(row: unknown, after: string, column: string): unknown {
+  if (!isObject(row)) return row;
+  return Object.fromEntries(Object.entries(row).flatMap(([key, value]) => (key === after ? [[key, value], [column, null]] : [[key, value]])));
+}
+
+const mapRows = (rows: unknown, fn: (row: unknown) => unknown): unknown => (Array.isArray(rows) ? rows.map(fn) : rows);
+
 /**
  * Conversões de versões antigas até a atual: `from` → função que devolve a versão seguinte. A 1 → 2 acrescenta a tabela
- * `departure_alarm` vazia (o formato 1 não tinha avisos, D-104). Não mexe no objeto lido: devolve cópias.
+ * `departure_alarm` vazia (o formato 1 não tinha avisos, D-104). A 2 → 3 acrescenta `location_source` vazio em cada ponto,
+ * inclusive nos oficiais editados (E-07). Não mexe no objeto lido: devolve cópias.
  */
 const UPGRADES: Record<number, (file: Record<string, unknown>) => Record<string, unknown>> = {
   1: (file) => ({
@@ -270,6 +289,20 @@ const UPGRADES: Record<number, (file: Record<string, unknown>) => Record<string,
     counts: { ...(isObject(file.counts) ? file.counts : {}), departure_alarm: 0 },
     tables: { ...(isObject(file.tables) ? file.tables : {}), departure_alarm: [] },
   }),
+  2: (file) => {
+    const tables = isObject(file.tables) ? file.tables : {};
+    const edits = isObject(tables.official_edits) ? tables.official_edits : {};
+    const addToStop = (row: unknown) => withColumnAfter(row, "lon", "location_source");
+    return {
+      ...file,
+      formatVersion: 3,
+      tables: {
+        ...tables,
+        stop: mapRows(tables.stop, addToStop),
+        official_edits: { ...edits, ...("stop" in edits ? { stop: mapRows(edits.stop, addToStop) } : {}) },
+      },
+    };
+  },
 };
 
 /**
@@ -300,7 +333,7 @@ function shapeProblem(b: BackupFile): string | null {
   if (!isObject(b.counts) || !isObject(b.tables) || !isObject(b.tables.official_edits)) return "tabelas ausentes";
   const checkRows = (table: BackupTableName, rows: unknown): string | null => {
     if (!Array.isArray(rows)) return `${table}: não é lista`;
-    const columns = BACKUP_V2_COLUMNS[table] as readonly string[];
+    const columns = BACKUP_V3_COLUMNS[table] as readonly string[];
     for (const row of rows) {
       if (!isObject(row) || typeof row.id !== "string" || typeof row.updated_at !== "number") return `${table}: linha sem id ou updated_at`;
       const keys = Object.keys(row);

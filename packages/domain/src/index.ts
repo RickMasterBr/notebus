@@ -119,6 +119,7 @@ export {
   BACKUP_TABLES,
   BACKUP_V1_COLUMNS,
   BACKUP_V2_COLUMNS,
+  BACKUP_V3_COLUMNS,
   OFFICIAL_EDIT_TABLES,
   backupFileName,
   backupReminder,
