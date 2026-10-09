@@ -58,8 +58,9 @@ export const LAST_MAP_POSITION_KEY = "last_map_position";
 /** Lê a última posição conhecida do mapa da tabela setting. Valor inválido ou ausente vale null. */
 export async function readLastMapPosition(db: AnyDb): Promise<GeoPoint | null> {
   const rows = await selectLive(db, setting, eq(setting.key, LAST_MAP_POSITION)).limit(1);
-  if (rows.length === 0) return null;
-  let raw: unknown = rows[0].value;
+  const row = rows[0];
+  if (!row) return null;
+  let raw: unknown = row.value;
   if (typeof raw === "string") {
     try {
       raw = JSON.parse(raw);

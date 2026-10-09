@@ -11,6 +11,7 @@ import { useTheme } from "../theme";
 import { ToastHost } from "../ui/ToastHost";
 import { SettingsButton } from "./SettingsButton";
 import { EmptyHome } from "./EmptyHome";
+import { MapBackdrop } from "./MapBackdrop";
 
 export function Home() {
   const { colors } = useTheme();
@@ -26,6 +27,7 @@ export function Home() {
   return (
     <SheetsProvider>
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        {!isEmpty ? <MapBackdrop /> : null}
         <SettingsButton />
         <SheetHost customBase={isEmpty ? <EmptyHome /> : undefined} />
         {/* O toast fica por último: acima das folhas, sem entrar no layout delas. */}

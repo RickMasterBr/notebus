@@ -16,6 +16,9 @@ import type { PermissionState } from "./devicePosition";
 
 export const MAP_START_GPS_WAIT_MS = 1_500;
 
+export const MAP_STYLE_LIGHT = "https://tiles.openfreemap.org/styles/liberty";
+export const MAP_STYLE_DARK = "https://tiles.openfreemap.org/styles/dark";
+
 export interface MapStartInput {
   permission: PermissionState;
   getFix: () => PositionFix | null;
