@@ -377,6 +377,7 @@ export function MapBackdrop() {
             cluster={true}
             clusterRadius={50}
             clusterMaxZoom={13}
+            hitbox={{ top: 12, right: 12, bottom: 12, left: 12 }}
             onPress={handleSourcePress}
           >
             <Layer
