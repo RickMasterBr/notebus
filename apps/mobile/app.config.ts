@@ -20,6 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig =>
       plugins: [
         ...(config.plugins ?? []),
         "expo-notifications",
+        "@maplibre/maplibre-react-native",
         [
           "expo-location",
           {
