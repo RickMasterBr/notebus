@@ -130,11 +130,28 @@ function nowServiceMinute(now: number, serviceDate: string): number {
   return clock.minute + offset;
 }
 
+/** Um candidato com a conta da chegada ainda sem o tempo a pé depois da descida (a harmonização de `gotoCards` usa). */
+interface RawBusCandidate {
+  candidate: BusCandidate;
+  boardCenter: number;
+  boardPosition: number;
+  alightPosition: number;
+  alightStopId: string;
+  /** Chegada e fim da faixa na descida, sem somar o tempo a pé depois dela. */
+  arrive: number;
+  until: number;
+  walkAfterAlight: WalkRange;
+}
+
 /**
  * As próximas viagens viáveis de uma opção de ônibus, em ordem de horário no embarque (no máximo `tripsPerOption`).
  * Lança erro se a descida não vem depois do embarque (`checkBusOption`).
  */
 export function busCandidates(option: BusOption, input: GotoInput): BusCandidate[] {
+  return rawBusCandidates(option, input).map((r) => r.candidate);
+}
+
+function rawBusCandidates(option: BusOption, input: GotoInput): RawBusCandidate[] {
   const config = input.config ?? DOMAIN_CONFIG;
   const problem = checkBusOption(
     { patternId: option.pattern.id, position: option.boardPosition },
@@ -156,7 +173,7 @@ export function busCandidates(option: BusOption, input: GotoInput): BusCandidate
     return expectedTime(base, input.records, { target, now: input.now, config });
   };
 
-  const found: { board: ExpectedTime; candidate: BusCandidate }[] = [];
+  const found: RawBusCandidate[] = [];
   for (const trip of input.trips) {
     if (trip.patternId !== option.pattern.id) continue;
     const board = expectedAt(trip, option.boardPosition, boardStop.stopId);
@@ -170,7 +187,13 @@ export function busCandidates(option: BusOption, input: GotoInput): BusCandidate
     const arrive = segment === null ? alight.center : board.center + segment;
     const until = segment === null ? alight.rangeEnd : board.rangeEnd + segment;
     found.push({
-      board,
+      boardCenter: board.center,
+      boardPosition: option.boardPosition,
+      alightPosition: option.alightPosition,
+      alightStopId: alightStop.stopId,
+      arrive,
+      until,
+      walkAfterAlight: option.walkAfterAlight,
       candidate: {
         kind: "bus",
         optionId: option.id,
@@ -184,8 +207,33 @@ export function busCandidates(option: BusOption, input: GotoInput): BusCandidate
       },
     });
   }
-  found.sort((a, b) => a.board.center - b.board.center);
-  return found.slice(0, config.tripsPerOption).map((f) => f.candidate);
+  found.sort((a, b) => a.boardCenter - b.boardCenter);
+  return found.slice(0, config.tripsPerOption);
+}
+
+/**
+ * B-02 (D-178): a mesma viagem descendo no mesmo ponto chega uma vez só. Entre as opções do grupo (`tripId`, posição e
+ * `stopId` da descida) vale a conta da que embarca mais perto da descida; cada uma mantém o seu "sair às" e soma o seu
+ * tempo a pé depois da descida. Grupo de uma opção só não muda.
+ */
+function harmonizeArrivals(raws: readonly RawBusCandidate[]): BusCandidate[] {
+  const reference = new Map<string, RawBusCandidate>();
+  const keyOf = (r: RawBusCandidate) => `${r.candidate.tripId}|${r.alightPosition}|${r.alightStopId}`;
+  for (const r of raws) {
+    const best = reference.get(keyOf(r));
+    if (!best || r.boardPosition > best.boardPosition) reference.set(keyOf(r), r);
+  }
+  return raws.map((r) => {
+    const ref = reference.get(keyOf(r))!;
+    if (ref === r) return r.candidate;
+    const after = walkTimes(r.walkAfterAlight);
+    return {
+      ...r.candidate,
+      arriveAt: displayCenter(ref.arrive + after.mid),
+      until: displayCenter(ref.until + after.until),
+      usedRideTimes: ref.candidate.usedRideTimes,
+    };
+  });
 }
 
 // ─── B4 e B5. Ordenação e lista final ───────────────────────────────────────
@@ -197,8 +245,7 @@ export function busCandidates(option: BusOption, input: GotoInput): BusCandidate
  */
 export function gotoCards(input: GotoInput): GotoCandidate[] {
   const config = input.config ?? DOMAIN_CONFIG;
-  const buses = input.busOptions
-    .flatMap((o) => busCandidates(o, input))
+  const buses = harmonizeArrivals(input.busOptions.flatMap((o) => rawBusCandidates(o, input)))
     .sort((a, b) => a.arriveAt - b.arriveAt || b.leaveAt - a.leaveAt);
   if (!input.walk) return buses.slice(0, config.maxCards);
 
