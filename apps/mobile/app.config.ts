@@ -24,7 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig =>
           "expo-location",
           {
             locationWhenInUsePermission:
-              "O NoteBus usa a sua localização apenas para guardar onde fica este lugar.",
+              "O NoteBus usa a sua localização para sugerir o ponto onde você está e guardar onde ficam os seus lugares e pontos.",
           },
         ],
       ],
