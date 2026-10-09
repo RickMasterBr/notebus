@@ -48,6 +48,7 @@ import { getSharedDb } from "../db/sharedDb";
 import { readLastMapPosition, writeLastMapPosition } from "../db/appState";
 import { t } from "../i18n";
 import { useSheets } from "../sheets/SheetsContext";
+import { mapTouchPolicy } from "../sheets/mapTouchPolicy";
 import { useReduceMotion } from "../sheets/useReduceMotion";
 import { elevation, minTouch, radius, space, useTheme } from "../theme";
 import { TargetGlyph } from "../ui/Glyphs";
@@ -67,7 +68,7 @@ export function MapBackdrop() {
   const { colors } = theme;
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
-  const { state, dispatch } = useSheets();
+  const { state, dispatch, collapseHome } = useSheets();
   const { chosen } = useTestClock();
   const now = useNow();
   const toast = useToast();
@@ -260,9 +261,25 @@ export function MapBackdrop() {
     }
   }, [store, toast, reduceMotion, homeSheetInset]);
 
+  // D-180: toque simples no mapa fora de pontos leva a gaveta ao pequeno no detent médio
+  const handleMapPress = useCallback(() => {
+    if (state.stack.length === 1 && mapTouchPolicy(state.detent).mapTapCollapses) {
+      collapseHome();
+    }
+  }, [state.stack.length, state.detent, collapseHome]);
+
   // Ao tocar num ponto ou grupo no mapa (Item 3)
   const handleSourcePress = useCallback(
     async (e: NativeSyntheticEvent<PressEventWithFeatures>) => {
+      // D-180: com a gaveta no médio, qualquer toque num ponto ou cluster apenas recolhe a gaveta ao pequeno
+      const policy = mapTouchPolicy(state.detent);
+      if (state.stack.length === 1 && !policy.pointTapOpensSheet) {
+        if (policy.mapTapCollapses) {
+          collapseHome();
+        }
+        return;
+      }
+
       const feature = e.nativeEvent?.features?.[0];
       if (!feature) return;
 
@@ -332,7 +349,7 @@ export function MapBackdrop() {
         dispatch({ type: "push", sheet: { kind: "stop", stopId, name } });
       }
     },
-    [state.stack, dispatch, reduceMotion, stopSheetInset],
+    [state.stack, state.detent, collapseHome, dispatch, reduceMotion, stopSheetInset],
   );
 
   if (failed || opening === null) {
@@ -360,6 +377,7 @@ export function MapBackdrop() {
           logo={false}
           onDidFailLoadingMap={() => setFailed(true)}
           onRegionDidChange={handleRegionDidChange}
+          onPress={handleMapPress}
         >
           <Camera
             ref={cameraRef}

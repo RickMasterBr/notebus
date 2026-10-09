@@ -8,6 +8,10 @@ import { type SheetAction, type SheetContent, type SheetStackState, initialSheet
 interface SheetsValue {
   state: SheetStackState;
   dispatch: Dispatch<SheetAction>;
+  /** Pede à folha do Início (HomeSheet) para recolher ao detent pequeno (D-145, D-180). */
+  collapseHome: () => void;
+  /** Registra a função de recolhimento da HomeSheet quando ela está montada. */
+  registerHomeCollapse: (callback: () => void) => () => void;
 }
 
 /** Quem pediu a escolha de um ponto (a folha Registrar, ao tocar em "Trocar"); a Busca em modo `pick` chama de volta. */
@@ -77,7 +81,24 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
     return onPendingIntent(consume);
   }, [dispatch]);
 
-  const value = useMemo(() => ({ state, dispatch }), [state, dispatch]);
+  // Callback para recolher a HomeSheet ao detent pequeno (D-145, D-180)
+  const homeCollapseRef = useRef<(() => void) | null>(null);
+  const registerHomeCollapse = useCallback((callback: () => void) => {
+    homeCollapseRef.current = callback;
+    return () => {
+      if (homeCollapseRef.current === callback) {
+        homeCollapseRef.current = null;
+      }
+    };
+  }, []);
+  const collapseHome = useCallback(() => {
+    homeCollapseRef.current?.();
+  }, []);
+
+  const value = useMemo(
+    () => ({ state, dispatch, collapseHome, registerHomeCollapse }),
+    [state, dispatch, collapseHome, registerHomeCollapse],
+  );
   const pick = useRef<StopPick | null>(null);
   const stopPick = useMemo<StopPickValue>(
     () => ({
