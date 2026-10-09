@@ -337,17 +337,17 @@ export function MapBackdrop() {
       const lat = coords[1];
       if (typeof lon !== "number" || typeof lat !== "number") return;
 
-      cameraRef.current?.flyTo({
-        center: [lon, lat],
-        padding: { bottom: stopSheetInset },
-        duration: reduceMotion ? 0 : 800,
-      });
-
       if (top?.kind === "stop") {
         dispatch({ type: "replace", sheet: { kind: "stop", stopId, name } });
       } else {
         dispatch({ type: "push", sheet: { kind: "stop", stopId, name } });
       }
+
+      cameraRef.current?.flyTo({
+        center: [lon, lat],
+        padding: { bottom: stopSheetInset },
+        duration: reduceMotion ? 0 : 800,
+      });
     },
     [state.stack, state.detent, collapseHome, dispatch, reduceMotion, stopSheetInset],
   );
