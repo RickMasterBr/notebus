@@ -28,7 +28,6 @@ import { type BackupStore, pruneBackups } from "./migrate";
 /** Chaves do `setting` que são estado do aparelho (não vão no backup, D-088 e §5.3). */
 export const LAST_EXPORT_AT = "last_export_at";
 export const BACKUP_REMINDER_SNOOZED_UNTIL = "backup_reminder_snoozed_until";
-export const LAST_MAP_POSITION = "last_map_position";
 
 const q = (name: string) => `\`${name}\``;
 const columnsOf = (table: BackupTableName) => BACKUP_V3_COLUMNS[table] as readonly string[];

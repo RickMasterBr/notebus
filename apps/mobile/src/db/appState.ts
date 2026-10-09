@@ -53,7 +53,6 @@ export async function markAlarmFocusHintShown(db: AnyDb, now = realNow()): Promi
 }
 
 export const LAST_MAP_POSITION = "last_map_position";
-export const LAST_MAP_POSITION_KEY = "last_map_position";
 
 /** Lê a última posição conhecida do mapa da tabela setting. Valor inválido ou ausente vale null. */
 export async function readLastMapPosition(db: AnyDb): Promise<GeoPoint | null> {

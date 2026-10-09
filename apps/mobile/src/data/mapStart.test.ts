@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { DOMAIN_CONFIG, type GeoPoint, type PositionFix } from "@notebus/domain";
 import {
   MAP_START_GPS_WAIT_MS,
+  MAP_START_PLACES_WAIT_MS,
+  canStartMapOpening,
   createMapStarter,
   findCasaPoint,
   resolveMapStart,
@@ -202,6 +204,85 @@ describe("onde o mapa abre (mapStart)", () => {
       expect(findCasaPoint([{ name: "Casa", lat: 39.75, lon: -8.81, deletedAt: 123 }])).toBeNull();
       expect(findCasaPoint([{ name: "Casa", lat: null, lon: -8.81, deletedAt: null }])).toBeNull();
       expect(findCasaPoint([])).toBeNull();
+    });
+  });
+
+  describe("canStartMapOpening (Item 0.1)", () => {
+    it("com placesStatus loading não decide antes de 3000 ms", () => {
+      expect(canStartMapOpening({ placesStatus: "loading", elapsedMs: 0 })).toBe(false);
+      expect(canStartMapOpening({ placesStatus: "loading", elapsedMs: 1500 })).toBe(false);
+      expect(canStartMapOpening({ placesStatus: "loading", elapsedMs: 2999 })).toBe(false);
+    });
+
+    it("com placesStatus loading e teto de segurança de 3000 ms decide sem Casa", () => {
+      expect(canStartMapOpening({ placesStatus: "loading", elapsedMs: 3000 })).toBe(true);
+      expect(canStartMapOpening({ placesStatus: "loading", elapsedMs: 5000 })).toBe(true);
+    });
+
+    it("com placesStatus ready decide", () => {
+      expect(canStartMapOpening({ placesStatus: "ready" })).toBe(true);
+    });
+
+    it("com placesStatus error decide", () => {
+      expect(canStartMapOpening({ placesStatus: "error" })).toBe(true);
+    });
+  });
+
+  describe("espera por lugares no starter (Item 0.1)", () => {
+    it("com placesStatus loading aguarda places ready e decide com Casa", async () => {
+      let placesStatus: "loading" | "ready" = "loading";
+      let homePoint: GeoPoint | null = null;
+      const listeners: (() => void)[] = [];
+
+      const fakeSleep = (timeoutMs: number) =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, timeoutMs);
+        });
+
+      setTimeout(() => {
+        placesStatus = "ready";
+        homePoint = CASA;
+        listeners.forEach((l) => l());
+      }, 20);
+
+      const opening = await resolveMapStart({
+        permission: "denied",
+        getFix: () => null,
+        placesStatus: () => placesStatus,
+        getHome: () => homePoint,
+        subscribePlaces: (fn) => {
+          listeners.push(fn);
+          return () => {};
+        },
+        lastMapPosition: ULTIMA_POSICAO,
+        nowMs: NOW,
+        sleep: fakeSleep,
+      });
+
+      expect(opening.source).toBe("home");
+      expect(opening.point).toEqual(CASA);
+    });
+
+    it("com placesStatus loading até o teto de 3000 ms decide sem Casa", async () => {
+      let waitedMs = 0;
+      const fakeSleep = async (ms: number) => {
+        waitedMs = ms;
+      };
+
+      const opening = await resolveMapStart({
+        permission: "denied",
+        getFix: () => null,
+        placesStatus: () => "loading",
+        getHome: () => null,
+        subscribePlaces: () => () => {},
+        lastMapPosition: ULTIMA_POSICAO,
+        nowMs: NOW,
+        sleep: fakeSleep,
+      });
+
+      expect(waitedMs).toBe(3_000);
+      expect(opening.source).toBe("last");
+      expect(opening.point).toEqual(ULTIMA_POSICAO);
     });
   });
 });
