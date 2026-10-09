@@ -1,0 +1,1 @@
+ALTER TABLE `stop` ADD `location_source` text;

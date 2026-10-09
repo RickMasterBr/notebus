@@ -44,5 +44,15 @@ const v2 = [
   `INSERT INTO alarm_event (id, created_at, updated_at, source, alarm_id, planned_at, service_date, trip_id, state, skip_reason, acted_at, snoozed_to) VALUES ('alarm-ev', ${c}, 'user', 'alarm', ${T}, '2026-10-07', 'trip', 'boarded', NULL, ${T + 5_000}, NULL)`,
 ];
 
+/**
+ * Versão 3 (0002, E-07): as linhas da v2 mais pontos com localização, um com coordenada oficial da rede (`location_source`
+ * vazio) e um com localização guardada pelo uso (`suggested`).
+ */
+const v3 = [
+  ...v2,
+  `INSERT INTO stop (id, created_at, updated_at, source, official_key, network_id, name, lat, lon) VALUES ('stop-c', ${c}, 'official', 'exemplo/stop-c', 'net', 'Largo Inventado', 39.7, -8.8)`,
+  `INSERT INTO stop (id, created_at, updated_at, source, network_id, name, lat, lon, location_source) VALUES ('stop-d', ${c}, 'user', 'net', 'Ponto do Rick', 39.71, -8.81, 'suggested')`,
+];
+
 /** Fixture de cada versão, pelo número da versão (= quantas migrações reais rodaram). */
-export const fixtures: Record<number, readonly string[]> = { 1: v1, 2: v2 };
+export const fixtures: Record<number, readonly string[]> = { 1: v1, 2: v2, 3: v3 };

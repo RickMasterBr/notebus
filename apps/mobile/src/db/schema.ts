@@ -58,8 +58,10 @@ export const stop = sqliteTable("stop", {
   name: text("name").notNull(),
   aliases: text("aliases", { mode: "json" }).$type<string[]>().notNull().default([]),
   externalId: text("external_id"), // o ID do Google, ex.: "3479"
-  lat: real("lat"), // vazio no MVP (P-14)
+  lat: real("lat"), // vazio na rede oficial (P-14); a E-07 preenche pelo uso (D-107)
   lon: real("lon"),
+  /** Como a coordenada chegou: vazio + `lat/lon` preenchidos = coordenada oficial da rede (E-07 §3.2). */
+  locationSource: text("location_source", { enum: ["manual", "suggested"] }),
   note: text("note"),
 });
 
