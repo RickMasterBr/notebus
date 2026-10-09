@@ -90,7 +90,7 @@ function departureOf(trip: TripData | undefined): number | null {
  * (D-071) como em `deduceOne`. Valores de §3.6: 08:13 → viagem das 08:10, +1; 08:08 → −4; 08:03 → órfã (−9).
  */
 export function previewMatch(
-  draftFact: Pick<ObservationFact, "stopId" | "lineId" | "observedAt" | "observedEndAt">,
+  draftFact: Pick<ObservationFact, "stopId" | "lineId" | "observedAt" | "observedEndAt"> & Partial<Pick<ObservationFact, "kind" | "mode">>,
   network: MatchNetwork,
   ride: OngoingRide | null = null,
   config: DomainConfig = DOMAIN_CONFIG,
