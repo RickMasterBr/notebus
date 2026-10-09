@@ -330,6 +330,8 @@ export const ptBR = {
   "place.location.use_now": "Usar minha localização agora",
   "place.location.reason": "O NoteBus usa a sua localização apenas para guardar onde fica este lugar.",
   "place.location.none": "Sem localização definida", // provisório
+  "place.location.imprecise": "A posição está imprecisa ({{m}} m). Tente de novo ao ar livre.", // provisório
+  "place.location.far": "Fica longe de Leiria. Guardar mesmo assim?", // provisório
   "stop.location_offer.title": "Guardar a localização deste ponto", // provisório
   "stop.location_offer.body": "Você registrou aqui {{count}} vezes, sempre no mesmo lugar.", // provisório
   "stop.location_offer.save": "Guardar", // provisório

@@ -6,9 +6,12 @@
  * Se a permissão for recusada ou falhar, devolve null sem bloquear nada.
  */
 
+import { validateLocation } from "@notebus/domain";
+
 export interface LocationCoords {
   lat: number;
   lon: number;
+  accuracyM?: number | null;
 }
 
 export type LocationReader = () => Promise<LocationCoords | null>;
@@ -44,5 +47,20 @@ export async function readNativeLocation(): Promise<LocationCoords | null> {
   return {
     lat: pos.coords.latitude,
     lon: pos.coords.longitude,
+    accuracyM: pos.coords.accuracy,
   };
+}
+
+export type PlaceLocationCheck =
+  | { kind: "ok" }
+  | { kind: "far" }
+  | { kind: "imprecise"; accuracyM: number | null }
+  | { kind: "invalid" };
+
+/** Conferência da leitura antes de gravar (T-70): o `validateLocation` do domínio, no modo "usar minha localização agora". */
+export function checkPlaceLocation(loc: LocationCoords): PlaceLocationCheck {
+  const accuracyM = loc.accuracyM ?? null;
+  const check = validateLocation({ lat: loc.lat, lon: loc.lon }, accuracyM, "manual");
+  if (!check.ok) return check.reason === "imprecise" ? { kind: "imprecise", accuracyM } : { kind: "invalid" };
+  return "farFromLeiria" in check ? { kind: "far" } : { kind: "ok" };
 }

@@ -158,11 +158,11 @@ export interface VerifyContext {
 
 /**
  * As opções da TL-09 para um registro `orphan` ou `ambiguous`, **sem nenhuma marcada** (a escolha é sua e vira `manual`).
- * Só dados (hora, desvio, distância, ids): as frases são do bloco 2. Pista da descida (D-059): se a descida do mesmo
+ * Só dados (hora, desvio, distância, ids): as frases são do bloco 2. Se o fato traz `kind` e `mode`, vale a regra do B-01 (como em `previewMatch`). Pista da descida (D-059): se a descida do mesmo
  * deslocamento casou com a viagem X, X vem primeiro, com a pista; isto nunca escolhe nada sozinho.
  */
 export function verifyOptions(
-  fact: Pick<ObservationFact, "stopId" | "lineId" | "observedAt" | "observedEndAt">,
+  fact: Pick<ObservationFact, "stopId" | "lineId" | "observedAt" | "observedEndAt"> & Partial<Pick<ObservationFact, "kind" | "mode">>,
   network: MatchNetwork,
   context: VerifyContext = {},
   config: DomainConfig = DOMAIN_CONFIG,

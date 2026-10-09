@@ -10,12 +10,12 @@
  */
 import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePlaces } from "../data/PlacesProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { defaultPlaceIcon, resolveNewPlaceIconOnNameChange } from "../data/placeIcon";
-import { getPlaceLocation, readNativeLocation } from "../data/placeLocation";
+import { checkPlaceLocation, getPlaceLocation, readNativeLocation } from "../data/placeLocation";
 import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { originSelectionAction } from "./placeOrigin";
 import { t } from "../i18n";
@@ -74,6 +74,7 @@ export function PlaceSheet({
   const [lat, setLat] = useState<number | null>(existingPlace?.lat ?? null);
   const [lon, setLon] = useState<number | null>(existingPlace?.lon ?? null);
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [pickingOrigin, setPickingOrigin] = useState(false);
 
   useEffect(() => {
@@ -116,14 +117,32 @@ export function PlaceSheet({
 
   const handleRequestLocation = async () => {
     setLocationStatus("requesting");
+    setLocationNotice(null);
     const loc = await getPlaceLocation(readNativeLocation);
-    if (loc) {
+    const check = loc ? checkPlaceLocation(loc) : null;
+    if (!loc || !check || check.kind === "invalid") {
+      setLocationStatus("denied");
+      return;
+    }
+    if (check.kind === "imprecise") {
+      setLocationNotice(t("place.location.imprecise", { m: Math.round(check.accuracyM ?? 0) }));
+      setLocationStatus("imprecise");
+      return;
+    }
+    const keep = () => {
       setLat(loc.lat);
       setLon(loc.lon);
       setLocationStatus("set");
-    } else {
-      setLocationStatus("denied");
+    };
+    if (check.kind === "far") {
+      setLocationStatus(null);
+      Alert.alert(t("place.location.far"), undefined, [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("stop.location_offer.save"), onPress: keep },
+      ]);
+      return;
     }
+    keep();
   };
 
   const handleSave = async () => {
@@ -283,7 +302,7 @@ export function PlaceSheet({
                 {t("place.field.location")}
               </Text>
               <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {lat !== null && lon !== null ? t("place.location.set") : t("place.location.none")}
+                {locationNotice ?? (lat !== null && lon !== null ? t("place.location.set") : t("place.location.none"))}
               </Text>
               <Text style={[type.caption, { color: colors.textSecondary }]}>
                 {t("place.location.reason")}
