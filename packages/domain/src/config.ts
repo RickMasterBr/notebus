@@ -73,6 +73,22 @@ export interface DomainConfig {
   farFromLeiriaM: number;
   /** Centro aproximado de Leiria (a conferir pela coordenação). */
   leiriaCenter: { lat: number; lon: number };
+  /** Onde o mapa abre (D-096): o GPS só vale se for preciso até isto (m) e recente até isto (ms). */
+  mapOpenMaxAccuracyM: number;
+  mapOpenMaxAgeMs: number;
+  /** Onde o mapa abre (D-110): GPS mais longe que isto do centro de Leiria não abre o mapa. */
+  mapOpenMaxFromLeiriaM: number;
+  /** Região offline padrão (plano §3.6); a conferir contra o ponto final das 9 linhas. */
+  offlineBox: { south: number; west: number; north: number; east: number };
+  /** Zoom dos tiles baixados (D-179): o OpenFreeMap só tem tiles até o 14; o mapa amplia até o 16 sem tile novo. */
+  offlineMinZoom: number;
+  offlineMaxTileZoom: number;
+  /** Margem em metros ao redor de um ponto que cresce a região. */
+  offlineMarginM: number;
+  /** Ponto ou lugar mais longe que isto (m) do centro de Leiria não cresce a região (decisão da coordenação). */
+  offlineMaxPointFromLeiriaM: number;
+  /** Tamanho médio de um tile em KB (9,1 MB / 180 tiles, S-03): só estimativa para o texto do cartão. */
+  offlineAvgTileKb: number;
 }
 
 export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
@@ -115,4 +131,13 @@ export const DOMAIN_CONFIG: Readonly<DomainConfig> = Object.freeze({
   manualMaxAccuracyM: 50,
   farFromLeiriaM: 50_000,
   leiriaCenter: Object.freeze({ lat: 39.7437, lon: -8.8071 }),
+  mapOpenMaxAccuracyM: 100,
+  mapOpenMaxAgeMs: 600_000,
+  mapOpenMaxFromLeiriaM: 30_000,
+  offlineBox: Object.freeze({ south: 39.66, west: -8.93, north: 39.82, east: -8.69 }),
+  offlineMinZoom: 10,
+  offlineMaxTileZoom: 14,
+  offlineMarginM: 2_000,
+  offlineMaxPointFromLeiriaM: 30_000,
+  offlineAvgTileKb: 51,
 });
