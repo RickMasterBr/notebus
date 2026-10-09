@@ -3,7 +3,7 @@
  * Fica atrás de tudo na tela do Início.
  * Todo import do @maplibre/maplibre-react-native fica neste arquivo.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AppState,
   type NativeSyntheticEvent,
@@ -15,9 +15,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Camera,
+  GeoJSONSource,
+  Layer,
   Map,
   UserLocation,
   type CameraRef,
+  type GeoJSONSourceRef,
+  type PressEventWithFeatures,
   type ViewStateChangeEvent,
 } from "@maplibre/maplibre-react-native";
 import { usePositionPermission, usePositionStore } from "../data/PositionProvider";
@@ -25,8 +29,12 @@ import { usePlaces } from "../data/PlacesProvider";
 import { useTestClock } from "../data/TestClockProvider";
 import { useNow } from "../data/NowProvider";
 import { useToast } from "../data/ToastProvider";
+import { useStopLocations } from "../data/StopLocationsProvider";
+import { useStopIndex } from "../data/StopIndexProvider";
+import { useRegistro } from "../data/RegistroProvider";
 import { realNow } from "../data/clock";
 import { waitForPositionFix } from "../data/mapLocate";
+import { buildMapPoints, collectStopsWithRecords } from "../data/mapPoints";
 import {
   canStartMapOpening,
   createMapStarter,
@@ -59,21 +67,48 @@ export function MapBackdrop() {
   const { colors } = theme;
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
-  const { state } = useSheets();
+  const { state, dispatch } = useSheets();
   const { chosen } = useTestClock();
   const now = useNow();
   const toast = useToast();
   const store = usePositionStore();
   const permission = usePositionPermission();
   const places = usePlaces();
+  const stopLocations = useStopLocations();
+  const stopIndex = useStopIndex();
+  const { observations } = useRegistro();
   const reduceMotion = useReduceMotion();
 
   const homeSheetInset = Math.round(window.height * HOME_SHEET_CAMERA_INSET_RATIO);
   const stopSheetInset = Math.round(window.height * STOP_SHEET_CAMERA_INSET_RATIO);
 
   const cameraRef = useRef<CameraRef>(null);
+  const geoJsonSourceRef = useRef<GeoJSONSourceRef>(null);
   const [opening, setOpening] = useState<MapOpening | null>(null);
   const [failed, setFailed] = useState(false);
+
+  const names = useMemo(() => {
+    const map = new globalThis.Map<string, string>();
+    if (stopIndex.status === "ready") {
+      for (const s of stopIndex.stops) {
+        map.set(s.id, s.name);
+      }
+    }
+    return map;
+  }, [stopIndex]);
+
+  const stopsWithRecords = useMemo(
+    () => collectStopsWithRecords(observations),
+    [observations],
+  );
+
+  const pointsGeoJSON = useMemo(() => {
+    return buildMapPoints({
+      locations: stopLocations.stops,
+      names,
+      stopsWithRecords,
+    });
+  }, [stopLocations.stops, names, stopsWithRecords]);
 
   const bannerOffset = chosen === null ? 0 : BANNER_BAND;
   const covered = state.stack.length > 1;
@@ -134,11 +169,14 @@ export function MapBackdrop() {
     setFailed(false);
   }, [theme.name]);
 
-  // Grava a última posição quando o usuário para de mexer no mapa (no máximo 1 gravação/s)
   const lastSavedRef = useRef<number>(0);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const currentZoomRef = useRef<number>(14);
 
   const handleRegionDidChange = useCallback((e: NativeSyntheticEvent<ViewStateChangeEvent>) => {
+    if (typeof e.nativeEvent?.zoom === "number") {
+      currentZoomRef.current = e.nativeEvent.zoom;
+    }
     const center = e.nativeEvent?.center;
     if (!center || !Array.isArray(center) || center.length < 2) return;
     const [lon, lat] = center;
@@ -222,6 +260,81 @@ export function MapBackdrop() {
     }
   }, [store, toast, reduceMotion, homeSheetInset]);
 
+  // Ao tocar num ponto ou grupo no mapa (Item 3)
+  const handleSourcePress = useCallback(
+    async (e: NativeSyntheticEvent<PressEventWithFeatures>) => {
+      const feature = e.nativeEvent?.features?.[0];
+      if (!feature) return;
+
+      // 1. Grupo (cluster): centraliza com o zoom de expansão sem abrir folha
+      if (feature.properties?.cluster) {
+        const clusterId = feature.properties.cluster_id as number;
+        const coords = (feature.geometry as GeoJSON.Point).coordinates;
+        if (!coords || coords.length < 2) return;
+        const lon = coords[0];
+        const lat = coords[1];
+        if (typeof lon !== "number" || typeof lat !== "number") return;
+
+        let nextZoom: number | null = null;
+        try {
+          if (geoJsonSourceRef.current) {
+            nextZoom = await geoJsonSourceRef.current.getClusterExpansionZoom(clusterId);
+          }
+        } catch {
+          // Fallback se a API nativa falhar
+        }
+
+        const targetZoom =
+          typeof nextZoom === "number" && !Number.isNaN(nextZoom)
+            ? nextZoom
+            : Math.min(16, currentZoomRef.current + 2);
+
+        cameraRef.current?.flyTo({
+          center: [lon, lat],
+          zoom: targetZoom,
+          duration: reduceMotion ? 0 : 600,
+        });
+        return;
+      }
+
+      // 2. Ponto solto: abre a folha do ponto e centraliza a câmera nele
+      const stopId = feature.properties?.id;
+      const name = feature.properties?.name ?? "";
+      if (!stopId) return;
+
+      const top = state.stack[state.stack.length - 1];
+
+      // Só age se a pilha é só a folha inicial, ou se a folha do topo é um ponto (kind: "stop")
+      if (state.stack.length > 1 && top?.kind !== "stop") {
+        return;
+      }
+
+      // Tocar no mesmo ponto cuja folha já está aberta não faz nada
+      if (top?.kind === "stop" && top.stopId === stopId) {
+        return;
+      }
+
+      const coords = (feature.geometry as GeoJSON.Point).coordinates;
+      if (!coords || coords.length < 2) return;
+      const lon = coords[0];
+      const lat = coords[1];
+      if (typeof lon !== "number" || typeof lat !== "number") return;
+
+      cameraRef.current?.flyTo({
+        center: [lon, lat],
+        padding: { bottom: stopSheetInset },
+        duration: reduceMotion ? 0 : 800,
+      });
+
+      if (top?.kind === "stop") {
+        dispatch({ type: "replace", sheet: { kind: "stop", stopId, name } });
+      } else {
+        dispatch({ type: "push", sheet: { kind: "stop", stopId, name } });
+      }
+    },
+    [state.stack, dispatch, reduceMotion, stopSheetInset],
+  );
+
   if (failed || opening === null) {
     return null;
   }
@@ -257,6 +370,74 @@ export function MapBackdrop() {
             }}
             maxZoom={16}
           />
+          <GeoJSONSource
+            id="stop-points"
+            ref={geoJsonSourceRef}
+            data={pointsGeoJSON}
+            cluster={true}
+            clusterRadius={50}
+            clusterMaxZoom={13}
+            onPress={handleSourcePress}
+          >
+            <Layer
+              id="clusters"
+              type="circle"
+              filter={["has", "point_count"]}
+              paint={{
+                "circle-color": colors.accent,
+                "circle-radius": [
+                  "step",
+                  ["get", "point_count"],
+                  16,
+                  10,
+                  22,
+                  50,
+                  28,
+                ],
+                "circle-stroke-width": 2,
+                "circle-stroke-color": theme.name === "dark" ? colors.surface : "#FFFFFF",
+              }}
+            />
+            <Layer
+              id="cluster-count"
+              type="symbol"
+              filter={["has", "point_count"]}
+              layout={{
+                "text-field": "{point_count_abbreviated}",
+                "text-font": ["Noto Sans Regular"],
+                "text-size": 12,
+              }}
+              paint={{
+                "text-color": colors.onAccent,
+              }}
+            />
+            <Layer
+              id="unclustered-points"
+              type="circle"
+              filter={["!", ["has", "point_count"]]}
+              paint={{
+                "circle-radius": 8,
+                "circle-color": [
+                  "case",
+                  ["get", "filled"],
+                  colors.accent,
+                  "transparent",
+                ],
+                "circle-stroke-color": [
+                  "case",
+                  ["get", "filled"],
+                  theme.name === "dark" ? colors.surface : "#FFFFFF",
+                  colors.accent,
+                ],
+                "circle-stroke-width": [
+                  "case",
+                  ["get", "filled"],
+                  1.5,
+                  3,
+                ],
+              }}
+            />
+          </GeoJSONSource>
           {permission === "granted" ? <UserLocation /> : null}
         </Map>
       </View>
