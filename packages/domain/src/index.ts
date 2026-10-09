@@ -96,6 +96,8 @@ export type {
   WindowDeparture,
 } from "./alarms";
 export { DOMAIN_CONFIG } from "./config";
+export { distanceM, medianPoint } from "./geo";
+export type { GeoPoint, PositionFix } from "./geo";
 export type { DomainConfig } from "./config";
 export { ageDays, recordWeight, weightedQuantile } from "./estimate";
 export type { WeightInput } from "./estimate";
