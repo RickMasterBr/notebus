@@ -24,9 +24,12 @@ import { usePlaces } from "../data/PlacesProvider";
 import { useTestClock } from "../data/TestClockProvider";
 import { useNow } from "../data/NowProvider";
 import { useToast } from "../data/ToastProvider";
+import { realNow } from "../data/clock";
 import {
+  canStartMapOpening,
   createMapStarter,
   findCasaPoint,
+  MAP_START_PLACES_WAIT_MS,
   MAP_STYLE_DARK,
   MAP_STYLE_LIGHT,
 } from "../data/mapStart";
@@ -66,8 +69,24 @@ export function MapBackdrop() {
   const bannerOffset = chosen === null ? 0 : BANNER_BAND;
   const covered = state.stack.length > 1;
 
+  const [placesTimedOut, setPlacesTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (places.status === "ready") return;
+    const timer = setTimeout(() => {
+      setPlacesTimedOut(true);
+    }, MAP_START_PLACES_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [places.status]);
+
+  const canStart = canStartMapOpening({
+    placesStatus: places.status,
+    elapsedMs: placesTimedOut ? MAP_START_PLACES_WAIT_MS : 0,
+  });
+
   // Decide uma vez na abertura o centro inicial do mapa
   useEffect(() => {
+    if (!canStart || opening !== null) return;
     let alive = true;
     void (async () => {
       const db = getSharedDb();
@@ -80,7 +99,7 @@ export function MapBackdrop() {
         subscribeFix: (listener) => store.subscribe(listener),
         home,
         lastMapPosition,
-        nowMs: now,
+        nowMs: realNow(),
       });
 
       const decided = await starter.resolve();
@@ -92,7 +111,7 @@ export function MapBackdrop() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [canStart, opening, places.status, places.places, store]);
 
   // Se falhou (sem mapa), tenta de novo só quando volta para a frente ou muda o tema
   useEffect(() => {

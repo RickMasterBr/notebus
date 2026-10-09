@@ -15,18 +15,37 @@ import {
 import type { PermissionState } from "./devicePosition";
 
 export const MAP_START_GPS_WAIT_MS = 1_500;
+export const MAP_START_PLACES_WAIT_MS = 3_000;
 
 export const MAP_STYLE_LIGHT = "https://tiles.openfreemap.org/styles/liberty";
 export const MAP_STYLE_DARK = "https://tiles.openfreemap.org/styles/dark";
+
+export interface CanStartMapOpeningInput {
+  placesStatus: "loading" | "ready" | "error";
+  elapsedMs?: number;
+  placesTimeoutMs?: number;
+}
+
+export function canStartMapOpening(input: CanStartMapOpeningInput): boolean {
+  if (input.placesStatus === "ready" || input.placesStatus === "error") {
+    return true;
+  }
+  const timeout = input.placesTimeoutMs ?? MAP_START_PLACES_WAIT_MS;
+  return (input.elapsedMs ?? 0) >= timeout;
+}
 
 export interface MapStartInput {
   permission: PermissionState;
   getFix: () => PositionFix | null;
   subscribeFix?: (listener: () => void) => () => void;
-  home: GeoPoint | null;
+  home?: GeoPoint | null;
+  getHome?: () => GeoPoint | null;
+  placesStatus?: () => "loading" | "ready" | "error";
+  subscribePlaces?: (listener: () => void) => () => void;
   lastMapPosition: GeoPoint | null;
   nowMs: number | (() => number);
   timeoutMs?: number;
+  placesTimeoutMs?: number;
   sleep?: (ms: number) => Promise<void>;
   config?: DomainConfig;
 }
@@ -85,12 +104,45 @@ export function createMapStarter(input: MapStartInput): MapStarter {
         if (unsubscribe) unsubscribe();
       }
 
+      // Se lugares ainda estão carregando, espera até placesTimeoutMs pelo ready
+      let home = input.home ?? null;
+      if (input.placesStatus && input.placesStatus() === "loading" && input.subscribePlaces) {
+        let placesTimer: ReturnType<typeof setTimeout> | undefined;
+        let unsubPlaces: (() => void) | undefined;
+        const placesTimeout = input.placesTimeoutMs ?? MAP_START_PLACES_WAIT_MS;
+
+        const timeoutPlacesPromise = new Promise<void>((res) => {
+          if (input.sleep) {
+            void input.sleep(placesTimeout).then(res);
+          } else {
+            placesTimer = setTimeout(res, placesTimeout);
+          }
+        });
+
+        const readyPlacesPromise = new Promise<void>((res) => {
+          unsubPlaces = input.subscribePlaces!(() => {
+            const status = input.placesStatus!();
+            if (status === "ready" || status === "error") {
+              res();
+            }
+          });
+        });
+
+        await Promise.race([timeoutPlacesPromise, readyPlacesPromise]);
+        if (placesTimer !== undefined) clearTimeout(placesTimer);
+        if (unsubPlaces) unsubPlaces();
+
+        if (input.getHome) {
+          home = input.getHome();
+        }
+      }
+
       const now = typeof input.nowMs === "function" ? input.nowMs() : input.nowMs;
       const decided = chooseMapOpening(
         {
           fix: input.getFix(),
           nowMs: now,
-          home: input.home,
+          home,
           lastMapPosition: input.lastMapPosition,
         },
         config,
