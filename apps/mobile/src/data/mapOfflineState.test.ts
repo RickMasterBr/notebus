@@ -157,9 +157,11 @@ describe("mapOfflineState (Item 2 & 3)", () => {
   });
 
   describe("estimateMegabytes", () => {
-    it("estima 180 tiles como 9.0 (tileCount * 51 / 1024)", () => {
-      // 180 * 51 / 1024 = 8.9648... -> 9.0
-      expect(estimateMegabytes(180)).toBe(9);
+    it("estima 180 tiles como 14.1 (tileCount * OFFLINE_KB_PER_TILE / 1024)", () => {
+      // 180 * 80 / 1024 = 14.0625 -> 14.1
+      expect(estimateMegabytes(180)).toBe(14.1);
+      expect(estimateMegabytes(391)).toBe(30.5);
+      expect(Math.abs(estimateMegabytes(180) - 14.1)).toBeLessThanOrEqual(0.1);
     });
 
     it("devolve 0 para tileCount <= 0", () => {
