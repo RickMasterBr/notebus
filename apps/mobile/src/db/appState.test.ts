@@ -114,3 +114,81 @@ describe("última posição do mapa (last_map_position)", () => {
   });
 });
 
+describe("soneca do mapa offline (offline_map_snoozed_until)", () => {
+  it("ida e volta: grava timestamp e lê idêntico; atualizar não duplica", async () => {
+    const { readOfflineSnooze, writeOfflineSnooze } = await import("./appState");
+    const { OFFLINE_SNOOZED_UNTIL } = await import("../data/mapOfflineState");
+    const db = testDb();
+
+    // Começa nulo
+    expect(await readOfflineSnooze(db)).toBeNull();
+
+    // Grava e lê
+    const until1 = 1_800_000_000_000;
+    await writeOfflineSnooze(db, until1, 100);
+    expect(await readOfflineSnooze(db)).toBe(until1);
+
+    // Atualiza
+    const until2 = 1_800_604_800_000;
+    await writeOfflineSnooze(db, until2, 200);
+    expect(await readOfflineSnooze(db)).toBe(until2);
+
+    // Confere que há apenas uma linha na tabela setting com a chave
+    const rows = await db.select().from(schema.setting);
+    const snoozeRows = rows.filter((r) => r.key === OFFLINE_SNOOZED_UNTIL);
+    expect(snoozeRows).toHaveLength(1);
+  });
+
+  it("valor inválido ou ausente vira null", async () => {
+    const { readOfflineSnooze } = await import("./appState");
+    const { OFFLINE_SNOOZED_UNTIL } = await import("../data/mapOfflineState");
+    const db = testDb();
+
+    // 1. Ausente
+    expect(await readOfflineSnooze(db)).toBeNull();
+
+    // 2. Não-numérico
+    await db.insert(schema.setting).values({
+      id: "s1",
+      createdAt: 1,
+      updatedAt: 1,
+      source: "user",
+      key: OFFLINE_SNOOZED_UNTIL,
+      value: "invalid" as any,
+    });
+    expect(await readOfflineSnooze(db)).toBeNull();
+
+    // 3. Número <= 0
+    await db.update(schema.setting).set({ value: 0 as any });
+    expect(await readOfflineSnooze(db)).toBeNull();
+
+    await db.update(schema.setting).set({ value: -100 as any });
+    expect(await readOfflineSnooze(db)).toBeNull();
+  });
+
+  it("garante que OFFLINE_SNOOZED_UNTIL não entra em BACKUP_SETTING_KEYS nem no backup", async () => {
+    const { BACKUP_SETTING_KEYS, serializeBackup } = await import("@notebus/domain");
+    const { OFFLINE_SNOOZED_UNTIL } = await import("../data/mapOfflineState");
+    const { readOfflineSnooze, writeOfflineSnooze } = await import("./appState");
+    const { readBackupInput } = await import("./backup");
+    const { backupScenario, SCENARIO_NOW } = await import("./testing/backupScenario");
+    const { createHash } = await import("node:crypto");
+
+    // 1. Não entra na lista de chaves de backup do domínio
+    expect((BACKUP_SETTING_KEYS as readonly string[]).includes(OFFLINE_SNOOZED_UNTIL)).toBe(false);
+
+    // 2. Não é exportado na rotina de backup
+    const src = await backupScenario();
+    await writeOfflineSnooze(src.db, SCENARIO_NOW + 100_000, SCENARIO_NOW);
+    expect(await readOfflineSnooze(src.db)).toBe(SCENARIO_NOW + 100_000);
+
+    const backupInput = await readBackupInput(src.raw, { now: SCENARIO_NOW, appVersion: "1.0.0" });
+    const exportedSettingRows = backupInput.tables.setting ?? [];
+    expect(exportedSettingRows.some((r) => r.key === OFFLINE_SNOOZED_UNTIL)).toBe(false);
+
+    const sha256 = (t: string) => createHash("sha256").update(t, "utf8").digest("hex");
+    const backupText = await serializeBackup(backupInput, sha256);
+    expect(backupText.includes(OFFLINE_SNOOZED_UNTIL)).toBe(false);
+  });
+});
+
