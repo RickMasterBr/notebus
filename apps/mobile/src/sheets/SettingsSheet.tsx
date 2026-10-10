@@ -6,10 +6,12 @@
  * Versão: o `version` do `app.json`; build: o curto do commit (`EXPO_PUBLIC_BUILD_SHA`, definido pelo `app.config.ts`).
  */
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Alert, StyleSheet, Text, View } from "react-native";
 import appJson from "../../app.json";
 import { lisbonDateText, useBackup } from "../data/BackupProvider";
 import { realNow } from "../data/clock";
+import { useOfflineMap } from "../data/OfflineMapProvider";
+import { megabytesText } from "../data/mapOfflineState";
 import { createTapCounter } from "../data/testClockPicker";
 import { sharedAlarms } from "../db/alarms";
 import { getSharedDb } from "../db/sharedDb";
@@ -52,6 +54,54 @@ export function SettingsSheet({ id }: { id: number }) {
   const backup = useBackup();
   const last = backup.lastExportAt === null ? t("settings.never_exported") : t("settings.last_backup", { date: lisbonDateText(backup.lastExportAt) });
 
+  const offlineMap = useOfflineMap();
+  const offlineDetail = (() => {
+    switch (offlineMap.status.kind) {
+      case "none":
+        return t("settings.offline_map.not_downloaded");
+      case "downloading":
+        return t("settings.offline_map.downloading", { percent: offlineMap.status.percent });
+      case "ready":
+        return t("settings.offline_map.ready", { mb: megabytesText(offlineMap.status.bytes) });
+      case "error":
+        return t("settings.offline_map.failed");
+    }
+  })();
+
+  const onPressOfflineMap = () => {
+    if (offlineMap.status.kind === "downloading") return;
+
+    if (offlineMap.status.kind === "ready") {
+      Alert.alert(t("settings.offline_map.alert.title"), undefined, [
+        {
+          text: t("settings.offline_map.alert.download_again"),
+          onPress: offlineMap.startDownload,
+        },
+        {
+          text: t("settings.offline_map.alert.delete"),
+          style: "destructive",
+          onPress: offlineMap.deleteMap,
+        },
+        {
+          text: t("common.cancel"),
+          style: "cancel",
+        },
+      ]);
+      return;
+    }
+
+    Alert.alert(t("settings.offline_map.alert.title"), undefined, [
+      {
+        text: t("settings.offline_map.alert.download"),
+        onPress: offlineMap.startDownload,
+      },
+      {
+        text: t("common.cancel"),
+        style: "cancel",
+      },
+    ]);
+  };
+
   return (
     <StackedSheet id={id}>
       <Text accessibilityRole="header" style={[type.title, styles.title, { color: colors.text }]}>
@@ -82,6 +132,12 @@ export function SettingsSheet({ id }: { id: number }) {
             if (picked) dispatch({ type: "push", sheet: { kind: "backupImport" } });
           })
         }
+      />
+      <ListRow
+        title={t("settings.offline_map.title")}
+        detail={offlineDetail}
+        accessibilityLabel={t("settings.offline_map.a11y", { estado: offlineDetail })}
+        onPress={onPressOfflineMap}
       />
       <ListRow
         ref={row}
