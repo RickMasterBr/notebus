@@ -35,7 +35,7 @@ export function checkSheetHostWiring(source: string): SheetHostDiagCheck {
 }
 
 export interface DiagScrollWiringCheck {
-  diagScrollEnabled: boolean;
+  diagScrollDisabled: boolean;
   usesSyncExternalStore: boolean;
   callsDiagStripLines: boolean;
   stripPassesSnapshotPicker: boolean;
@@ -48,7 +48,7 @@ export interface DiagScrollWiringCheck {
 export function checkDiagScrollWiring(source: string): DiagScrollWiringCheck {
   const norm = normalize(source);
 
-  const diagScrollEnabled = /export\s+const\s+DIAG_SCROLL\s*=\s*true\b/.test(norm);
+  const diagScrollDisabled = /export\s+const\s+DIAG_SCROLL\s*=\s*false\b/.test(norm);
 
   const usesSyncExternalStore = norm.includes(
     "useSyncExternalStore(diagStore.subscribe, diagStore.getSnapshot)",
@@ -79,7 +79,7 @@ export function checkDiagScrollWiring(source: string): DiagScrollWiringCheck {
     hasStackDiagStripBody && bodyIdx !== -1 && syncStoreIdx > bodyIdx;
 
   return {
-    diagScrollEnabled,
+    diagScrollDisabled,
     usesSyncExternalStore,
     callsDiagStripLines,
     stripPassesSnapshotPicker,
@@ -160,9 +160,9 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
     expect(checks.hooksInOrder).toBe(true);
   });
 
-  it("(3) DIAG_SCROLL = true em diagScroll.tsx", () => {
+  it("(3) DIAG_SCROLL = false em diagScroll.tsx (diagnóstico desligado na versão entregue)", () => {
     const checks = checkDiagScrollWiring(diagScrollSource);
-    expect(checks.diagScrollEnabled).toBe(true);
+    expect(checks.diagScrollDisabled).toBe(true);
   });
 
   it("(4) SheetsContext.tsx registra fechar com dois argumentos e sem nowRef", () => {
