@@ -24,10 +24,12 @@ import {
 import type { GeoPoint } from "@notebus/domain";
 import { realNow } from "../data/clock";
 import {
+  PICK_MAX_ZOOM,
   type PickStart,
   type PickState,
   pickStart,
   resolvePick,
+  runPickResult,
   tapPin,
 } from "../data/mapPick";
 import {
@@ -139,20 +141,14 @@ function MapPickerContent({
   }, [onCancel, toast]);
 
   const handleConfirm = useCallback(() => {
-    const r = resolvePick(state);
-    if (r.kind === "disabled") {
-      return;
-    }
-    if (r.kind === "ok") {
-      onConfirm(r.point);
-      return;
-    }
-    if (r.kind === "far") {
-      Alert.alert(t("place.location.far"), undefined, [
-        { text: t("common.cancel"), style: "cancel" },
-        { text: t("stop.location_offer.save"), onPress: () => onConfirm(r.point) },
-      ]);
-    }
+    runPickResult(resolvePick(state), {
+      onConfirm,
+      askFar: (p) =>
+        Alert.alert(t("place.location.far"), undefined, [
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("stop.location_offer.save"), onPress: () => onConfirm(p) },
+        ]),
+    });
   }, [onConfirm, state]);
 
   const pinGeoJSON = useMemo<GeoJSON.FeatureCollection>(() => {
@@ -209,7 +205,7 @@ function MapPickerContent({
                   center: [start.point.lon, start.point.lat],
                   zoom: start.zoom,
                 }}
-                maxZoom={16}
+                maxZoom={PICK_MAX_ZOOM}
               />
               <GeoJSONSource id="pick-pin" data={pinGeoJSON}>
                 <Layer

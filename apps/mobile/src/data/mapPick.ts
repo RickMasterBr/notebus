@@ -19,6 +19,7 @@ export interface PickStart {
 }
 export const PICK_ZOOM_EXISTING = 16;
 export const PICK_ZOOM_OPENING = 14;
+export const PICK_MAX_ZOOM = 16;
 
 export function pickStart(input: {
   existing: GeoPoint | null;
@@ -97,3 +98,37 @@ export function undoForStopLocation(
     source: previous.source ?? "manual",
   };
 }
+
+/** Roda o resultado da escolha: nada, confirmar direto ou perguntar (longe de Leiria). */
+export function runPickResult(
+  result: PickResult,
+  handlers: { onConfirm: (point: GeoPoint) => void; askFar: (point: GeoPoint) => void },
+): void {
+  if (result.kind === "ok") {
+    handlers.onConfirm(result.point);
+  } else if (result.kind === "far") {
+    handlers.askFar(result.point);
+  }
+}
+
+/** Aplica o desfazer da localização do ponto. */
+export async function applyStopUndo(
+  undo: StopUndo,
+  stopId: string,
+  handlers: {
+    clear: (stopId: string) => Promise<void>;
+    save: (stopId: string, point: GeoPoint, source: "manual" | "suggested") => Promise<void>;
+  },
+): Promise<void> {
+  if (undo.kind === "clear") {
+    await handlers.clear(stopId);
+  } else {
+    await handlers.save(stopId, undo.point, undo.source);
+  }
+}
+
+/** O seletor resolve o ponto inicial uma vez por abertura, e só com os lugares carregados. */
+export function shouldResolveStart(input: { alreadyResolved: boolean; placesReady: boolean }): boolean {
+  return !input.alreadyResolved && input.placesReady;
+}
+

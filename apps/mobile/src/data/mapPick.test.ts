@@ -1,9 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  PICK_MAX_ZOOM,
   PICK_ZOOM_EXISTING,
   PICK_ZOOM_OPENING,
+  applyStopUndo,
   pickStart,
   resolvePick,
+  runPickResult,
+  shouldResolveStart,
   tapPin,
   undoForStopLocation,
 } from "./mapPick";
@@ -162,6 +166,79 @@ describe("mapPick (Item 1)", () => {
         point: { lat: 39.74, lon: -8.8 },
         source: "manual",
       });
+    });
+  });
+
+  describe("constantes fixadas", () => {
+    it("PICK_ZOOM_EXISTING === 16, PICK_ZOOM_OPENING === 14, PICK_MAX_ZOOM === 16, PICK_MAX_ZOOM >= PICK_ZOOM_EXISTING", () => {
+      expect(PICK_ZOOM_EXISTING).toBe(16);
+      expect(PICK_ZOOM_OPENING).toBe(14);
+      expect(PICK_MAX_ZOOM).toBe(16);
+      expect(PICK_MAX_ZOOM).toBeGreaterThanOrEqual(PICK_ZOOM_EXISTING);
+    });
+  });
+
+  describe("runPickResult", () => {
+    it("disabled não chama nada", () => {
+      const onConfirm = vi.fn();
+      const askFar = vi.fn();
+      runPickResult({ kind: "disabled" }, { onConfirm, askFar });
+      expect(onConfirm).not.toHaveBeenCalled();
+      expect(askFar).not.toHaveBeenCalled();
+    });
+
+    it("ok chama onConfirm(point) e não chama askFar", () => {
+      const onConfirm = vi.fn();
+      const askFar = vi.fn();
+      const point = { lat: 39.74, lon: -8.8 };
+      runPickResult({ kind: "ok", point }, { onConfirm, askFar });
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+      expect(onConfirm).toHaveBeenCalledWith(point);
+      expect(askFar).not.toHaveBeenCalled();
+    });
+
+    it("far chama askFar(point) e não chama onConfirm", () => {
+      const onConfirm = vi.fn();
+      const askFar = vi.fn();
+      const point = { lat: 38.72, lon: -9.14 };
+      runPickResult({ kind: "far", point }, { onConfirm, askFar });
+      expect(askFar).toHaveBeenCalledTimes(1);
+      expect(askFar).toHaveBeenCalledWith(point);
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("applyStopUndo", () => {
+    it("clear chama clear(stopId) e não chama save", async () => {
+      const clear = vi.fn(async () => {});
+      const save = vi.fn(async () => {});
+      await applyStopUndo({ kind: "clear" }, "stop-1", { clear, save });
+      expect(clear).toHaveBeenCalledTimes(1);
+      expect(clear).toHaveBeenCalledWith("stop-1");
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it("restore chama save(stopId, undo.point, undo.source) e não chama clear", async () => {
+      const clear = vi.fn(async () => {});
+      const save = vi.fn(async () => {});
+      const point = { lat: 39.74, lon: -8.8 };
+      await applyStopUndo(
+        { kind: "restore", point, source: "manual" },
+        "stop-1",
+        { clear, save },
+      );
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(save).toHaveBeenCalledWith("stop-1", point, "manual");
+      expect(clear).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("shouldResolveStart", () => {
+    it("as 4 combinações: só true com alreadyResolved === false e placesReady === true", () => {
+      expect(shouldResolveStart({ alreadyResolved: false, placesReady: true })).toBe(true);
+      expect(shouldResolveStart({ alreadyResolved: true, placesReady: true })).toBe(false);
+      expect(shouldResolveStart({ alreadyResolved: false, placesReady: false })).toBe(false);
+      expect(shouldResolveStart({ alreadyResolved: true, placesReady: false })).toBe(false);
     });
   });
 });
