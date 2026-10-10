@@ -24,6 +24,10 @@ export function mapShownForOffer(failed: boolean, hasOpening: boolean): boolean 
   return !failed && hasOpening;
 }
 
+export function canStartOfflineDownload(status: OfflineMapStatus): boolean {
+  return status.kind !== "downloading";
+}
+
 export function reduceOfflineMap(
   state: OfflineControllerState,
   event: OfflineMapEvent,
@@ -37,7 +41,7 @@ export function reduceOfflineMap(
 
     case "download_started": {
       // Ignora início se já estiver baixando
-      if (state.status.kind === "downloading") {
+      if (!canStartOfflineDownload(state.status)) {
         return state;
       }
       return {

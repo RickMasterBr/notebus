@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canStartOfflineDownload,
   mapShownForOffer,
   reduceOfflineMap,
   type OfflineControllerState,
@@ -133,4 +134,15 @@ describe("mapShownForOffer (Item 0.2 puro)", () => {
     expect(mapShownForOffer(true, false)).toBe(false);
   });
 });
+
+describe("canStartOfflineDownload (Item 0.3 puro)", () => {
+  it("none, ready e error → true; downloading com percent 0 e com percent 40 → false", () => {
+    expect(canStartOfflineDownload({ kind: "none" })).toBe(true);
+    expect(canStartOfflineDownload({ kind: "ready", bytes: 1000 })).toBe(true);
+    expect(canStartOfflineDownload({ kind: "error" })).toBe(true);
+    expect(canStartOfflineDownload({ kind: "downloading", percent: 0 })).toBe(false);
+    expect(canStartOfflineDownload({ kind: "downloading", percent: 40 })).toBe(false);
+  });
+});
+
 

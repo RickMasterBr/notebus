@@ -32,6 +32,7 @@ import {
   startOfflineMapDownload,
 } from "./mapOfflineNative";
 import {
+  canStartOfflineDownload,
   reduceOfflineMap,
   type OfflineControllerState,
 } from "./offlineMapController";
@@ -143,7 +144,7 @@ export function OfflineMapProvider({
   }, [now, db]);
 
   const startDownload = useCallback(async () => {
-    if (state.status.kind === "downloading") return;
+    if (!canStartOfflineDownload(state.status)) return;
     dispatch({ type: "download_started" });
 
     try {
