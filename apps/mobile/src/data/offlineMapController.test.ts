@@ -1,11 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  applyOfflineSnooze,
   canStartOfflineDownload,
   mapShownForOffer,
   reduceOfflineMap,
   type OfflineControllerState,
 } from "./offlineMapController";
-import { shouldOfferOfflineMap, snoozedUntil } from "./mapOfflineState";
+import {
+  OFFLINE_SNOOZE_MS,
+  shouldOfferOfflineMap,
+  snoozedUntil,
+} from "./mapOfflineState";
 
 describe("offlineMapController (Item 1 puro)", () => {
   const initialState: OfflineControllerState = {
@@ -144,5 +149,38 @@ describe("canStartOfflineDownload (Item 0.3 puro)", () => {
     expect(canStartOfflineDownload({ kind: "downloading", percent: 40 })).toBe(false);
   });
 });
+
+describe("applyOfflineSnooze (Item 0.5 puro)", () => {
+  it("com write espião: write chamado uma vez com (nowMs + OFFLINE_SNOOZE_MS, nowMs), dispatch chamado com until, dispatch antes de write", async () => {
+    const nowMs = 1_700_000_000_000;
+    const callOrder: string[] = [];
+    const dispatch = vi.fn((_untilMs: number) => {
+      callOrder.push("dispatch");
+    });
+    const write = vi.fn(async (_untilMs: number, _nowMs: number) => {
+      callOrder.push("write");
+    });
+
+    await applyOfflineSnooze(nowMs, { dispatch, write });
+
+    const expectedUntil = nowMs + OFFLINE_SNOOZE_MS;
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith(expectedUntil);
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith(expectedUntil, nowMs);
+    expect(callOrder).toEqual(["dispatch", "write"]);
+  });
+
+  it("com write null: só dispatch roda e nada lança erro", async () => {
+    const nowMs = 1_700_000_000_000;
+    const dispatch = vi.fn();
+
+    await expect(applyOfflineSnooze(nowMs, { dispatch, write: null })).resolves.toBeUndefined();
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch).toHaveBeenCalledWith(nowMs + OFFLINE_SNOOZE_MS);
+  });
+});
+
 
 

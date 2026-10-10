@@ -23,7 +23,6 @@ import { useToast } from "./ToastProvider";
 import {
   estimateMegabytes,
   shouldOfferOfflineMap,
-  snoozedUntil,
   type OfflineMapStatus,
 } from "./mapOfflineState";
 import {
@@ -32,6 +31,7 @@ import {
   startOfflineMapDownload,
 } from "./mapOfflineNative";
 import {
+  applyOfflineSnooze,
   canStartOfflineDownload,
   reduceOfflineMap,
   type OfflineControllerState,
@@ -134,13 +134,11 @@ export function OfflineMapProvider({
   }, []);
 
   const snooze = useCallback(async () => {
-    const currentNow = now();
-    const until = snoozedUntil(currentNow);
-    dispatch({ type: "snoozed", untilMs: until });
     const targetDb = db ?? getSharedDb();
-    if (targetDb) {
-      await writeOfflineSnooze(targetDb, until, currentNow);
-    }
+    await applyOfflineSnooze(now(), {
+      dispatch: (untilMs) => dispatch({ type: "snoozed", untilMs }),
+      write: targetDb ? (until, n) => writeOfflineSnooze(targetDb, until, n) : null,
+    });
   }, [now, db]);
 
   const startDownload = useCallback(async () => {

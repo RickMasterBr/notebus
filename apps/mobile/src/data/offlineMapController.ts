@@ -2,7 +2,7 @@
  * Máquina de transição de estado pura do mapa offline (E-07 7b Bloco 6b).
  * Sem React, sem MapLibre.
  */
-import type { OfflineMapStatus } from "./mapOfflineState";
+import { snoozedUntil, type OfflineMapStatus } from "./mapOfflineState";
 
 export interface OfflineControllerState {
   status: OfflineMapStatus;
@@ -26,6 +26,20 @@ export function mapShownForOffer(failed: boolean, hasOpening: boolean): boolean 
 
 export function canStartOfflineDownload(status: OfflineMapStatus): boolean {
   return status.kind !== "downloading";
+}
+
+export async function applyOfflineSnooze(
+  nowMs: number,
+  deps: {
+    dispatch: (untilMs: number) => void;
+    write: ((untilMs: number, nowMs: number) => Promise<void>) | null;
+  },
+): Promise<void> {
+  const until = snoozedUntil(nowMs);
+  deps.dispatch(until);
+  if (deps.write !== null) {
+    await deps.write(until, nowMs);
+  }
 }
 
 export function reduceOfflineMap(
