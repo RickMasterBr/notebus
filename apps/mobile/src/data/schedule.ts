@@ -1,13 +1,14 @@
 /**
  * Horários em memória (E-02 bloco 3c): tudo o que o domínio precisa para dizer "o próximo ônibus" num ponto,
  * lido do banco **uma vez**, na abertura do app (como a lista de pontos da busca). São centenas de viagens, não milhões.
- * Tudo passa por `selectLive`. Só leitura: nenhuma coluna ou tabela nova.
+ * Tudo passa por `selectLive`. Só leitura: nenhuma coluna ou tabela nova. O calendário leva o escopo e a repetição de cada
+ * feriado e o interruptor dos municipais (E-08); as gravações do bloco 1 pedem nova leitura (`useScheduleReload`).
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import type { CalendarData, DayTypeCode, PatternData, ScheduleData, TripData } from "@notebus/domain";
 import { selectLive } from "../db/query";
 import {
-  dateOverride, dayType, holiday, line, pattern, patternStop, season, stop, stopTime, timetable, trip, tripDayType,
+  dateOverride, dayType, holiday, line, pattern, patternStop, season, setting, stop, stopTime, timetable, trip, tripDayType,
 } from "../db/schema";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
@@ -41,8 +42,11 @@ export const patternStopKey = (patternId: string, position: number) => `${patter
 
 const DAY_TYPE_CODES: readonly string[] = ["weekday", "saturday", "sunday_holiday"];
 
+/** Chave do `setting` que liga e desliga os feriados municipais (E-08 §3.3, D-114). Ausente = ligado. */
+export const INCLUDE_MUNICIPAL_KEY = "include_municipal_holidays";
+
 export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
-  const [dayTypes, holidays, overrides, seasons, timetables, trips, tripDays, stopTimes, patternStops, patterns, lines, stops] =
+  const [dayTypes, holidays, overrides, seasons, timetables, trips, tripDays, stopTimes, patternStops, patterns, lines, stops, settings] =
     await Promise.all([
       selectLive(db, dayType),
       selectLive(db, holiday),
@@ -56,6 +60,7 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
       selectLive(db, pattern),
       selectLive(db, line),
       selectLive(db, stop),
+      selectLive(db, setting),
     ]);
 
   const codeOf = new Map<string, DayTypeCode>();
@@ -115,7 +120,13 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
         const code = codeOf.get(o.dayTypeId);
         return code ? [{ date: o.date, dayType: code }] : [];
       }),
-      holidays: holidays.map((h) => ({ date: h.date, name: h.name })),
+      holidays: holidays.map((h) => ({
+        date: h.date,
+        name: h.name,
+        ...(h.scope === "municipal" || h.scope === "manual" ? { scope: h.scope } : {}),
+        recurring: h.recurring,
+      })),
+      includeMunicipal: settings.find((r) => r.key === INCLUDE_MUNICIPAL_KEY)?.value !== false,
     },
     schedule: {
       trips: trips.map((t) => ({

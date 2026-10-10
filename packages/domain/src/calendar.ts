@@ -91,10 +91,15 @@ export interface DayTypeResult {
 /**
  * O que o banco guarda do calendário: exceções (`date_override`, já com o código do tipo de dia) e os feriados
  * gravados (`holiday`: o municipal do seed e, na E-08, os manuais). Os nacionais não vêm daqui: vêm da biblioteca.
+ *
+ * Campos da E-08 (D-114), todos opcionais; ausente = o comportamento de antes. `scope` diz de onde o feriado veio;
+ * `recurring` o faz valer todo ano (mesmo mês e dia); `includeMunicipal: false` desliga os municipais (os manuais e os
+ * nacionais nunca são afetados por esse interruptor).
  */
 export interface CalendarData {
   overrides: { date: string; dayType: DayTypeCode }[];
-  holidays: { date: string; name: string }[];
+  holidays: { date: string; name: string; scope?: "municipal" | "manual"; recurring?: boolean }[];
+  includeMunicipal?: boolean;
 }
 
 let holidaysPT: Holidays | undefined;
@@ -120,6 +125,24 @@ function calendarDayType(date: string): DayTypeCode {
   return dow === 0 ? "sunday_holiday" : dow === 6 ? "saturday" : "weekday";
 }
 
+type CalendarHoliday = CalendarData["holidays"][number];
+
+/**
+ * O feriado gravado vale nesta data? Data igual, ou `recurring` com o mesmo mês e dia em qualquer ano. O 29/02 que repete
+ * só vale em 29/02 (ano bissexto): não vira 28/02 nem 01/03. Municipal desligado pelo interruptor não vale.
+ */
+function holidayAppliesOn(holiday: CalendarHoliday, date: string, includeMunicipal: boolean): boolean {
+  if (holiday.scope === "municipal" && !includeMunicipal) return false;
+  return holiday.date === date || (holiday.recurring === true && holiday.date.slice(5) === date.slice(5));
+}
+
+/** O nome do feriado gravado desta data; se um manual e um municipal coincidem, vale o do manual. */
+function storedHolidayName(date: string, calendar: CalendarData): string | undefined {
+  const includeMunicipal = calendar.includeMunicipal !== false;
+  const matches = calendar.holidays.filter((h) => holidayAppliesOn(h, date, includeMunicipal));
+  return (matches.find((h) => h.scope === "manual") ?? matches[0])?.name;
+}
+
 /**
  * Que tipo de dia é esta data (Fase 1 §4.0, invariante 6): exceção › feriado (nacional ou gravado) › dia da semana.
  * Devolve também o motivo, para a tela poder dizer "é feriado".
@@ -127,7 +150,7 @@ function calendarDayType(date: string): DayTypeCode {
 export function dayTypeOf(date: string, calendar: CalendarData): DayTypeResult {
   const override = calendar.overrides.find((o) => o.date === date);
   if (override) return { dayType: override.dayType, reason: "override" };
-  const holidayName = calendar.holidays.find((h) => h.date === date)?.name ?? nationalHolidays(Number(date.slice(0, 4))).get(date);
+  const holidayName = storedHolidayName(date, calendar) ?? nationalHolidays(Number(date.slice(0, 4))).get(date);
   if (holidayName !== undefined) return { dayType: "sunday_holiday", reason: "holiday", holidayName };
   return { dayType: calendarDayType(date), reason: "weekday" };
 }
