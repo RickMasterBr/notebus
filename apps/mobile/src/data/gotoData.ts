@@ -33,7 +33,7 @@ import {
   walkTime,
 } from "../db/schema";
 import { passageRecords } from "./records";
-import type { ScheduleSnapshot } from "./schedule";
+import { type ScheduleSnapshot, configWithMargin } from "./schedule";
 
 export type ObservationRow = typeof observation.$inferSelect;
 export type OptionRow = typeof option.$inferSelect;
@@ -158,7 +158,7 @@ export function buildGotoInputFromSources(
     serviceDate,
     dayType,
     validFrom,
-    config,
+    config: config ?? configWithMargin(schedule.margin),
   };
 }
 

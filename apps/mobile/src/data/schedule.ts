@@ -5,7 +5,9 @@
  * feriado e o interruptor dos municipais (E-08); as gravações do bloco 1 pedem nova leitura (`useScheduleReload`).
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import type { CalendarData, DayTypeCode, PatternData, ScheduleData, TripData } from "@notebus/domain";
+import { DOMAIN_CONFIG, clampMargin } from "@notebus/domain";
+import type { CalendarData, DayTypeCode, DomainConfig, PatternData, ScheduleData, TripData } from "@notebus/domain";
+import { INCLUDE_MUNICIPAL_KEY, MARGIN_KEY } from "../db/preferences";
 import { selectLive } from "../db/query";
 import {
   dateOverride, dayType, holiday, line, pattern, patternStop, season, setting, stop, stopTime, timetable, trip, tripDayType,
@@ -19,6 +21,8 @@ export interface LineInfo {
 }
 
 export interface ScheduleSnapshot {
+  /** Margem do "esteja no ponto às" em minutos (D-019), lida do `setting` junto com os horários; ausente = padrão. */
+  margin?: number;
   calendar: CalendarData;
   schedule: ScheduleData;
   patterns: PatternData[];
@@ -42,8 +46,10 @@ export const patternStopKey = (patternId: string, position: number) => `${patter
 
 const DAY_TYPE_CODES: readonly string[] = ["weekday", "saturday", "sunday_holiday"];
 
-/** Chave do `setting` que liga e desliga os feriados municipais (E-08 §3.3, D-114). Ausente = ligado. */
-export const INCLUDE_MUNICIPAL_KEY = "include_municipal_holidays";
+/** O `DomainConfig` com a margem do usuário; `undefined` (sem margem no snapshot) deixa o padrão do domínio. */
+export function configWithMargin(margin: number | undefined): DomainConfig | undefined {
+  return margin === undefined ? undefined : { ...DOMAIN_CONFIG, marginMinutes: margin };
+}
 
 export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
   const [dayTypes, holidays, overrides, seasons, timetables, trips, tripDays, stopTimes, patternStops, patterns, lines, stops, settings] =
@@ -115,6 +121,7 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
   }
 
   return {
+    margin: clampMargin(settings.find((r) => r.key === MARGIN_KEY)?.value),
     calendar: {
       overrides: overrides.flatMap((o) => {
         const code = codeOf.get(o.dayTypeId);

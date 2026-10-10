@@ -6,6 +6,7 @@ import { createTestClock } from "./src/data/clock";
 import { TestClockProvider } from "./src/data/TestClockProvider";
 import { RecentStopsProvider } from "./src/data/RecentStopsProvider";
 import { PlacesProvider } from "./src/data/PlacesProvider";
+import { PreferencesProvider } from "./src/data/PreferencesProvider";
 import { RegistroProvider } from "./src/data/RegistroProvider";
 import { ScheduleProvider } from "./src/data/ScheduleProvider";
 import { StopIndexProvider } from "./src/data/StopIndexProvider";
@@ -85,13 +86,15 @@ export default function App() {
                     <PositionProvider>
                       <StopLocationsProvider db={db}>
                         <RegistroProvider db={db}>
-                          <PlacesProvider db={db}>
-                            <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
-                              <OfflineMapProvider db={db}>
-                                <Home />
-                              </OfflineMapProvider>
-                            </BackupProvider>
-                          </PlacesProvider>
+                          <PreferencesProvider db={db}>
+                            <PlacesProvider db={db}>
+                              <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
+                                <OfflineMapProvider db={db}>
+                                  <Home />
+                                </OfflineMapProvider>
+                              </BackupProvider>
+                            </PlacesProvider>
+                          </PreferencesProvider>
                         </RegistroProvider>
                       </StopLocationsProvider>
                     </PositionProvider>
