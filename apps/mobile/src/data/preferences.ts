@@ -6,6 +6,8 @@
  * Sem React e sem relógio aqui: o instante vem de quem chama (`nowMs`). O `PreferencesProvider` só liga isto à árvore.
  */
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { ensureAlarmPermission } from "../notifications/permission";
+import type { NotificationsPort } from "../notifications/port";
 import { ALARMS_ALLOWED_KEY, INCLUDE_MUNICIPAL_KEY, MARGIN_KEY, type Preferences, isValidMargin, readPreferences, writePreference } from "../db/preferences";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
@@ -18,6 +20,13 @@ export interface PreferencesDeps {
   reload: () => Promise<unknown>;
   /** A regra única de reagendamento dos avisos (`scheduler.reschedule`, com o relógio real). */
   reschedule: () => Promise<unknown>;
+  /** A porta das notificações: ligar os avisos pede a permissão do sistema por ela. */
+  port: NotificationsPort;
+  /**
+   * Antes do pedido do sistema, a tela do bloco 1b mostra a frase de motivo e devolve `true` para seguir (E-06 §5).
+   * Padrão: segue direto para o pedido do sistema.
+   */
+  askPermission?: () => Promise<boolean>;
   newId?: (at: number) => string;
 }
 
@@ -45,10 +54,18 @@ export function createPreferences(deps: PreferencesDeps) {
     await afterChange();
   }
 
-  /** O interruptor dos avisos só grava aqui; o que ele manda no agendador entra no item 6. */
-  async function setAlarmsAllowed(value: boolean, nowMs: number): Promise<void> {
+  /**
+   * "Permitir avisos de saída" (E-08 §3.4, D-031): desligado, o agendador cancela tudo e não agenda nada, e os avisos ficam
+   * guardados; ligado, reagenda tudo. Ligar sem a permissão do sistema não liga: `no_permission`, nada gravado.
+   */
+  async function setAlarmsAllowed(value: boolean, nowMs: number): Promise<{ ok: true } | { ok: false; reason: "no_permission" }> {
+    if (value) {
+      const permission = await ensureAlarmPermission(deps.port, { ask: deps.askPermission ?? (async () => true) });
+      if (permission !== "granted") return { ok: false, reason: "no_permission" };
+    }
     await write(ALARMS_ALLOWED_KEY, value, nowMs);
     await afterChange();
+    return { ok: true };
   }
 
   const read = (): Promise<Preferences> => readPreferences(db);

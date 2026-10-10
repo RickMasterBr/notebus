@@ -16,6 +16,7 @@ import { type ImportDb, importMobilis } from "./importMobilis";
 import { migrations } from "./migrations";
 import * as schema from "./schema";
 import { testDbWithSqlite } from "./testing/drizzleTestDb";
+import { createFakePort } from "../notifications/fakePort";
 import { NodeSqlite } from "./testing/nodeSqlite";
 
 const NOW = lisbon(THURSDAY, "18:00");
@@ -51,7 +52,7 @@ async function wire(db: Db, raw: ImportDb) {
     reschedule: async () => void state.reschedule++,
     newId,
   });
-  const prefs = createPreferences({ db, exclusive: registro.exclusive, reload: async () => void (state.current = await loadSchedule(db)), reschedule: async () => {}, newId });
+  const prefs = createPreferences({ db, exclusive: registro.exclusive, reload: async () => void (state.current = await loadSchedule(db)), reschedule: async () => {}, port: createFakePort(), newId });
   return { raw, db, state, registro, edits, prefs, rows: (sql: string, params: (string | number | null)[] = []) => raw.all(sql, params) as Record<string, unknown>[] };
 }
 

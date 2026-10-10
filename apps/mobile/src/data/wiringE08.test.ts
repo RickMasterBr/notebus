@@ -38,6 +38,8 @@ describe("PreferencesProvider: as ligações da margem", () => {
     expect(preferencesProvider).toMatch(/createPreferences\(\{\n\s+db,\n\s+exclusive,\n\s+reload,\n/);
     expect(preferencesProvider).toMatch(/reschedule: async \(\) => requestReschedule\(\),/);
     expect(preferencesProvider).toMatch(/const reload = useScheduleReload\(\);/);
+    // Ligar os avisos pede a permissão pela porta real do app.
+    expect(preferencesProvider).toMatch(/reschedule: async \(\) => requestReschedule\(\),\n\s+port: expoPort,/);
   });
 });
 

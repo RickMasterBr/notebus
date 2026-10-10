@@ -5,6 +5,7 @@
  */
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_PREFERENCES, type Preferences } from "../db/preferences";
+import { expoPort } from "../notifications/expoPort";
 import { requestReschedule } from "../notifications/runtime";
 import { useNow } from "./NowProvider";
 import { type PreferencesStore, createPreferences } from "./preferences";
@@ -15,14 +16,15 @@ interface PreferencesValue extends Preferences {
   /** `false` = valor recusado (fora de 0 a 10 ou não inteiro); nada foi gravado. */
   setMargin: (value: number) => Promise<boolean>;
   setIncludeMunicipalHolidays: (value: boolean) => Promise<void>;
-  setAlarmsAllowed: (value: boolean) => Promise<void>;
+  /** Ligar sem a permissão do sistema devolve `no_permission` e não liga. */
+  setAlarmsAllowed: (value: boolean) => Promise<{ ok: true } | { ok: false; reason: "no_permission" }>;
 }
 
 const PreferencesContext = createContext<PreferencesValue>({
   ...DEFAULT_PREFERENCES,
   setMargin: async () => false,
   setIncludeMunicipalHolidays: async () => {},
-  setAlarmsAllowed: async () => {},
+  setAlarmsAllowed: async () => ({ ok: false, reason: "no_permission" }),
 });
 
 export function PreferencesProvider({ db, children }: { db: Parameters<typeof createPreferences>[0]["db"]; children: ReactNode }) {
@@ -41,6 +43,7 @@ export function PreferencesProvider({ db, children }: { db: Parameters<typeof cr
         reload,
         // Não espera: o reagendamento nunca atrasa o toque do usuário (E-06 §3.2).
         reschedule: async () => requestReschedule(),
+        port: expoPort,
       }),
     [db, exclusive, reload],
   );
@@ -63,8 +66,9 @@ export function PreferencesProvider({ db, children }: { db: Parameters<typeof cr
         await refresh();
       },
       setAlarmsAllowed: async (v) => {
-        await store.setAlarmsAllowed(v, nowRef.current());
+        const result = await store.setAlarmsAllowed(v, nowRef.current());
         await refresh();
+        return result;
       },
     }),
     [prefs, store, refresh],

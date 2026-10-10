@@ -27,6 +27,7 @@ async function setup() {
     exclusive: fx.registro.exclusive,
     reload: async () => void calls.reload++,
     reschedule: async () => void calls.reschedule++,
+    port: createFakePort(),
   });
   return { ...fx, prefs, calls };
 }
@@ -139,7 +140,7 @@ describe("T-79: o 'esteja no ponto às' usa a margem", () => {
     const seed = lineSeed(NAMES, LINES);
     await importMobilis(raw, seed);
     const registro = createRegistro(db, { network: () => null, snapshot: () => null });
-    const prefs = createPreferences({ db, exclusive: registro.exclusive, reload: async () => {}, reschedule: async () => {} });
+    const prefs = createPreferences({ db, exclusive: registro.exclusive, reload: async () => {}, reschedule: async () => {}, port: createFakePort() });
     if (margin !== null) expect(await prefs.setMargin(margin, NOW)).toBe(true);
     const data = await loadSchedule(db);
     const ruaId = seed.stops.find((s) => s.key === "mobilis/stop/rua")!.id;
@@ -179,7 +180,7 @@ describe("E-06 §3.2: mudar a margem reagenda os avisos", () => {
     const fx = await schedulerFixture();
     const port = createFakePort("granted");
     const scheduler = createScheduler({ port, db: fx.db, now: () => WED_0700 });
-    const prefs = createPreferences({ db: fx.db, exclusive: fx.registro.exclusive, reload: async () => {}, reschedule: () => scheduler.reschedule() });
+    const prefs = createPreferences({ db: fx.db, exclusive: fx.registro.exclusive, reload: async () => {}, reschedule: () => scheduler.reschedule(), port });
     await fx.alarmsRepo.createAlarm(fx.newAlarm(), WED_0700);
     await scheduler.reschedule();
     const before = new Map([...port.scheduled.values()].map((r) => [r.id, r]));

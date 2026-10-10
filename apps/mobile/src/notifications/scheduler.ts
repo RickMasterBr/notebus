@@ -15,6 +15,7 @@ import {
 } from "@notebus/domain";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { configWithMargin, loadSchedule as loadScheduleFromDb, type ScheduleSnapshot } from "../data/schedule";
+import { readPreferences } from "../db/preferences";
 import { ruleOf, sharedAlarms, type PlannedEventInput } from "../db/alarms";
 import { t } from "../i18n";
 import { DEPARTURE_CATEGORY } from "./categories";
@@ -33,7 +34,8 @@ export interface SchedulerDeps {
   loadSchedule?: (db: AnyDb) => Promise<ScheduleSnapshot>;
 }
 
-export type RescheduleResult = { ok: true; scheduled: number } | { ok: false; reason: "permission_denied" };
+/** `alarms_off`: o interruptor "Permitir avisos de saída" está desligado (E-08 §3.4): nada fica agendado, os avisos seguem guardados. */
+export type RescheduleResult = { ok: true; scheduled: number } | { ok: false; reason: "permission_denied" | "alarms_off" };
 export type TestAlarmResult = { ok: true; at: number; eventId: string } | { ok: false; reason: "permission_denied" | "no_option" };
 
 const MINUTE_MS = 60_000;
@@ -88,6 +90,12 @@ export function createScheduler(deps: SchedulerDeps) {
 
   async function runReschedule(): Promise<RescheduleResult> {
     const now = deps.now();
+    // O interruptor manda em tudo: desligado, apaga o que está agendado no sistema e não agenda nada. O `departure_alarm`
+    // e o `enabled` de cada aviso ficam como estão (E-08 §3.4, D-031).
+    if (!(await readPreferences(db)).alarmsAllowed) {
+      await port.cancelAllScheduled();
+      return { ok: false, reason: "alarms_off" };
+    }
     if ((await port.getPermission()) !== "granted") {
       await port.cancelAllScheduled();
       return { ok: false, reason: "permission_denied" };
