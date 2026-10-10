@@ -47,6 +47,7 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { detentFromIndex } from "./stack";
+import { mapTouchPolicy } from "./mapTouchPolicy";
 
 const LAST_INDEX = 2;
 /** Altura do detent pequeno até a primeira medida (handle + pílula + margem de baixo). */
@@ -55,8 +56,17 @@ const SMALL_FALLBACK = 120;
 export function HomeSheet() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { state, dispatch } = useSheets();
+  const { state, dispatch, registerHomeCollapse } = useSheets();
+  const touchPolicy = mapTouchPolicy(state.detent);
+  const sheetRef = useRef<BottomSheet>(null);
   const lastIndex = useRef<number | null>(null);
+
+  useEffect(() => {
+    return registerHomeCollapse(() => {
+      skipHaptic.current = true;
+      sheetRef.current?.snapToIndex(0);
+    });
+  }, [registerHomeCollapse]);
   const stops = useStopIndex();
   const schedule = useSchedule();
   const recent = useRecentStops();
@@ -121,14 +131,14 @@ export function HomeSheet() {
   // Identidade estável: um `handleComponent` novo a cada troca de detent remonta o handle no fim do gesto.
   const Handle = useCallback(() => <HomeHandle onHeight={setHandleHeight} />, []);
 
-  // D-145: fundo transparente (não de opacidade 0) que só recebe o toque com a folha no médio ou no grande (no pequeno, `disappearsOnIndex`
-  // o deixa passar). O toque recolhe a folha e não chega ao que está embaixo. Sem texto de leitura: não é um controle.
+  // D-145, D-180: fundo transparente que só captura toque com a folha no grande (índice 2). No médio (1) e no pequeno (0),
+  // o fundo desaparece (pointerEvents="none"), deixando o mapa livre para arrastar, zoom e giro (D-180).
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
         {...props}
-        appearsOnIndex={1}
-        disappearsOnIndex={0}
+        appearsOnIndex={2}
+        disappearsOnIndex={1}
         // Opacidade 1 e fundo transparente: a vista com opacidade 0 não recebe toque no iOS (D-145, bloco 4).
         opacity={1}
         style={[props.style, { backgroundColor: "transparent" }]}
@@ -166,6 +176,7 @@ export function HomeSheet() {
       importantForAccessibility={covered ? "no-hide-descendants" : "auto"}
     >
       <BottomSheet
+        ref={sheetRef}
         index={startIndex}
         accessible={false}
         accessibilityRole={null}
