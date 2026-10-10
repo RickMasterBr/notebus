@@ -42,8 +42,8 @@ describe("SettingsSheet: ligações da Margem (Mutação 1)", () => {
   it("stepper tem botões - e + com alvos de toque, limites e reversão de falha", () => {
     const src = read();
     // Botão menos passa -1, botão mais passa 1
-    expect(src).toMatch(/handleStepMargin\(-1\)/);
-    expect(src).toMatch(/handleStepMargin\(1\)/);
+    expect(src).toMatch(/settings\.margin\.less[\s\S]{1,150}handleStepMargin\(-1\)/);
+    expect(src).toMatch(/settings\.margin\.more[\s\S]{1,150}handleStepMargin\(1\)/);
     // setMargin chamado com o novo valor
     expect(src).toMatch(/setMargin\(next\.value\)/);
     // Se setMargin devolver false, restaura o valor anterior
