@@ -25,6 +25,7 @@ import { RepeatSheet } from "./RepeatSheet";
 import { AlarmsSheet } from "./AlarmsSheet";
 import { AlarmIntroSheet } from "./AlarmIntroSheet";
 import { CloseSheetProvider } from "./StackedSheet";
+import { homeLayerPointerEvents } from "./diagLog";
 import { type SheetEntry, stackedSheets } from "./stack";
 
 export function SheetHost({ customBase }: { customBase?: React.ReactNode } = {}) {
@@ -36,7 +37,7 @@ export function SheetHost({ customBase }: { customBase?: React.ReactNode } = {})
     <>
       <View
         style={StyleSheet.absoluteFill}
-        pointerEvents={stacked.length > 0 ? "none" : "box-none"}
+        pointerEvents={homeLayerPointerEvents(stacked.length)}
       >
         {customBase ?? <HomeSheet />}
       </View>

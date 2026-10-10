@@ -1,7 +1,7 @@
 /** Estado da pilha de folhas para a árvore de componentes. A lógica está em `stack.ts` (testada no Node). */
 import { useNow } from "../data/NowProvider";
 import { notifyPendingIntent, onPendingIntent, peekPendingIntent, takePendingIntent } from "../notifications/pendingIntent";
-import { DIAG_SCROLL, recordOpenRequest } from "./diagScroll";
+import { DIAG_SCROLL, recordCloseRequest, recordOpenRequest } from "./diagScroll";
 import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 import { type SheetAction, type SheetContent, type SheetStackState, initialSheetState, sheetReducer } from "./stack";
 
@@ -55,9 +55,15 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
   const now = useNow();
   const nowRef = useRef(now);
   nowRef.current = now;
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const dispatch = useCallback<Dispatch<SheetAction>>((action) => {
-    // Só com o painel de diagnóstico ligado (`DIAG_SCROLL`): anota o último pedido de abertura.
+    // Só com o painel de diagnóstico ligado (`DIAG_SCROLL`): anota abertura e fechamento.
     if (DIAG_SCROLL && action.type === "push") recordOpenRequest(action.sheet.kind, nowRef.current());
+    if (DIAG_SCROLL && action.type === "close") {
+      const closing = stateRef.current.stack.find((e) => e.id === action.id);
+      recordCloseRequest(action.id, closing ? closing.kind : "desconhecido", nowRef.current());
+    }
     rawDispatch(action);
   }, []);
 

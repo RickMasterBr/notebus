@@ -25,6 +25,7 @@ import { CrossGlyph, ChevronRightGlyph, PlaceIconGlyph, PlusGlyph } from "../ui/
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
+import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import type { SheetContent } from "./stack";
 
@@ -188,17 +189,28 @@ export function PlaceSheet({
     ),
   );
 
+  const footerHeight = placeFooterHeight({
+    minTouch,
+    space,
+    bottomInset: insets.bottom,
+  });
+  const { listHeight } = placeSheetFrame({
+    scrollAreaHeight,
+    footerHeight,
+  });
+
   return (
     <HeightContext.Provider value={setHandleHeight}>
       <StackedSheet id={id} detents={DETENTS}>
         <View collapsable={false} style={{ height: scrollAreaHeight, overflow: "hidden" }}>
-          <BottomSheetScrollView
-            contentContainerStyle={[
-              styles.scrollContent,
-              { paddingBottom: insets.bottom + space.lg },
-            ]}
-            showsVerticalScrollIndicator={false}
-          >
+          <View collapsable={false} style={{ height: listHeight, overflow: "hidden" }}>
+            <BottomSheetScrollView
+              contentContainerStyle={[
+                styles.scrollContent,
+                { paddingBottom: space.lg },
+              ]}
+              showsVerticalScrollIndicator={false}
+            >
             {/* Cabeçalho */}
             <View style={styles.header}>
               <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
@@ -452,19 +464,28 @@ export function PlaceSheet({
               </View>
             ) : null}
 
-            {/* Botão Salvar */}
-            <View style={styles.actions}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={handleSave}
-                style={[styles.saveButton, { backgroundColor: colors.accent }]}
-              >
-                <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
-                  {t("common.save")}
-                </Text>
-              </Pressable>
-            </View>
           </BottomSheetScrollView>
+          </View>
+          {/* Rodapé fixo com botão Salvar */}
+          <View
+            style={[
+              styles.footer,
+              {
+                height: footerHeight,
+                borderTopColor: colors.divider,
+              },
+            ]}
+          >
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleSave}
+              style={[styles.saveButton, { backgroundColor: colors.accent }]}
+            >
+              <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
+                {t("common.save")}
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </StackedSheet>
       <MapPicker
@@ -589,8 +610,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: space.md,
   },
-  actions: {
+  footer: {
     paddingTop: space.sm,
+    paddingHorizontal: space.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   gotoAction: {
     paddingTop: space.xs,
