@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { uuidv7, validateLocation, type GeoPoint } from "@notebus/domain";
 import { realNow } from "../data/clock";
+import { OFFLINE_SNOOZED_UNTIL } from "../data/mapOfflineState";
 import { selectLive } from "./query";
 import { dataset, setting } from "./schema";
 
@@ -94,6 +95,48 @@ export async function writeLastMapPosition(db: AnyDb, point: GeoPoint, now = rea
       target: setting.key,
       set: {
         value: { lat: point.lat, lon: point.lon },
+        updatedAt: now,
+        deletedAt: null,
+      },
+    });
+}
+
+/** Lê o timestamp até o qual o download do mapa offline está em soneca. Nulo se ausente ou inválido. */
+export async function readOfflineSnooze(db: AnyDb): Promise<number | null> {
+  const rows = await selectLive(db, setting, eq(setting.key, OFFLINE_SNOOZED_UNTIL)).limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  let raw: unknown = row.value;
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof raw !== "number" || !Number.isFinite(raw) || raw <= 0) {
+    return null;
+  }
+  return raw;
+}
+
+/** Grava o timestamp de soneca do mapa offline na tabela setting (chave offline_map_snoozed_until). */
+export async function writeOfflineSnooze(db: AnyDb, untilMs: number, now = realNow()): Promise<void> {
+  if (typeof untilMs !== "number" || !Number.isFinite(untilMs) || untilMs <= 0) return;
+  await db
+    .insert(setting)
+    .values({
+      id: uuidv7(now),
+      createdAt: now,
+      updatedAt: now,
+      source: "user",
+      key: OFFLINE_SNOOZED_UNTIL,
+      value: untilMs,
+    })
+    .onConflictDoUpdate({
+      target: setting.key,
+      set: {
+        value: untilMs,
         updatedAt: now,
         deletedAt: null,
       },
