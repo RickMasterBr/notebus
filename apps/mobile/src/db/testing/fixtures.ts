@@ -54,5 +54,14 @@ const v3 = [
   `INSERT INTO stop (id, created_at, updated_at, source, network_id, name, lat, lon, location_source) VALUES ('stop-d', ${c}, 'user', 'net', 'Ponto do Rick', 39.71, -8.81, 'suggested')`,
 ];
 
+/**
+ * Versão 4 (0003, E-08): as linhas da v3 mais um feriado cadastrado pela pessoa (`scope` manual) que repete todo ano.
+ * O feriado municipal `hol` da v1 fica como está: a coluna `recurring` dele nasce 0.
+ */
+const v4 = [
+  ...v3,
+  `INSERT INTO holiday (id, created_at, updated_at, source, network_id, date, name, scope, recurring) VALUES ('hol-man', ${c}, 'user', 'net', '2026-03-03', 'Dia Inventado', 'manual', 1)`,
+];
+
 /** Fixture de cada versão, pelo número da versão (= quantas migrações reais rodaram). */
-export const fixtures: Record<number, readonly string[]> = { 1: v1, 2: v2, 3: v3 };
+export const fixtures: Record<number, readonly string[]> = { 1: v1, 2: v2, 3: v3, 4: v4 };

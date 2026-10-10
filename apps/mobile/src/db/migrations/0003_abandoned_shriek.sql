@@ -1,0 +1,1 @@
+ALTER TABLE `holiday` ADD `recurring` integer DEFAULT false NOT NULL;
