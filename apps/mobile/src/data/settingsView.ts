@@ -143,3 +143,15 @@ export function formatHolidayLine(name: string, date: string, recurring: boolean
   }
   return t("settings.holiday.line_once", { name, date: dateNumbers(date) });
 }
+
+/**
+ * Converte um objeto Date para 'YYYY-MM-DD' usando os componentes locais do calendário,
+ * sem usar toISOString() que causaria mudança de dia perto da meia-noite por causa de UTC.
+ */
+export function toLocalDateString(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+

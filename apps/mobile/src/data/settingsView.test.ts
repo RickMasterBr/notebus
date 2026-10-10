@@ -8,6 +8,7 @@ import {
   networkLine,
   splitOverrides,
   stepMargin,
+  toLocalDateString,
 } from "./settingsView";
 
 describe("settingsView", () => {
@@ -129,4 +130,19 @@ describe("settingsView", () => {
       expect(formatHolidayLine("Ponte", "2027-04-10", false)).toBe("Ponte · 10/04/2027");
     });
   });
+
+  describe("toLocalDateString (Item 4.2)", () => {
+    it("converte data às 23:30 para o dia local correto", () => {
+      // 23:30 no fuso local: ano, mês (0-based: 9 = outubro), dia 10
+      const dateLate = new Date(2026, 9, 10, 23, 30, 0);
+      expect(toLocalDateString(dateLate)).toBe("2026-10-10");
+    });
+
+    it("converte data às 00:30 para o dia local correto", () => {
+      // 00:30 no fuso local: 11 de outubro
+      const dateEarly = new Date(2026, 9, 11, 0, 30, 0);
+      expect(toLocalDateString(dateEarly)).toBe("2026-10-11");
+    });
+  });
 });
+

@@ -13,8 +13,9 @@
  * 8. Rede (networkLine com versão e vigência, abre networkInfo)
  * 9. Sobre (Versão com 7 batidas no relógio real para abrir clockPicker)
  */
+import { lisbonWallClock } from "@notebus/domain";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
   AccessibilityInfo,
   Alert,
@@ -25,9 +26,13 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import appJson from "../../app.json";
 import { useBackup } from "../data/BackupProvider";
+import { useCalendarEdits } from "../data/CalendarEditsProvider";
 import { realNow } from "../data/clock";
 import { useNow } from "../data/NowProvider";
 import { useOfflineMap } from "../data/OfflineMapProvider";
@@ -41,12 +46,16 @@ import { useSchedule } from "../data/ScheduleProvider";
 import {
   backupDaysText,
   dayTypeCounts,
+  formatOverrideLine,
   marginLimits,
   networkLine,
+  splitOverrides,
   stepMargin,
 } from "../data/settingsView";
 import { createTapCounter } from "../data/testClockPicker";
+import { useToast } from "../data/ToastProvider";
 import { sharedAlarms } from "../db/alarms";
+import { type CalendarOverrideItem, listOverrides } from "../db/calendarList";
 import { selectLive } from "../db/query";
 import { dataset, network, timetable } from "../db/schema";
 import { getSharedDb } from "../db/sharedDb";
@@ -58,6 +67,7 @@ import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { activeSheet } from "./stack";
+import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
 
 const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D"})`;
 
@@ -129,6 +139,49 @@ export function SettingsSheet({ id }: { id: number }) {
       });
     }
   }, [isTop, db]);
+
+  const calendarEdits = useCalendarEdits();
+  const toast = useToast();
+  const [overrides, setOverrides] = useState<CalendarOverrideItem[]>([]);
+  const activeSwipeable = useRef<SwipeableMethods | null>(null);
+
+  const loadOverrides = useCallback(async () => {
+    if (!db) return;
+    try {
+      const list = await listOverrides(db);
+      setOverrides(list);
+    } catch {
+      // Ignora erro
+    }
+  }, [db]);
+
+  useEffect(() => {
+    if (isTop) {
+      void loadOverrides();
+    }
+  }, [isTop, schedule, loadOverrides]);
+
+  const { upcoming: upcomingOverrides, pastCount } = splitOverrides(
+    overrides,
+    lisbonWallClock(now()).date,
+  );
+
+  const handleDeleteOverride = async (item: CalendarOverrideItem) => {
+    const res = await calendarEdits.deleteOverride(item.id, now());
+    if (res.ok) {
+      void loadOverrides();
+      toast.show({
+        title: t("override.deleted"),
+        action: {
+          label: t("toast.action.undo"),
+          run: async () => {
+            await res.undo(now());
+            void loadOverrides();
+          },
+        },
+      });
+    }
+  };
 
   // Margem local para feedback imediato e reversão em caso de recusa
   const [margin, setMargin] = useState(prefs.margin);
@@ -311,6 +364,28 @@ export function SettingsSheet({ id }: { id: number }) {
                   accessibilityLabel={t("settings.override.add")}
                   onPress={() => dispatch({ type: "push", sheet: { kind: "override" } })}
                 />
+                {upcomingOverrides.map((item) => (
+                  <OverrideRow
+                    key={item.id}
+                    item={item}
+                    onDelete={() => void handleDeleteOverride(item)}
+                    onWillOpen={(methods) => {
+                      activeSwipeable.current = openSingleSwipeable(activeSwipeable.current, methods);
+                    }}
+                    onClose={(methods) => {
+                      if (activeSwipeable.current === methods) {
+                        activeSwipeable.current = closeAndClearSwipeable(activeSwipeable.current);
+                      }
+                    }}
+                  />
+                ))}
+                {pastCount > 0 && (
+                  <ListRow
+                    title={t("settings.override.past", { n: pastCount })}
+                    accessibilityLabel={t("settings.override.past", { n: pastCount })}
+                    onPress={() => dispatch({ type: "push", sheet: { kind: "pastOverrides" } })}
+                  />
+                )}
               </View>
             </View>
 
@@ -454,6 +529,67 @@ export function SettingsSheet({ id }: { id: number }) {
   );
 }
 
+function OverrideRow({
+  item,
+  onDelete,
+  onWillOpen,
+  onClose,
+}: {
+  item: CalendarOverrideItem;
+  onDelete: () => void;
+  onWillOpen: (methods: SwipeableMethods) => void;
+  onClose: (methods: SwipeableMethods) => void;
+}) {
+  const { colors } = useTheme();
+  const swipeableRef = useRef<SwipeableMethods>(null);
+
+  const lineText = formatOverrideLine(item.date, item.dayTypeCode);
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeableRef}
+      onSwipeableWillOpen={() => {
+        if (swipeableRef.current) onWillOpen(swipeableRef.current);
+      }}
+      onSwipeableClose={() => {
+        if (swipeableRef.current) onClose(swipeableRef.current);
+      }}
+      renderRightActions={(_progress, _translation, swipeableMethods) => (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("alarms.delete")}
+          onPress={() => {
+            swipeableMethods.close();
+            onDelete();
+          }}
+          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+        >
+          <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
+            {t("alarms.delete")}
+          </Text>
+        </Pressable>
+      )}
+    >
+      <View
+        accessibilityRole="text"
+        accessibilityLabel={lineText}
+        accessibilityActions={[{ name: "delete", label: t("alarms.delete") }]}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "delete") {
+            onDelete();
+          }
+        }}
+        style={[
+          styles.overrideRow,
+          { borderBottomColor: colors.divider, backgroundColor: colors.bg },
+        ]}
+      >
+        <Text style={[type.body, { color: colors.text, flex: 1 }]}>{lineText}</Text>
+      </View>
+    </ReanimatedSwipeable>
+  );
+}
+
 const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: space.md,
@@ -505,5 +641,20 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
     paddingHorizontal: space.xs,
     gap: space.sm,
+  },
+  overrideRow: {
+    minHeight: minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.xs,
+  },
+  deleteButton: {
+    minWidth: 80,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: space.md,
   },
 });
