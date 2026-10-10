@@ -12,7 +12,9 @@
  * mais um lugar, um tempo a pé, duas preferências (vão), dois estados do aparelho (não vão), uma edição oficial e,
  * com `withAlarm` (o exemplo da formatVersion 2, E-06, D-104), um aviso de saída (vai) e um evento do aviso (não vai);
  * com `withLocation` (o exemplo da formatVersion 3, E-07): a edição oficial ganha localização, há um ponto criado por você com
- * localização, o lugar Casa ganha `lat/lon` e o primeiro embarque ganha `gps_*`.
+ * localização, o lugar Casa ganha `lat/lon` e o primeiro embarque ganha `gps_*`;
+ * com `withCalendar` (o exemplo da formatVersion 4, E-08): margem 5, as chaves `include_municipal_holidays` e `alarms_allowed`,
+ * um feriado manual que repete (3 de março) e uma exceção (sábado 26/12/2026 funcionando como dia útil; a rede de teste só tem o tipo dia útil).
  */
 import { migrations } from "../migrations";
 import { THURSDAY, fixture, lineId, lisbon, stopId, tripIdOf, type Fixture } from "../../data/registroFixture";
@@ -20,7 +22,7 @@ import { THURSDAY, fixture, lineId, lisbon, stopId, tripIdOf, type Fixture } fro
 /** Instante da dedução e das gravações à mão (fixo, para o arquivo não mudar entre execuções). */
 export const SCENARIO_NOW = lisbon(THURSDAY, "18:00");
 
-export async function backupScenario(opts: { withAlarm?: boolean; withLocation?: boolean } = {}): Promise<Fixture & { ids: Record<string, string> }> {
+export async function backupScenario(opts: { withAlarm?: boolean; withLocation?: boolean; withCalendar?: boolean } = {}): Promise<Fixture & { ids: Record<string, string> }> {
   let n = 0;
   const f = await fixture({ newId: () => `0199c3a0-0000-7000-8000-${String(++n).padStart(12, "0")}` });
   await f.raw.exec(`PRAGMA user_version = ${migrations.length}`);
@@ -83,6 +85,24 @@ export async function backupScenario(opts: { withAlarm?: boolean; withLocation?:
     );
     await f.raw.run("UPDATE place SET lat = 39.7430, lon = -8.8100 WHERE id = 'place-casa'", []);
     await f.raw.run("UPDATE observation SET gps_lat = 39.7441, gps_lon = -8.8072, gps_accuracy_m = 12.5 WHERE id = ?", [b1.observationId]);
+  }
+  // E-08 (formatVersion 4): preferências do calendário e dois itens seus no calendário.
+  if (opts.withCalendar) {
+    await f.raw.run("UPDATE setting SET value = '5' WHERE `key` = 'margin_minutes'", []);
+    for (const [id, key, value] of [
+      ["set-municipal", "include_municipal_holidays", "false"],
+      ["set-alarms", "alarms_allowed", "true"],
+    ] as const) {
+      await f.raw.run("INSERT INTO setting (id, created_at, updated_at, source, `key`, value) VALUES (?, ?, ?, 'user', ?, ?)", [id, t, t, key, value]);
+    }
+    await f.raw.run(
+      "INSERT INTO holiday (id, created_at, updated_at, source, network_id, date, name, scope, recurring) SELECT 'holiday-3-marco', ?, ?, 'user', network_id, '2027-03-03', '3 de março', 'manual', 1 FROM stop WHERE id = ?",
+      [t, t, A],
+    );
+    await f.raw.run(
+      "INSERT INTO date_override (id, created_at, updated_at, source, network_id, date, day_type_id, note) SELECT 'override-natal', ?, ?, 'user', s.network_id, '2026-12-26', d.id, 'ponte' FROM stop s, day_type d WHERE s.id = ? AND d.code = 'weekday'",
+      [t, t, A],
+    );
   }
   return { ...f, ids: { b1: b1.observationId, b2: b2.observationId, b3: b3.observationId, b3m: b3m.observationId, b4: b4.observationId, b5: b5.observationId, alight: down.token.observationId } };
 }

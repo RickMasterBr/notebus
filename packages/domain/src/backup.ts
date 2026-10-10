@@ -2,9 +2,9 @@
  * Backup (E-03 §5, D-082, D-088, D-089, D-090): o formato do arquivo, a validação, a junção, os órfãos e o lembrete.
  * Puro: sem banco, sem `expo-*`, sem React. O SHA-256 entra por parâmetro (`expo-crypto` no app, `node:crypto` nos testes).
  *
- * **O formato é contrato (D-090).** O que está neste arquivo (tabelas, colunas e a ordem delas) é a `formatVersion` 3;
- * `BACKUP_V1_COLUMNS` e `BACKUP_V2_COLUMNS` são contratos congelados e nunca mudam (a 2 acrescenta `departure_alarm`, D-104;
- * a 3 acrescenta `stop.location_source`, E-07).
+ * **O formato é contrato (D-090).** O que está neste arquivo (tabelas, colunas e a ordem delas) é a `formatVersion` 4;
+ * `BACKUP_V1_COLUMNS` a `BACKUP_V3_COLUMNS` são contratos congelados e nunca mudam (a 2 acrescenta `departure_alarm`, D-104;
+ * a 3 acrescenta `stop.location_source`, E-07; a 4 acrescenta `holiday.recurring`, E-08).
  * Mudou uma coluna ou uma tabela? Sobe `BACKUP_FORMAT_VERSION`, acrescenta a conversão em `UPGRADES` e guarda um
  * arquivo de exemplo novo em `fixtures/backup/`. O app sempre lê todas as versões anteriores.
  *
@@ -14,8 +14,10 @@
  * byte alterado (um dígito, um espaço, uma quebra de linha, o próprio checksum) muda o resultado e o arquivo é recusado.
  */
 
+import { clampMargin } from "./margin";
+
 export const BACKUP_FORMAT = "notebus-backup";
-export const BACKUP_FORMAT_VERSION = 3;
+export const BACKUP_FORMAT_VERSION = 4;
 
 /** Valor de uma coluna como o SQLite guarda (JSON e booleanos já vêm como texto e 0/1). */
 export type BackupValue = string | number | null;
@@ -73,26 +75,40 @@ export const BACKUP_V2_COLUMNS = {
 } as const satisfies Record<string, readonly string[]>;
 
 /**
- * Tabelas e colunas da `formatVersion` 3 (a atual): as da 2 mais `stop.location_source` (E-07, depois de `lon`, na ordem do
- * esquema). Iguais ao esquema (um teste do app confere coluna por coluna).
+ * Tabelas e colunas da `formatVersion` 3: as da 2 mais `stop.location_source` (E-07, depois de `lon`, na ordem do
+ * esquema). Contrato congelado: não muda nunca.
  */
 export const BACKUP_V3_COLUMNS = {
   ...BACKUP_V2_COLUMNS,
   stop: [...OFFICIAL, "network_id", "name", "aliases", "external_id", "lat", "lon", "location_source", "note"],
 } as const satisfies Record<string, readonly string[]>;
 
-export type BackupTableName = keyof typeof BACKUP_V3_COLUMNS;
-export const BACKUP_TABLES = Object.keys(BACKUP_V3_COLUMNS) as BackupTableName[];
+/**
+ * Tabelas e colunas da `formatVersion` 4 (a atual): as da 3 mais `holiday.recurring` (E-08, depois de `scope`, na ordem
+ * do esquema). Iguais ao esquema (um teste do app confere coluna por coluna).
+ */
+export const BACKUP_V4_COLUMNS = {
+  ...BACKUP_V3_COLUMNS,
+  holiday: [...OFFICIAL, "network_id", "date", "name", "scope", "recurring"],
+} as const satisfies Record<string, readonly string[]>;
+
+export type BackupTableName = keyof typeof BACKUP_V4_COLUMNS;
+export const BACKUP_TABLES = Object.keys(BACKUP_V4_COLUMNS) as BackupTableName[];
 
 /** Tabelas que podem ter dados oficiais editados por você (`source = official_edited`). */
-export const OFFICIAL_EDIT_TABLES = BACKUP_TABLES.filter((t) => BACKUP_V3_COLUMNS[t].includes("official_key" as never));
+export const OFFICIAL_EDIT_TABLES = BACKUP_TABLES.filter((t) => BACKUP_V4_COLUMNS[t].includes("official_key" as never));
 
 /**
  * Chaves do `setting` que vão no backup: só as **suas preferências**. Estado do aparelho ou da sessão não vai nem volta
  * (`first_run_done`, `last_export_at`, o adiamento do lembrete; a versão do esquema é o `PRAGMA user_version` e o
  * relógio de teste só existe na memória).
  */
-export const BACKUP_SETTING_KEYS: readonly string[] = ["margin_minutes", "recent_stops"];
+export const BACKUP_SETTING_KEYS: readonly string[] = [
+  "margin_minutes",
+  "recent_stops",
+  "include_municipal_holidays",
+  "alarms_allowed",
+];
 
 export type BackupTables = Record<BackupTableName, BackupRow[]> & {
   official_edits: Partial<Record<BackupTableName, BackupRow[]>>;
@@ -136,7 +152,7 @@ export interface BackupInput {
 
 /** Linha com as colunas do contrato, nesta ordem. Coluna que faltar vira `null`; coluna a mais é recusada. */
 function orderRow(table: BackupTableName, row: BackupRow): BackupRow {
-  const columns = BACKUP_V3_COLUMNS[table] as readonly string[];
+  const columns = BACKUP_V4_COLUMNS[table] as readonly string[];
   const extra = Object.keys(row).filter((k) => !columns.includes(k));
   if (extra.length > 0) throw new Error(`backup: coluna fora do formato ${BACKUP_FORMAT_VERSION} em ${table}: ${extra.join(", ")}`);
   const out: BackupRow = {};
@@ -251,7 +267,7 @@ export async function parseBackup(text: string, deps: ParseDeps): Promise<Backup
   }
   const migrated = migrateBackup(raw);
   if (!migrated.ok) return migrated;
-  const backup = migrated.backup;
+  const backup = withSafeMargin(migrated.backup);
 
   const shape = shapeProblem(backup);
   if (shape) return fail("format_unknown", shape);
@@ -270,9 +286,9 @@ export async function parseBackup(text: string, deps: ParseDeps): Promise<Backup
 }
 
 /** Acrescenta uma coluna vazia logo depois de `after`, mantendo a ordem do contrato (a ordem das chaves é conferida). */
-function withColumnAfter(row: unknown, after: string, column: string): unknown {
+function withColumnAfter(row: unknown, after: string, column: string, value: BackupValue = null): unknown {
   if (!isObject(row)) return row;
-  return Object.fromEntries(Object.entries(row).flatMap(([key, value]) => (key === after ? [[key, value], [column, null]] : [[key, value]])));
+  return Object.fromEntries(Object.entries(row).flatMap(([key, kept]) => (key === after ? [[key, kept], [column, value]] : [[key, kept]])));
 }
 
 const mapRows = (rows: unknown, fn: (row: unknown) => unknown): unknown => (Array.isArray(rows) ? rows.map(fn) : rows);
@@ -280,7 +296,8 @@ const mapRows = (rows: unknown, fn: (row: unknown) => unknown): unknown => (Arra
 /**
  * Conversões de versões antigas até a atual: `from` → função que devolve a versão seguinte. A 1 → 2 acrescenta a tabela
  * `departure_alarm` vazia (o formato 1 não tinha avisos, D-104). A 2 → 3 acrescenta `location_source` vazio em cada ponto,
- * inclusive nos oficiais editados (E-07). Não mexe no objeto lido: devolve cópias.
+ * inclusive nos oficiais editados (E-07). A 3 → 4 acrescenta `recurring` = 0 (não repete) em cada feriado, também nos
+ * oficiais editados (E-08). Não mexe no objeto lido: devolve cópias.
  */
 const UPGRADES: Record<number, (file: Record<string, unknown>) => Record<string, unknown>> = {
   1: (file) => ({
@@ -300,6 +317,20 @@ const UPGRADES: Record<number, (file: Record<string, unknown>) => Record<string,
         ...tables,
         stop: mapRows(tables.stop, addToStop),
         official_edits: { ...edits, ...("stop" in edits ? { stop: mapRows(edits.stop, addToStop) } : {}) },
+      },
+    };
+  },
+  3: (file) => {
+    const tables = isObject(file.tables) ? file.tables : {};
+    const edits = isObject(tables.official_edits) ? tables.official_edits : {};
+    const addToHoliday = (row: unknown) => withColumnAfter(row, "scope", "recurring", 0);
+    return {
+      ...file,
+      formatVersion: 4,
+      tables: {
+        ...tables,
+        holiday: mapRows(tables.holiday, addToHoliday),
+        official_edits: { ...edits, ...("holiday" in edits ? { holiday: mapRows(edits.holiday, addToHoliday) } : {}) },
       },
     };
   },
@@ -326,6 +357,31 @@ export function migrateBackup(raw: Record<string, unknown>): BackupParseResult {
   return { ok: true, backup: file as unknown as BackupFile };
 }
 
+/**
+ * A margem que vem de fora do app não é de confiança (E-08, T-79): vira inteiro de 0 a 10 (`clampMargin`). Só a linha
+ * `margin_minutes` do `setting` muda; `value` é o JSON como o banco guarda (texto). Devolve cópia, não mexe no lido.
+ */
+function withSafeMargin(backup: BackupFile): BackupFile {
+  const setting = backup.tables.setting;
+  if (!Array.isArray(setting)) return backup;
+  return {
+    ...backup,
+    tables: {
+      ...backup.tables,
+      setting: setting.map((row) => {
+        if (!isObject(row) || row.key !== "margin_minutes") return row;
+        let parsed: unknown;
+        try {
+          parsed = typeof row.value === "string" ? JSON.parse(row.value) : row.value;
+        } catch {
+          parsed = undefined;
+        }
+        return { ...row, value: JSON.stringify(clampMargin(parsed)) };
+      }),
+    },
+  };
+}
+
 /** A forma do arquivo já convertido: cabeçalho, todas as tabelas, colunas do contrato, `id` em toda linha. */
 function shapeProblem(b: BackupFile): string | null {
   if (typeof b.schemaVersion !== "number" || typeof b.appVersion !== "string" || typeof b.exportedAt !== "string") return "cabeçalho incompleto";
@@ -333,7 +389,7 @@ function shapeProblem(b: BackupFile): string | null {
   if (!isObject(b.counts) || !isObject(b.tables) || !isObject(b.tables.official_edits)) return "tabelas ausentes";
   const checkRows = (table: BackupTableName, rows: unknown): string | null => {
     if (!Array.isArray(rows)) return `${table}: não é lista`;
-    const columns = BACKUP_V3_COLUMNS[table] as readonly string[];
+    const columns = BACKUP_V4_COLUMNS[table] as readonly string[];
     for (const row of rows) {
       if (!isObject(row) || typeof row.id !== "string" || typeof row.updated_at !== "number") return `${table}: linha sem id ou updated_at`;
       const keys = Object.keys(row);

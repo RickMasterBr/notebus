@@ -13,7 +13,7 @@ const STOP_V3 = ["id", "created_at", "updated_at", "deleted_at", "source", "offi
 
 describe("T-72: contrato da formatVersion 3", () => {
   it("os contratos da 1 e da 2 estão intactos e a 3 só acrescenta stop.location_source, depois de lon", () => {
-    expect(BACKUP_FORMAT_VERSION).toBe(3);
+    expect(BACKUP_FORMAT_VERSION).toBe(4);
     expect(BACKUP_V1_COLUMNS.stop).toEqual(STOP_V3.filter((c) => c !== "location_source"));
     expect(BACKUP_V2_COLUMNS.stop).toEqual(BACKUP_V1_COLUMNS.stop);
     expect(BACKUP_V3_COLUMNS.stop).toEqual(STOP_V3);
@@ -25,15 +25,15 @@ describe("T-72: contrato da formatVersion 3", () => {
     const text = readFixture("format-v3.json");
     const parsed = await parseBackup(text, deps);
     if (!parsed.ok) throw new Error(`${parsed.problem}: ${parsed.detail}`);
-    expect(parsed.backup.formatVersion).toBe(3);
+    expect(parsed.backup.formatVersion).toBe(4);
     expect(parsed.backup.tables.stop.map((r) => [r.id, r.lat, r.lon, r.location_source])).toEqual([["stop-do-rick", 39.7455, -8.804, "manual"]]);
     expect(parsed.backup.tables.official_edits.stop!.map((r) => [r.lat, r.lon, r.location_source])).toEqual([[39.7441, -8.8072, "suggested"]]);
     expect(parsed.backup.tables.place[0]).toMatchObject({ lat: 39.743, lon: -8.81 });
     expect(parsed.backup.tables.observation.filter((o) => o.gps_lat !== null)).toEqual([expect.objectContaining({ gps_lat: 39.7441, gps_lon: -8.8072, gps_accuracy_m: 12.5 })]);
   });
 
-  it("formatVersion 4 (mais nova que o app) → format_newer", () => {
-    expect(migrateBackup({ formatVersion: 4 })).toMatchObject({ ok: false, problem: "format_newer" });
+  it("formatVersion 5 (mais nova que o app) → format_newer", () => {
+    expect(migrateBackup({ formatVersion: 5 })).toMatchObject({ ok: false, problem: "format_newer" });
   });
 });
 
@@ -43,7 +43,7 @@ describe("D-090: os formatos 1 e 2 sobem até a 3", () => {
     expect(original.formatVersion).toBe(2);
     const parsed = await parseBackup(readFixture("format-v2.json"), deps);
     if (!parsed.ok) throw new Error(`${parsed.problem}: ${parsed.detail}`);
-    expect(parsed.backup.formatVersion).toBe(3);
+    expect(parsed.backup.formatVersion).toBe(4);
     const stops = [...parsed.backup.tables.stop, ...(parsed.backup.tables.official_edits.stop ?? [])];
     expect(stops.length).toBeGreaterThan(0);
     for (const row of stops) {
@@ -58,7 +58,7 @@ describe("D-090: os formatos 1 e 2 sobem até a 3", () => {
   it("o format-v1.json também chega à 3 (1 → 2 → 3): departure_alarm vazio e location_source nulo", async () => {
     const parsed = await parseBackup(readFixture("format-v1.json"), deps);
     if (!parsed.ok) throw new Error(`${parsed.problem}: ${parsed.detail}`);
-    expect(parsed.backup.formatVersion).toBe(3);
+    expect(parsed.backup.formatVersion).toBe(4);
     expect(parsed.backup.tables.departure_alarm).toEqual([]);
     for (const row of [...parsed.backup.tables.stop, ...(parsed.backup.tables.official_edits.stop ?? [])]) expect(row.location_source).toBeNull();
   });
