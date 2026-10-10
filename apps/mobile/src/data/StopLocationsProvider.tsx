@@ -3,7 +3,7 @@
  * relê do banco depois de guardar ou apagar. Guardar, desfazer e dispensar a oferta passam por aqui (o banco é daqui).
  */
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { type StopPoint, clearStopLocation, saveStopLocation } from "../db/stopLocation";
+import { type StopLocationSource, type StopPoint, clearStopLocation, saveStopLocation } from "../db/stopLocation";
 import { useNow } from "./NowProvider";
 import { type StopLocation, loadStopLocations } from "./stopLocations";
 import { type DismissedMap, readDismissed, writeDismissed } from "./stopLocationOffer";
@@ -16,7 +16,7 @@ export interface StopLocationsValue {
   stops: readonly StopLocation[];
   dismissed: DismissedMap;
   reload: () => Promise<void>;
-  save: (stopId: string, point: StopPoint) => Promise<void>;
+  save: (stopId: string, point: StopPoint, source?: StopLocationSource) => Promise<void>;
   clear: (stopId: string) => Promise<void>;
   /** "Agora não": guarda o id do registro mais recente na hora. */
   dismiss: (stopId: string, newestRecordId: string) => Promise<void>;
@@ -56,8 +56,8 @@ export function StopLocationsProvider({ db, children }: { db: Db; children: Reac
   }, [reload]);
 
   const save = useCallback(
-    async (stopId: string, point: StopPoint) => {
-      await saveStopLocation(db, stopId, point, "suggested", now());
+    async (stopId: string, point: StopPoint, source: StopLocationSource = "suggested") => {
+      await saveStopLocation(db, stopId, point, source, now());
       await reload();
     },
     [db, now, reload],
