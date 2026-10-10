@@ -22,6 +22,15 @@ App de caderno de horários de ônibus (MOBILIS Leiria), Expo SDK 57, React Nati
 - Não dispare workflow do GitHub, não escreva `.md` em `docs/`, não faça push na `main`.
 - Commits na branch indicada, uma mudança por commit, mensagem começando por `E-03:` (ou a etapa do prompt).
 
+## Lógica em componente (lição de três blocos: 6b, 7a e 7b)
+
+- Decisão que mora em componente vira função pura em `data/`, com teste, e devolve o objeto que o componente consome por campo (por exemplo `cards.showOffline`), não um valor solto.
+- Guarda estático confere o **uso**: o campo no ponto certo do JSX, o argumento exato, a prop dentro do elemento certo. Conferir só que o texto da chamada existe não protege nada.
+- Para cada linha de ligação, aplique a mutação no componente (remover a prop, trocar o argumento, ignorar o resultado, trocar uma variável por constante), mostre o teste falhando (primeira linha da falha) e restaure. Mutação que passa verde é guarda a corrigir antes de seguir.
+- Efeito que resolve estado inicial depende de valores primitivos estáveis (ids, lat/lon, status), nunca de objeto criado no render do pai.
+- Constante de produto (zoom, raio, KB por tile) tem teste que a fixa.
+- No relatório, a contagem de testes fecha por arquivo: linha de base mais testes novos por arquivo igual ao total. Se não fechar, diga a diferença e de onde vem.
+
 ## Verificação
 
 Rode no fim: `npm ci && npm run typecheck && npm test` e `npx expo export --platform ios`. Tudo tem de passar, sem `skip`.
