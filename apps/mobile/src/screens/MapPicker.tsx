@@ -2,7 +2,7 @@
  * Seletor de posição no mapa (E-07 7b Bloco 7b, D-096, D-107, D-110, D-179).
  * Abre em tela cheia com um alfinete que se move ao toque.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Modal,
@@ -24,10 +24,13 @@ import {
 import type { GeoPoint } from "@notebus/domain";
 import { realNow } from "../data/clock";
 import {
+  PICK_MAX_ZOOM,
   type PickStart,
   type PickState,
   pickStart,
   resolvePick,
+  runPickResult,
+  shouldResolveStart,
   tapPin,
 } from "../data/mapPick";
 import {
@@ -93,18 +96,25 @@ function MapPickerContent({
   const [start, setStart] = useState<PickStart | null>(null);
   const [state, setState] = useState<PickState>({ pin: null });
 
+  const latest = useRef({ existing, places });
+  latest.current = { existing, places };
+  const resolvedRef = useRef(false);
+
   // Resolve o ponto inicial na abertura sem esperar GPS
   useEffect(() => {
+    if (!shouldResolveStart({ alreadyResolved: resolvedRef.current, placesReady: places.status === "ready" })) return;
+    resolvedRef.current = true;
     let alive = true;
     void (async () => {
       const fix = store.getFix();
-      const home = places.status === "ready" ? findCasaPoint(places.places) : null;
+      const currentPlaces = latest.current.places;
+      const home = currentPlaces.status === "ready" ? findCasaPoint(currentPlaces.places) : null;
       const db = getSharedDb();
       const lastMapPosition = db ? await readLastMapPosition(db) : null;
       const nowMs = realNow();
 
       const initial = pickStart({
-        existing,
+        existing: latest.current.existing,
         fix,
         nowMs,
         home,
@@ -120,7 +130,7 @@ function MapPickerContent({
     return () => {
       alive = false;
     };
-  }, [existing, places.places, places.status, store]);
+  }, [places.status, store]);
 
   const handleMapPress = useCallback(
     (e: NativeSyntheticEvent<PressEvent> | NativeSyntheticEvent<PressEventWithFeatures>) => {
@@ -139,20 +149,14 @@ function MapPickerContent({
   }, [onCancel, toast]);
 
   const handleConfirm = useCallback(() => {
-    const r = resolvePick(state);
-    if (r.kind === "disabled") {
-      return;
-    }
-    if (r.kind === "ok") {
-      onConfirm(r.point);
-      return;
-    }
-    if (r.kind === "far") {
-      Alert.alert(t("place.location.far"), undefined, [
-        { text: t("common.cancel"), style: "cancel" },
-        { text: t("stop.location_offer.save"), onPress: () => onConfirm(r.point) },
-      ]);
-    }
+    runPickResult(resolvePick(state), {
+      onConfirm,
+      askFar: (p) =>
+        Alert.alert(t("place.location.far"), undefined, [
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("stop.location_offer.save"), onPress: () => onConfirm(p) },
+        ]),
+    });
   }, [onConfirm, state]);
 
   const pinGeoJSON = useMemo<GeoJSON.FeatureCollection>(() => {
@@ -209,7 +213,7 @@ function MapPickerContent({
                   center: [start.point.lon, start.point.lat],
                   zoom: start.zoom,
                 }}
-                maxZoom={16}
+                maxZoom={PICK_MAX_ZOOM}
               />
               <GeoJSONSource id="pick-pin" data={pinGeoJSON}>
                 <Layer

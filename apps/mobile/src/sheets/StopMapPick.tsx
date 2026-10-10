@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { GeoPoint } from "@notebus/domain";
 import { useStopLocations } from "../data/StopLocationsProvider";
 import { useToast } from "../data/ToastProvider";
-import { undoForStopLocation } from "../data/mapPick";
+import { applyStopUndo, undoForStopLocation } from "../data/mapPick";
 import { t } from "../i18n";
 import { MapPicker } from "../screens/MapPicker";
 import { minTouch, type, useTheme } from "../theme";
@@ -47,11 +47,7 @@ export function StopMapPick({ stopId }: { stopId: string }) {
           action: {
             label: t("toast.action.undo"),
             run: () => {
-              if (undo.kind === "clear") {
-                void locations.clear(stopId).catch(() => failed());
-              } else {
-                void locations.save(stopId, undo.point, undo.source).catch(() => failed());
-              }
+              void applyStopUndo(undo, stopId, locations).catch(() => failed());
             },
           },
         });

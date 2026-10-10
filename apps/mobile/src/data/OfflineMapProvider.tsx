@@ -34,6 +34,7 @@ import {
   applyOfflineSnooze,
   canStartOfflineDownload,
   reduceOfflineMap,
+  shouldShowReadyToast,
   type OfflineControllerState,
 } from "./offlineMapController";
 
@@ -155,9 +156,9 @@ export function OfflineMapProvider({
           dispatch({ type: "download_failed" });
         }
       });
-      toast.show({ title: t("offline_map.ready_toast") });
       const refreshed = await getOfflineMapStatus();
       dispatch({ type: "status_loaded", status: refreshed });
+      if (shouldShowReadyToast(refreshed)) toast.show({ title: t("offline_map.ready_toast") });
     } catch {
       dispatch({ type: "download_failed" });
     }
