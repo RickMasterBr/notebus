@@ -19,6 +19,7 @@ import { checkPlaceLocation, getPlaceLocation, readNativeLocation } from "../dat
 import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { originSelectionAction } from "./placeOrigin";
 import { t } from "../i18n";
+import { MapPicker } from "../screens/MapPicker";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CrossGlyph, ChevronRightGlyph, PlaceIconGlyph, PlusGlyph } from "../ui/Glyphs";
 import { SheetHandle } from "./SheetHandle";
@@ -76,6 +77,7 @@ export function PlaceSheet({
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
   const [pickingOrigin, setPickingOrigin] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     if (existingPlace) {
@@ -316,6 +318,16 @@ export function PlaceSheet({
                   {t("place.location.use_now")}
                 </Text>
               </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("map_pick.open.place.a11y")}
+                onPress={() => setPickerOpen(true)}
+                style={[styles.locationButton, { backgroundColor: colors.fill }]}
+              >
+                <Text style={[type.bodyStrong, { color: colors.text }]}>
+                  {t("map_pick.open")}
+                </Text>
+              </Pressable>
             </View>
 
             {/* Trajetos até aqui (apenas se lugar já existe) */}
@@ -455,6 +467,18 @@ export function PlaceSheet({
           </BottomSheetScrollView>
         </View>
       </StackedSheet>
+      <MapPicker
+        visible={pickerOpen}
+        existing={lat !== null && lon !== null ? { lat, lon } : null}
+        onCancel={() => setPickerOpen(false)}
+        onConfirm={(p) => {
+          setLat(p.lat);
+          setLon(p.lon);
+          setLocationNotice(null);
+          setLocationStatus("set");
+          setPickerOpen(false);
+        }}
+      />
     </HeightContext.Provider>
   );
 }
