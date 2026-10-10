@@ -1,5 +1,6 @@
 import { alarmTextParams, buildWindow, planDepartures } from "@notebus/domain";
 import { describe, expect, it } from "vitest";
+import { ALARMS_ALLOWED_KEY, writePreference } from "../db/preferences";
 import { t } from "../i18n";
 import { createFakePort } from "./fakePort";
 import { alarmPlanInput } from "./planInput";
@@ -223,5 +224,12 @@ describe("scheduler.scheduleTestAlarm (item 7)", () => {
   it("sem permissão: permission_denied", async () => {
     const s = await setup([5], WED_0700, "denied");
     expect(await s.scheduler.scheduleTestAlarm()).toEqual({ ok: false, reason: "permission_denied" });
+  });
+
+  it("com o interruptor 'Permitir avisos de saída' desligado: alarms_off e nada agendado", async () => {
+    const s = await setup();
+    await writePreference(s.db, ALARMS_ALLOWED_KEY, false, WED_0700);
+    expect(await s.scheduler.scheduleTestAlarm()).toEqual({ ok: false, reason: "alarms_off" });
+    expect(s.port.scheduled.size).toBe(0);
   });
 });

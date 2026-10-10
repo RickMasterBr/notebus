@@ -23,10 +23,13 @@ import { type ImportPreview, exportBackup, prepareImport } from "./backupFlow";
 import { nativeExportIO, nativeSha256, pickBackupText } from "./backupNative";
 import { useNow } from "./NowProvider";
 import { usePlaces } from "./PlacesProvider";
+import { usePreferences } from "./PreferencesProvider";
 import { useRecentStops } from "./RecentStopsProvider";
 import { useRegistro } from "./RegistroProvider";
+import { useScheduleReload } from "./ScheduleProvider";
 import { useToast } from "./ToastProvider";
 import { useNowTick } from "./useNowTick";
+import { requestReschedule } from "../notifications/runtime";
 
 export type ImportSheetState =
   | { status: "checking" }
@@ -103,6 +106,8 @@ export function BackupProvider({
   const { observations, exclusive, refresh } = useRegistro();
   const recentStops = useRecentStops();
   const places = usePlaces();
+  const preferences = usePreferences();
+  const reloadSchedule = useScheduleReload();
   const [state, setState] = useState<Awaited<ReturnType<typeof readReminderState>> | null>(null);
   const [importSheet, setImportSheet] = useState<ImportSheetState | null>(null);
   const busy = useRef(false);
@@ -206,6 +211,9 @@ export function BackupProvider({
                 await exclusive(() => undoImport(raw, outcome.undo));
                 await recentStops.reload();
                 await places.reload();
+                await preferences.reload();
+                await reloadSchedule();
+                requestReschedule();
                 toast.show({ title: t("toast.import_undone.title") });
               } catch {
                 toast.show({ title: t("toast.import_failed.title"), body: t("toast.import_failed.body"), kind: "error", haptic: "error" });
@@ -217,9 +225,12 @@ export function BackupProvider({
       // Invalida os recentes, os lugares e a fila refaz as deduções dos importados; o toast não espera.
       void recentStops.reload();
       void places.reload();
+      void preferences.reload();
+      void reloadSchedule();
+      requestReschedule();
       void refresh();
     })();
-  }, [importSheet, raw, backups, exclusive, refresh, toast, recentStops, places]);
+  }, [importSheet, raw, backups, exclusive, refresh, toast, recentStops, places, preferences, reloadSchedule]);
 
   const snooze = useCallback(() => {
     const at = nowRef.current();

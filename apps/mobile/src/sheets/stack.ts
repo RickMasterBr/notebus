@@ -45,7 +45,12 @@ export type SheetContent =
   /** E-06 Bloco 3: Avisos */
   | { kind: "repeat"; alarmId: string }
   | { kind: "alarms" }
-  | { kind: "alarmIntro"; mode: "reason" | "denied" | "focus"; onResolve?: (value: boolean) => void };
+  | { kind: "alarmIntro"; mode: "reason" | "denied" | "focus"; onResolve?: (value: boolean) => void }
+  /** E-08 Bloco 1b: Ajustes (TL-12) */
+  | { kind: "override" }
+  | { kind: "pastOverrides" }
+  | { kind: "holiday" }
+  | { kind: "networkInfo" };
 
 export type SheetKind = SheetContent["kind"];
 
