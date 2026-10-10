@@ -46,6 +46,7 @@ import { useSchedule } from "../data/ScheduleProvider";
 import {
   backupDaysText,
   dayTypeCounts,
+  formatHolidayLine,
   formatOverrideLine,
   marginLimits,
   networkLine,
@@ -55,7 +56,12 @@ import {
 import { createTapCounter } from "../data/testClockPicker";
 import { useToast } from "../data/ToastProvider";
 import { sharedAlarms } from "../db/alarms";
-import { type CalendarOverrideItem, listOverrides } from "../db/calendarList";
+import {
+  type CalendarHolidayItem,
+  type CalendarOverrideItem,
+  listHolidays,
+  listOverrides,
+} from "../db/calendarList";
 import { selectLive } from "../db/query";
 import { dataset, network, timetable } from "../db/schema";
 import { getSharedDb } from "../db/sharedDb";
@@ -179,6 +185,46 @@ export function SettingsSheet({ id }: { id: number }) {
             void loadOverrides();
           },
         },
+      });
+    }
+  };
+
+  const [holidays, setHolidays] = useState<CalendarHolidayItem[]>([]);
+
+  const loadHolidays = useCallback(async () => {
+    if (!db) return;
+    try {
+      const list = await listHolidays(db);
+      setHolidays(list);
+    } catch {
+      // Ignora erro
+    }
+  }, [db]);
+
+  useEffect(() => {
+    if (isTop) {
+      void loadHolidays();
+    }
+  }, [isTop, schedule, loadHolidays]);
+
+  const handleDeleteHoliday = async (item: CalendarHolidayItem) => {
+    const res = await calendarEdits.deleteHoliday(item.id, now());
+    if (res.ok) {
+      void loadHolidays();
+      toast.show({
+        title: t("holiday.deleted"),
+        action: {
+          label: t("toast.action.undo"),
+          run: async () => {
+            await res.undo(now());
+            void loadHolidays();
+          },
+        },
+      });
+    } else if (res.reason === "official") {
+      toast.show({
+        title: t("holiday.error.official"),
+        kind: "error",
       });
     }
   };
@@ -411,6 +457,30 @@ export function SettingsSheet({ id }: { id: number }) {
                     thumbColor={colors.surface}
                   />
                 </View>
+                {holidays.map((item) =>
+                  item.scope === "manual" ? (
+                    <HolidayRow
+                      key={item.id}
+                      item={item}
+                      onDelete={() => void handleDeleteHoliday(item)}
+                      onWillOpen={(methods) => {
+                        activeSwipeable.current = openSingleSwipeable(activeSwipeable.current, methods);
+                      }}
+                      onClose={(methods) => {
+                        if (activeSwipeable.current === methods) {
+                          activeSwipeable.current = closeAndClearSwipeable(activeSwipeable.current);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <ListRow
+                      key={item.id}
+                      title={formatHolidayLine(item.name, item.date, item.recurring)}
+                      detail={t("settings.holiday.official_note")}
+                      accessibilityLabel={`${formatHolidayLine(item.name, item.date, item.recurring)}. ${t("settings.holiday.official_note")}`}
+                    />
+                  ),
+                )}
                 <ListRow
                   title={t("settings.holiday.add")}
                   accessibilityLabel={t("settings.holiday.add")}
@@ -544,6 +614,67 @@ function OverrideRow({
   const swipeableRef = useRef<SwipeableMethods>(null);
 
   const lineText = formatOverrideLine(item.date, item.dayTypeCode);
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeableRef}
+      onSwipeableWillOpen={() => {
+        if (swipeableRef.current) onWillOpen(swipeableRef.current);
+      }}
+      onSwipeableClose={() => {
+        if (swipeableRef.current) onClose(swipeableRef.current);
+      }}
+      renderRightActions={(_progress, _translation, swipeableMethods) => (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("alarms.delete")}
+          onPress={() => {
+            swipeableMethods.close();
+            onDelete();
+          }}
+          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+        >
+          <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
+            {t("alarms.delete")}
+          </Text>
+        </Pressable>
+      )}
+    >
+      <View
+        accessibilityRole="text"
+        accessibilityLabel={lineText}
+        accessibilityActions={[{ name: "delete", label: t("alarms.delete") }]}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "delete") {
+            onDelete();
+          }
+        }}
+        style={[
+          styles.overrideRow,
+          { borderBottomColor: colors.divider, backgroundColor: colors.bg },
+        ]}
+      >
+        <Text style={[type.body, { color: colors.text, flex: 1 }]}>{lineText}</Text>
+      </View>
+    </ReanimatedSwipeable>
+  );
+}
+
+function HolidayRow({
+  item,
+  onDelete,
+  onWillOpen,
+  onClose,
+}: {
+  item: CalendarHolidayItem;
+  onDelete: () => void;
+  onWillOpen: (methods: SwipeableMethods) => void;
+  onClose: (methods: SwipeableMethods) => void;
+}) {
+  const { colors } = useTheme();
+  const swipeableRef = useRef<SwipeableMethods>(null);
+
+  const lineText = formatHolidayLine(item.name, item.date, item.recurring);
 
   return (
     <ReanimatedSwipeable
