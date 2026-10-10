@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 const ALLOWED_MAPLIBRE_IMPORTERS = new Set([
   "screens/MapBackdrop.tsx",
   "data/mapOfflineNative.ts",
+  "screens/MapPicker.tsx",
 ]);
 
 function findSourceFiles(dir: string): string[] {
@@ -33,7 +34,7 @@ export function findMapLibreViolations(srcDir: string): string[] {
 }
 
 describe("guarda de imports do MapLibre (Item 0)", () => {
-  it("somente MapBackdrop.tsx e mapOfflineNative.ts importam @maplibre/maplibre-react-native", () => {
+  it("somente MapBackdrop.tsx, mapOfflineNative.ts e MapPicker.tsx importam @maplibre/maplibre-react-native", () => {
     const srcDir = join(__dirname, "..");
     const violations = findMapLibreViolations(srcDir);
     expect(violations).toEqual([]);

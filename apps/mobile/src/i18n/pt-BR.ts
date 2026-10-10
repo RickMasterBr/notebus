@@ -514,6 +514,16 @@ export const ptBR = {
   "settings.offline_map.alert.download_again": "Baixar de novo", // provisório
   "settings.offline_map.alert.delete": "Apagar", // provisório
   "settings.offline_map.a11y": "Mapa sem internet. {{estado}}", // provisório
+  // E-07 Bloco 7b: Marcar no mapa
+  "map_pick.open": "Marcar no mapa", // provisório
+  "map_pick.open.place.a11y": "Marcar no mapa onde fica este lugar", // provisório
+  "map_pick.open.stop.a11y": "Marcar no mapa onde fica este ponto", // provisório
+  "map_pick.hint": "Toque onde fica", // provisório
+  "map_pick.confirm": "Confirmar", // provisório
+  "map_pick.confirm.a11y": "Confirmar a posição marcada", // provisório
+  "map_pick.confirm.needs_tap.a11y": "Toque no mapa para escolher a posição antes de confirmar", // provisório
+  "map_pick.cancel.a11y": "Cancelar sem marcar", // provisório
+  "map_pick.unavailable": "Não foi possível abrir o mapa. Confira a internet ou baixe o mapa em Ajustes.", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;
