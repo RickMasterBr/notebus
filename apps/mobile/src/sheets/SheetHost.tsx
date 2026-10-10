@@ -24,6 +24,10 @@ import { GotoSheet } from "./GotoSheet";
 import { RepeatSheet } from "./RepeatSheet";
 import { AlarmsSheet } from "./AlarmsSheet";
 import { AlarmIntroSheet } from "./AlarmIntroSheet";
+import { OverrideSheet } from "./OverrideSheet";
+import { PastOverridesSheet } from "./PastOverridesSheet";
+import { HolidaySheet } from "./HolidaySheet";
+import { NetworkInfoSheet } from "./NetworkInfoSheet";
 import { CloseSheetProvider } from "./StackedSheet";
 import { homeLayerPointerEvents } from "./diagLog";
 import { type SheetEntry, stackedSheets } from "./stack";
@@ -141,6 +145,14 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
           onResolve={entry.onResolve}
         />
       );
+    case "override":
+      return <OverrideSheet id={entry.id} />;
+    case "pastOverrides":
+      return <PastOverridesSheet id={entry.id} />;
+    case "holiday":
+      return <HolidaySheet id={entry.id} />;
+    case "networkInfo":
+      return <NetworkInfoSheet id={entry.id} />;
     case "home":
       return null;
   }
