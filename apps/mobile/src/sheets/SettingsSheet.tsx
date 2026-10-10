@@ -12,6 +12,10 @@ import { lisbonDateText, useBackup } from "../data/BackupProvider";
 import { realNow } from "../data/clock";
 import { useOfflineMap } from "../data/OfflineMapProvider";
 import { megabytesText } from "../data/mapOfflineState";
+import {
+  offlineSettingsButtons,
+  runOfflineSettingsAction,
+} from "../data/offlineSettingsActions";
 import { createTapCounter } from "../data/testClockPicker";
 import { sharedAlarms } from "../db/alarms";
 import { getSharedDb } from "../db/sharedDb";
@@ -69,37 +73,18 @@ export function SettingsSheet({ id }: { id: number }) {
   })();
 
   const onPressOfflineMap = () => {
-    if (offlineMap.status.kind === "downloading") return;
+    const buttons = offlineSettingsButtons(offlineMap.status);
+    if (buttons.length === 0) return;
 
-    if (offlineMap.status.kind === "ready") {
-      Alert.alert(t("settings.offline_map.alert.title"), undefined, [
-        {
-          text: t("settings.offline_map.alert.download_again"),
-          onPress: offlineMap.startDownload,
-        },
-        {
-          text: t("settings.offline_map.alert.delete"),
-          style: "destructive",
-          onPress: offlineMap.deleteMap,
-        },
-        {
-          text: t("common.cancel"),
-          style: "cancel",
-        },
-      ]);
-      return;
-    }
-
-    Alert.alert(t("settings.offline_map.alert.title"), undefined, [
-      {
-        text: t("settings.offline_map.alert.download"),
-        onPress: offlineMap.startDownload,
-      },
-      {
-        text: t("common.cancel"),
-        style: "cancel",
-      },
-    ]);
+    Alert.alert(
+      t("settings.offline_map.alert.title"),
+      undefined,
+      buttons.map((b) => ({
+        text: t(b.labelKey),
+        style: b.style === "default" ? undefined : b.style,
+        onPress: () => runOfflineSettingsAction(b.action, offlineMap),
+      })),
+    );
   };
 
   return (

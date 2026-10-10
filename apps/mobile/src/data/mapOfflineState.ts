@@ -50,10 +50,12 @@ export function megabytesText(bytes: number): string {
   return mb.toFixed(1).replace(".", ",");
 }
 
-/** Estima o tamanho em MB a partir do número de tiles: tileCount * 51 / 1024, uma casa decimal. */
+export const OFFLINE_KB_PER_TILE = 80; // medido no iPhone em 10/10/26: 180 tiles, 2 pacotes, 14,1 MB
+
+/** Estima o tamanho em MB a partir do número de tiles: tileCount * OFFLINE_KB_PER_TILE / 1024, uma casa decimal. */
 export function estimateMegabytes(tileCount: number): number {
   if (tileCount <= 0) return 0;
-  const raw = (tileCount * 51) / 1024;
+  const raw = (tileCount * OFFLINE_KB_PER_TILE) / 1024;
   return Math.round(raw * 10) / 10;
 }
 

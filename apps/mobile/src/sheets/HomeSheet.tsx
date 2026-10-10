@@ -34,6 +34,7 @@ import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { openGotoOrNewOption } from "../data/gotoNavigation";
+import { homeCardsPlan } from "../data/homeCards";
 import { homePendingInfo } from "../data/homePending";
 import { initialDetent } from "../data/homeStart";
 import { t } from "../i18n";
@@ -81,14 +82,18 @@ export function HomeSheet() {
       : t("home.backup_reminder.body", { days: backup.reminder.daysSince })
     : null;
   const offlineMap = useOfflineMap();
-  const showOfflineCard = !tripCard && !reminder && (offlineMap.offerVisible || offlineMap.status.kind === "downloading");
-  const showAnyCard = Boolean(tripCard || reminder || showOfflineCard);
   const [handleHeight, setHandleHeight] = useState(0);
   const [pillHeight, setPillHeight] = useState(0);
   // Altura medida do cartão ("Em viagem", lembrete de backup ou mapa sem internet); 0 sem nenhum.
   const [cardHeight, setCardHeight] = useState(0);
-  const effectiveCardHeight = showAnyCard ? cardHeight : 0;
-  const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + effectiveCardHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
+  const cards = homeCardsPlan({
+    hasTripCard: Boolean(tripCard),
+    hasBackupReminder: Boolean(reminder),
+    offerVisible: offlineMap.offerVisible,
+    offlineStatus: offlineMap.status.kind,
+    measuredHeight: cardHeight,
+  });
+  const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + cards.effectiveHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
   // Topo da folha, medido pela biblioteca (já com a área segura de cima): o botão "Registrar" sobe e desce com ele.
   // Começa fora da tela até a primeira medida.
   const window = useWindowDimensions();
@@ -164,7 +169,7 @@ export function HomeSheet() {
     Math.round(
       (detentMetrics(snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0) -
         pillHeight -
-        effectiveCardHeight -
+        cards.effectiveHeight -
         space.md,
     ),
   );
@@ -198,7 +203,7 @@ export function HomeSheet() {
       >
         {/* `View` comum, não `BottomSheetView`: ver `StackedSheet` (a lista perde a rolagem e o tamanho). */}
         <View style={styles.content} collapsable={false}>
-          {showAnyCard ? (
+          {cards.showAny ? (
             <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)} style={styles.card}>
               {tripCard ? (
                 <TripCard
@@ -210,7 +215,7 @@ export function HomeSheet() {
                 />
               ) : null}
               {reminder ? <BackupReminderCard text={reminder} onExport={backup.exportNow} onSnooze={backup.snooze} /> : null}
-              {showOfflineCard ? <OfflineMapCard /> : null}
+              {cards.showOffline ? <OfflineMapCard /> : null}
             </View>
           ) : null}
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
