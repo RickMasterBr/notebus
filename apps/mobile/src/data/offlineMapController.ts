@@ -20,6 +20,10 @@ export type OfflineMapEvent =
   | { type: "snoozed"; untilMs: number }
   | { type: "map_deleted" };
 
+export function mapShownForOffer(failed: boolean, hasOpening: boolean): boolean {
+  return !failed && hasOpening;
+}
+
 export function reduceOfflineMap(
   state: OfflineControllerState,
   event: OfflineMapEvent,

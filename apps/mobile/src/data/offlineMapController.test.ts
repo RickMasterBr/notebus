@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mapShownForOffer,
   reduceOfflineMap,
   type OfflineControllerState,
 } from "./offlineMapController";
@@ -123,3 +124,13 @@ describe("offlineMapController (Item 1 puro)", () => {
     expect(deletedState.status).toEqual({ kind: "none" });
   });
 });
+
+describe("mapShownForOffer (Item 0.2 puro)", () => {
+  it("(false, true) → true; (true, true), (false, false), (true, false) → false", () => {
+    expect(mapShownForOffer(false, true)).toBe(true);
+    expect(mapShownForOffer(true, true)).toBe(false);
+    expect(mapShownForOffer(false, false)).toBe(false);
+    expect(mapShownForOffer(true, false)).toBe(false);
+  });
+});
+

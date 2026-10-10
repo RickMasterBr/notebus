@@ -30,6 +30,7 @@ import { useTestClock } from "../data/TestClockProvider";
 import { useNow } from "../data/NowProvider";
 import { useToast } from "../data/ToastProvider";
 import { useOfflineMap } from "../data/OfflineMapProvider";
+import { mapShownForOffer } from "../data/offlineMapController";
 import { useStopLocations } from "../data/StopLocationsProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { useRegistro } from "../data/RegistroProvider";
@@ -91,7 +92,7 @@ export function MapBackdrop() {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    setMapVisible(!failed && opening !== null);
+    setMapVisible(mapShownForOffer(failed, opening !== null));
   }, [failed, opening, setMapVisible]);
 
   const names = useMemo(() => {
