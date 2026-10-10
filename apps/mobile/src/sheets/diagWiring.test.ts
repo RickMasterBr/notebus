@@ -22,10 +22,11 @@ export function checkSheetHostWiring(source: string): SheetHostDiagCheck {
   const callsHomeLayerPointerEvents =
     norm.includes("homeLayerPointerEvents(stacked.length)");
 
-  // A primeira View (camada Home) usa pointerEvents={homeLayerPointerEvents(stacked.length)}
-  const homeLayerMatch = norm.match(/<View\b[^>]*pointerEvents=\{homeLayerPointerEvents\(stacked\.length\)\}[^>]*>/);
+  // A primeira View (camada Home) usa pointerEvents={homeLayerPointerEvents(stacked.length)} e envolve a Home
   const homeLayerUsesDynamicPointerEvents =
-    Boolean(homeLayerMatch) && !norm.includes('pointerEvents="none">\s*{customBase');
+    /<View\b[^>]*pointerEvents=\{homeLayerPointerEvents\(stacked\.length\)\}[^>]*>\s*\{customBase \?\? <HomeSheet \/>\}/.test(
+      norm,
+    );
 
   return {
     callsHomeLayerPointerEvents,
