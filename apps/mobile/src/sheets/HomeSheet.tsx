@@ -47,7 +47,6 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { detentFromIndex } from "./stack";
-import { mapTouchPolicy } from "./mapTouchPolicy";
 
 const LAST_INDEX = 2;
 /** Altura do detent pequeno até a primeira medida (handle + pílula + margem de baixo). */
@@ -57,7 +56,6 @@ export function HomeSheet() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { state, dispatch, registerHomeCollapse } = useSheets();
-  const touchPolicy = mapTouchPolicy(state.detent);
   const sheetRef = useRef<BottomSheet>(null);
   const lastIndex = useRef<number | null>(null);
 
