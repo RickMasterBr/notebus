@@ -27,6 +27,7 @@ import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View, useWi
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBackup } from "../data/BackupProvider";
+import { useOfflineMap } from "../data/OfflineMapProvider";
 import { usePlaces } from "../data/PlacesProvider";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useRegistro } from "../data/RegistroProvider";
@@ -38,6 +39,7 @@ import { initialDetent } from "../data/homeStart";
 import { t } from "../i18n";
 import { elevation, radius, space, type, useTheme } from "../theme";
 import { PlaceIconGlyph, PlusGlyph } from "../ui/Glyphs";
+import { OfflineMapCard } from "../ui/OfflineMapCard";
 import { REGISTER_BUTTON_HEIGHT, RegisterButton } from "../ui/RegisterButton";
 import { SearchPill } from "../ui/SearchPill";
 import { BackupReminderCard, TripCard } from "../ui/TripCard";
@@ -78,11 +80,14 @@ export function HomeSheet() {
       ? t("home.backup_reminder.body_never")
       : t("home.backup_reminder.body", { days: backup.reminder.daysSince })
     : null;
+  const offlineMap = useOfflineMap();
+  const showOfflineCard = !tripCard && !reminder && (offlineMap.offerVisible || offlineMap.status.kind === "downloading");
+  const showAnyCard = Boolean(tripCard || reminder || showOfflineCard);
   const [handleHeight, setHandleHeight] = useState(0);
   const [pillHeight, setPillHeight] = useState(0);
-  // Altura medida do cartão "Em viagem" e do lembrete de backup (com o espaço até a pílula); 0 sem nenhum dos dois.
+  // Altura medida do cartão ("Em viagem", lembrete de backup ou mapa sem internet); 0 sem nenhum.
   const [cardHeight, setCardHeight] = useState(0);
-  const effectiveCardHeight = tripCard || reminder ? cardHeight : 0;
+  const effectiveCardHeight = showAnyCard ? cardHeight : 0;
   const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + effectiveCardHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
   // Topo da folha, medido pela biblioteca (já com a área segura de cima): o botão "Registrar" sobe e desce com ele.
   // Começa fora da tela até a primeira medida.
@@ -193,7 +198,7 @@ export function HomeSheet() {
       >
         {/* `View` comum, não `BottomSheetView`: ver `StackedSheet` (a lista perde a rolagem e o tamanho). */}
         <View style={styles.content} collapsable={false}>
-          {tripCard || reminder ? (
+          {showAnyCard ? (
             <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)} style={styles.card}>
               {tripCard ? (
                 <TripCard
@@ -205,6 +210,7 @@ export function HomeSheet() {
                 />
               ) : null}
               {reminder ? <BackupReminderCard text={reminder} onExport={backup.exportNow} onSnooze={backup.snooze} /> : null}
+              {showOfflineCard ? <OfflineMapCard /> : null}
             </View>
           ) : null}
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>

@@ -29,6 +29,7 @@ import { usePlaces } from "../data/PlacesProvider";
 import { useTestClock } from "../data/TestClockProvider";
 import { useNow } from "../data/NowProvider";
 import { useToast } from "../data/ToastProvider";
+import { useOfflineMap } from "../data/OfflineMapProvider";
 import { useStopLocations } from "../data/StopLocationsProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { useRegistro } from "../data/RegistroProvider";
@@ -79,6 +80,7 @@ export function MapBackdrop() {
   const stopIndex = useStopIndex();
   const { observations } = useRegistro();
   const reduceMotion = useReduceMotion();
+  const { setMapVisible } = useOfflineMap();
 
   const homeSheetInset = Math.round(window.height * HOME_SHEET_CAMERA_INSET_RATIO);
   const stopSheetInset = Math.round(window.height * STOP_SHEET_CAMERA_INSET_RATIO);
@@ -87,6 +89,10 @@ export function MapBackdrop() {
   const geoJsonSourceRef = useRef<GeoJSONSourceRef>(null);
   const [opening, setOpening] = useState<MapOpening | null>(null);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setMapVisible(!failed && opening !== null);
+  }, [failed, opening, setMapVisible]);
 
   const names = useMemo(() => {
     const map = new globalThis.Map<string, string>();
