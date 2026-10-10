@@ -28,6 +28,10 @@ export function canStartOfflineDownload(status: OfflineMapStatus): boolean {
   return status.kind !== "downloading";
 }
 
+export function shouldShowReadyToast(status: OfflineMapStatus): boolean {
+  return status.kind === "ready";
+}
+
 export async function applyOfflineSnooze(
   nowMs: number,
   deps: {

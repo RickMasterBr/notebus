@@ -4,6 +4,7 @@ import {
   canStartOfflineDownload,
   mapShownForOffer,
   reduceOfflineMap,
+  shouldShowReadyToast,
   type OfflineControllerState,
 } from "./offlineMapController";
 import {
@@ -179,6 +180,15 @@ describe("applyOfflineSnooze (Item 0.5 puro)", () => {
 
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch).toHaveBeenCalledWith(nowMs + OFFLINE_SNOOZE_MS);
+  });
+});
+
+describe("shouldShowReadyToast (Item 3 puro)", () => {
+  it("ready devolve true; none, downloading e error devolvem false", () => {
+    expect(shouldShowReadyToast({ kind: "ready", bytes: 1000 })).toBe(true);
+    expect(shouldShowReadyToast({ kind: "none" })).toBe(false);
+    expect(shouldShowReadyToast({ kind: "downloading", percent: 50 })).toBe(false);
+    expect(shouldShowReadyToast({ kind: "error" })).toBe(false);
   });
 });
 
