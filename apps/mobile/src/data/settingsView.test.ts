@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { lisbon } from "./registroFixture";
 import {
   backupDaysText,
+  buildHolidayInput,
+  buildOverrideInput,
+  currentValidFrom,
   dayTypeCounts,
   formatHolidayLine,
   formatOverrideLine,
@@ -144,5 +147,71 @@ describe("settingsView", () => {
       expect(toLocalDateString(dateEarly)).toBe("2026-10-11");
     });
   });
+
+  describe("buildOverrideInput e buildHolidayInput (item 0.2.4)", () => {
+    it("buildOverrideInput: nota '  x  ' chega 'x', '' chega null, presente não vira null", () => {
+      expect(buildOverrideInput({ date: "2026-12-24", dayTypeCode: "saturday", note: "  x  " })).toEqual({
+        date: "2026-12-24",
+        dayTypeCode: "saturday",
+        note: "x",
+      });
+
+      expect(buildOverrideInput({ date: "2026-12-24", dayTypeCode: "saturday", note: "" })).toEqual({
+        date: "2026-12-24",
+        dayTypeCode: "saturday",
+        note: null,
+      });
+
+      expect(buildOverrideInput({ date: "2026-12-24", dayTypeCode: "saturday", note: "presente" })).toEqual({
+        date: "2026-12-24",
+        dayTypeCode: "saturday",
+        note: "presente",
+      });
+
+      expect(buildOverrideInput({ date: "2026-12-24", dayTypeCode: "saturday", note: null })).toEqual({
+        date: "2026-12-24",
+        dayTypeCode: "saturday",
+        note: null,
+      });
+    });
+
+    it("buildHolidayInput: recurring: true chega true e nome é limpo", () => {
+      expect(buildHolidayInput({ name: "  Festa  ", date: "2026-06-01", recurring: true })).toEqual({
+        name: "Festa",
+        date: "2026-06-01",
+        recurring: true,
+      });
+
+      expect(buildHolidayInput({ name: "Festa", date: "2026-06-01", recurring: false })).toEqual({
+        name: "Festa",
+        date: "2026-06-01",
+        recurring: false,
+      });
+    });
+  });
+
+  describe("currentValidFrom (item 0.4.2)", () => {
+    it("duas tabelas fora de ordem, uma já vencida", () => {
+      const timetables = [
+        { validFrom: "2026-06-01", validTo: null }, // vigente e mais recente
+        { validFrom: "2026-01-01", validTo: "2026-05-31" }, // já vencida
+      ];
+      expect(currentValidFrom(timetables, "2026-10-10")).toBe("2026-06-01");
+    });
+
+    it("nenhuma vigente devolve o validFrom mais recente de todas", () => {
+      const timetables = [
+        { validFrom: "2025-01-01", validTo: "2025-05-31" },
+        { validFrom: "2025-06-01", validTo: "2025-12-31" },
+      ];
+      expect(currentValidFrom(timetables, "2026-10-10")).toBe("2025-06-01");
+    });
+
+    it("sem tabelas devolve null", () => {
+      expect(currentValidFrom([], "2026-10-10")).toBeNull();
+      expect(currentValidFrom(null, "2026-10-10")).toBeNull();
+    });
+  });
 });
+
 

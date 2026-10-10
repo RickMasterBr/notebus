@@ -8,7 +8,7 @@
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import type { DayTypeCode } from "@notebus/domain";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import {
   Modal,
   Platform,
@@ -23,9 +23,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCalendarEdits } from "../data/CalendarEditsProvider";
 import { useNow } from "../data/NowProvider";
 import {
+  buildOverrideInput,
   formatOverrideDate,
   toLocalDateString,
 } from "../data/settingsView";
+import { createSubmitGuard } from "../data/submitGuard";
 import { dateNumbers } from "../data/testClockPicker";
 import { useToast } from "../data/ToastProvider";
 import { t } from "../i18n";
@@ -80,53 +82,61 @@ export function OverrideSheet({ id }: { id: number }) {
   );
 
   const dateString = toLocalDateString(chosenDate);
+  const [isSaving, setIsSaving] = useState(false);
+  const submitGuard = useRef(createSubmitGuard()).current;
 
   const handleSave = async () => {
     if (selectedDayType === null) return;
-    setDateError(null);
-    setGenericError(null);
+    await submitGuard.run(async () => {
+      setIsSaving(true);
+      setDateError(null);
+      setGenericError(null);
+      try {
+        const nowMs = now();
+        const result = await calendarEdits.saveOverride(
+          buildOverrideInput({
+            date: dateString,
+            dayTypeCode: selectedDayType,
+            note,
+          }),
+          nowMs,
+        );
 
-    const nowMs = now();
-    const result = await calendarEdits.saveOverride(
-      {
-        date: dateString,
-        dayTypeCode: selectedDayType,
-        note: note.trim() || null,
-      },
-      nowMs,
-    );
-
-    if (result.ok) {
-      if (result.kind === "created") {
-        toast.show({
-          title: t("override.saved"),
-          action: {
-            label: t("toast.action.undo"),
-            run: async () => {
-              await result.undo(now());
-            },
-          },
-        });
-        close();
-      } else if (result.kind === "replaced") {
-        toast.show({
-          title: t("override.replaced", { date: dateNumbers(dateString) }),
-          action: {
-            label: t("toast.action.undo"),
-            run: async () => {
-              await result.undo(now());
-            },
-          },
-        });
-        close();
+        if (result.ok) {
+          if (result.kind === "created") {
+            toast.show({
+              title: t("override.saved"),
+              action: {
+                label: t("toast.action.undo"),
+                run: async () => {
+                  await result.undo(now());
+                },
+              },
+            });
+            close();
+          } else if (result.kind === "replaced") {
+            toast.show({
+              title: t("override.replaced", { date: dateNumbers(dateString) }),
+              action: {
+                label: t("toast.action.undo"),
+                run: async () => {
+                  await result.undo(now());
+                },
+              },
+            });
+            close();
+          }
+        } else {
+          if (result.reason === "invalid_date") {
+            setDateError(t("override.error.date"));
+          } else {
+            setGenericError(t("override.error.generic"));
+          }
+        }
+      } finally {
+        setIsSaving(false);
       }
-    } else {
-      if (result.reason === "invalid_date") {
-        setDateError(t("override.error.date"));
-      } else {
-        setGenericError(t("override.error.generic"));
-      }
-    }
+    });
   };
 
   return (
@@ -220,13 +230,13 @@ export function OverrideSheet({ id }: { id: number }) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("override.save")}
-                disabled={selectedDayType === null}
+                disabled={selectedDayType === null || isSaving}
                 onPress={() => void handleSave()}
                 style={({ pressed }) => [
                   styles.saveButton,
                   { backgroundColor: colors.accent },
-                  selectedDayType === null && { opacity: 0.4 },
-                  pressed && selectedDayType !== null && { opacity: 0.8 },
+                  (selectedDayType === null || isSaving) && { opacity: 0.4 },
+                  pressed && selectedDayType !== null && !isSaving && { opacity: 0.8 },
                 ]}
               >
                 <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
