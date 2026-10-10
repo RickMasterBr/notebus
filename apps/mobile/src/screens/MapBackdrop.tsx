@@ -375,6 +375,7 @@ export function MapBackdrop() {
             left: space.md,
           }}
           logo={false}
+          doubleTapZoom={false}
           onDidFailLoadingMap={() => setFailed(true)}
           onRegionDidChange={handleRegionDidChange}
           onPress={handleMapPress}
