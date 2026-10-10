@@ -331,6 +331,11 @@ export function SettingsSheet({ id }: { id: number }) {
                 accessibilityLabel={t("places.title")}
                 onPress={() => dispatch({ type: "push", sheet: { kind: "places" } })}
               />
+              <ListRow
+                title={t("settings.network.row")}
+                accessibilityLabel={t("settings.network.row")}
+                onPress={() => dispatch({ type: "push", sheet: { kind: "network" } })}
+              />
             </View>
 
             {/* 2. Geral */}
