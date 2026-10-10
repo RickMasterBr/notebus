@@ -62,7 +62,7 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
     if (DIAG_SCROLL && action.type === "push") recordOpenRequest(action.sheet.kind, nowRef.current());
     if (DIAG_SCROLL && action.type === "close") {
       const closing = stateRef.current.stack.find((e) => e.id === action.id);
-      recordCloseRequest(action.id, closing ? closing.kind : "desconhecido", nowRef.current());
+      recordCloseRequest(action.id, closing ? closing.kind : "desconhecido");
     }
     rawDispatch(action);
   }, []);

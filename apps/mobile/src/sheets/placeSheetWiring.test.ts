@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 export function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+  return source
+    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "")
+    .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
 }
 
 export function normalize(source: string): string {
@@ -18,6 +20,8 @@ export interface PlaceSheetWiringCheck {
   footerUsesFooterHeight: boolean;
   callsPlaceFooterHeightWithInset: boolean;
   scrollPaddingDoesNotSumInset: boolean;
+  footerHasTopBorder: boolean;
+  listViewClosesBeforeFooter: boolean;
 }
 
 export function checkPlaceSheetWiring(source: string): PlaceSheetWiringCheck {
@@ -59,6 +63,12 @@ export function checkPlaceSheetWiring(source: string): PlaceSheetWiringCheck {
     !/paddingBottom:\s*insets\.bottom/.test(norm) &&
     /paddingBottom:\s*space\.lg/.test(norm);
 
+  const footerHasTopBorder =
+    /footer:\s*\{[^}]*borderTopWidth:\s*StyleSheet\.hairlineWidth/.test(norm);
+
+  const listViewClosesBeforeFooter =
+    /<\/BottomSheetScrollView>\s*<\/View>\s*<View\b[^>]*styles\.footer/.test(norm);
+
   return {
     saveButtonAfterScrollView,
     saveButtonHasHandleSave,
@@ -66,6 +76,8 @@ export function checkPlaceSheetWiring(source: string): PlaceSheetWiringCheck {
     footerUsesFooterHeight,
     callsPlaceFooterHeightWithInset,
     scrollPaddingDoesNotSumInset,
+    footerHasTopBorder,
+    listViewClosesBeforeFooter,
   };
 }
 
@@ -97,5 +109,15 @@ describe("guarda estático de ligação do PlaceSheet (Item 1)", () => {
   it("(5) o paddingBottom da rolagem não soma mais insets.bottom", () => {
     const checks = checkPlaceSheetWiring(source);
     expect(checks.scrollPaddingDoesNotSumInset).toBe(true);
+  });
+
+  it("(6) o rodapé tem borderTopWidth: StyleSheet.hairlineWidth", () => {
+    const checks = checkPlaceSheetWiring(source);
+    expect(checks.footerHasTopBorder).toBe(true);
+  });
+
+  it("(7) a View da lista fecha antes da View do rodapé", () => {
+    const checks = checkPlaceSheetWiring(source);
+    expect(checks.listViewClosesBeforeFooter).toBe(true);
   });
 });

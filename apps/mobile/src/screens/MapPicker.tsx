@@ -44,6 +44,7 @@ import { useToast } from "../data/ToastProvider";
 import { readLastMapPosition } from "../db/appState";
 import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
+import { SELECTOR_CLOSED, SELECTOR_OPENED } from "../sheets/diagLog";
 import { DIAG_SCROLL, recordDiagEvent } from "../sheets/diagScroll";
 import { useReduceMotion } from "../sheets/useReduceMotion";
 import {
@@ -136,9 +137,9 @@ function MapPickerContent({
   // Diag (E-07 Bloco 9): anota abertura e fechamento do seletor
   useEffect(() => {
     if (!DIAG_SCROLL) return;
-    recordDiagEvent("seletor aberto", realNow());
+    recordDiagEvent(SELECTOR_OPENED);
     return () => {
-      recordDiagEvent("seletor fechado", realNow());
+      recordDiagEvent(SELECTOR_CLOSED);
     };
   }, []);
 

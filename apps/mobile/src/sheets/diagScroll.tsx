@@ -2,15 +2,20 @@
 // o código fica para o próximo sintoma. Para usar o painel: ligar a constante e renderizar `AheadDiagPanel` dentro do `BottomSheet`.
 // Sempre overlay absoluto com `pointerEvents` "box-none"/"none", fora do layout das folhas (D-150). Valores lidos de
 // verdade ou "N/D".
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SCROLLABLE_STATUS, useBottomSheet, useBottomSheetInternal } from "@gorhom/bottom-sheet";
 import { runOnJS, useAnimatedReaction } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { realNow } from "../data/clock";
 import { useNow } from "../data/NowProvider";
 import { radius, space, type, useTheme } from "../theme";
 import { useSheets } from "./SheetsContext";
-import { type DiagEvent, formatDiagLog, homeLayerPointerEvents, pushDiagEvent } from "./diagLog";
+import {
+  createDiagStore,
+  diagStripLines,
+  homeLayerPointerEvents,
+} from "./diagLog";
 import { stackedSheets } from "./stack";
 
 export const DIAG_SCROLL = true;
@@ -20,23 +25,20 @@ const BUILD_SHA = process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D";
 // ─── Registro de eventos de diagnóstico e abertura de folha ──────────────────
 
 let lastOpen: { kind: string; at: number; sinceStartMs: number } | null = null;
-let diagEvents: DiagEvent[] = [];
-let pickerStatus: "aberto" | "fechado" = "fechado";
+const diagStore = createDiagStore(20);
 
-export function recordDiagEvent(text: string, at: number) {
-  if (text === "seletor aberto") pickerStatus = "aberto";
-  if (text === "seletor fechado") pickerStatus = "fechado";
-  diagEvents = pushDiagEvent(diagEvents, { at, text }, 20);
+export function recordDiagEvent(text: string) {
+  diagStore.record(text, realNow());
 }
 
-export function recordCloseRequest(id: number, kind: string, at: number) {
-  recordDiagEvent(`fechar ${kind}#${id}`, at);
+export function recordCloseRequest(id: number, kind: string) {
+  recordDiagEvent(`fechar ${kind}#${id}`);
 }
 
 /** Chamado pelo provedor da pilha a cada `push`. `at` é o "agora" do app (relógio de teste incluído). */
 export function recordOpenRequest(kind: string, at: number) {
   lastOpen = { kind, at, sinceStartMs: Math.round(performance.now()) };
-  recordDiagEvent(`abrir ${kind}`, at);
+  recordDiagEvent(`abrir ${kind}`);
 }
 
 const clockText = (ms: number) => {
@@ -53,25 +55,61 @@ function useStackText(): string {
   return `Pilha: [${list}] topo=${top ? `${top.kind}#${top.id}` : "N/D"} | último pedido: ${open}`;
 }
 
-/** Faixa fina no pé da tela, sem toque: a pilha de folhas, pointerEvents da Home, seletor e eventos recentes. */
+/** Faixa fina no topo da tela, sem toque: a pilha de folhas, pointerEvents da Home, seletor e eventos recentes. */
 export function StackDiagStrip() {
+  if (!DIAG_SCROLL) return null;
+  return <StackDiagStripBody />;
+}
+
+function StackDiagStripBody() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { state } = useSheets();
-  const now = useNow();
-  if (!DIAG_SCROLL) return null;
+  const snapshot = useSyncExternalStore(diagStore.subscribe, diagStore.getSnapshot);
+  const [, setTick] = useState(0);
 
-  const stacked = stackedSheets(state);
-  const homePointer = homeLayerPointerEvents(stacked.length);
-  const text = useStackText();
-  const eventLines = formatDiagLog(diagEvents.slice(-5), now());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const lines = diagStripLines({
+    sha: BUILD_SHA,
+    homePointer: homeLayerPointerEvents(stackedSheets(state).length),
+    picker: snapshot.picker,
+    stack: state.stack,
+    events: snapshot.events,
+    now: realNow(),
+  });
 
   return (
-    <View pointerEvents="none" style={[styles.strip, { bottom: insets.bottom, backgroundColor: colors.surface, borderColor: colors.divider }]}>
-      <Text style={[styles.metric, { color: colors.text }]}>{`[DIAG] ${BUILD_SHA} · home=${homePointer} · seletor=${pickerStatus}`}</Text>
-      <Text style={[styles.metric, { color: colors.text }]}>{text}</Text>
-      {eventLines.map((ev, i) => (
-        <Text key={i} style={[styles.metric, { color: colors.textSecondary }]}>{ev}</Text>
+    <View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[
+        styles.strip,
+        {
+          top: insets.top,
+          backgroundColor: colors.surface,
+          borderColor: colors.divider,
+        },
+      ]}
+    >
+      {lines.map((line, i) => (
+        <Text
+          key={i}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={[
+            styles.metric,
+            { color: i < 2 ? colors.text : colors.textSecondary },
+          ]}
+        >
+          {line}
+        </Text>
       ))}
     </View>
   );
