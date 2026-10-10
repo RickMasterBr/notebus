@@ -50,7 +50,10 @@ export type SheetContent =
   | { kind: "override" }
   | { kind: "pastOverrides" }
   | { kind: "holiday" }
-  | { kind: "networkInfo" };
+  | { kind: "networkInfo" }
+  /** E-08 Bloco 1c: TL-11 só para ver */
+  | { kind: "network" }
+  | { kind: "lineDetail"; lineId: string };
 
 export type SheetKind = SheetContent["kind"];
 
@@ -126,6 +129,7 @@ function sameSheet(a: SheetContent, b: SheetContent): boolean {
   }
   if (a.kind === "alightPicker" && b.kind === "alightPicker") return a.routeId === b.routeId && a.patternId === b.patternId && a.boardPosition === b.boardPosition;
   if (a.kind === "goto" && b.kind === "goto") return a.destinationPlaceId === b.destinationPlaceId && a.originPlaceId === b.originPlaceId;
+  if (a.kind === "lineDetail" && b.kind === "lineDetail") return a.lineId === b.lineId;
   return true;
 }
 

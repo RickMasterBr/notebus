@@ -28,6 +28,8 @@ import { OverrideSheet } from "./OverrideSheet";
 import { PastOverridesSheet } from "./PastOverridesSheet";
 import { HolidaySheet } from "./HolidaySheet";
 import { NetworkInfoSheet } from "./NetworkInfoSheet";
+import { NetworkSheet } from "./NetworkSheet";
+import { LineDetailSheet } from "./LineDetailSheet";
 import { CloseSheetProvider } from "./StackedSheet";
 import { homeLayerPointerEvents } from "./diagLog";
 import { type SheetEntry, stackedSheets } from "./stack";
@@ -153,6 +155,10 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
       return <HolidaySheet id={entry.id} />;
     case "networkInfo":
       return <NetworkInfoSheet id={entry.id} />;
+    case "network":
+      return <NetworkSheet id={entry.id} />;
+    case "lineDetail":
+      return <LineDetailSheet id={entry.id} lineId={entry.lineId} />;
     case "home":
       return null;
   }
