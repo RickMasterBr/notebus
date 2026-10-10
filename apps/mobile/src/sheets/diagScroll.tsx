@@ -1,5 +1,6 @@
-// DIAG (E-02 bloco 5e): painel de diagnóstico da TL-05 e faixa da pilha de folhas. Desligados (`DIAG_SCROLL = false`) no bloco 5f;
-// o código fica para o próximo sintoma. Para usar o painel: ligar a constante e renderizar `AheadDiagPanel` dentro do `BottomSheet`.
+// DIAG: painel de diagnóstico da TL-05 e faixa da pilha de folhas. Desligados (`DIAG_SCROLL = false`) no fechamento da E-07 (bloco 10);
+// o código fica para o próximo sintoma. Para religar: mudar a constante para `true` (o guarda `diagWiring.test.ts` precisa mudar junto);
+// para usar o painel: renderizar `AheadDiagPanel` dentro do `BottomSheet`.
 // Sempre overlay absoluto com `pointerEvents` "box-none"/"none", fora do layout das folhas (D-150). Valores lidos de
 // verdade ou "N/D".
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
@@ -18,7 +19,7 @@ import {
 } from "./diagLog";
 import { stackedSheets } from "./stack";
 
-export const DIAG_SCROLL = true;
+export const DIAG_SCROLL = false;
 
 const BUILD_SHA = process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D";
 
