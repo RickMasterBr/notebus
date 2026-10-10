@@ -96,6 +96,7 @@ export type {
   WindowDeparture,
 } from "./alarms";
 export { DOMAIN_CONFIG } from "./config";
+export { MAX_MARGIN_MINUTES, clampMargin } from "./margin";
 export { distanceM, medianPoint } from "./geo";
 export type { GeoPoint, PositionFix } from "./geo";
 export { nearestPlace, suggestStop } from "./nearby";
@@ -124,6 +125,7 @@ export {
   BACKUP_V1_COLUMNS,
   BACKUP_V2_COLUMNS,
   BACKUP_V3_COLUMNS,
+  BACKUP_V4_COLUMNS,
   OFFICIAL_EDIT_TABLES,
   backupFileName,
   backupReminder,

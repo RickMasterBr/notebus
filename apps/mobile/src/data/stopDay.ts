@@ -155,7 +155,7 @@ function lineDay(
     const running = new Set(tripsRunningOn(date, type, lineSchedule).map((t) => t.id));
     const todays = trips.filter((t) => running.has(t.id));
     const tripById = new Map(todays.map((t) => [t.id, t]));
-    return passagesAtStop(stopId, patterns, todays).map((passage) => ({ date, now, passage, trip: tripById.get(passage.tripId)! }));
+    return passagesAtStop(stopId, patterns, todays, { marginMinutes: data.margin }).map((passage) => ({ date, now, passage, trip: tripById.get(passage.tripId)! }));
   };
 
   let list: Candidate[];

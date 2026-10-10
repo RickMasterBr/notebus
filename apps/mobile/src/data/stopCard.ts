@@ -136,11 +136,12 @@ function boardablePassages(
   trips: TripData[],
   schedule: ScheduleData,
   includeEnds = false,
+  marginMinutes?: number,
 ): StopPassage[] {
   const running = new Set(tripsRunningOn(date, dayType, schedule).map((t) => t.id));
   const todays = trips.filter((t) => running.has(t.id));
   const lastOf = new Map(todays.map((t) => [t.id, t.lastPosition]));
-  return passagesAtStop(stopId, patterns, todays).filter((p) => includeEnds || p.info.position !== lastOf.get(p.tripId));
+  return passagesAtStop(stopId, patterns, todays, { marginMinutes }).filter((p) => includeEnds || p.info.position !== lastOf.get(p.tripId));
 }
 
 function lineState(
@@ -157,7 +158,7 @@ function lineState(
   const { today, yesterday } = serviceDaysAt(instantMs, calendar);
   let best: { passage: StopPassage; wait: number; minute: number } | null = null;
   for (const day of [yesterday, today]) {
-    for (const passage of boardablePassages(stopId, day.date, day.dayType.dayType, patterns, trips, lineSchedule)) {
+    for (const passage of boardablePassages(stopId, day.date, day.dayType.dayType, patterns, trips, lineSchedule, false, data.margin)) {
       const wait = passage.expected.center - day.minute;
       if (wait >= 0 && (best === null || wait < best.wait)) best = { passage, wait, minute: day.minute };
     }

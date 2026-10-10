@@ -9,7 +9,7 @@
  */
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { type PassageRecord, baseTimeAt, displayCenter, lisbonWallClock } from "@notebus/domain";
+import { type MatchNetwork, type PassageRecord, baseTimeAt, displayCenter, lisbonWallClock } from "@notebus/domain";
 import type { BoardChoice } from "./boardChoices";
 import { useNow } from "./NowProvider";
 import { usePositionStore } from "./PositionProvider";
@@ -63,6 +63,8 @@ export interface RegistroValue {
   remove: (id: string) => Promise<{ pair: boolean; token: EditToken }>;
   /** Roda `job` na fila das gravações (o backup: importar e o Desfazer, uma transação por vez). */
   exclusive: <T>(job: () => Promise<T>) => Promise<T>;
+  /** Recasa os registros das datas em que `changed` é verdadeiro, com a rede já recarregada (E-08: feriado ou exceção nova). */
+  rematchWhere: (changed: (serviceDate: string) => boolean, network: MatchNetwork, now: number) => Promise<unknown>;
   /** Relê os registros, refaz a fila de deduções e relê de novo, sem bloquear quem chamou. */
   refresh: () => Promise<void>;
 }
@@ -83,6 +85,7 @@ const RegistroContext = createContext<RegistroValue>({
   dismissReview: async () => {},
   remove: async () => ({ pair: false, token: { observations: [], rides: [], createdRideIds: [] } }),
   exclusive: (job) => job(),
+  rematchWhere: async () => ({ done: 0, failed: 0 }),
   refresh: async () => {},
 });
 
@@ -618,6 +621,7 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
   );
 
   const exclusive = registro.exclusive;
+  const rematchWhere = registro.rematchWhere;
   const value = useMemo<RegistroValue>(
     () => ({
       status: state.status,
@@ -634,6 +638,7 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
       dismissReview,
       remove,
       exclusive,
+      rematchWhere,
       refresh: settle,
     }),
     [
@@ -651,6 +656,7 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
       dismissReview,
       remove,
       exclusive,
+      rematchWhere,
       settle,
     ],
   );

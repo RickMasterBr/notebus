@@ -43,12 +43,12 @@ describe("T-72: ida e volta do backup com localização", () => {
     expect(rows.observation).toHaveLength(1);
   });
 
-  it("exportar, apagar (banco novo), importar: mesmas coordenadas e mesmo location_source; o arquivo sai com formatVersion 3", async () => {
+  it("exportar, apagar (banco novo), importar: mesmas coordenadas e mesmo location_source; o arquivo sai com formatVersion 4", async () => {
     const src = await scenarioV3();
     const before = locationRows(src);
     const text = await exportText(src);
-    expect((JSON.parse(text) as BackupFile).formatVersion).toBe(3);
-    expect(BACKUP_FORMAT_VERSION).toBe(3);
+    expect((JSON.parse(text) as BackupFile).formatVersion).toBe(4);
+    expect(BACKUP_FORMAT_VERSION).toBe(4);
 
     const dst = await fixture();
     await importText(dst, text);
@@ -60,31 +60,31 @@ describe("T-72: ida e volta do backup com localização", () => {
     expect(Object.keys(file.tables.stop[0]!)).toEqual(["id", "created_at", "updated_at", "deleted_at", "source", "official_key", "network_id", "name", "aliases", "external_id", "lat", "lon", "location_source", "note"]);
   });
 
-  it("um arquivo com formatVersion 4 é recusado com format_newer", async () => {
+  it("um arquivo com formatVersion 5 é recusado com format_newer", async () => {
     const text = await exportText(await scenarioV3());
     // Reassina o checksum (senão a recusa seria por checksum_mismatch, não pela versão).
     const zero = `sha256:${"0".repeat(64)}`;
-    const unsigned = `${JSON.stringify({ ...(JSON.parse(text) as object), formatVersion: 4, checksum: zero }, null, 2)}\n`;
-    const four = unsigned.replace(zero, `sha256:${sha256(unsigned)}`);
-    expect(await prepareImport((await fixture()).raw, four, sha256)).toMatchObject({ ok: false, problem: "format_newer" });
+    const unsigned = `${JSON.stringify({ ...(JSON.parse(text) as object), formatVersion: 5, checksum: zero }, null, 2)}\n`;
+    const five = unsigned.replace(zero, `sha256:${sha256(unsigned)}`);
+    expect(await prepareImport((await fixture()).raw, five, sha256)).toMatchObject({ ok: false, problem: "format_newer" });
   });
 });
 
 describe("D-090: arquivos de exemplo", () => {
-  it("o format-v3.json é exatamente o que o exportador de hoje gera do cenário (formato mudou sem subir a versão → quebra)", async () => {
-    const text = await exportText(await scenarioV3());
+  it("o format-v4.json é exatamente o que o exportador de hoje gera do cenário (formato mudou sem subir a versão → quebra)", async () => {
+    const text = await exportText(await backupScenario({ withAlarm: true, withLocation: true, withCalendar: true }));
     // Gerar de novo (só ao criar uma formatVersion nova): NOTEBUS_WRITE_BACKUP_FIXTURE=1 npx vitest run src/db/backupV3.test.ts
-    if (process.env.NOTEBUS_WRITE_BACKUP_FIXTURE === "1") writeFileSync(join(FIXTURES, "format-v3.json"), text);
-    expect(text).toBe(readFileSync(join(FIXTURES, "format-v3.json"), "utf8"));
+    if (process.env.NOTEBUS_WRITE_BACKUP_FIXTURE === "1") writeFileSync(join(FIXTURES, "format-v4.json"), text);
+    expect(text).toBe(readFileSync(join(FIXTURES, "format-v4.json"), "utf8"));
   });
 
-  it("os exemplos 1, 2 e 3 importam num banco novo, e os antigos voltam com location_source vazio", async () => {
-    expect(readdirSync(FIXTURES).sort()).toEqual(["format-v1.json", "format-v2.json", "format-v3.json"]);
+  it("os exemplos 1 a 4 importam num banco novo, e os antigos voltam com location_source vazio", async () => {
+    expect(readdirSync(FIXTURES).sort()).toEqual(["format-v1.json", "format-v2.json", "format-v3.json", "format-v4.json"]);
     for (const name of readdirSync(FIXTURES)) {
       const dst = await fixture();
       await importText(dst, readFileSync(join(FIXTURES, name), "utf8"));
       const withSource = all(dst, "SELECT id FROM stop WHERE location_source IS NOT NULL");
-      expect([name, withSource.length]).toEqual([name, name === "format-v3.json" ? 2 : 0]);
+      expect([name, withSource.length]).toEqual([name, name === "format-v3.json" || name === "format-v4.json" ? 2 : 0]);
     }
   });
 });

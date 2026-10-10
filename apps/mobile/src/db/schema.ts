@@ -107,13 +107,18 @@ export const dayType = sqliteTable("day_type", {
   sort: integer("sort").notNull(),
 });
 
-/** Só o municipal e os manuais; os nacionais vêm do date-holidays na hora (P-07). */
+/**
+ * Só o municipal e os manuais; os nacionais vêm do date-holidays na hora (P-07). `manual` é o feriado que a pessoa
+ * cadastra (E-08, D-114); `recurring` = repete todo ano (mês e dia iguais). O SQLite guarda texto, sem CHECK: o
+ * `enum` do `scope` é só o tipo TypeScript.
+ */
 export const holiday = sqliteTable("holiday", {
   ...officialCommon(),
   networkId: text("network_id").notNull(),
   date: text("date").notNull(), // YYYY-MM-DD
   name: text("name").notNull(),
-  scope: text("scope", { enum: ["national", "municipal"] }).notNull(),
+  scope: text("scope", { enum: ["national", "municipal", "manual"] }).notNull(),
+  recurring: integer("recurring", { mode: "boolean" }).notNull().default(false),
 });
 
 /** "Hoje funciona como sábado". */

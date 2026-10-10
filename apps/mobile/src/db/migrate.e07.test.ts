@@ -32,7 +32,7 @@ const idsByTable = (conn: NodeSqlite) =>
 
 describe("T-73: migração 0002, stop.location_source", () => {
   it("é a terceira migração e só faz ALTER TABLE stop ADD location_source", () => {
-    expect(migrations).toHaveLength(3);
+    expect(migrations).toHaveLength(4);
     const statements = migrations[2]!.sql.split("--> statement-breakpoint").map((s) => s.trim()).filter(Boolean);
     expect(statements).toEqual(["ALTER TABLE `stop` ADD `location_source` text;"]);
   });
@@ -46,7 +46,7 @@ describe("T-73: migração 0002, stop.location_source", () => {
     const before = idsByTable(conn);
     expect(conn.all("PRAGMA table_info(`stop`)").map((c) => c.name)).not.toContain("location_source");
 
-    const result = await migrate(migrations);
+    const result = await migrate(migrations.slice(0, 3));
 
     expect(result).toMatchObject({ status: "migrated", from: 2, to: 3 });
     expect(await conn.userVersion()).toBe(3);
