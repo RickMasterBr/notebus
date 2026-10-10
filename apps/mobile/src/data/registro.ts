@@ -7,13 +7,15 @@
  * - `refreshDeductions`: a fila simples (§3.2): todo registro sem `match_rule_version`, ou com versão velha, é deduzido
  *   de novo pelo domínio (`deduceObservation`). `match_status = manual` nunca é recalculado (D-085). Falha num registro
  *   não derruba os outros nem apaga nada: o fato continua salvo e a dedução é refeita na vez seguinte (T-22).
+ * - `rematchWhere`: depois de uma mudança no calendário (E-08), refaz a dedução dos registros cuja data de serviço mudou de tipo
+ *   de dia. Só a dedução muda; a hora do registro nunca (D-085), e `match_status = manual` nunca entra.
  * - `alight`, `notBoarded`, `dismiss` e os seus desfazeres: o ciclo do `ride` do domínio (`ride.ts`).
  *
  * Tudo que escreve passa por uma fila (uma gravação por vez) e por `BEGIN … COMMIT` explícitos: o banco do app é
  * síncrono (expo-sqlite) e o dos testes é assíncrono (node:sqlite), e o `db.transaction` do Drizzle não serve aos dois.
  * Sem relógio e sem React aqui: o instante vem de quem chama, para o teste poder fixá-lo.
  */
-import { and, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import {
   type Deduction,
@@ -502,6 +504,33 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     });
   }
 
+  /**
+   * Recasa os registros vivos, com dedução e não `manual`, cuja data de serviço `changed` aponta (E-08 §3.3: o feriado ou a
+   * exceção mudou o tipo de dia daquela data). `network` é a rede **já recarregada** com o calendário novo. Mesma
+   * regra de `refreshDeductions`: só as colunas da dedução mudam, a falha de um registro não derruba os outros.
+   */
+  function rematchWhere(changed: (serviceDate: string) => boolean, network: MatchNetwork, now: number): Promise<DeductionRun> {
+    return enqueue(async () => {
+      const candidates = await selectLive(
+        db,
+        observation,
+        and(isNotNull(observation.serviceDate), or(isNull(observation.matchStatus), ne(observation.matchStatus, "manual"))),
+      );
+      const affected = candidates.filter((row) => changed(row.serviceDate!));
+      affected.sort((a, b) => a.observedAt - b.observedAt || a.createdAt - b.createdAt);
+      const run: DeductionRun = { done: 0, failed: 0 };
+      for (const row of affected) {
+        try {
+          await deduceOne(row, network, now);
+          run.done++;
+        } catch {
+          run.failed++; // o fato segue salvo; a dedução antiga fica até a próxima vez
+        }
+      }
+      return run;
+    });
+  }
+
   // ─── Editar, conferir e apagar (E-04 bloco 1) ────────────────────────────
 
   type ObservationSet = Partial<typeof observation.$inferInsert>;
@@ -932,7 +961,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     return enqueue(job);
   }
 
-  return { board, undoBoard, alight, undoAlight, notBoarded, undoNotBoarded, dismiss, undoDismiss, expire, refreshDeductions, edit, chooseManual, dismissReview, remove, restore, load, exclusive };
+  return { board, undoBoard, alight, undoAlight, notBoarded, undoNotBoarded, dismiss, undoDismiss, expire, refreshDeductions, rematchWhere, edit, chooseManual, dismissReview, remove, restore, load, exclusive };
 }
 
 export type Registro = ReturnType<typeof createRegistro>;
