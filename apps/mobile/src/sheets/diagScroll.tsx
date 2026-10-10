@@ -10,18 +10,33 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNow } from "../data/NowProvider";
 import { radius, space, type, useTheme } from "../theme";
 import { useSheets } from "./SheetsContext";
+import { type DiagEvent, formatDiagLog, homeLayerPointerEvents, pushDiagEvent } from "./diagLog";
+import { stackedSheets } from "./stack";
 
-export const DIAG_SCROLL = false;
+export const DIAG_SCROLL = true;
 
 const BUILD_SHA = process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D";
 
-// ─── Último pedido de abertura de folha ──────────────────────────────────────
+// ─── Registro de eventos de diagnóstico e abertura de folha ──────────────────
 
 let lastOpen: { kind: string; at: number; sinceStartMs: number } | null = null;
+let diagEvents: DiagEvent[] = [];
+let pickerStatus: "aberto" | "fechado" = "fechado";
+
+export function recordDiagEvent(text: string, at: number) {
+  if (text === "seletor aberto") pickerStatus = "aberto";
+  if (text === "seletor fechado") pickerStatus = "fechado";
+  diagEvents = pushDiagEvent(diagEvents, { at, text }, 20);
+}
+
+export function recordCloseRequest(id: number, kind: string, at: number) {
+  recordDiagEvent(`fechar ${kind}#${id}`, at);
+}
 
 /** Chamado pelo provedor da pilha a cada `push`. `at` é o "agora" do app (relógio de teste incluído). */
 export function recordOpenRequest(kind: string, at: number) {
   lastOpen = { kind, at, sinceStartMs: Math.round(performance.now()) };
+  recordDiagEvent(`abrir ${kind}`, at);
 }
 
 const clockText = (ms: number) => {
@@ -38,15 +53,26 @@ function useStackText(): string {
   return `Pilha: [${list}] topo=${top ? `${top.kind}#${top.id}` : "N/D"} | último pedido: ${open}`;
 }
 
-/** Faixa fina no pé da tela, sem toque: a pilha de folhas e o último pedido de abertura, para fotografar se a gaveta travar. */
+/** Faixa fina no pé da tela, sem toque: a pilha de folhas, pointerEvents da Home, seletor e eventos recentes. */
 export function StackDiagStrip() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const text = useStackText();
+  const { state } = useSheets();
+  const now = useNow();
   if (!DIAG_SCROLL) return null;
+
+  const stacked = stackedSheets(state);
+  const homePointer = homeLayerPointerEvents(stacked.length);
+  const text = useStackText();
+  const eventLines = formatDiagLog(diagEvents.slice(-5), now());
+
   return (
     <View pointerEvents="none" style={[styles.strip, { bottom: insets.bottom, backgroundColor: colors.surface, borderColor: colors.divider }]}>
-      <Text style={[styles.metric, { color: colors.text }]}>{`[DIAG] ${BUILD_SHA} · ${text}`}</Text>
+      <Text style={[styles.metric, { color: colors.text }]}>{`[DIAG] ${BUILD_SHA} · home=${homePointer} · seletor=${pickerStatus}`}</Text>
+      <Text style={[styles.metric, { color: colors.text }]}>{text}</Text>
+      {eventLines.map((ev, i) => (
+        <Text key={i} style={[styles.metric, { color: colors.textSecondary }]}>{ev}</Text>
+      ))}
     </View>
   );
 }

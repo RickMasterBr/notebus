@@ -44,6 +44,7 @@ import { useToast } from "../data/ToastProvider";
 import { readLastMapPosition } from "../db/appState";
 import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
+import { DIAG_SCROLL, recordDiagEvent } from "../sheets/diagScroll";
 import { useReduceMotion } from "../sheets/useReduceMotion";
 import {
   elevation,
@@ -131,6 +132,15 @@ function MapPickerContent({
       alive = false;
     };
   }, [places.status, store]);
+
+  // Diag (E-07 Bloco 9): anota abertura e fechamento do seletor
+  useEffect(() => {
+    if (!DIAG_SCROLL) return;
+    recordDiagEvent("seletor aberto", realNow());
+    return () => {
+      recordDiagEvent("seletor fechado", realNow());
+    };
+  }, []);
 
   const handleMapPress = useCallback(
     (e: NativeSyntheticEvent<PressEvent> | NativeSyntheticEvent<PressEventWithFeatures>) => {
