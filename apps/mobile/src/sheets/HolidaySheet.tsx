@@ -6,7 +6,7 @@
  */
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import {
   Modal,
   Platform,
@@ -22,9 +22,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCalendarEdits } from "../data/CalendarEditsProvider";
 import { useNow } from "../data/NowProvider";
 import {
+  buildHolidayInput,
   formatOverrideDate,
   toLocalDateString,
 } from "../data/settingsView";
+import { createSubmitGuard } from "../data/submitGuard";
 import { useToast } from "../data/ToastProvider";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
@@ -71,39 +73,47 @@ export function HolidaySheet({ id }: { id: number }) {
   );
 
   const dateString = toLocalDateString(chosenDate);
+  const [isSaving, setIsSaving] = useState(false);
+  const submitGuard = useRef(createSubmitGuard()).current;
 
   const handleSave = async () => {
-    setNameError(null);
-    setDateError(null);
+    await submitGuard.run(async () => {
+      setIsSaving(true);
+      setNameError(null);
+      setDateError(null);
+      try {
+        const nowMs = now();
+        const result = await calendarEdits.saveHoliday(
+          buildHolidayInput({
+            name,
+            date: dateString,
+            recurring,
+          }),
+          nowMs,
+        );
 
-    const nowMs = now();
-    const result = await calendarEdits.saveHoliday(
-      {
-        name: name.trim(),
-        date: dateString,
-        recurring,
-      },
-      nowMs,
-    );
-
-    if (result.ok) {
-      toast.show({
-        title: t("holiday.saved"),
-        action: {
-          label: t("toast.action.undo"),
-          run: async () => {
-            await result.undo(now());
-          },
-        },
-      });
-      close();
-    } else {
-      if (result.reason === "empty_name") {
-        setNameError(t("holiday.error.name"));
-      } else if (result.reason === "invalid_date") {
-        setDateError(t("holiday.error.date"));
+        if (result.ok) {
+          toast.show({
+            title: t("holiday.saved"),
+            action: {
+              label: t("toast.action.undo"),
+              run: async () => {
+                await result.undo(now());
+              },
+            },
+          });
+          close();
+        } else {
+          if (result.reason === "empty_name") {
+            setNameError(t("holiday.error.name"));
+          } else if (result.reason === "invalid_date") {
+            setDateError(t("holiday.error.date"));
+          }
+        }
+      } finally {
+        setIsSaving(false);
       }
-    }
+    });
   };
 
   return (
@@ -195,11 +205,13 @@ export function HolidaySheet({ id }: { id: number }) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("holiday.save")}
+                disabled={isSaving}
                 onPress={() => void handleSave()}
                 style={({ pressed }) => [
                   styles.saveButton,
                   { backgroundColor: colors.accent },
-                  pressed && { opacity: 0.8 },
+                  isSaving && { opacity: 0.4 },
+                  pressed && !isSaving && { opacity: 0.8 },
                 ]}
               >
                 <Text style={[type.bodyStrong, { color: colors.onAccent }]}>

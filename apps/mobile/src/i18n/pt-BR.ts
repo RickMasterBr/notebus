@@ -588,6 +588,31 @@ export const ptBR = {
   "network.imported_at": "Importado em", // provisório
   "network.checksum": "Checksum", // provisório
   "network.valid_from": "Vigência desde", // provisório
+  "network.unknown": "Indisponível", // provisório
+  "settings.network.row": "Linhas e pontos", // provisório
+  "net.title": "Linhas e pontos", // provisório
+  "net.section.lines": "Linhas", // provisório
+  "net.section.stops": "Pontos", // provisório
+  "net.line.patterns_one": "1 percurso", // provisório
+  "net.line.patterns_other": "{{n}} percursos", // provisório
+  "net.line.a11y": "Linha {{code}}, {{name}}, {{patterns}}", // provisório
+  "net.stop.a11y": "Ponto {{name}}", // provisório
+  "net.stop.id": "ID {{id}}", // provisório
+  "net.stop.aliases": "Também: {{list}}", // provisório
+  "net.official": "MOBILIS", // provisório
+  "net.empty.lines": "Nenhuma linha na rede", // provisório
+  "net.empty.stops": "Nenhum ponto na rede", // provisório
+  "net.empty.line": "Esta linha não existe mais", // provisório
+  "net.error": "Não foi possível carregar a rede", // provisório
+  "net.pattern.circular": "Circular", // provisório
+  "net.pattern.stops_one": "1 paragem", // provisório
+  "net.pattern.stops_other": "{{n}} paragens", // provisório
+  "net.pattern.control": "ponto de controle", // provisório
+  "net.times.title": "Horários-base", // provisório
+  "net.times.valid_from": "Vigência desde {{date}}", // provisório
+  "net.times.at": "Horários em {{stop}}", // provisório
+  "net.times.empty": "Sem viagens neste tipo de dia", // provisório
+  "net.times.partial_note": "{{n}} viagens parciais não passam neste ponto e não aparecem aqui", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;

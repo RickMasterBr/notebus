@@ -3,6 +3,7 @@
  * Sem React nem relógio do aparelho: todas as funções que precisam de instante recebem como argumento.
  */
 import { clampMargin, lisbonWallClock, type DayTypeCode } from "@notebus/domain";
+import type { SaveHolidayInput, SaveOverrideInput } from "../db/calendarEdits";
 import { type MessageKey, t } from "../i18n";
 import type { ScheduleSnapshot } from "./schedule";
 import { dateNumbers, weekdayName } from "./testClockPicker";
@@ -154,4 +155,52 @@ export function toLocalDateString(date: Date): string {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+export function buildOverrideInput({
+  date,
+  dayTypeCode,
+  note,
+}: {
+  date: string;
+  dayTypeCode: DayTypeCode;
+  note: string | null | undefined;
+}): SaveOverrideInput {
+  const trimmed = typeof note === "string" ? note.trim() : "";
+  return {
+    date,
+    dayTypeCode,
+    note: trimmed !== "" ? trimmed : null,
+  };
+}
+
+export function buildHolidayInput({
+  name,
+  date,
+  recurring,
+}: {
+  name: string;
+  date: string;
+  recurring: boolean;
+}): SaveHolidayInput {
+  return {
+    name: name.trim(),
+    date,
+    recurring,
+  };
+}
+
+export function currentValidFrom(
+  timetables: readonly { validFrom: string; validTo?: string | null }[] | null | undefined,
+  todayLisbon: string,
+): string | null {
+  if (!timetables || timetables.length === 0) return null;
+  const current = timetables.filter(
+    (t) => t.validFrom <= todayLisbon && (t.validTo === null || t.validTo === undefined || t.validTo >= todayLisbon),
+  );
+  if (current.length > 0) {
+    return current.reduce((max, t) => (t.validFrom > max ? t.validFrom : max), current[0]!.validFrom);
+  }
+  return timetables.reduce((max, t) => (t.validFrom > max ? t.validFrom : max), timetables[0]!.validFrom);
+}
+
 

@@ -45,7 +45,14 @@ import {
 import { usePreferences } from "../data/PreferencesProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import {
+  changeMargin,
+  deleteHolidayWithUndo,
+  deleteOverrideWithUndo,
+  toggleAlarms,
+} from "../data/settingsActions";
+import {
   backupDaysText,
+  currentValidFrom,
   dayTypeCounts,
   formatHolidayLine,
   formatOverrideLine,
@@ -137,7 +144,8 @@ export function SettingsSheet({ id }: { id: number }) {
       ]).then(([datasets, networks, timetables]) => {
         const latestDataset = datasets[datasets.length - 1] ?? null;
         const currentNetwork = networks[0] ?? null;
-        const validFrom = timetables[0]?.validFrom ?? null;
+        const todayLisbon = lisbonWallClock(now()).date;
+        const validFrom = currentValidFrom(timetables, todayLisbon);
         if (latestDataset) {
           setNetworkInfoData({
             dataset: { version: latestDataset.version, validFrom },
@@ -146,7 +154,7 @@ export function SettingsSheet({ id }: { id: number }) {
         }
       });
     }
-  }, [isTop, db]);
+  }, [isTop, db, now]);
 
   const calendarEdits = useCalendarEdits();
   const toast = useToast();
@@ -175,20 +183,14 @@ export function SettingsSheet({ id }: { id: number }) {
   );
 
   const handleDeleteOverride = async (item: CalendarOverrideItem) => {
-    const res = await calendarEdits.deleteOverride(item.id, now());
-    if (res.ok) {
-      void loadOverrides();
-      toast.show({
-        title: t("override.deleted"),
-        action: {
-          label: t("toast.action.undo"),
-          run: async () => {
-            await res.undo(now());
-            void loadOverrides();
-          },
-        },
-      });
-    }
+    // deleteOverride( com toast override.deleted e toast.action.undo
+    await deleteOverrideWithUndo({
+      id: item.id,
+      deleteOverride: (id, at) => calendarEdits.deleteOverride(id, at),
+      now,
+      toast,
+      onSuccess: () => void loadOverrides(),
+    });
   };
 
   const [holidays, setHolidays] = useState<CalendarHolidayItem[]>([]);
@@ -210,25 +212,14 @@ export function SettingsSheet({ id }: { id: number }) {
   }, [isTop, schedule, loadHolidays]);
 
   const handleDeleteHoliday = async (item: CalendarHolidayItem) => {
-    const res = await calendarEdits.deleteHoliday(item.id, now());
-    if (res.ok) {
-      void loadHolidays();
-      toast.show({
-        title: t("holiday.deleted"),
-        action: {
-          label: t("toast.action.undo"),
-          run: async () => {
-            await res.undo(now());
-            void loadHolidays();
-          },
-        },
-      });
-    } else if (res.reason === "official") {
-      toast.show({
-        title: t("holiday.error.official"),
-        kind: "error",
-      });
-    }
+    // deleteHoliday( com toast holiday.deleted
+    await deleteHolidayWithUndo({
+      id: item.id,
+      deleteHoliday: (id, at) => calendarEdits.deleteHoliday(id, at),
+      now,
+      toast,
+      onSuccess: () => void loadHolidays(),
+    });
   };
 
   // Margem local para feedback imediato e reversão em caso de recusa
@@ -242,7 +233,12 @@ export function SettingsSheet({ id }: { id: number }) {
     if (next.value === margin) return;
     const prev = margin;
     setMargin(next.value);
-    void prefs.setMargin(next.value).then((ok) => {
+    void changeMargin({
+      current: margin,
+      direction: dir,
+      setMargin: prefs.setMargin,
+    }).then((val) => {
+      const ok = val === next.value;
       if (!ok) setMargin(prev);
     });
   };
@@ -291,41 +287,29 @@ export function SettingsSheet({ id }: { id: number }) {
   const dayCounts = dayTypeCounts(schedule.status === "ready" ? schedule.data : null);
   const netLine = networkLine(networkInfoData.dataset, networkInfoData.network);
 
-  const handleToggleAlarms = async (val: boolean) => {
-    const currentPerm = await expoPort.getPermission();
-    const action = alarmsSwitchDecision(currentPerm, val);
-
-    switch (action) {
-      case "disable":
-        await prefs.setAlarmsAllowed(false);
-        break;
-
-      case "enable":
-        await prefs.setAlarmsAllowed(true);
-        break;
-
-      case "denied":
-        dispatch({ type: "push", sheet: { kind: "alarmIntro", mode: "denied" } });
-        break;
-
-      case "ask_reason": {
-        dispatch({
-          type: "push",
-          sheet: {
-            kind: "alarmIntro",
-            mode: "reason",
-            onResolve: async (accepted: boolean) => {
-              if (!accepted) return;
-              const res = await prefs.setAlarmsAllowed(true);
-              if (!res.ok && res.reason === "no_permission") {
-                dispatch({ type: "push", sheet: { kind: "alarmIntro", mode: "denied" } });
-              }
+  const handleToggleAlarms = (val: boolean) => {
+    void toggleAlarms({
+      next: val,
+      decide: async (target) => alarmsSwitchDecision(await expoPort.getPermission(), target),
+      setAlarmsAllowed: async (allowed) => {
+        if (allowed) return prefs.setAlarmsAllowed(true);
+        return prefs.setAlarmsAllowed(false);
+      },
+      openIntro: (options) => {
+        if (options.mode === "denied") {
+          dispatch({ type: "push", sheet: { kind: "alarmIntro", mode: "denied" } });
+        } else {
+          dispatch({
+            type: "push",
+            sheet: {
+              kind: "alarmIntro",
+              mode: "reason",
+              onResolve: options.onResolve,
             },
-          },
-        });
-        break;
-      }
-    }
+          });
+        }
+      },
+    });
   };
 
   return (
@@ -346,6 +330,11 @@ export function SettingsSheet({ id }: { id: number }) {
                 title={t("places.title")}
                 accessibilityLabel={t("places.title")}
                 onPress={() => dispatch({ type: "push", sheet: { kind: "places" } })}
+              />
+              <ListRow
+                title={t("settings.network.row")}
+                accessibilityLabel={t("settings.network.row")}
+                onPress={() => dispatch({ type: "push", sheet: { kind: "network" } })}
               />
             </View>
 

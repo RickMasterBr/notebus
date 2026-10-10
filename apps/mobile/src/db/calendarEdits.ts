@@ -144,30 +144,32 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
       const existing = (await selectLive(db, dateOverride, eq(dateOverride.date, input.date)))[0];
       if (!existing) {
         const id = newId(nowMs);
+        const targetUpdatedAt = nowMs;
         await db.insert(dateOverride).values({
-          id, createdAt: nowMs, updatedAt: nowMs, deletedAt: null, source: "user", officialKey: null,
+          id, createdAt: nowMs, updatedAt: targetUpdatedAt, deletedAt: null, source: "user", officialKey: null,
           networkId: net, date: input.date, dayTypeId: dayTypeRow.id, note,
         });
         return {
           ok: true, kind: "created", id, previous: null,
           undo: undoOf(async (at) => {
             const row = (await db.select().from(dateOverride).where(eq(dateOverride.id, id)))[0];
-            if (!row || row.updatedAt !== nowMs) return false;
-            await db.update(dateOverride).set({ deletedAt: at, updatedAt: at }).where(eq(dateOverride.id, id));
+            if (!row || row.updatedAt !== targetUpdatedAt) return false;
+            await db.update(dateOverride).set({ deletedAt: at, updatedAt: Math.max(at, row.updatedAt + 1) }).where(eq(dateOverride.id, id));
             return true;
           }),
         };
       }
       const previous: PreviousOverride = { dayTypeCode: (await dayTypeCodeOf(existing.dayTypeId)) ?? "weekday", note: existing.note };
+      const targetUpdatedAt = Math.max(nowMs, existing.updatedAt + 1);
       await db
         .update(dateOverride)
-        .set({ dayTypeId: dayTypeRow.id, note, updatedAt: nowMs, source: existing.source === "official" ? "official_edited" : existing.source })
+        .set({ dayTypeId: dayTypeRow.id, note, updatedAt: targetUpdatedAt, source: existing.source === "official" ? "official_edited" : existing.source })
         .where(eq(dateOverride.id, existing.id));
       return {
         ok: true, kind: "replaced", id: existing.id, previous,
         undo: undoOf(async (_at) => {
           const row = (await db.select().from(dateOverride).where(eq(dateOverride.id, existing.id)))[0];
-          if (!row || row.updatedAt !== nowMs) return false;
+          if (!row || row.updatedAt !== targetUpdatedAt) return false;
           await db
             .update(dateOverride)
             .set({ dayTypeId: existing.dayTypeId, note: existing.note, source: existing.source, deletedAt: null, updatedAt: existing.updatedAt })
@@ -181,13 +183,14 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
   async function deleteOverride(id: string, nowMs: number): Promise<DeleteResult> {
     const existing = (await selectLive(db, dateOverride, eq(dateOverride.id, id)))[0];
     if (!existing) return { ok: false, reason: "not_found" };
+    const targetUpdatedAt = Math.max(nowMs, existing.updatedAt + 1);
     return commit(async (): Promise<DeleteResult> => {
-      await db.update(dateOverride).set({ deletedAt: nowMs, updatedAt: nowMs }).where(eq(dateOverride.id, id));
+      await db.update(dateOverride).set({ deletedAt: nowMs, updatedAt: targetUpdatedAt }).where(eq(dateOverride.id, id));
       return {
         ok: true,
         undo: undoOf(async (_at) => {
           const row = (await db.select().from(dateOverride).where(eq(dateOverride.id, id)))[0];
-          if (!row || row.updatedAt !== nowMs) return false;
+          if (!row || row.updatedAt !== targetUpdatedAt) return false;
           await db.update(dateOverride).set({ deletedAt: null, updatedAt: existing.updatedAt }).where(eq(dateOverride.id, id));
           return true;
         }),
@@ -206,16 +209,17 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
 
     return commit(async (): Promise<SaveHolidayResult> => {
       const id = newId(nowMs);
+      const targetUpdatedAt = nowMs;
       await db.insert(holiday).values({
-        id, createdAt: nowMs, updatedAt: nowMs, deletedAt: null, source: "user", officialKey: null,
+        id, createdAt: nowMs, updatedAt: targetUpdatedAt, deletedAt: null, source: "user", officialKey: null,
         networkId: net, date: input.date, name: input.name.trim(), scope: "manual", recurring: input.recurring,
       });
       return {
         ok: true, id,
         undo: undoOf(async (at) => {
           const row = (await db.select().from(holiday).where(eq(holiday.id, id)))[0];
-          if (!row || row.updatedAt !== nowMs) return false;
-          await db.update(holiday).set({ deletedAt: at, updatedAt: at }).where(eq(holiday.id, id));
+          if (!row || row.updatedAt !== targetUpdatedAt) return false;
+          await db.update(holiday).set({ deletedAt: at, updatedAt: Math.max(at, row.updatedAt + 1) }).where(eq(holiday.id, id));
           return true;
         }),
       };
@@ -227,13 +231,14 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
     const existing = (await selectLive(db, holiday, eq(holiday.id, id)))[0];
     if (!existing) return { ok: false, reason: "not_found" };
     if (existing.scope !== "manual") return { ok: false, reason: "official" };
+    const targetUpdatedAt = Math.max(nowMs, existing.updatedAt + 1);
     return commit(async (): Promise<DeleteResult> => {
-      await db.update(holiday).set({ deletedAt: nowMs, updatedAt: nowMs }).where(eq(holiday.id, id));
+      await db.update(holiday).set({ deletedAt: nowMs, updatedAt: targetUpdatedAt }).where(eq(holiday.id, id));
       return {
         ok: true,
         undo: undoOf(async (_at) => {
           const row = (await db.select().from(holiday).where(eq(holiday.id, id)))[0];
-          if (!row || row.updatedAt !== nowMs) return false;
+          if (!row || row.updatedAt !== targetUpdatedAt) return false;
           await db.update(holiday).set({ deletedAt: null, updatedAt: existing.updatedAt }).where(eq(holiday.id, id));
           return true;
         }),

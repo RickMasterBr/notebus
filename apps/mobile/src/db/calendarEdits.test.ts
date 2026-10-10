@@ -131,6 +131,23 @@ describe("T-80: exceção de data", () => {
     expect(liveOverrides(e, "2026-12-24")).toEqual([]);
   });
 
+  it("desfazer vencido sob relógio parado não apaga nem reverte versão mais nova", async () => {
+    const e = await setup();
+    const first = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: "v1" }, NOW);
+    if (!first.ok) throw new Error(first.reason);
+    const second = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "sunday_holiday", note: "v2" }, NOW);
+    if (!second.ok) throw new Error(second.reason);
+    const third = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: "v3" }, NOW);
+    if (!third.ok) throw new Error(third.reason);
+
+    // Chamar o undo do primeiro salvamento sob relógio parado (mesmo NOW)
+    await first.undo(NOW);
+
+    // A linha mais nova (v3) tem de continuar lá intacta
+    expect(liveOverrides(e, "2026-12-24")).toEqual([{ code: "saturday", note: "v3" }]);
+    expect(typeOn(e, "2026-12-24")).toEqual({ dayType: "saturday", reason: "override" });
+  });
+
   it("deleteOverride apaga (deleted_at) e o undo traz de volta; id que não existe é recusado", async () => {
     const e = await setup();
     const saved = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: null }, NOW);

@@ -20,8 +20,11 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { lisbonWallClock } from "@notebus/domain";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { lisbonDateText } from "../data/BackupProvider";
+import { useNow } from "../data/NowProvider";
+import { currentValidFrom } from "../data/settingsView";
 import { dateNumbers } from "../data/testClockPicker";
 import { selectLive } from "../db/query";
 import { dataset, network, timetable } from "../db/schema";
@@ -52,6 +55,9 @@ export function NetworkInfoSheet({ id }: { id: number }) {
   const window = useWindowDimensions();
   const db = getSharedDb();
 
+  const now = useNow();
+  const unknown = t("network.unknown");
+
   const [handleHeight, setHandleHeight] = useState(0);
   const [info, setInfo] = useState<{
     networkName: string;
@@ -62,15 +68,16 @@ export function NetworkInfoSheet({ id }: { id: number }) {
     validFrom: string;
   }>({
     networkName: "MOBILIS Leiria",
-    fileName: "N/D",
-    version: "N/D",
-    importedAt: "N/D",
-    checksum: "N/D",
-    validFrom: "N/D",
+    fileName: unknown,
+    version: unknown,
+    importedAt: unknown,
+    checksum: unknown,
+    validFrom: unknown,
   });
 
   useEffect(() => {
     if (!db) return;
+    const todayLisbon = lisbonWallClock(now()).date;
     void Promise.all([
       selectLive(db, dataset),
       selectLive(db, network),
@@ -78,22 +85,22 @@ export function NetworkInfoSheet({ id }: { id: number }) {
     ]).then(([datasets, networks, timetables]) => {
       const latestDataset = datasets[datasets.length - 1] ?? null;
       const currentNetwork = networks[0] ?? null;
-      const validFromStr = timetables[0]?.validFrom ?? null;
+      const validFromStr = currentValidFrom(timetables, todayLisbon);
 
       setInfo({
         networkName: currentNetwork?.name ?? "MOBILIS Leiria",
-        fileName: latestDataset?.name ?? "N/D",
-        version: latestDataset?.version ?? "N/D",
-        importedAt: latestDataset?.importedAt ? lisbonDateText(latestDataset.importedAt) : "N/D",
-        checksum: latestDataset?.checksum ?? "N/D",
+        fileName: latestDataset?.name ?? unknown,
+        version: latestDataset?.version ?? unknown,
+        importedAt: latestDataset?.importedAt ? lisbonDateText(latestDataset.importedAt) : unknown,
+        checksum: latestDataset?.checksum ?? unknown,
         validFrom: validFromStr
           ? validFromStr.includes("-")
             ? dateNumbers(validFromStr)
             : validFromStr
-          : "N/D",
+          : unknown,
       });
     });
-  }, [db]);
+  }, [db, now, unknown]);
 
   const scrollAreaHeight = Math.max(
     80,

@@ -39,6 +39,7 @@ import {
   type UpcomingItem,
 } from "../data/alarmsUi";
 import { realNow } from "../data/clock";
+import { testAlarmToastKey } from "../data/settingsActions";
 import { sharedAlarms, type AlarmRow } from "../db/alarms";
 import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
@@ -208,16 +209,15 @@ export function AlarmsSheet({ id }: { id: number }) {
     if (!db) return;
     try {
       const result = await schedulerFor(db).scheduleTestAlarm();
+      const key = testAlarmToastKey(result);
       if (result.ok) {
         const timeStr = formatServiceMinute(lisbonWallClock(result.at).minute);
-        toast.show({ title: t("alarms.test_scheduled", { time: timeStr }) });
+        toast.show({ title: t(key!, { time: timeStr }) });
         await loadData();
       } else if (result.reason === "permission_denied") {
         dispatch({ type: "push", sheet: { kind: "alarmIntro", mode: "denied" } });
-      } else if (result.reason === "no_option") {
-        toast.show({ title: t("alarms.test_no_option") });
-      } else if (result.reason === "alarms_off") {
-        toast.show({ title: t("settings.alarms.test_off") });
+      } else if (key) {
+        toast.show({ title: t(key) });
       }
     } catch {
       // Ignora erro
