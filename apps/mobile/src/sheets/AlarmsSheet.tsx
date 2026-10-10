@@ -216,6 +216,8 @@ export function AlarmsSheet({ id }: { id: number }) {
         dispatch({ type: "push", sheet: { kind: "alarmIntro", mode: "denied" } });
       } else if (result.reason === "no_option") {
         toast.show({ title: t("alarms.test_no_option") });
+      } else if (result.reason === "alarms_off") {
+        toast.show({ title: t("settings.alarms.test_off") });
       }
     } catch {
       // Ignora erro

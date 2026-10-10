@@ -18,6 +18,7 @@ interface PreferencesValue extends Preferences {
   setIncludeMunicipalHolidays: (value: boolean) => Promise<void>;
   /** Ligar sem a permissão do sistema devolve `no_permission` e não liga. */
   setAlarmsAllowed: (value: boolean) => Promise<{ ok: true } | { ok: false; reason: "no_permission" }>;
+  reload: () => Promise<void>;
 }
 
 const PreferencesContext = createContext<PreferencesValue>({
@@ -25,6 +26,7 @@ const PreferencesContext = createContext<PreferencesValue>({
   setMargin: async () => false,
   setIncludeMunicipalHolidays: async () => {},
   setAlarmsAllowed: async () => ({ ok: false, reason: "no_permission" }),
+  reload: async () => {},
 });
 
 export function PreferencesProvider({ db, children }: { db: Parameters<typeof createPreferences>[0]["db"]; children: ReactNode }) {
@@ -56,6 +58,7 @@ export function PreferencesProvider({ db, children }: { db: Parameters<typeof cr
   const value = useMemo<PreferencesValue>(
     () => ({
       ...prefs,
+      reload: refresh,
       setMargin: async (v) => {
         const ok = await store.setMargin(v, nowRef.current());
         await refresh();

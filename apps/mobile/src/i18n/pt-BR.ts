@@ -524,6 +524,70 @@ export const ptBR = {
   "map_pick.confirm.needs_tap.a11y": "Toque no mapa para escolher a posição antes de confirmar", // provisório
   "map_pick.cancel.a11y": "Cancelar sem marcar", // provisório
   "map_pick.unavailable": "Não foi possível abrir o mapa. Confira a internet ou baixe o mapa em Ajustes.", // provisório
+  // E-08 Bloco 1b: Ajustes (TL-12)
+  "settings.section.general": "Geral", // provisório
+  "settings.section.days": "Dias", // provisório
+  "settings.section.holidays": "Feriados", // provisório
+  "settings.section.alerts": "Avisos", // provisório
+  "settings.section.map": "Mapa", // provisório
+  "settings.section.data": "Dados", // provisório
+  "settings.section.network": "Rede", // provisório
+  "settings.section.about": "Sobre", // provisório
+  "settings.margin.title": "Margem para chegar ao ponto", // provisório
+  "settings.margin.value": "{{n}} min", // provisório
+  "settings.margin.a11y": "Margem para chegar ao ponto, {{n}} minutos", // provisório
+  "settings.margin.less": "Diminuir margem", // provisório
+  "settings.margin.more": "Aumentar margem", // provisório
+  "settings.margin.hint": "O app manda você estar no ponto este tempo antes do ônibus.", // provisório
+  "settings.day.weekday": "Dia útil", // provisório
+  "settings.day.saturday": "Sábado", // provisório
+  "settings.day.sunday_holiday": "Domingo e feriado", // provisório
+  "settings.day.trips": "{{n}} viagens", // provisório
+  "settings.override.add": "+ Exceção", // provisório
+  "settings.override.line": "{{date}} · {{type}}", // provisório
+  "settings.override.past": "Passadas ({{n}})", // provisório
+  "settings.holiday.national": "Feriados nacionais: automático", // provisório
+  "settings.holiday.municipal": "Incluir feriados municipais", // provisório
+  "settings.holiday.add": "+ Feriado", // provisório
+  "settings.holiday.line_every_year": "{{name}} · {{date}} · todo ano", // provisório
+  "settings.holiday.line_once": "{{name}} · {{date}}", // provisório
+  "settings.holiday.official_note": "da MOBILIS", // provisório
+  "settings.alarms.allow": "Permitir avisos de saída", // provisório
+  "settings.alarms.off_hint": "Desligado: nenhum aviso toca. Os avisos continuam guardados.", // provisório
+  "settings.alarms.test_off": "Avisos desligados em Ajustes", // provisório
+  "settings.backup.never": "Você ainda não exportou um backup", // provisório
+  "settings.backup.today": "Último backup hoje", // provisório
+  "settings.backup.yesterday": "Último backup ontem", // provisório
+  "settings.backup.days_ago": "Último backup há {{n}} dias", // provisório
+  "settings.network.line": "MOBILIS Leiria · dados de {{version}} · vigência desde {{from}}", // provisório
+  "override.title": "Exceção por data", // provisório
+  "override.date": "Data", // provisório
+  "override.works_as": "Funciona como", // provisório
+  "override.note": "Nota (opcional)", // provisório
+  "override.save": "Salvar", // provisório
+  "override.saved": "Exceção salva", // provisório
+  "override.replaced": "Substituiu a exceção de {{date}}", // provisório
+  "override.deleted": "Exceção apagada", // provisório
+  "override.error.date": "Escolha uma data válida", // provisório
+  "override.error.generic": "Não foi possível salvar. Tente de novo.", // provisório
+  "override.past.title": "Exceções passadas", // provisório
+  "override.past.empty": "Nenhuma exceção passada", // provisório
+  "holiday.title": "Feriado", // provisório
+  "holiday.name": "Nome", // provisório
+  "holiday.date": "Data", // provisório
+  "holiday.every_year": "Repete todo ano", // provisório
+  "holiday.save": "Salvar", // provisório
+  "holiday.saved": "Feriado salvo", // provisório
+  "holiday.deleted": "Feriado apagado", // provisório
+  "holiday.error.name": "Escreva o nome do feriado", // provisório
+  "holiday.error.date": "Escolha uma data válida", // provisório
+  "holiday.error.official": "Este feriado vem da MOBILIS. Desligue \"Incluir feriados municipais\" para não usá-lo.", // provisório
+  "network.title": "Rede", // provisório
+  "network.file": "Arquivo", // provisório
+  "network.version": "Versão", // provisório
+  "network.imported_at": "Importado em", // provisório
+  "network.checksum": "Checksum", // provisório
+  "network.valid_from": "Vigência desde", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;

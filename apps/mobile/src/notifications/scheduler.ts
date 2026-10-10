@@ -36,7 +36,7 @@ export interface SchedulerDeps {
 
 /** `alarms_off`: o interruptor "Permitir avisos de saída" está desligado (E-08 §3.4): nada fica agendado, os avisos seguem guardados. */
 export type RescheduleResult = { ok: true; scheduled: number } | { ok: false; reason: "permission_denied" | "alarms_off" };
-export type TestAlarmResult = { ok: true; at: number; eventId: string } | { ok: false; reason: "permission_denied" | "no_option" };
+export type TestAlarmResult = { ok: true; at: number; eventId: string } | { ok: false; reason: "permission_denied" | "no_option" | "alarms_off" };
 
 const MINUTE_MS = 60_000;
 /** Fora do `skipped` do dia, a hora planejada de uma linha pulada é o começo do dia. */
@@ -142,6 +142,7 @@ export function createScheduler(deps: SchedulerDeps) {
   /** Aviso de teste (A3 e A4): 1 minuto depois, com os mesmos botões e a primeira opção de ônibus cadastrada. */
   async function runTestAlarm(): Promise<TestAlarmResult> {
     const now = deps.now();
+    if (!(await readPreferences(db)).alarmsAllowed) return { ok: false, reason: "alarms_off" };
     if ((await port.getPermission()) !== "granted") return { ok: false, reason: "permission_denied" };
     const schedule = await loadSchedule(db);
     const ctx = await alarmPlanInput(db, schedule, now);

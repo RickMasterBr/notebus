@@ -351,3 +351,86 @@ describe("T-86 (dados): fechar e abrir o banco de novo mantém tudo", () => {
     reopened.conn.db.close();
   });
 });
+
+describe("Item 0: lacunas do bloco 1", () => {
+  it("Item 0.3: undo vencido de saveOverride não apaga a versão mais nova", async () => {
+    const e = await setup();
+    const first = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: "v1" }, NOW);
+    if (!first.ok) throw new Error(first.reason);
+    const second = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "sunday_holiday", note: "v2" }, NOW + 1000);
+    if (!second.ok) throw new Error(second.reason);
+    const third = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "weekday", note: "v3" }, NOW + 2000);
+    if (!third.ok) throw new Error(third.reason);
+
+    // O primeiro undo está vencido: não deve fazer nada, a terceira versão continua
+    await first.undo(NOW + 3000);
+    expect(typeOn(e, "2026-12-24")).toEqual({ dayType: "weekday", reason: "override" });
+    expect(liveOverrides(e, "2026-12-24")).toEqual([{ code: "weekday", note: "v3" }]);
+
+    // O segundo undo (de uma substituição) também está vencido: não deve fazer nada, a terceira versão continua
+    await second.undo(NOW + 4000);
+    expect(typeOn(e, "2026-12-24")).toEqual({ dayType: "weekday", reason: "override" });
+    expect(liveOverrides(e, "2026-12-24")).toEqual([{ code: "weekday", note: "v3" }]);
+
+    // O terceiro undo ainda é válido: desfaz e volta à segunda versão
+    await third.undo(NOW + 5000);
+    expect(typeOn(e, "2026-12-24")).toEqual({ dayType: "sunday_holiday", reason: "override" });
+    expect(liveOverrides(e, "2026-12-24")).toEqual([{ code: "sunday_holiday", note: "v2" }]);
+  });
+
+  it("Item 0.3: undo vencido de deleteOverride, saveHoliday e deleteHoliday não faz nada", async () => {
+    const e = await setup();
+    // saveHoliday
+    const hol = await e.edits.saveHoliday({ name: "Festa", date: "2026-06-01", recurring: false }, NOW);
+    if (!hol.ok) throw new Error(hol.reason);
+    await e.raw.run("UPDATE holiday SET updated_at = ? WHERE id = ?", [NOW + 500, hol.id]);
+    await hol.undo(NOW + 1000);
+    // continua vivo porque o undo estava vencido
+    expect(e.rows("SELECT name FROM holiday WHERE id = ? AND deleted_at IS NULL", [hol.id])).toHaveLength(1);
+
+    // deleteHoliday
+    const del = await e.edits.deleteHoliday(hol.id, NOW + 1500);
+    if (!del.ok) throw new Error(del.reason);
+    await e.raw.run("UPDATE holiday SET updated_at = ? WHERE id = ?", [NOW + 1800, hol.id]);
+    await del.undo(NOW + 2000);
+    // continua apagado
+    expect(e.rows("SELECT name FROM holiday WHERE id = ? AND deleted_at IS NULL", [hol.id])).toHaveLength(0);
+
+    // deleteOverride
+    const ov = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: null }, NOW + 2100);
+    if (!ov.ok) throw new Error(ov.reason);
+    const delOv = await e.edits.deleteOverride(ov.id, NOW + 2200);
+    if (!delOv.ok) throw new Error(delOv.reason);
+    await e.raw.run("UPDATE date_override SET updated_at = ? WHERE id = ?", [NOW + 2300, ov.id]);
+    await delOv.undo(NOW + 2400);
+    // continua apagado
+    expect(liveOverrides(e, "2026-12-24")).toEqual([]);
+  });
+
+  it("Item 0.4: note que não é texto vira null sem estourar erro", async () => {
+    const e = await setup();
+    const resUndef = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: undefined as never }, NOW);
+    expect(resUndef).toMatchObject({ ok: true });
+    expect(liveOverrides(e, "2026-12-24")[0]?.note).toBeNull();
+
+    const resNull = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: null }, NOW + 1);
+    expect(resNull).toMatchObject({ ok: true });
+    expect(liveOverrides(e, "2026-12-24")[0]?.note).toBeNull();
+
+    const resEmpty = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: "" }, NOW + 2);
+    expect(resEmpty).toMatchObject({ ok: true });
+    expect(liveOverrides(e, "2026-12-24")[0]?.note).toBeNull();
+
+    const resSpaces = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: "   " }, NOW + 3);
+    expect(resSpaces).toMatchObject({ ok: true });
+    expect(liveOverrides(e, "2026-12-24")[0]?.note).toBeNull();
+
+    const resTrimmed = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: "  x  " }, NOW + 4);
+    expect(resTrimmed).toMatchObject({ ok: true });
+    expect(liveOverrides(e, "2026-12-24")[0]?.note).toBe("x");
+
+    const resNum = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: 123 as never }, NOW + 5);
+    expect(resNum).toMatchObject({ ok: true });
+    expect(liveOverrides(e, "2026-12-24")[0]?.note).toBeNull();
+  });
+});

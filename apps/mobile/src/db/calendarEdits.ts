@@ -114,8 +114,14 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
     await deps.reschedule();
   }
 
-  /** Como `commit`, mas para o `undo`: devolve o `UndoFn` pronto. */
-  const undoOf = (restore: (nowMs: number) => Promise<void>): UndoFn => (nowMs) => commit(() => restore(nowMs), nowMs);
+  /** Como `commit`, mas para o `undo`: devolve o `UndoFn` pronto. Só aplica se a linha não mudou depois da gravação. */
+  const undoOf = (restore: (nowMs: number) => Promise<boolean>): UndoFn => async (nowMs) => {
+    const before = deps.calendar();
+    const applied = await deps.exclusive(() => inTransaction(() => restore(nowMs)));
+    if (applied) {
+      await afterChange(before, nowMs);
+    }
+  };
 
   const networkId = async (): Promise<string | null> => (await selectLive(db, network))[0]?.id ?? null;
   const dayTypeCodeOf = async (id: string): Promise<DayTypeCode | null> => {
@@ -132,7 +138,7 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
     if (!dayTypeRow || !DAY_TYPE_CODES.includes(input.dayTypeCode)) return { ok: false, reason: "unknown_day_type" };
     const net = await networkId();
     if (net === null) return { ok: false, reason: "no_network" };
-    const note = input.note === null || input.note.trim() === "" ? null : input.note.trim();
+    const note = typeof input.note === "string" && input.note.trim() !== "" ? input.note.trim() : null;
 
     return commit(async (): Promise<SaveOverrideResult> => {
       const existing = (await selectLive(db, dateOverride, eq(dateOverride.date, input.date)))[0];
@@ -145,7 +151,10 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
         return {
           ok: true, kind: "created", id, previous: null,
           undo: undoOf(async (at) => {
+            const row = (await db.select().from(dateOverride).where(eq(dateOverride.id, id)))[0];
+            if (!row || row.updatedAt !== nowMs) return false;
             await db.update(dateOverride).set({ deletedAt: at, updatedAt: at }).where(eq(dateOverride.id, id));
+            return true;
           }),
         };
       }
@@ -156,11 +165,14 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
         .where(eq(dateOverride.id, existing.id));
       return {
         ok: true, kind: "replaced", id: existing.id, previous,
-        undo: undoOf(async (at) => {
+        undo: undoOf(async (_at) => {
+          const row = (await db.select().from(dateOverride).where(eq(dateOverride.id, existing.id)))[0];
+          if (!row || row.updatedAt !== nowMs) return false;
           await db
             .update(dateOverride)
-            .set({ dayTypeId: existing.dayTypeId, note: existing.note, source: existing.source, deletedAt: null, updatedAt: at })
+            .set({ dayTypeId: existing.dayTypeId, note: existing.note, source: existing.source, deletedAt: null, updatedAt: existing.updatedAt })
             .where(eq(dateOverride.id, existing.id));
+          return true;
         }),
       };
     }, nowMs);
@@ -173,8 +185,11 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
       await db.update(dateOverride).set({ deletedAt: nowMs, updatedAt: nowMs }).where(eq(dateOverride.id, id));
       return {
         ok: true,
-        undo: undoOf(async (at) => {
-          await db.update(dateOverride).set({ deletedAt: null, updatedAt: at }).where(eq(dateOverride.id, id));
+        undo: undoOf(async (_at) => {
+          const row = (await db.select().from(dateOverride).where(eq(dateOverride.id, id)))[0];
+          if (!row || row.updatedAt !== nowMs) return false;
+          await db.update(dateOverride).set({ deletedAt: null, updatedAt: existing.updatedAt }).where(eq(dateOverride.id, id));
+          return true;
         }),
       };
     }, nowMs);
@@ -198,7 +213,10 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
       return {
         ok: true, id,
         undo: undoOf(async (at) => {
+          const row = (await db.select().from(holiday).where(eq(holiday.id, id)))[0];
+          if (!row || row.updatedAt !== nowMs) return false;
           await db.update(holiday).set({ deletedAt: at, updatedAt: at }).where(eq(holiday.id, id));
+          return true;
         }),
       };
     }, nowMs);
@@ -213,8 +231,11 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
       await db.update(holiday).set({ deletedAt: nowMs, updatedAt: nowMs }).where(eq(holiday.id, id));
       return {
         ok: true,
-        undo: undoOf(async (at) => {
-          await db.update(holiday).set({ deletedAt: null, updatedAt: at }).where(eq(holiday.id, id));
+        undo: undoOf(async (_at) => {
+          const row = (await db.select().from(holiday).where(eq(holiday.id, id)))[0];
+          if (!row || row.updatedAt !== nowMs) return false;
+          await db.update(holiday).set({ deletedAt: null, updatedAt: existing.updatedAt }).where(eq(holiday.id, id));
+          return true;
         }),
       };
     }, nowMs);
