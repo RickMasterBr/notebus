@@ -36,9 +36,13 @@ export function checkSheetHostWiring(source: string): SheetHostDiagCheck {
 
 export interface DiagScrollWiringCheck {
   diagScrollEnabled: boolean;
-  stripReadsHomePointerEvents: boolean;
-  stripDoesNotHardcodeHomeValue: boolean;
-  stripReadsDiagLog: boolean;
+  usesSyncExternalStore: boolean;
+  callsDiagStripLines: boolean;
+  stripPassesSnapshotPicker: boolean;
+  textHasNumberOfLines1: boolean;
+  stripUsesTopInsetWithoutBottom: boolean;
+  recordDiagEventCallsStoreRecord: boolean;
+  hooksInOrder: boolean;
 }
 
 export function checkDiagScrollWiring(source: string): DiagScrollWiringCheck {
@@ -46,31 +50,98 @@ export function checkDiagScrollWiring(source: string): DiagScrollWiringCheck {
 
   const diagScrollEnabled = /export\s+const\s+DIAG_SCROLL\s*=\s*true\b/.test(norm);
 
-  const stripReadsHomePointerEvents =
-    norm.includes("homeLayerPointerEvents(") &&
-    /home=\$\{/.test(norm);
+  const usesSyncExternalStore = norm.includes(
+    "useSyncExternalStore(diagStore.subscribe, diagStore.getSnapshot)",
+  );
 
-  const stripDoesNotHardcodeHomeValue =
-    !/home=box-none\b/.test(norm) && !/home=none\b/.test(norm);
+  const callsDiagStripLines = norm.includes("diagStripLines(");
 
-  const stripReadsDiagLog =
-    norm.includes("formatDiagLog(") &&
-    norm.includes("pushDiagEvent(");
+  const stripPassesSnapshotPicker = /picker:\s*snapshot\.picker\b/.test(norm);
+
+  const textHasNumberOfLines1 =
+    /lines\.map\([^)]*\)\s*=>\s*\(\s*<Text\b[^>]*numberOfLines=\{1\}/.test(norm);
+
+  const stripUsesTopInsetWithoutBottom =
+    /top:\s*insets\.top\b/.test(norm) &&
+    !/bottom:\s*insets\.bottom\b/.test(norm) &&
+    !/strip:\s*\{[^}]*bottom:/.test(norm);
+
+  const recordDiagEventCallsStoreRecord =
+    /function\s+recordDiagEvent\s*\([^)]*\)\s*\{[^}]*diagStore\.record\(/.test(norm);
+
+  const hasStackDiagStripBody =
+    /function\s+StackDiagStrip\s*\(\)\s*\{\s*if\s*\(!DIAG_SCROLL\)\s*return\s*null;\s*return\s*<StackDiagStripBody\s*\/>;\s*\}/.test(
+      norm,
+    );
+  const syncStoreIdx = norm.indexOf("useSyncExternalStore(");
+  const bodyIdx = norm.indexOf("function StackDiagStripBody");
+  const hooksInOrder =
+    hasStackDiagStripBody && bodyIdx !== -1 && syncStoreIdx > bodyIdx;
 
   return {
     diagScrollEnabled,
-    stripReadsHomePointerEvents,
-    stripDoesNotHardcodeHomeValue,
-    stripReadsDiagLog,
+    usesSyncExternalStore,
+    callsDiagStripLines,
+    stripPassesSnapshotPicker,
+    textHasNumberOfLines1,
+    stripUsesTopInsetWithoutBottom,
+    recordDiagEventCallsStoreRecord,
+    hooksInOrder,
   };
 }
 
-describe("guarda estático de diagnóstico (Item 2)", () => {
+export interface SheetsContextWiringCheck {
+  closeActionRecordsRequestWithTwoArgs: boolean;
+  closeActionDoesNotPassNowRef: boolean;
+}
+
+export function checkSheetsContextWiring(source: string): SheetsContextWiringCheck {
+  const norm = normalize(source);
+
+  const closeActionRecordsRequestWithTwoArgs =
+    /if\s*\(\s*DIAG_SCROLL\s*&&\s*action\.type\s*===\s*["']close["']\s*\)\s*\{[^}]*recordCloseRequest\(\s*action\.id\s*,\s*closing\s*\?\s*closing\.kind\s*:\s*["']desconhecido["']\s*\)/.test(
+      norm,
+    );
+
+  const closeActionDoesNotPassNowRef = !/recordCloseRequest\([^)]*nowRef/.test(norm);
+
+  return {
+    closeActionRecordsRequestWithTwoArgs,
+    closeActionDoesNotPassNowRef,
+  };
+}
+
+export interface MapPickerWiringCheck {
+  recordsSelectorOpened: boolean;
+  recordsSelectorClosedInCleanup: boolean;
+}
+
+export function checkMapPickerWiring(source: string): MapPickerWiringCheck {
+  const norm = normalize(source);
+
+  const recordsSelectorOpened = norm.includes("recordDiagEvent(SELECTOR_OPENED)");
+
+  const recordsSelectorClosedInCleanup =
+    /return\s*\(\)\s*=>\s*\{[^}]*recordDiagEvent\(SELECTOR_CLOSED\)/.test(norm);
+
+  return {
+    recordsSelectorOpened,
+    recordsSelectorClosedInCleanup,
+  };
+}
+
+describe("guarda estático de diagnóstico (Item 3)", () => {
   const sheetHostPath = join(__dirname, "SheetHost.tsx");
   const sheetHostSource = readFileSync(sheetHostPath, "utf8");
 
   const diagScrollPath = join(__dirname, "diagScroll.tsx");
   const diagScrollSource = readFileSync(diagScrollPath, "utf8");
+
+  const sheetsContextPath = join(__dirname, "SheetsContext.tsx");
+  const sheetsContextSource = readFileSync(sheetsContextPath, "utf8");
+
+  const mapPickerPath = join(__dirname, "../screens/MapPicker.tsx");
+  const mapPickerSource = readFileSync(mapPickerPath, "utf8");
 
   it("(1) SheetHost.tsx usa homeLayerPointerEvents(stacked.length) no pointerEvents da primeira View", () => {
     const checks = checkSheetHostWiring(sheetHostSource);
@@ -78,15 +149,31 @@ describe("guarda estático de diagnóstico (Item 2)", () => {
     expect(checks.homeLayerUsesDynamicPointerEvents).toBe(true);
   });
 
-  it("(2) diagScroll.tsx lê o registro e homeLayerPointerEvents na faixa (sem texto fixo)", () => {
+  it("(2) diagScroll.tsx usa armazém reativo, diagStripLines, top: insets.top sem bottom e hooks na ordem", () => {
     const checks = checkDiagScrollWiring(diagScrollSource);
-    expect(checks.stripReadsHomePointerEvents).toBe(true);
-    expect(checks.stripDoesNotHardcodeHomeValue).toBe(true);
-    expect(checks.stripReadsDiagLog).toBe(true);
+    expect(checks.usesSyncExternalStore).toBe(true);
+    expect(checks.callsDiagStripLines).toBe(true);
+    expect(checks.stripPassesSnapshotPicker).toBe(true);
+    expect(checks.textHasNumberOfLines1).toBe(true);
+    expect(checks.stripUsesTopInsetWithoutBottom).toBe(true);
+    expect(checks.recordDiagEventCallsStoreRecord).toBe(true);
+    expect(checks.hooksInOrder).toBe(true);
   });
 
   it("(3) DIAG_SCROLL = true em diagScroll.tsx", () => {
     const checks = checkDiagScrollWiring(diagScrollSource);
     expect(checks.diagScrollEnabled).toBe(true);
+  });
+
+  it("(4) SheetsContext.tsx registra fechar com dois argumentos e sem nowRef", () => {
+    const checks = checkSheetsContextWiring(sheetsContextSource);
+    expect(checks.closeActionRecordsRequestWithTwoArgs).toBe(true);
+    expect(checks.closeActionDoesNotPassNowRef).toBe(true);
+  });
+
+  it("(5) MapPicker.tsx registra SELECTOR_OPENED e SELECTOR_CLOSED na limpeza", () => {
+    const checks = checkMapPickerWiring(mapPickerSource);
+    expect(checks.recordsSelectorOpened).toBe(true);
+    expect(checks.recordsSelectorClosedInCleanup).toBe(true);
   });
 });
