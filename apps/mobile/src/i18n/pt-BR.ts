@@ -494,6 +494,26 @@ export const ptBR = {
   "map.locate.a11y": "Onde estou", // provisório
   "map.permission_denied": "A localização está desligada para o NoteBus. Ligue em Ajustes do iPhone.", // provisório
   "map.no_fix": "Ainda sem sinal de localização. Tente de novo em instantes.", // provisório
+  "offline_map.offer": "Baixar o mapa de Leiria para usar sem internet (cerca de {{mb}} MB). Use o Wi-Fi.", // provisório
+  "offline_map.button.download": "Baixar", // provisório
+  "offline_map.button.snooze": "Agora não", // provisório
+  "offline_map.button.retry": "Tentar de novo", // provisório
+  "offline_map.downloading": "Baixando o mapa de Leiria… {{percent}}%", // provisório
+  "offline_map.error": "Não foi possível baixar o mapa. Confira a internet e tente de novo.", // provisório
+  "offline_map.ready_toast": "Mapa de Leiria pronto para usar sem internet.", // provisório
+  "offline_map.button.download.a11y": "Baixar o mapa de Leiria", // provisório
+  "offline_map.button.snooze.a11y": "Agora não baixar o mapa", // provisório
+  "offline_map.button.retry.a11y": "Tentar baixar o mapa de novo", // provisório
+  "settings.offline_map.title": "Mapa sem internet", // provisório
+  "settings.offline_map.not_downloaded": "Não baixado", // provisório
+  "settings.offline_map.downloading": "Baixando… {{percent}}%", // provisório
+  "settings.offline_map.ready": "Pronto, {{mb}} MB", // provisório
+  "settings.offline_map.failed": "Falhou", // provisório
+  "settings.offline_map.alert.title": "Mapa sem internet", // provisório
+  "settings.offline_map.alert.download": "Baixar", // provisório
+  "settings.offline_map.alert.download_again": "Baixar de novo", // provisório
+  "settings.offline_map.alert.delete": "Apagar", // provisório
+  "settings.offline_map.a11y": "Mapa sem internet. {{estado}}", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;

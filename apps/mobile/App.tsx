@@ -13,6 +13,7 @@ import { PositionProvider } from "./src/data/PositionProvider";
 import { StopLocationsProvider } from "./src/data/StopLocationsProvider";
 import { ToastProvider } from "./src/data/ToastProvider";
 import { BackupProvider } from "./src/data/BackupProvider";
+import { OfflineMapProvider } from "./src/data/OfflineMapProvider";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
 import { pickAndImport } from "./src/db/importFromFile";
 import { expoBackupStore, expoImportDb, openNotebusDb } from "./src/db/open";
@@ -86,7 +87,9 @@ export default function App() {
                         <RegistroProvider db={db}>
                           <PlacesProvider db={db}>
                             <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
-                              <Home />
+                              <OfflineMapProvider db={db}>
+                                <Home />
+                              </OfflineMapProvider>
                             </BackupProvider>
                           </PlacesProvider>
                         </RegistroProvider>
