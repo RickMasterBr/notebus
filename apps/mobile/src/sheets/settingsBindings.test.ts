@@ -67,6 +67,15 @@ describe("SettingsSheet: interruptores (Mutação 2)", () => {
     expect(src).toMatch(/settings\.alarms\.allow/);
     expect(src).toMatch(/settings\.alarms\.off_hint/);
   });
+
+  it("interruptor de avisos segue o fluxo de dois passos (alarmsSwitchDecision, motivo e denied)", () => {
+    const src = read();
+    expect(src).toMatch(/alarmsSwitchDecision\(/);
+    expect(src).toMatch(/mode:\s*"reason"/);
+    expect(src).toMatch(/mode:\s*"denied"/);
+    expect(src).toMatch(/setAlarmsAllowed\(true\)/);
+    expect(src).toMatch(/setAlarmsAllowed\(false\)/);
+  });
 });
 
 describe("SettingsSheet: dados e rede", () => {

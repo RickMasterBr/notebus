@@ -31,6 +31,7 @@ import ReanimatedSwipeable, {
 } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import appJson from "../../app.json";
+import { alarmsSwitchDecision } from "../data/alarmsSwitchFlow";
 import { useBackup } from "../data/BackupProvider";
 import { useCalendarEdits } from "../data/CalendarEditsProvider";
 import { realNow } from "../data/clock";
@@ -66,6 +67,7 @@ import { selectLive } from "../db/query";
 import { dataset, network, timetable } from "../db/schema";
 import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
+import { expoPort } from "../notifications/expoPort";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { ListRow } from "../ui/ListRow";
 import { SheetHandle } from "./SheetHandle";
@@ -289,15 +291,40 @@ export function SettingsSheet({ id }: { id: number }) {
   const dayCounts = dayTypeCounts(schedule.status === "ready" ? schedule.data : null);
   const netLine = networkLine(networkInfoData.dataset, networkInfoData.network);
 
-  const handleToggleAlarms = (val: boolean) => {
-    if (!val) {
-      void prefs.setAlarmsAllowed(false);
-    } else {
-      void prefs.setAlarmsAllowed(true).then((res) => {
-        if (!res.ok) {
-          dispatch({ type: "push", sheet: { kind: "alarmIntro", mode: "denied" } });
-        }
-      });
+  const handleToggleAlarms = async (val: boolean) => {
+    const currentPerm = await expoPort.getPermission();
+    const action = alarmsSwitchDecision(currentPerm, val);
+
+    switch (action) {
+      case "disable":
+        await prefs.setAlarmsAllowed(false);
+        break;
+
+      case "enable":
+        await prefs.setAlarmsAllowed(true);
+        break;
+
+      case "denied":
+        dispatch({ type: "push", sheet: { kind: "alarmIntro", mode: "denied" } });
+        break;
+
+      case "ask_reason": {
+        dispatch({
+          type: "push",
+          sheet: {
+            kind: "alarmIntro",
+            mode: "reason",
+            onResolve: async (accepted: boolean) => {
+              if (!accepted) return;
+              const res = await prefs.setAlarmsAllowed(true);
+              if (!res.ok && res.reason === "no_permission") {
+                dispatch({ type: "push", sheet: { kind: "alarmIntro", mode: "denied" } });
+              }
+            },
+          },
+        });
+        break;
+      }
     }
   };
 
