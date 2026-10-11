@@ -178,13 +178,15 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
         {loading || skeleton ? (
           skeleton ? <Skeleton variant="card" /> : null
         ) : card ? (
-          <StopCardView card={{ ...card, name: stopName }} />
+          <StopCardView card={{ ...card, name: stopName }} aliases={aliases} />
         ) : (
-          <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
-            {stopName}
-          </Text>
+          <>
+            <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
+              {stopName}
+            </Text>
+            {aliases !== null ? <Text style={[type.caption, { color: colors.textSecondary }]}>{aliases}</Text> : null}
+          </>
         )}
-        {aliases ? <Text style={[type.caption, { color: colors.textSecondary }]}>{aliases}</Text> : null}
       </View>
 
       {/* No detent pequeno esta parte fica abaixo da borda da tela: fora da leitura do VoiceOver até a folha subir. */}

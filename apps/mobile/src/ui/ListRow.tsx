@@ -2,6 +2,7 @@
 /** Linha de lista (4.4 §5.12), variantes simples e com selo: título + valor secundário, separador, alvo ≥ 44 px. */
 import type { ReactNode, Ref } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { subline } from "../data/rowSubline";
 import { minTouch, space, type, useTheme } from "../theme";
 
 /**
@@ -34,6 +35,7 @@ export function ListRow({
   ref?: Ref<View>;
 }) {
   const { colors } = useTheme();
+  const line = subline(detail, extra);
   return (
     <Pressable
       ref={ref}
@@ -49,8 +51,7 @@ export function ListRow({
       {leading}
       <View style={styles.title}>
         <Text style={[type.body, { color: colors.text }]}>{title}</Text>
-        {detail ? <Text style={[type.caption, { color: colors.textSecondary }]}>{detail}</Text> : null}
-        {extra ? <Text style={[type.caption, { color: colors.textSecondary }]}>{extra}</Text> : null}
+        {line ? <Text style={[type.caption, { color: colors.textSecondary }]}>{line}</Text> : null}
       </View>
       {secondary ? <Text style={[type.caption, { color: colors.textSecondary }]}>{secondary}</Text> : null}
     </Pressable>

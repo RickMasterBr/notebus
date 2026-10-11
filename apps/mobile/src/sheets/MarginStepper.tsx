@@ -6,7 +6,7 @@
  */
 import { memo, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { createMarginStepper } from "../data/marginStepper";
+import { adjustableStep, createMarginStepper } from "../data/marginStepper";
 import { usePreferences } from "../data/PreferencesProvider";
 import { marginLimits } from "../data/settingsView";
 import { t } from "../i18n";
@@ -62,11 +62,8 @@ export const MarginStepper = memo(function MarginStepper() {
       accessibilityLabel={t("settings.margin.a11y", { n: margin })}
       accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
       onAccessibilityAction={(e) => {
-        if (e.nativeEvent.actionName === "increment") {
-          handleStepMargin(1);
-        } else if (e.nativeEvent.actionName === "decrement") {
-          handleStepMargin(-1);
-        }
+        const direction = adjustableStep(e.nativeEvent.actionName);
+        if (direction !== null) stepper.step(direction);
       }}
       style={[styles.stepperRow, { borderBottomColor: colors.divider, backgroundColor: colors.bg }]}
     >

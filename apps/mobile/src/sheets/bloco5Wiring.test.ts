@@ -21,20 +21,16 @@ describe("item 1: nome do ponto pelo índice da busca", () => {
   it("StopSheet resolve o nome com stopNameFor(stopIndex, stopId, name) e usa o resolvido no cartão e no título", () => {
     expect(stopSheet).toContain("const stopIndex = useStopIndex();");
     expect(stopSheet).toContain("const stopName = stopNameFor(stopIndex, stopId, name);");
-    expect(stopSheet).toContain("<StopCardView card={{ ...card, name: stopName }} />");
+    expect(stopSheet).toContain("<StopCardView card={{ ...card, name: stopName }} aliases={aliases} />");
     expect(stopSheet).toMatch(/<Text accessibilityRole="header"[^>]*>\s*\{stopName\}\s*<\/Text>/);
     expect(stopSheet).not.toMatch(/\{name\}\s*<\/Text>/);
   });
 
   it("StopSheet mostra a linha de apelidos logo abaixo do cartão, só quando há apelido", () => {
     expect(stopSheet).toContain("const aliases = aliasesLine(stopIndex, stopId);");
-    const cardIdx = stopSheet.indexOf("<StopCardView card={{ ...card, name: stopName }} />");
-    const aliasIdx = stopSheet.indexOf("{aliases ? <Text");
-    const listIdx = stopSheet.indexOf("style={styles.list}");
-    expect(cardIdx).toBeGreaterThan(-1);
-    expect(aliasIdx).toBeGreaterThan(cardIdx);
-    expect(aliasIdx).toBeLessThan(listIdx);
-    expect(stopSheet).toMatch(/\{aliases \? <Text style=\{\[type\.caption, \{ color: colors\.textSecondary \}\]\}>\{aliases\}<\/Text> : null\}/);
+    expect(stopSheet).toContain("<StopCardView card={{ ...card, name: stopName }} aliases={aliases} />");
+    expect(stopSheet).not.toContain("{aliases ? <Text");
+    expect(stopSheet).toMatch(/\{stopName\}\s*<\/Text>\s*\{aliases !== null \? <Text style=\{\[type\.caption, \{ color: colors\.textSecondary \}\]\}>\{aliases\}<\/Text> : null\}/);
   });
 
   it("DeclareSheet resolve o nome do cabeçalho pelo índice, com o do snapshot como reserva", () => {

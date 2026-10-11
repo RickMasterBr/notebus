@@ -12,7 +12,6 @@ import { lisbonWallClock, previewMatch } from "@notebus/domain";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -48,6 +47,7 @@ import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CheckGlyph, CrossGlyph, InfoGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
+import { PickerModal } from "../ui/PickerModal";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
@@ -657,41 +657,27 @@ function RecordSheetLoaded({
         {/* DateTimePicker Nativo */}
         {showPicker && (
           Platform.OS === "ios" ? (
-            <Modal
-              transparent
-              animationType="fade"
+            <PickerModal
               visible={showPicker}
-              onRequestClose={() => setShowPicker(false)}
+              onClose={() => setShowPicker(false)}
+              doneLabel={t("alarm.repeat.done")}
+              onDone={() => setShowPicker(false)}
             >
-              <Pressable style={styles.modalOverlay} onPress={() => setShowPicker(false)}>
-                <Pressable
-                  style={[styles.modalBox, { backgroundColor: colors.surface }]}
-                  onPress={(e) => e.stopPropagation()}
-                >
-                  <DateTimePicker
-                    value={pickerValue(draft.centerMs)}
-                    mode="time"
-                    is24Hour={true}
-                    display="spinner"
-                    textColor={colors.text}
-                    onChange={(_event: DateTimePickerEvent, date?: Date) => {
-                      if (date) {
-                        const h = date.getHours();
-                        const m = date.getMinutes();
-                        setDraft((curr) => applyPickedTime(curr, h, m, instant));
-                      }
-                    }}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setShowPicker(false)}
-                    style={[styles.modalDoneButton, { backgroundColor: colors.fill }]}
-                  >
-                    <Text style={[type.bodyStrong, { color: colors.text }]}>OK</Text>
-                  </Pressable>
-                </Pressable>
-              </Pressable>
-            </Modal>
+              <DateTimePicker
+                value={pickerValue(draft.centerMs)}
+                mode="time"
+                is24Hour={true}
+                display="spinner"
+                textColor={colors.text}
+                onChange={(_event: DateTimePickerEvent, date?: Date) => {
+                  if (date) {
+                    const h = date.getHours();
+                    const m = date.getMinutes();
+                    setDraft((curr) => applyPickedTime(curr, h, m, instant));
+                  }
+                }}
+              />
+            </PickerModal>
           ) : (
             <DateTimePicker
               value={pickerValue(draft.centerMs)}
@@ -882,27 +868,6 @@ const styles = StyleSheet.create({
     minHeight: 48,
     gap: space.xs,
     marginTop: space.sm,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: space.lg,
-  },
-  modalBox: {
-    width: "100%",
-    borderRadius: radius.lg,
-    padding: space.md,
-    alignItems: "center",
-    gap: space.md,
-  },
-  modalDoneButton: {
-    alignSelf: "stretch",
-    minHeight: 44,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
   },
   num: {
     fontVariant: ["tabular-nums"],

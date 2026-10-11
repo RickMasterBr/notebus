@@ -22,6 +22,7 @@ import { useReloadStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
 import {
   MAX_ALIASES,
+  FIELD_LIMITS,
   addAlias,
   commitPendingAlias,
   stopEditView,
@@ -319,6 +320,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                     </Text>
                     <BottomSheetTextInput
                       value={draft.name}
+                      maxLength={FIELD_LIMITS.name}
                       onChangeText={(val) => {
                         setDraft((prev) => ({ ...prev, name: val }));
                         setSaveError(null);
@@ -350,6 +352,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                     <View style={styles.addAliasRow}>
                       <BottomSheetTextInput
                         value={newAliasText}
+                        maxLength={FIELD_LIMITS.alias}
                         onChangeText={(val) => {
                           setNewAliasText(val);
                           setAliasError(null);
@@ -423,6 +426,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                     </Text>
                     <BottomSheetTextInput
                       value={draft.externalId ?? ""}
+                      maxLength={FIELD_LIMITS.externalId}
                       onChangeText={(val) => {
                         setDraft((prev) => ({ ...prev, externalId: val }));
                         setSaveError(null);
@@ -457,6 +461,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                     </Text>
                     <BottomSheetTextInput
                       value={draft.note ?? ""}
+                      maxLength={FIELD_LIMITS.note}
                       onChangeText={(val) => {
                         setDraft((prev) => ({ ...prev, note: val }));
                         setSaveError(null);
