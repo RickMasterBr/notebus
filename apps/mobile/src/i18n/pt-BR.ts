@@ -572,6 +572,30 @@ export const ptBR = {
   "override.error.generic": "Não foi possível salvar. Tente de novo.", // provisório
   "override.past.title": "Exceções passadas", // provisório
   "override.past.empty": "Nenhuma exceção passada", // provisório
+  "declare.button": "Declarar horário", // provisório
+  "declare.title": "Declarar horário", // provisório
+  "declare.line": "Linha", // provisório
+  "declare.line.option.a11y": "Escolher a linha {{line}}", // provisório
+  "declare.time": "Hora", // provisório
+  "declare.time.placeholder": "Escolher a hora", // provisório
+  "declare.time.a11y": "Hora: {{time}}", // provisório
+  "declare.time.a11y_empty": "Hora: nenhuma escolhida", // provisório
+  "declare.passage": "Passagem", // provisório
+  "declare.passage.nth": "{{n}}ª", // provisório
+  "declare.passage.position": "posição {{n}}", // provisório
+  "declare.passage.option.a11y": "Passagem: {{label}}", // provisório
+  "declare.day_types": "Tipos de dia", // provisório
+  "declare.day_type.a11y": "Tipo de dia: {{day}}", // provisório
+  "declare.night_hint": "Madrugada vale como o fim do dia anterior.", // provisório
+  "declare.partial_hint": "Este horário vale só neste ponto.", // provisório
+  "declare.seal": "declarado", // provisório
+  "declare.toast.simple": "Horário declarado", // provisório
+  "declare.toast.replaces_official": "Horário declarado (substitui {{time}} da MOBILIS)", // provisório
+  "declare.toast.replaces_declared": "Horário declarado (substitui {{time}} que você declarou)", // provisório
+  "declare.toast.updated_created": "Atualizou a viagem de {{updated}} e criou uma nova para {{created}}", // provisório
+  "declare.toast.also": "Vale também para {{days}}.", // provisório
+  "declare.error.stale": "Os horários mudaram. Confira e tente de novo.", // provisório
+  "declare.error.generic": "Não foi possível salvar. Tente de novo.", // provisório
   "holiday.title": "Feriado", // provisório
   "holiday.name": "Nome", // provisório
   "holiday.date": "Data", // provisório

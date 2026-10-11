@@ -274,3 +274,13 @@ function tripsOfDayType(date: string, dayType: DayTypeCode, schedule: ScheduleDa
   );
   return schedule.trips.filter((t) => t.deletedAt == null && inForce.has(t.timetableId) && t.dayTypes.includes(dayType));
 }
+
+/** Chave de uma passagem na lista do Ponto: a viagem e a posição. */
+export const passageKeyOf = (tripId: string, position: number) => `${tripId}:${position}`;
+
+/** As passagens cujo horário-base é declarado (E-08, TL-07): são as que levam o selo "declarado" na lista do Ponto. */
+export function declaredPassageKeys(trips: readonly TripData[]): Set<string> {
+  const keys = new Set<string>();
+  for (const trip of trips) for (const st of trip.stopTimes) if (st.origin === "declared") keys.add(passageKeyOf(trip.id, st.position));
+  return keys;
+}
