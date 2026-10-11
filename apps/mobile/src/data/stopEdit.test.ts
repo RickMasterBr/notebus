@@ -3,6 +3,7 @@ import {
   addAlias,
   normalizeAlias,
   stopEditView,
+  stopLocationStatusKey,
   validateStopEdit,
 } from "./stopEdit";
 
@@ -285,4 +286,25 @@ describe("stopEdit (Item 1: regras puras do formulário)", () => {
       expect(view.aliasError).toBe("duplicate");
     });
   });
+
+  describe("stopLocationStatusKey", () => {
+    it("devolve stop_edit.location.none quando lat ou lon é null", () => {
+      expect(stopLocationStatusKey(null, null, null)).toBe("stop_edit.location.none");
+      expect(stopLocationStatusKey(39.74, null, "manual")).toBe("stop_edit.location.none");
+      expect(stopLocationStatusKey(null, -8.8, "suggested")).toBe("stop_edit.location.none");
+    });
+
+    it("devolve stop_edit.location.manual quando manual", () => {
+      expect(stopLocationStatusKey(39.74, -8.8, "manual")).toBe("stop_edit.location.manual");
+    });
+
+    it("devolve stop_edit.location.suggested quando suggested", () => {
+      expect(stopLocationStatusKey(39.74, -8.8, "suggested")).toBe("stop_edit.location.suggested");
+    });
+
+    it("devolve stop_edit.location.official quando lat e lon presentes e source null", () => {
+      expect(stopLocationStatusKey(39.74, -8.8, null)).toBe("stop_edit.location.official");
+    });
+  });
 });
+

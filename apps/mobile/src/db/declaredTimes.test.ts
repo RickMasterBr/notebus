@@ -393,7 +393,9 @@ describe("depois de gravar e de desfazer: recarrega, recasa, reagenda (nesta ord
     await alsoOnSaturday(e);
     // Viagem das 08:10 da L1 agora circula dia útil e sábado. Declarar 08:12 na Arrabalde (stop A, base 08:10) só em dia útil.
     const input = planFor(e, { line: "1", stop: "A", minute: hm(8, 12), days: ["weekday"] });
-    expect(input.steps[0]?.alsoAffects).toContain("saturday");
+    const step0 = input.steps[0];
+    if (step0?.action !== "update") throw new Error("expected update step");
+    expect(step0.alsoAffects).toContain("saturday");
     e.state.calls.length = 0;
     const result = await e.declared.declare(input, NOW);
     if (!result.ok) throw new Error(result.reason);

@@ -183,3 +183,27 @@ export function stopEditView(input: StopEditViewInput): StopEditView {
     isChanged,
   };
 }
+
+export type StopLocationKey =
+  | "stop_edit.location.none"
+  | "stop_edit.location.manual"
+  | "stop_edit.location.suggested"
+  | "stop_edit.location.official";
+
+export function stopLocationStatusKey(
+  lat: number | null,
+  lon: number | null,
+  locationSource: "manual" | "suggested" | null,
+): StopLocationKey {
+  if (lat === null || lon === null) {
+    return "stop_edit.location.none";
+  }
+  if (locationSource === "manual") {
+    return "stop_edit.location.manual";
+  }
+  if (locationSource === "suggested") {
+    return "stop_edit.location.suggested";
+  }
+  return "stop_edit.location.official";
+}
+
