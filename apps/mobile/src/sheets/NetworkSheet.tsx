@@ -197,18 +197,16 @@ export function NetworkSheet({ id }: { id: number }) {
           >
             <LineBadge code={line.code} color={line.color} />
             <View style={styles.rowContent}>
-              <View style={styles.nameAndTag}>
-                <Text style={[type.body, { color: colors.text, flexShrink: 1 }]}>{line.name}</Text>
-                {officialTag(line.source) && (
-                  <View style={[styles.officialTag, { backgroundColor: colors.fill }]}>
-                    <Text style={[type.caption, { color: colors.textSecondary }]}>
-                      {t("net.official")}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <Text style={[type.body, { color: colors.text, flexShrink: 1 }]}>{line.name}</Text>
               <Text style={[type.caption, { color: colors.textSecondary }]}>{patternText}</Text>
             </View>
+            {officialTag(line.source) && (
+              <View style={[styles.officialTag, { backgroundColor: colors.fill }]}>
+                <Text style={[type.caption, { color: colors.textSecondary }]}>
+                  {t("net.official")}
+                </Text>
+              </View>
+            )}
           </Pressable>
         );
       }
@@ -230,20 +228,18 @@ export function NetworkSheet({ id }: { id: number }) {
             ]}
           >
             <View style={styles.rowContent}>
-              <View style={styles.nameAndTag}>
-                <Text style={[type.body, { color: colors.text, flexShrink: 1 }]}>{stop.name}</Text>
-                {officialTag(stop.source) && (
-                  <View style={[styles.officialTag, { backgroundColor: colors.fill }]}>
-                    <Text style={[type.caption, { color: colors.textSecondary }]}>
-                      {t("net.official")}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <Text style={[type.body, { color: colors.text, flexShrink: 1 }]}>{stop.name}</Text>
               {secondary ? (
                 <Text style={[type.caption, { color: colors.textSecondary }]}>{secondary}</Text>
               ) : null}
             </View>
+            {officialTag(stop.source) && (
+              <View style={[styles.officialTag, { backgroundColor: colors.fill }]}>
+                <Text style={[type.caption, { color: colors.textSecondary }]}>
+                  {t("net.official")}
+                </Text>
+              </View>
+            )}
           </Pressable>
         );
       }
@@ -345,15 +341,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  nameAndTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-  },
   officialTag: {
     paddingHorizontal: space.xs,
     paddingVertical: 2,
     borderRadius: 4,
+    flexShrink: 0,
   },
   emptyRow: {
     paddingHorizontal: space.md,
