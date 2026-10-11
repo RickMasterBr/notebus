@@ -17,10 +17,13 @@ import { LineBadge } from "./LineBadge";
 export function StopCardView({
   card,
   subtitle,
+  aliases,
   onPress,
 }: {
   card: StopCard;
   subtitle?: string | null;
+  /** Apelidos do ponto, numa linha sob o nome (Ponto, E-08 bloco 6). */
+  aliases?: string | null;
   onPress?: () => void;
 }) {
   const { colors } = useTheme();
@@ -32,6 +35,7 @@ export function StopCardView({
           <Text style={[type.caption, styles.num, { color: colors.textSecondary }]}>{subtitle}</Text>
         ) : null}
       </View>
+      {aliases ? <Text style={[type.caption, { color: colors.textSecondary }]}>{aliases}</Text> : null}
       {card.lines.map((line, i) => (
         <View key={line.code} style={[styles.line, i > 0 && [styles.separator, { borderTopColor: colors.divider }]]}>
           <LineRow line={line} />
@@ -39,7 +43,7 @@ export function StopCardView({
       ))}
     </>
   );
-  const a11yLabel = cardA11y(card, subtitle);
+  const a11yLabel = aliases ? `${cardA11y(card, subtitle)}, ${aliases}` : cardA11y(card, subtitle);
   if (!onPress) {
     return (
       <View accessible accessibilityLabel={a11yLabel} style={[styles.card, { borderColor: colors.divider }]}>
