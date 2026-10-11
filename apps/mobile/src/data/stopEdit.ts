@@ -8,6 +8,7 @@ export const MAX_NAME_LENGTH = 80;
 export const MAX_NOTE_LENGTH = 200;
 export const MAX_ALIASES = 10;
 export const MAX_ALIAS_LENGTH = 60;
+export const MAX_EXTERNAL_ID_LENGTH = 20;
 
 export type AliasRefusal =
   | "empty"
@@ -50,6 +51,36 @@ export function addAlias(
   return { ok: true, aliases: [...current, normalized] };
 }
 
+export type CommitPendingAliasResult =
+  | { ok: true; aliases: string[] }
+  | { ok: false; reason: AliasRefusal };
+
+/**
+ * O que acontece com o texto que ficou no campo de apelido quando a pessoa toca em Salvar (D8, E-08 bloco 5).
+ * Vazio: nada muda. Válido: entra na lista, com as regras do `addAlias`. Inválido: devolve o motivo e o Salvar não grava.
+ */
+export function commitPendingAlias(
+  aliases: readonly string[],
+  pendingText: string,
+  name: string,
+): CommitPendingAliasResult {
+  if (normalizeAlias(pendingText) === null) {
+    return { ok: true, aliases: [...aliases] };
+  }
+  return addAlias(aliases, pendingText, name);
+}
+
+/**
+ * O ID externo passa de 20 caracteres? Só conta quando o ID mudou: um ponto cujo ID real já é mais longo
+ * continua salvável sem tocar no campo (D9).
+ */
+export function externalIdTooLong(next: string | null, current: string | null): boolean {
+  const nextTrimmed = next?.trim() || null;
+  if (nextTrimmed === null) return false;
+  if (nextTrimmed === (current?.trim() || null)) return false;
+  return nextTrimmed.length > MAX_EXTERNAL_ID_LENGTH;
+}
+
 export interface StopEditOther {
   id: string;
   name: string;
@@ -62,6 +93,8 @@ export interface ValidateStopEditInput {
   note: string | null;
   aliases: readonly string[];
   others: readonly StopEditOther[];
+  /** O ID externo que o ponto já tem (para o limite de 20 só valer quando o ID mudou). */
+  originalExternalId?: string | null;
 }
 
 export interface StopEditNormalizedValue {
@@ -74,6 +107,7 @@ export interface StopEditNormalizedValue {
 export interface StopEditErrors {
   name?: "required" | "too_long";
   externalId?: { duplicateOf: string };
+  externalIdTooLong?: true;
   note?: "too_long";
 }
 
@@ -94,6 +128,9 @@ export function validateStopEdit(
   }
 
   const externalIdTrimmed = input.externalId?.trim() || null;
+  if (externalIdTooLong(externalIdTrimmed, input.originalExternalId ?? null)) {
+    errors.externalIdTooLong = true;
+  }
   if (externalIdTrimmed !== null) {
     const needle = externalIdTrimmed.toLowerCase();
     const duplicate = input.others.find(
@@ -136,19 +173,22 @@ export interface StopEditViewInput {
   draft: StopEditDraft;
   validation: ValidateStopEditResult;
   aliasError?: AliasRefusal | null;
+  /** Texto que está no campo de novo apelido e ainda não foi adicionado (D8). */
+  pendingAlias?: string;
 }
 
 export interface StopEditView {
   canSave: boolean;
   nameError: "required" | "too_long" | null;
   externalIdError: { duplicateOf: string } | null;
+  externalIdTooLong: boolean;
   noteError: "too_long" | null;
   aliasError: AliasRefusal | null;
   isChanged: boolean;
 }
 
 export function stopEditView(input: StopEditViewInput): StopEditView {
-  const { original, draft, validation, aliasError } = input;
+  const { original, draft, validation, aliasError, pendingAlias } = input;
 
   const origName = original.name.trim();
   const draftName = draft.name.trim();
@@ -161,15 +201,22 @@ export function stopEditView(input: StopEditViewInput): StopEditView {
     original.aliases.length !== draft.aliases.length ||
     original.aliases.some((a, i) => a !== draft.aliases[i]);
 
+  // Texto válido no campo de apelido conta como mudança: o Salvar o adiciona. Texto inválido não liga o Salvar sozinho.
+  const pendingChange =
+    normalizeAlias(pendingAlias ?? "") !== null &&
+    commitPendingAlias(draft.aliases, pendingAlias ?? "", draft.name).ok;
+
   const isChanged =
     origName !== draftName ||
     origExt !== draftExt ||
     origNote !== draftNote ||
-    aliasesChanged;
+    aliasesChanged ||
+    pendingChange;
 
   const nameError = !validation.ok ? validation.errors.name ?? null : null;
   const externalIdError =
     !validation.ok ? validation.errors.externalId ?? null : null;
+  const externalIdTooLongError = !validation.ok && validation.errors.externalIdTooLong === true;
   const noteError = !validation.ok ? validation.errors.note ?? null : null;
 
   const canSave = isChanged && validation.ok;
@@ -178,6 +225,7 @@ export function stopEditView(input: StopEditViewInput): StopEditView {
     canSave,
     nameError,
     externalIdError,
+    externalIdTooLong: externalIdTooLongError,
     noteError,
     aliasError: aliasError ?? null,
     isChanged,

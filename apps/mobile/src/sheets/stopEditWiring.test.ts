@@ -51,7 +51,7 @@ describe("StopEditSheet: Salvar e submitGuard", () => {
   it("saveStopEdit recebe nowMs de now() e os campos do rascunho", () => {
     expect(stopEditSheet).toContain("const nowMs = now();");
     expect(stopEditSheet).toMatch(
-      /await saveStopEdit\(\s*db,\s*stopId,\s*\{\s*name:\s*draft\.name,\s*aliases:\s*\[\.\.\.draft\.aliases\],\s*externalId:\s*draft\.externalId,\s*note:\s*draft\.note,\s*\},\s*nowMs,\s*\);/,
+      /await saveStopEdit\(\s*db,\s*stopId,\s*\{\s*name:\s*draft\.name,\s*aliases:\s*committed\.aliases,\s*externalId:\s*draft\.externalId,\s*note:\s*draft\.note,\s*\},\s*nowMs,\s*\);/,
     );
   });
 

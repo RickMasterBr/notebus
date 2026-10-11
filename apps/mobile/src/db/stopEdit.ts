@@ -7,6 +7,7 @@
  */
 import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { externalIdTooLong } from "../data/stopEdit";
 import { selectLive } from "./query";
 import { stop } from "./schema";
 
@@ -70,6 +71,11 @@ export async function saveStopEdit(
     const existing = existingList[0];
     if (!existing) {
       return { ok: false, reason: "not_found" };
+    }
+
+    // 1b. Limite do ID externo (20), só quando o ID mudou em relação ao que o ponto já tem
+    if (externalIdTooLong(externalIdTrimmed, existing.externalId)) {
+      return { ok: false, reason: "invalid" };
     }
 
     // 2. Confere unicidade do externalId contra outros pontos vivos

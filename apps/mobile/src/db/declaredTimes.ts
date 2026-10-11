@@ -13,10 +13,16 @@
  *   tipo de dia sem casamento e um `stop_time` declarado.
  * O plano da tela é conferido de novo contra o banco dentro da transação (`stale` se a viagem mudou ou sumiu).
  *
+ * Remover (`removeDeclared`, E-08 bloco 5, D10): o `stop_time` declarado recebe `deleted_at`; se ele tinha substituído um
+ * horário oficial (a linha oficial está guardada com `official_edited` e `deleted_at`), o oficial **volta** (`deleted_at`
+ * nulo, `source = official`, `origin` continua `official`: o declarar nunca muda `origin`); se o declarado era o único horário
+ * de uma viagem parcial criada pelo Declarar (`source = user`, sem `official_key`), a viagem e os `trip_day_type`s também
+ * recebem `deleted_at`. Um declarado antigo, apagado antes por outro declarar, nunca ressuscita.
+ *
  * Depois de **qualquer** gravação ou `undo`, nesta ordem (como o `calendarEdits`): recarrega os horários (`reload`); recasa os
  * registros das datas cujo tipo de dia é um dos afetados (`rematch`; `manual` nunca é recasado, D-085); reagenda os avisos.
  */
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import {
   type CalendarData,
@@ -60,6 +66,20 @@ export interface DeclareInput {
 }
 
 export type DeclareResult = { ok: true; steps: DeclareStep[]; undo: DeclaredUndo } | { ok: false; reason: DeclareRefusal };
+
+export interface RemoveDeclaredInput {
+  stopId: string;
+  patternId: string;
+  tripId: string;
+  /** A posição do ponto no percurso (a passagem tocada). */
+  position: number;
+  /** O horário que a tela mostrou; se a linha mudou depois, `stale`. */
+  serviceMinute: number;
+}
+
+export type RemoveDeclaredResult =
+  | { ok: true; restoredOfficialMinute: number | null; undo: DeclaredUndo }
+  | { ok: false; reason: "stale" };
 
 type Table = typeof stopTime | typeof trip | typeof tripDayType;
 
@@ -273,7 +293,110 @@ export function createDeclaredTimes<S extends { calendar: CalendarData }>(deps: 
     return { ok: true, steps: [...input.steps], undo };
   }
 
-  return { declare };
+  async function removeDeclared(input: RemoveDeclaredInput, nowMs: number): Promise<RemoveDeclaredResult> {
+    const touched: Touched[] = [];
+    let restoredOfficialMinute: number | null = null;
+    const affected = new Set<DayTypeCode>();
+
+    /** Apagamento lógico de uma linha viva, com o `updatedAt` estritamente maior; o Desfazer devolve o estado exato. */
+    const softDelete = async (table: typeof stopTime | typeof trip | typeof tripDayType, row: { id: string; updatedAt: number; deletedAt: number | null }) => {
+      const targetUpdatedAt = Math.max(nowMs, row.updatedAt + 1);
+      await db.update(table).set({ deletedAt: nowMs, updatedAt: targetUpdatedAt }).where(eq(table.id, row.id));
+      touched.push({
+        table, id: row.id, targetUpdatedAt,
+        restore: async () => {
+          await db.update(table).set({ deletedAt: row.deletedAt, updatedAt: row.updatedAt }).where(eq(table.id, row.id));
+        },
+      });
+    };
+
+    const result = await deps.exclusive(() =>
+      inTransaction(async (): Promise<{ ok: true } | { ok: false; reason: "stale" }> => {
+        const data = await readPattern(input.patternId);
+        const here = data.stops.find((p) => p.position === input.position);
+        if (!here || here.stopId !== input.stopId) return { ok: false, reason: "stale" };
+        const live = data.times.find((st) => st.tripId === input.tripId && st.patternStopId === here.id);
+        if (!live || live.origin !== "declared" || live.serviceMinute !== input.serviceMinute) return { ok: false, reason: "stale" };
+        const theTrip = data.trips.find((t) => t.id === input.tripId);
+        if (!theTrip) return { ok: false, reason: "stale" };
+
+        const links = await selectLive(db, tripDayType, eq(tripDayType.tripId, theTrip.id));
+        for (const l of links) {
+          const code = data.codeOf.get(l.dayTypeId);
+          if (code) affected.add(code);
+        }
+
+        await softDelete(stopTime, live);
+
+        // O oficial que este declarado substituiu volta, exatamente como estava antes do declarar.
+        const [replaced] = await db
+          .select()
+          .from(stopTime)
+          .where(
+            and(
+              eq(stopTime.tripId, theTrip.id),
+              eq(stopTime.patternStopId, here.id),
+              eq(stopTime.origin, "official"),
+              eq(stopTime.source, "official_edited"),
+              isNotNull(stopTime.deletedAt),
+            ),
+          )
+          .orderBy(desc(stopTime.updatedAt))
+          .limit(1);
+        if (replaced) {
+          const targetUpdatedAt = Math.max(nowMs, replaced.updatedAt + 1, live.updatedAt + 1);
+          await db
+            .update(stopTime)
+            .set({ deletedAt: null, source: "official", origin: "official", updatedAt: targetUpdatedAt })
+            .where(eq(stopTime.id, replaced.id));
+          touched.push({
+            table: stopTime, id: replaced.id, targetUpdatedAt,
+            restore: async () => {
+              await db
+                .update(stopTime)
+                .set({ deletedAt: replaced.deletedAt, source: replaced.source, origin: replaced.origin, updatedAt: replaced.updatedAt })
+                .where(eq(stopTime.id, replaced.id));
+            },
+          });
+          restoredOfficialMinute = replaced.serviceMinute;
+        }
+
+        // Viagem parcial criada pelo Declarar que ficou sem nenhum horário vivo: some junto com os tipos de dia dela.
+        const createdByDeclare = theTrip.source === "user" && theTrip.officialKey === null;
+        if (createdByDeclare) {
+          const remaining = data.times.filter((st) => st.tripId === theTrip.id && st.id !== live.id);
+          if (remaining.length === 0 && !replaced) {
+            await softDelete(trip, theTrip);
+            for (const l of links) await softDelete(tripDayType, l);
+          }
+        }
+        return { ok: true };
+      }),
+    );
+    if (!result.ok) return result;
+
+    await afterChange(affected, nowMs);
+
+    const undo: DeclaredUndo = async (at) => {
+      const applied = await deps.exclusive(() =>
+        inTransaction(async () => {
+          // Tudo ou nada: se alguma linha mudou depois, nada é desfeito.
+          for (const t of touched) {
+            const row = (await db.select().from(t.table).where(eq(t.table.id, t.id)))[0];
+            if (!row || row.updatedAt !== t.targetUpdatedAt) return false;
+          }
+          for (const t of touched) await t.restore(at, { updatedAt: t.targetUpdatedAt });
+          return true;
+        }),
+      );
+      if (!applied) return { ok: false, reason: "stale" };
+      await afterChange(affected, at);
+      return { ok: true };
+    };
+    return { ok: true, restoredOfficialMinute, undo };
+  }
+
+  return { declare, removeDeclared };
 }
 
 export type DeclaredTimes<S extends { calendar: CalendarData }> = ReturnType<typeof createDeclaredTimes<S>>;

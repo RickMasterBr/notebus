@@ -13,15 +13,17 @@
  */
 import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { eq, ne } from "drizzle-orm";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNow } from "../data/NowProvider";
+import { useScheduleReload } from "../data/ScheduleProvider";
 import { useReloadStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
 import {
   MAX_ALIASES,
   addAlias,
+  commitPendingAlias,
   stopEditView,
   stopLocationStatusKey,
   validateStopEdit,
@@ -42,6 +44,7 @@ import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { useKeyboardHeight } from "./useKeyboardHeight";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -64,7 +67,27 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
   const now = useNow();
   const toast = useToast();
   const reloadStopIndex = useReloadStopIndex();
+  // Os horários guardam o nome do ponto (`stopNames`): sem recarregar, as outras folhas mostram o nome antigo.
+  const reloadSchedule = useScheduleReload();
   const db = getSharedDb();
+  // O teclado cobria a Nota, o ID externo e o novo apelido: a rolagem ganha o espaço do teclado (E-08 bloco 5, item 2).
+  const keyboard = useKeyboardHeight();
+  const scrollRef = useRef<React.ElementRef<typeof BottomSheetScrollView>>(null);
+  const sectionY = useRef(new Map<string, number>());
+  const focusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollToSection = useCallback((key: string) => {
+    if (focusTimer.current) clearTimeout(focusTimer.current);
+    // Espera o teclado subir: o espaço extra do fim só existe depois do `keyboardWillShow`.
+    focusTimer.current = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.get(key) ?? 0) - space.sm), animated: true });
+    }, 150);
+  }, []);
+  useEffect(
+    () => () => {
+      if (focusTimer.current) clearTimeout(focusTimer.current);
+    },
+    [],
+  );
 
   const [handleHeight, setHandleHeight] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -140,8 +163,9 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
         note: draft.note,
         aliases: draft.aliases,
         others,
+        originalExternalId: original.externalId,
       }),
-    [draft, others],
+    [draft, others, original.externalId],
   );
 
   const view = useMemo(
@@ -151,8 +175,9 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
         draft,
         validation,
         aliasError,
+        pendingAlias: newAliasText,
       }),
-    [original, draft, validation, aliasError],
+    [original, draft, validation, aliasError, newAliasText],
   );
 
   const handleAddAlias = () => {
@@ -182,13 +207,19 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
     if (!view.canSave || !validation.ok) return;
     await submitGuard.run(async () => {
       if (!db) return;
+      // O texto que ficou no campo de apelido entra ao Salvar; se for inválido, o erro aparece no campo e nada é gravado.
+      const committed = commitPendingAlias(draft.aliases, newAliasText, draft.name);
+      if (!committed.ok) {
+        setAliasError(committed.reason);
+        return;
+      }
       const nowMs = now();
       const result = await saveStopEdit(
         db,
         stopId,
         {
           name: draft.name,
-          aliases: [...draft.aliases],
+          aliases: committed.aliases,
           externalId: draft.externalId,
           note: draft.note,
         },
@@ -196,6 +227,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
       );
       if (result.ok) {
         await reloadStopIndex();
+        await reloadSchedule();
         close();
         toast.show({
           title: t("stop_edit.toast.saved"),
@@ -205,6 +237,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
             run: async () => {
               const undone = await result.undo(now());
               await reloadStopIndex();
+              await reloadSchedule();
               if (!undone.ok) {
                 toast.show({
                   title: t("stop_edit.error.stale"),
@@ -249,7 +282,9 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
         <View collapsable={false} style={{ height: scrollAreaHeight, overflow: "hidden" }}>
           <View collapsable={false} style={{ height: listHeight, overflow: "hidden" }}>
             <BottomSheetScrollView
-              contentContainerStyle={[styles.scrollContent, { paddingBottom: space.lg }]}
+              ref={scrollRef}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={[styles.scrollContent, { paddingBottom: space.lg + keyboard }]}
               showsVerticalScrollIndicator={false}
             >
               {/* Cabeçalho */}
@@ -308,30 +343,10 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                   </View>
 
                   {/* 2. Apelidos */}
-                  <View style={styles.section}>
+                  <View style={styles.section} onLayout={(e) => sectionY.current.set("aliases", e.nativeEvent.layout.y)}>
                     <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
                       {t("stop_edit.aliases")}
                     </Text>
-                    {draft.aliases.length > 0 ? (
-                      <View style={styles.chipsRow}>
-                        {draft.aliases.map((alias, index) => (
-                          <View
-                            key={`${alias}-${index}`}
-                            style={[styles.aliasChip, { backgroundColor: colors.fill }]}
-                          >
-                            <Text style={[type.body, { color: colors.text }]}>{alias}</Text>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={t("stop_edit.alias.remove.a11y", { alias })}
-                              onPress={() => handleRemoveAlias(index)}
-                              style={styles.chipRemoveButton}
-                            >
-                              <CrossGlyph color={colors.textSecondary} />
-                            </Pressable>
-                          </View>
-                        ))}
-                      </View>
-                    ) : null}
                     <View style={styles.addAliasRow}>
                       <BottomSheetTextInput
                         value={newAliasText}
@@ -342,6 +357,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                         placeholder={t("stop_edit.alias.placeholder")}
                         placeholderTextColor={colors.textSecondary}
                         returnKeyType="done"
+                        onFocus={() => scrollToSection("aliases")}
                         onSubmitEditing={handleAddAlias}
                         style={[
                           type.body,
@@ -377,10 +393,31 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                         {t("stop_edit.error.too_long")}
                       </Text>
                     ) : null}
+
+                    {draft.aliases.length > 0 ? (
+                      <View style={styles.chipsRow}>
+                        {draft.aliases.map((alias, index) => (
+                          <View
+                            key={`${alias}-${index}`}
+                            style={[styles.aliasChip, { backgroundColor: colors.fill }]}
+                          >
+                            <Text style={[type.body, { color: colors.text }]}>{alias}</Text>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={t("stop_edit.alias.remove.a11y", { alias })}
+                              onPress={() => handleRemoveAlias(index)}
+                              style={styles.chipRemoveButton}
+                            >
+                              <CrossGlyph color={colors.textSecondary} />
+                            </Pressable>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
                   </View>
 
                   {/* 3. ID externo (opcional) */}
-                  <View style={styles.section}>
+                  <View style={styles.section} onLayout={(e) => sectionY.current.set("externalId", e.nativeEvent.layout.y)}>
                     <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
                       {t("stop_edit.external_id")}
                     </Text>
@@ -392,12 +429,18 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                       }}
                       placeholder={t("stop_edit.external_id")}
                       placeholderTextColor={colors.textSecondary}
+                      onFocus={() => scrollToSection("externalId")}
                       style={[
                         type.body,
                         styles.textInput,
                         { backgroundColor: colors.fill, color: colors.text },
                       ]}
                     />
+                    {view.externalIdTooLong ? (
+                      <Text style={[type.caption, { color: colors.danger }]}>
+                        {t("stop_edit.error.too_long")}
+                      </Text>
+                    ) : null}
                     {view.externalIdError ? (
                       <Text style={[type.caption, { color: colors.danger }]}>
                         {t("stop_edit.error.external_id_taken", {
@@ -408,7 +451,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                   </View>
 
                   {/* 4. Nota (opcional, várias linhas) */}
-                  <View style={styles.section}>
+                  <View style={styles.section} onLayout={(e) => sectionY.current.set("note", e.nativeEvent.layout.y)}>
                     <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
                       {t("stop_edit.note")}
                     </Text>
@@ -422,6 +465,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                       placeholderTextColor={colors.textSecondary}
                       multiline
                       numberOfLines={3}
+                      onFocus={() => scrollToSection("note")}
                       style={[
                         type.body,
                         styles.textInputMultiline,
