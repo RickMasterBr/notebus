@@ -241,6 +241,15 @@ describe("settingsView", () => {
       expect(currentTimetables(null, "2026-10-10")).toEqual([]);
       expect(currentTimetables(undefined, "2026-10-10")).toEqual([]);
     });
+
+    it("0.7: tabela sem validTo (undefined) conta como vigente", () => {
+      const timetables = [
+        { id: "tt-undef", validFrom: "2026-01-01" },
+        { id: "tt-future", validFrom: "2027-01-01" },
+      ];
+      const result = currentTimetables(timetables, "2026-10-10");
+      expect(result.map((t) => t.id)).toEqual(["tt-undef"]);
+    });
   });
 });
 

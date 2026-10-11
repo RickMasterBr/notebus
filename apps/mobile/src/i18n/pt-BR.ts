@@ -637,6 +637,31 @@ export const ptBR = {
   "net.times.at": "Horários em {{stop}}", // provisório
   "net.times.empty": "Sem viagens neste tipo de dia", // provisório
   "net.times.partial_note": "{{n}} viagens parciais não passam neste ponto e não aparecem aqui", // provisório
+  // E-08 Bloco 3: Editar ponto (Item 5)
+  "stop_edit.button": "Editar ponto", // provisório
+  "stop_edit.title": "Editar ponto", // provisório
+  "stop_edit.name": "Nome", // provisório
+  "stop_edit.aliases": "Apelidos", // provisório
+  "stop_edit.alias.new": "Novo apelido", // provisório
+  "stop_edit.alias.placeholder": "Ex.: shopping", // provisório
+  "stop_edit.alias.add": "Adicionar", // provisório
+  "stop_edit.alias.remove.a11y": "Remover o apelido {{alias}}", // provisório
+  "stop_edit.external_id": "ID externo", // provisório
+  "stop_edit.note": "Nota", // provisório
+  "stop_edit.location": "Localização", // provisório
+  "stop_edit.location.manual": "Marcada por você", // provisório
+  "stop_edit.location.suggested": "Sugerida pelo app", // provisório
+  "stop_edit.location.official": "Oficial da rede", // provisório
+  "stop_edit.location.none": "Sem localização", // provisório
+  "stop_edit.toast.saved": "Ponto salvo", // provisório
+  "stop_edit.error.name_required": "Dê um nome ao ponto.", // provisório
+  "stop_edit.error.too_long": "Texto longo demais.", // provisório
+  "stop_edit.error.alias_duplicate": "Este apelido já existe.", // provisório
+  "stop_edit.error.alias_same_as_name": "O apelido é igual ao nome.", // provisório
+  "stop_edit.error.alias_too_many": "No máximo {{max}} apelidos.", // provisório
+  "stop_edit.error.external_id_taken": "Este ID já é do ponto {{name}}", // provisório
+  "stop_edit.error.stale": "O ponto mudou. Confira e tente de novo.", // provisório
+  "stop_edit.error.generic": "Não foi possível salvar. Tente de novo.", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;

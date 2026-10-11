@@ -47,6 +47,17 @@ describe("wiringE08d: guardas de uso das novas ligações (Item 6)", () => {
       );
       expect(settingsSheetSrc).toMatch(/const\s+stepper\s*=\s*stepperRef\.current;/);
     });
+
+    it("0.5: createMarginStepper recebe initial: prefs.margin, show com setMargin e write com prefs.setMargin", () => {
+      const match = settingsSheetSrc.match(
+        /createMarginStepper\(\s*\{([\s\S]*?)\}\s*\)/,
+      );
+      expect(match).not.toBeNull();
+      const body = match![1];
+      expect(body).toMatch(/initial:\s*prefs\.margin/);
+      expect(body).toMatch(/show:\s*\([^)]*\)\s*=>\s*setMarginRef\.current/);
+      expect(body).toMatch(/write:\s*\([^)]*\)\s*=>\s*prefsRef\.current\.setMargin/);
+    });
   });
 
   describe("2. AlarmsSheet: uso de testAlarmToastKey e repasse ao toast", () => {
@@ -168,6 +179,20 @@ describe("wiringE08d: guardas de uso das novas ligações (Item 6)", () => {
       expect(networkSheetSrc).toMatch(
         /<View\s+style=\{styles\.rowContent\}>[\s\S]*?<\/View>\s*\{officialTag\(stop\.source\)\s*&&\s*\(/,
       );
+    });
+  });
+
+  describe("7. Estilos de checksumRow e officialTag (item 0.6)", () => {
+    it("checksumRow em NetworkInfoSheet não tem backgroundColor", () => {
+      const match = networkInfoSheetSrc.match(/checksumRow:\s*\{([^}]*)\}/);
+      expect(match).not.toBeNull();
+      expect(match![1]).not.toMatch(/backgroundColor/);
+    });
+
+    it("officialTag em NetworkSheet tem flexShrink: 0", () => {
+      const match = networkSheetSrc.match(/officialTag:\s*\{([^}]*)\}/);
+      expect(match).not.toBeNull();
+      expect(match![1]).toMatch(/flexShrink:\s*0/);
     });
   });
 });

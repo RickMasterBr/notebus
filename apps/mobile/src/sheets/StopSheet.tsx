@@ -202,6 +202,17 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
                 <Text style={[type.bodyStrong, { color: colors.accent }]}>{t("declare.button")}</Text>
               </Pressable>
             ) : null}
+            {detent === 2 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("stop_edit.button")}
+                onPress={() => dispatch({ type: "push", sheet: { kind: "stopEdit", stopId } })}
+                style={({ pressed }) => [styles.declareButton, { backgroundColor: colors.fill }, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={[type.bodyStrong, { color: colors.accent }]}>{t("stop_edit.button")}</Text>
+              </Pressable>
+            ) : null}
+
             <View style={styles.chips}>
               {DAY_TYPES.map((type_) => (
                 <Chip
