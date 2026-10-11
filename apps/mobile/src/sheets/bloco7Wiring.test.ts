@@ -75,8 +75,10 @@ describe("item 3: Novo ponto", () => {
   });
 
   it("a folha chama createStop só no modo novo e saveStopEdit só no modo edição, cada um no seu ramo", () => {
+    const draftFields =
+      "{ name: draft.name, aliases: committed.aliases, externalId: draft.externalId, note: draft.note, }";
     expect(stopEditSheet).toContain(
-      "const result = isNew ? await createStop(db, values, nowMs) : await saveStopEdit(db, stopId, values, nowMs);",
+      `const result = isNew ? await createStop( db, ${draftFields}, nowMs, ) : await saveStopEdit( db, stopId, ${draftFields}, nowMs, );`,
     );
     expect(stopEditSheet.match(/createStop\(/g)).toHaveLength(1);
     expect(stopEditSheet.match(/saveStopEdit\(/g)).toHaveLength(1);

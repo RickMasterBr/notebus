@@ -217,15 +217,28 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
         return;
       }
       const nowMs = now();
-      const values = {
-        name: draft.name,
-        aliases: committed.aliases,
-        externalId: draft.externalId,
-        note: draft.note,
-      };
       const result = isNew
-        ? await createStop(db, values, nowMs)
-        : await saveStopEdit(db, stopId, values, nowMs);
+        ? await createStop(
+            db,
+            {
+              name: draft.name,
+              aliases: committed.aliases,
+              externalId: draft.externalId,
+              note: draft.note,
+            },
+            nowMs,
+          )
+        : await saveStopEdit(
+            db,
+            stopId,
+            {
+              name: draft.name,
+              aliases: committed.aliases,
+              externalId: draft.externalId,
+              note: draft.note,
+            },
+            nowMs,
+          );
       if (result.ok) {
         await reloadStopIndex();
         await reloadSchedule();
