@@ -5,10 +5,29 @@ import {
   controlPositions,
   officialTag,
   stopSecondary,
+  validFromText,
 } from "./networkView";
 import type { ScheduleSnapshot } from "./schedule";
 
 describe("data/networkView: lógica pura da rede (TL-11, Item 2)", () => {
+  describe("validFromText (Item 4)", () => {
+    it("converte data ISO para dd/mm/aaaa como dateNumbers", () => {
+      expect(validFromText("2026-10-08")).toBe("08/10/2026");
+      expect(validFromText("2025-01-01")).toBe("01/01/2025");
+    });
+
+    it("devolve data sem hífen como veio", () => {
+      expect(validFromText("Outubro 2026")).toBe("Outubro 2026");
+      expect(validFromText("2026")).toBe("2026");
+    });
+
+    it("devolve null para string vazia, espaços ou null", () => {
+      expect(validFromText("")).toBeNull();
+      expect(validFromText("   ")).toBeNull();
+      expect(validFromText(null)).toBeNull();
+    });
+  });
+
   describe("officialTag", () => {
     it("identifica fontes oficiais e do usuário", () => {
       expect(officialTag("official")).toBe(true);

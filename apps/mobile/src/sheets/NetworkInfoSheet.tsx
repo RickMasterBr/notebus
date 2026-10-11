@@ -25,7 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { lisbonDateText } from "../data/BackupProvider";
 import { useNow } from "../data/NowProvider";
 import { currentValidFrom } from "../data/settingsView";
-import { dateNumbers } from "../data/testClockPicker";
+import { validFromText } from "../data/networkView";
 import { selectLive } from "../db/query";
 import { dataset, network, timetable } from "../db/schema";
 import { getSharedDb } from "../db/sharedDb";
@@ -93,11 +93,7 @@ export function NetworkInfoSheet({ id }: { id: number }) {
         version: latestDataset?.version ?? unknown,
         importedAt: latestDataset?.importedAt ? lisbonDateText(latestDataset.importedAt) : unknown,
         checksum: latestDataset?.checksum ?? unknown,
-        validFrom: validFromStr
-          ? validFromStr.includes("-")
-            ? dateNumbers(validFromStr)
-            : validFromStr
-          : unknown,
+        validFrom: validFromText(validFromStr) ?? unknown,
       });
     });
   }, [db, now, unknown]);

@@ -12,6 +12,16 @@ import {
 import { t } from "../i18n";
 import type { ScheduleSnapshot } from "./schedule";
 import { clockText } from "./stopCard";
+import { dateNumbers } from "./testClockPicker";
+
+/**
+ * Formata a data de vigência para o formato do app (dd/mm/aaaa).
+ * Usa dateNumbers quando a data tem '-', devolve como veio se não tem, null se vazia.
+ */
+export function validFromText(validFrom: string | null | undefined): string | null {
+  if (!validFrom || validFrom.trim() === "") return null;
+  return validFrom.includes("-") ? dateNumbers(validFrom) : validFrom;
+}
 
 /**
  * Verdadeiro se a origem é oficial da MOBILIS (D-051); falso para criados pelo usuário.
