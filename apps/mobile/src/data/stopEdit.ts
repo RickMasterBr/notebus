@@ -10,6 +10,14 @@ export const MAX_ALIASES = 10;
 export const MAX_ALIAS_LENGTH = 60;
 export const MAX_EXTERNAL_ID_LENGTH = 20;
 
+/** Limite de digitação de cada campo de Editar ponto (E-08 bloco 6, E2). A validação continua para texto colado e dados antigos. */
+export const FIELD_LIMITS = {
+  name: MAX_NAME_LENGTH,
+  alias: MAX_ALIAS_LENGTH,
+  externalId: MAX_EXTERNAL_ID_LENGTH,
+  note: MAX_NOTE_LENGTH,
+} as const;
+
 export type AliasRefusal =
   | "empty"
   | "same_as_name"
