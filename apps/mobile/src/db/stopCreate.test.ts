@@ -5,6 +5,7 @@
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { MAX_NAME_LENGTH } from "../data/stopEdit";
+import { loadStopIndex } from "../data/stopIndex";
 import { exampleNetworkSeed, stopId } from "../data/registroFixture";
 import { type ImportDb, importMobilis } from "./importMobilis";
 import { listStops } from "./networkList";
@@ -60,6 +61,15 @@ describe("createStop", () => {
     });
     const network = (await db.select().from(stop).where(eq(stop.id, stopId("A"))))[0]!;
     expect(row.networkId).toBe(network.networkId);
+  });
+
+  it("o ponto criado entra no índice da busca e sai dele com o Desfazer", async () => {
+    const { db } = await setup();
+    const res = await createStop(db, values({ name: "Ponto Busca", aliases: ["Casinha"] }), NOW);
+    if (!res.ok) throw new Error("criação falhou");
+    expect((await loadStopIndex(db)).find((s) => s.id === res.id)).toMatchObject({ name: "Ponto Busca", aliases: ["Casinha"], lines: [] });
+    await res.undo(NOW + 1);
+    expect((await loadStopIndex(db)).some((s) => s.id === res.id)).toBe(false);
   });
 
   it("usa o gerador de id recebido", async () => {
