@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useToast } from "../data/ToastProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
+import { matchedAlias } from "../data/matchedAlias";
 import { searchPanel } from "../data/searchPanel";
 import type { StopEntry } from "../data/stopIndex";
 import { stopIdDetail } from "../data/stopIdDetail";
@@ -63,22 +64,28 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
     AccessibilityInfo.announceForAccessibility(t("search.empty.prompt"));
   }, [loading, panel]);
 
-  const stopRow = (stop: StopEntry) => (
+  const stopRow = (stop: StopEntry) => {
+    // Só nos resultados da busca (não nos recentes) e só quando o termo casou com um apelido, não com o nome nem com o ID.
+    const alias = panel === "results" ? matchedAlias(stop, term) : null;
+    const aliasText = alias ? t("search.result.alias", { alias }) : undefined;
+    const base =
+      stop.lines.length > 0 ? t("search.result.stop.a11y", { name: stop.name, lines: stop.lines.join(", ") }) : stop.name;
+    return (
     <ListRow
       key={stop.id}
       title={stop.name}
       detail={stopIdDetail(stop.externalId)}
+      extra={aliasText}
       secondary={stop.lines.join(", ")}
-      accessibilityLabel={
-        stop.lines.length > 0 ? t("search.result.stop.a11y", { name: stop.name, lines: stop.lines.join(", ") }) : stop.name
-      }
+      accessibilityLabel={aliasText ? `${base}, ${aliasText}` : base}
       onPress={() => {
         if (!pick) return openStop({ id: stop.id, name: stop.name });
         stopPick.resolve({ id: stop.id, name: stop.name });
         closeSheet();
       }}
     />
-  );
+    );
+  };
 
   // D-143: "Limpar" à direita do título "Recentes", sem confirmação; toast "Recentes limpos" com Desfazer. Só com recentes.
   const clearRecents = () => {

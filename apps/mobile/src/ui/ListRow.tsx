@@ -13,6 +13,7 @@ import { minTouch, space, type, useTheme } from "../theme";
 export function ListRow({
   title,
   detail,
+  extra,
   secondary,
   leading,
   onPress,
@@ -22,6 +23,8 @@ export function ListRow({
   title: string;
   /** Valor secundário sob o título (ex.: o ID de um ponto), em `type.caption`. */
   detail?: string;
+  /** Mais uma linha pequena sob o título (ex.: o apelido que casou na busca). */
+  extra?: string;
   secondary?: string;
   leading?: ReactNode;
   onPress?: () => void;
@@ -47,6 +50,7 @@ export function ListRow({
       <View style={styles.title}>
         <Text style={[type.body, { color: colors.text }]}>{title}</Text>
         {detail ? <Text style={[type.caption, { color: colors.textSecondary }]}>{detail}</Text> : null}
+        {extra ? <Text style={[type.caption, { color: colors.textSecondary }]}>{extra}</Text> : null}
       </View>
       {secondary ? <Text style={[type.caption, { color: colors.textSecondary }]}>{secondary}</Text> : null}
     </Pressable>

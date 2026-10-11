@@ -58,6 +58,7 @@ export const ptBR = {
   "search.empty.no_results": "Nada encontrado para “{{term}}”",
   "search.clear.a11y": "Limpar busca",
   "search.result.stop.a11y": "{{name}}, linhas {{lines}}",
+  "search.result.alias": "apelido: {{alias}}", // provisório
   "sheet.handle.a11y": "Tamanho da folha",
   "sheet.detent.small": "pequeno",
   "sheet.detent.medium": "médio",
