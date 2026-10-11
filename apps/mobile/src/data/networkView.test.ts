@@ -530,5 +530,64 @@ describe("data/networkView: lógica pura da rede (TL-11, Item 2)", () => {
       expect(res.times).toEqual(["08:20"]);
       expect(res.partialCount).toBe(1);
     });
+
+    it("0.8: tabela de outro percurso não entra nos horários-base", () => {
+      const snapshot: ScheduleSnapshot = {
+        calendar: { overrides: [], holidays: [], includeMunicipal: true },
+        schedule: {
+          trips: [
+            { id: "t1", timetableId: "tt-p1", dayTypes: ["weekday"], seasonId: null },
+            { id: "t-other", timetableId: "tt-other", dayTypes: ["weekday"], seasonId: null },
+          ],
+          timetables: [
+            { id: "tt-p1", validFrom: "2026-01-01", validTo: null },
+            { id: "tt-other", validFrom: "2026-09-01", validTo: null },
+          ],
+          seasons: [],
+        },
+        patterns: [
+          {
+            id: "p1",
+            stops: [{ position: 1, stopId: "s1", isTimepoint: true }],
+          },
+          {
+            id: "p2",
+            stops: [{ position: 1, stopId: "s2", isTimepoint: true }],
+          },
+        ],
+        trips: [
+          {
+            id: "t1",
+            patternId: "p1",
+            firstPosition: 1,
+            lastPosition: 1,
+            stopTimes: [{ position: 1, serviceMinute: 500, origin: "official" as const }],
+          },
+          {
+            id: "t-other",
+            patternId: "p2",
+            firstPosition: 1,
+            lastPosition: 1,
+            stopTimes: [{ position: 1, serviceMinute: 600, origin: "official" as const }],
+          },
+        ],
+        patternLine: new Map(),
+        patternLineId: new Map(),
+        lineInfo: new Map(),
+        patternStopIds: new Map(),
+        patternStopById: new Map(),
+        stopNames: new Map([["s1", "Terminal P1"], ["s2", "Terminal P2"]]),
+      };
+
+      const res = baseTimes({
+        snapshot,
+        patternId: "p1",
+        dayType: "weekday",
+        todayLisbon: "2026-10-08",
+      });
+
+      expect(res.validFrom).toBe("2026-01-01");
+      expect(res.times).toEqual(["08:20"]);
+    });
   });
 });

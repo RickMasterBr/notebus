@@ -1,12 +1,13 @@
 /// <reference types="node" />
 // E-08 item 2 (TL-07, T-75 a T-78, D-111): gravar o horário declarado e desfazer. Rede inventada (D-091).
+import * as domain from "@notebus/domain";
 import { type DayTypeCode, type DeclareTrip, dayTypeOf, passagesAtStop, planDeclaration } from "@notebus/domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { matchNetworkOf } from "../data/records";
 import { createRegistro } from "../data/registro";
 import { THURSDAY, exampleNetworkSeed, lineId, lisbon, stopId } from "../data/registroFixture";
 import { type ScheduleSnapshot, loadSchedule } from "../data/schedule";
-import { type DeclaredTimes, createDeclaredTimes } from "./declaredTimes";
+import { type DeclaredTimes, createDeclaredTimes, timetableInForce } from "./declaredTimes";
 import { type ImportDb, importMobilis } from "./importMobilis";
 import { testDbWithSqlite } from "./testing/drizzleTestDb";
 
@@ -32,11 +33,14 @@ async function setup() {
   }
   let n = 0;
   const newId = () => `0199c3a0-0000-7000-8000-${String(++n).padStart(12, "0")}`;
-  const state = { current: await loadSchedule(db), calls: [] as string[], lastChanged: null as ((d: string) => boolean) | null };
+  const state = { current: await loadSchedule(db), calls: [] as string[], lastChanged: null as ((d: string) => boolean) | null, exclusiveCalls: 0 };
   const registro = createRegistro(db, { network: () => matchNetworkOf(state.current), snapshot: () => state.current, newId });
   const declared: DeclaredTimes<ScheduleSnapshot> = createDeclaredTimes<ScheduleSnapshot>({
     db,
-    exclusive: registro.exclusive,
+    exclusive: async (job) => {
+      state.exclusiveCalls++;
+      return registro.exclusive(job);
+    },
     reload: async () => {
       state.calls.push("reload");
       return (state.current = await loadSchedule(db));
@@ -280,6 +284,37 @@ describe("stale: o plano da tela é conferido contra o banco", () => {
     const input = planFor(e, C_0835);
     expect(await e.declared.declare({ ...input, stopId: stopId("A") }, NOW)).toEqual({ ok: false, reason: "stale" });
   });
+
+  it("0.1: declarar com stopId de outro ponto, mas com a posição de um ponto real: stale, nada gravado e aborta antes de planDeclaration", async () => {
+    const e = await setup();
+    const input = planFor(e, C_0835);
+    const tripsBefore = count(e, "trip");
+    const stBefore = count(e, "stop_time");
+    const planSpy = vi.spyOn(domain, "planDeclaration");
+    try {
+      expect(await e.declared.declare({ ...input, stopId: stopId("A") }, NOW)).toEqual({ ok: false, reason: "stale" });
+      expect(count(e, "trip")).toBe(tripsBefore);
+      expect(count(e, "stop_time")).toBe(stBefore);
+      expect(planSpy).not.toHaveBeenCalled();
+    } finally {
+      planSpy.mockRestore();
+    }
+  });
+
+  it("0.2: dois passos com posições diferentes: stale, nada gravado e recusa antes de entrar na transação", async () => {
+    const e = await setup();
+    const input = planFor(e, C_0835);
+    const steps = [
+      input.steps[0]!,
+      { ...input.steps[0]!, position: 99, dayType: "saturday" as const },
+    ];
+    const tripsBefore = count(e, "trip");
+    const stBefore = count(e, "stop_time");
+    expect(await e.declared.declare({ ...input, steps }, NOW)).toEqual({ ok: false, reason: "stale" });
+    expect(count(e, "trip")).toBe(tripsBefore);
+    expect(count(e, "stop_time")).toBe(stBefore);
+    expect(e.state.exclusiveCalls).toBe(0);
+  });
 });
 
 describe("Desfazer vencido (relógio parado): cada tipo de gravação, uma por uma", () => {
@@ -352,5 +387,41 @@ describe("depois de gravar e de desfazer: recarrega, recasa, reagenda (nesta ord
     await declareOk(e, C_0850, NOW);
     const partialId = (e.rows("SELECT id FROM trip WHERE source = 'user'")[0] as { id: string }).id;
     expect(read()).toEqual([{ match_status: "auto", trip_id: partialId }]);
+  });
+  it("0.3: viagem que serve dia útil e sábado, declarar só em dia útil: o rematch recebe um predicado verdadeiro para uma data de sábado", async () => {
+    const e = await setup();
+    await alsoOnSaturday(e);
+    // Viagem das 08:10 da L1 agora circula dia útil e sábado. Declarar 08:12 na Arrabalde (stop A, base 08:10) só em dia útil.
+    const input = planFor(e, { line: "1", stop: "A", minute: hm(8, 12), days: ["weekday"] });
+    expect(input.steps[0]?.alsoAffects).toContain("saturday");
+    e.state.calls.length = 0;
+    const result = await e.declared.declare(input, NOW);
+    if (!result.ok) throw new Error(result.reason);
+    expect(e.state.calls).toEqual(["reload", "rematch", "reschedule"]);
+    const changed = e.state.lastChanged!;
+    expect(changed("2026-10-10")).toBe(true); // sábado é afetado por causa de alsoAffects!
+  });
+});
+
+describe("0.4: timetableInForce e escolha da tabela vigente para parcial", () => {
+  it("duas tabelas vigentes ao mesmo tempo: a de validFrom mais recente é a escolhida", () => {
+    const tOld = { id: "tt-old", validFrom: "2026-01-01", validTo: null };
+    const tNew = { id: "tt-new", validFrom: "2026-06-01", validTo: null };
+    expect(timetableInForce([tOld, tNew], "2026-10-10")?.id).toBe("tt-new");
+    expect(timetableInForce([tNew, tOld], "2026-10-10")?.id).toBe("tt-new");
+  });
+
+  it("viagem parcial escolhe a tabela com validFrom mais recente quando duas estão vigentes", async () => {
+    const e = await setup();
+    const patternId = [...e.state.current.patternLine].find(([, info]) => info.code === "1")![0];
+    await e.raw.run(
+      "INSERT INTO timetable (id, created_at, updated_at, source, pattern_id, valid_from, valid_to) VALUES ('tt-more-recent', 1, 1, 'official', ?, '2026-06-01', NULL)",
+      [patternId],
+    );
+    e.state.current = await loadSchedule(e.db);
+    const result = await e.declared.declare(planFor(e, C_0850), NOW);
+    if (!result.ok) throw new Error(result.reason);
+    const createdTrip = (e.rows("SELECT timetable_id FROM trip WHERE source = 'user' AND deleted_at IS NULL")[0] as { timetable_id: string });
+    expect(createdTrip.timetable_id).toBe("tt-more-recent");
   });
 });
