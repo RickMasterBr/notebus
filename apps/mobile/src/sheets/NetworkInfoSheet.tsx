@@ -152,7 +152,7 @@ export function NetworkInfoSheet({ id }: { id: number }) {
               />
 
               {/* 5. Checksum (selecionável em monoespaçada se disponível) */}
-              <View style={[styles.checksumRow, { borderBottomColor: colors.divider, backgroundColor: colors.bg }]}>
+              <View style={[styles.checksumRow, { borderBottomColor: colors.divider }]}>
                 <Text style={[type.body, { color: colors.text }]}>
                   {t("network.checksum")}
                 </Text>
