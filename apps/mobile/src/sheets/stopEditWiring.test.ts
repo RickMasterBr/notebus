@@ -125,3 +125,32 @@ describe("StopEditSheet: ciclo de vida e localização", () => {
     expect(stopEditSheet).not.toContain("saveStopLocation");
   });
 });
+
+describe("StopEditSheet: uso das decisões (bloco 4)", () => {
+  it("handleSave começa com a guarda de canSave e validation.ok", () => {
+    expect(stopEditSheet).toMatch(
+      /const handleSave = async \(\) => \{\s*if \(!view\.canSave \|\| !validation\.ok\) return;\s*await submitGuard\.run\(/,
+    );
+  });
+
+  it("Desfazer vencido: o ramo !undone.ok abre o toast de erro com a chave stale", () => {
+    expect(stopEditSheet).toMatch(
+      /if \(!undone\.ok\) \{\s*toast\.show\(\{\s*title: t\("stop_edit\.error\.stale"\),\s*kind: "error",/,
+    );
+  });
+
+  it("erro de apelido same_as_name mostra a chave própria; too_many mostra o max", () => {
+    expect(stopEditSheet).toMatch(
+      /view\.aliasError === "same_as_name" \? \(\s*<Text[^>]*>\s*\{t\("stop_edit\.error\.alias_same_as_name"\)\}\s*<\/Text>/,
+    );
+    expect(stopEditSheet).toMatch(
+      /view\.aliasError === "too_many" \? \(\s*<Text[^>]*>\s*\{t\("stop_edit\.error\.alias_too_many", \{ max: MAX_ALIASES \}\)\}\s*<\/Text>/,
+    );
+  });
+
+  it("erro do Salvar: duplicate_external_id usa a chave do ID; qualquer outra razão usa a genérica", () => {
+    expect(stopEditSheet).toMatch(
+      /setSaveError\(\s*result\.reason === "duplicate_external_id"\s*\? t\("stop_edit\.error\.external_id_taken", \{ name: "" \}\)\s*: t\("stop_edit\.error\.generic"\),\s*\);/,
+    );
+  });
+});
