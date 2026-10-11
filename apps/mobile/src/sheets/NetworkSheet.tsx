@@ -16,7 +16,7 @@ import { useReloadStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
 import { officialTag, stopSecondary } from "../data/networkView";
 import { NEW_STOP_ID } from "../data/stopEdit";
-import { deleteRefusalText } from "../data/stopManage";
+import { deleteRefusalText, isDeleteAction } from "../data/stopManage";
 import {
   type NetworkLineItem,
   type NetworkStopItem,
@@ -407,7 +407,7 @@ function StopRow({
         accessibilityLabel={t("net.stop.a11y", { name: stop.name })}
         accessibilityActions={[{ name: "delete", label: t("stop_delete.action") }]}
         onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === "delete") onDelete(stop);
+          if (isDeleteAction(event.nativeEvent.actionName)) onDelete(stop);
         }}
         onPress={() => onPress(stop.id, stop.name)}
         style={({ pressed }) => [
