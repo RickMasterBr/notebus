@@ -40,3 +40,13 @@ export async function loadStopIndex(db: AnyDb): Promise<StopEntry[]> {
     lines: [...(byStop.get(s.id) ?? [])].sort((a, b) => a.localeCompare(b, "pt", { numeric: true })),
   }));
 }
+
+/**
+ * Decide se a resposta de uma recarga (pelo número de sequência da chamada `callSeq`)
+ * deve ser aplicada sobre a última chamada já aplicada (`latestAppliedSeq`).
+ * Descarte de resposta antiga: só vale se `callSeq > latestAppliedSeq`.
+ */
+export function shouldApplyReload(callSeq: number, latestAppliedSeq: number): boolean {
+  return callSeq > latestAppliedSeq;
+}
+
