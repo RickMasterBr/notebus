@@ -20,7 +20,7 @@ import { useNow } from "../data/NowProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
-import { type DeclareDraft, buildDeclareView, declareToast } from "../data/declareView";
+import { type DeclareDraft, type DeclaredRow, buildDeclareView, declareToast, declaredList, removePlan, removeToast } from "../data/declareView";
 import { stopNameFor } from "../data/stopHeader";
 import { createSubmitGuard } from "../data/submitGuard";
 import { hhmm } from "../data/testClockPicker";
@@ -119,6 +119,33 @@ export function DeclareSheet({ id, stopId }: { id: number; stopId: string }) {
           },
         });
         close();
+      } else {
+        toast.show({
+          title: result.reason === "stale" ? t("declare.error.stale") : t("declare.error.generic"),
+          kind: "error",
+          haptic: "error",
+        });
+      }
+    });
+  };
+
+  const declaredRows = useMemo(() => (data ? declaredList(stopId, data) : []), [data, stopId]);
+
+  const handleRemove = async (row: DeclaredRow) => {
+    await submitGuard.run(async () => {
+      const result = await declared.removeDeclared(removePlan(stopId, row), now());
+      if (result.ok) {
+        toast.show({
+          title: removeToast(result.restoredOfficialMinute),
+          haptic: "success",
+          action: {
+            label: t("toast.action.undo"),
+            run: async () => {
+              const undone = await result.undo(now());
+              if (!undone.ok) toast.show({ title: t("declare.error.stale"), kind: "error", haptic: "error" });
+            },
+          },
+        });
       } else {
         toast.show({
           title: result.reason === "stale" ? t("declare.error.stale") : t("declare.error.generic"),
@@ -228,6 +255,34 @@ export function DeclareSheet({ id, stopId }: { id: number; stopId: string }) {
                       ))}
                     </View>
                   </View>
+
+                  {/* Declarados neste ponto (D10): só aparece quando há horário declarado aqui */}
+                  {declaredRows.length > 0 ? (
+                    <View style={styles.section}>
+                      <Text accessibilityRole="header" style={[type.caption, { color: colors.textSecondary }]}>
+                        {t("declare.remove.title")}
+                      </Text>
+                      {declaredRows.map((row) => (
+                        <View key={row.key} style={styles.declaredRow}>
+                          <View style={styles.declaredText}>
+                            <LineBadge code={row.lineCode} color={row.lineColor} />
+                            <Text style={[type.body, styles.num, { color: colors.text, flexShrink: 1 }]}>
+                              {row.timeText}
+                              {row.dayTypesText ? ` · ${row.dayTypesText}` : ""}
+                            </Text>
+                          </View>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("declare.remove.a11y", { time: row.timeText, line: row.lineCode })}
+                            onPress={() => void handleRemove(row)}
+                            style={({ pressed }) => [styles.removeButton, { backgroundColor: colors.fill }, pressed && { opacity: 0.6 }]}
+                          >
+                            <Text style={[type.bodyStrong, { color: colors.danger }]}>{t("declare.remove.button")}</Text>
+                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
                 </>
               ) : null}
             </BottomSheetScrollView>
@@ -308,6 +363,9 @@ export function DeclareSheet({ id, stopId }: { id: number; stopId: string }) {
 }
 
 const styles = StyleSheet.create({
+  declaredRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm, minHeight: minTouch },
+  declaredText: { flexDirection: "row", alignItems: "center", gap: space.sm, flexShrink: 1 },
+  removeButton: { minHeight: minTouch, minWidth: minTouch, borderRadius: radius.md, alignItems: "center", justifyContent: "center", paddingHorizontal: space.md },
   scrollContent: { paddingHorizontal: space.md, paddingBottom: space.lg, gap: space.lg },
   header: { gap: space.xs, paddingTop: space.xs },
   section: { gap: space.xs },

@@ -64,6 +64,30 @@ export interface DeclareView {
   toast: string | null;
 }
 
+/** Uma linha da seção "Declarados neste ponto": um `stop_time` declarado vivo neste ponto (E-08 bloco 5, D10). */
+export interface DeclaredRow {
+  key: string;
+  tripId: string;
+  patternId: string;
+  position: number;
+  serviceMinute: number;
+  lineCode: string;
+  lineColor: string;
+  /** "08:50" */
+  timeText: string;
+  /** "dia útil e sábado" */
+  dayTypesText: string;
+}
+
+/** O que a remoção recebe (`removeDeclared` de `db/declaredTimes.ts`). */
+export interface RemoveDeclaredPlan {
+  stopId: string;
+  patternId: string;
+  tripId: string;
+  position: number;
+  serviceMinute: number;
+}
+
 export const passageKey = (patternId: string, position: number) => `${patternId}:${position}`;
 
 const dayName = (day: DayTypeCode) => t(`settings.day.${day}` as MessageKey).toLowerCase();
@@ -94,6 +118,45 @@ export function declareToast(steps: readonly DeclareStep[]): string {
   const also: DayTypeCode[] = [];
   for (const s of updates) if (s.action === "update") for (const d of s.alsoAffects) if (!also.includes(d)) also.push(d);
   return also.length === 0 ? text : `${text}. ${t("declare.toast.also", { days: joinDays(also) })}`;
+}
+
+/** Uma linha por horário declarado vivo neste ponto, ordenada por hora e depois por linha. */
+export function declaredList(stopId: string, data: ScheduleSnapshot): DeclaredRow[] {
+  const dayTypesByTrip = new Map(data.schedule.trips.map((trip) => [trip.id, trip.dayTypes]));
+  const rows: DeclaredRow[] = [];
+  for (const trip of data.trips) {
+    const pattern = data.patterns.find((p) => p.id === trip.patternId);
+    const info = data.patternLine.get(trip.patternId);
+    if (!pattern || !info) continue;
+    for (const st of trip.stopTimes) {
+      if (st.origin !== "declared") continue;
+      if (pattern.stops.find((s) => s.position === st.position)?.stopId !== stopId) continue;
+      rows.push({
+        key: `${trip.id}:${st.position}`,
+        tripId: trip.id,
+        patternId: trip.patternId,
+        position: st.position,
+        serviceMinute: st.serviceMinute,
+        lineCode: info.code,
+        lineColor: info.color,
+        timeText: clockText(st.serviceMinute),
+        dayTypesText: joinDays(dayTypesByTrip.get(trip.id) ?? []),
+      });
+    }
+  }
+  return rows.sort((a, b) => a.serviceMinute - b.serviceMinute || a.lineCode.localeCompare(b.lineCode, "pt", { numeric: true }));
+}
+
+/** O pedido de remoção da linha tocada. */
+export function removePlan(stopId: string, row: DeclaredRow): RemoveDeclaredPlan {
+  return { stopId, patternId: row.patternId, tripId: row.tripId, position: row.position, serviceMinute: row.serviceMinute };
+}
+
+/** O aviso depois de remover: quando o horário oficial voltou, diz qual. */
+export function removeToast(restoredOfficialMinute: number | null): string {
+  return restoredOfficialMinute === null
+    ? t("declare.toast.removed")
+    : t("declare.toast.removed_official", { time: clockText(restoredOfficialMinute) });
 }
 
 /** As linhas que servem o ponto e os percursos de cada uma. */

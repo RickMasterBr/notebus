@@ -595,6 +595,11 @@ export const ptBR = {
   "declare.toast.replaces_declared": "Horário declarado (substitui {{time}} que você declarou)", // provisório
   "declare.toast.updated_created": "Atualizou a viagem de {{updated}} e criou uma nova para {{created}}", // provisório
   "declare.toast.also": "Vale também para {{days}}.", // provisório
+  "declare.remove.title": "Declarados neste ponto", // provisório
+  "declare.remove.button": "Remover", // provisório
+  "declare.remove.a11y": "Remover o horário declarado das {{time}} da linha {{line}}", // provisório
+  "declare.toast.removed": "Horário removido", // provisório
+  "declare.toast.removed_official": "Horário removido (volta {{time}} da MOBILIS)", // provisório
   "declare.error.stale": "Os horários mudaram. Confira e tente de novo.", // provisório
   "declare.error.generic": "Não foi possível salvar. Tente de novo.", // provisório
   "holiday.title": "Feriado", // provisório
