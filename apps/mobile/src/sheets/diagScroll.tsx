@@ -19,7 +19,7 @@ import {
 } from "./diagLog";
 import { stackedSheets } from "./stack";
 
-export const DIAG_SCROLL = false;
+export const DIAG_SCROLL = true;
 
 const BUILD_SHA = process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D";
 

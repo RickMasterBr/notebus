@@ -48,7 +48,7 @@ export interface DiagScrollWiringCheck {
 export function checkDiagScrollWiring(source: string): DiagScrollWiringCheck {
   const norm = normalize(source);
 
-  const diagScrollDisabled = /export\s+const\s+DIAG_SCROLL\s*=\s*false\b/.test(norm);
+  const diagScrollDisabled = /export\s+const\s+DIAG_SCROLL\s*=\s*true\b/.test(norm);
 
   const usesSyncExternalStore = norm.includes(
     "useSyncExternalStore(diagStore.subscribe, diagStore.getSnapshot)",
@@ -160,7 +160,7 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
     expect(checks.hooksInOrder).toBe(true);
   });
 
-  it("(3) DIAG_SCROLL = false em diagScroll.tsx (diagnóstico desligado na versão entregue)", () => {
+  it("(3) DIAG_SCROLL = true no build de diagnóstico do bloco 8 (voltar a false antes da tag)", () => {
     const checks = checkDiagScrollWiring(diagScrollSource);
     expect(checks.diagScrollDisabled).toBe(true);
   });
