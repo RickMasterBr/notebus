@@ -17,6 +17,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNow } from "../data/NowProvider";
+import { useScheduleReload } from "../data/ScheduleProvider";
 import { useReloadStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
 import {
@@ -66,6 +67,8 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
   const now = useNow();
   const toast = useToast();
   const reloadStopIndex = useReloadStopIndex();
+  // Os horários guardam o nome do ponto (`stopNames`): sem recarregar, as outras folhas mostram o nome antigo.
+  const reloadSchedule = useScheduleReload();
   const db = getSharedDb();
   // O teclado cobria a Nota, o ID externo e o novo apelido: a rolagem ganha o espaço do teclado (E-08 bloco 5, item 2).
   const keyboard = useKeyboardHeight();
@@ -224,6 +227,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
       );
       if (result.ok) {
         await reloadStopIndex();
+        await reloadSchedule();
         close();
         toast.show({
           title: t("stop_edit.toast.saved"),
@@ -233,6 +237,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
             run: async () => {
               const undone = await result.undo(now());
               await reloadStopIndex();
+              await reloadSchedule();
               if (!undone.ok) {
                 toast.show({
                   title: t("stop_edit.error.stale"),
