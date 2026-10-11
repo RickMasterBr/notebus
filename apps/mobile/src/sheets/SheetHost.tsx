@@ -30,6 +30,7 @@ import { HolidaySheet } from "./HolidaySheet";
 import { NetworkInfoSheet } from "./NetworkInfoSheet";
 import { NetworkSheet } from "./NetworkSheet";
 import { LineDetailSheet } from "./LineDetailSheet";
+import { DeclareSheet } from "./DeclareSheet";
 import { CloseSheetProvider } from "./StackedSheet";
 import { homeLayerPointerEvents } from "./diagLog";
 import { type SheetEntry, stackedSheets } from "./stack";
@@ -159,6 +160,8 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
       return <NetworkSheet id={entry.id} />;
     case "lineDetail":
       return <LineDetailSheet id={entry.id} lineId={entry.lineId} />;
+    case "declare":
+      return <DeclareSheet id={entry.id} stopId={entry.stopId} />;
     case "home":
       return null;
   }

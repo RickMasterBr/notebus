@@ -53,7 +53,9 @@ export type SheetContent =
   | { kind: "networkInfo" }
   /** E-08 Bloco 1c: TL-11 só para ver */
   | { kind: "network" }
-  | { kind: "lineDetail"; lineId: string };
+  | { kind: "lineDetail"; lineId: string }
+  /** E-08 Bloco 2: TL-07 Declarar horário */
+  | { kind: "declare"; stopId: string };
 
 export type SheetKind = SheetContent["kind"];
 
@@ -130,6 +132,7 @@ function sameSheet(a: SheetContent, b: SheetContent): boolean {
   if (a.kind === "alightPicker" && b.kind === "alightPicker") return a.routeId === b.routeId && a.patternId === b.patternId && a.boardPosition === b.boardPosition;
   if (a.kind === "goto" && b.kind === "goto") return a.destinationPlaceId === b.destinationPlaceId && a.originPlaceId === b.originPlaceId;
   if (a.kind === "lineDetail" && b.kind === "lineDetail") return a.lineId === b.lineId;
+  if (a.kind === "declare" && b.kind === "declare") return a.stopId === b.stopId;
   return true;
 }
 

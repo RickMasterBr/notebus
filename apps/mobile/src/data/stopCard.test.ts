@@ -174,3 +174,15 @@ describe("auxiliares", () => {
     expect(seasonMonths("06-01", "06-30")).toEqual([6]);
   });
 });
+
+import { declaredPassageKeys } from "./stopCard";
+
+describe("declaredPassageKeys (selo 'declarado', E-08)", () => {
+  it("só as posições com horário declarado, por viagem", () => {
+    const trips = [
+      { id: "t1", patternId: "p", firstPosition: 1, lastPosition: 3, stopTimes: [{ position: 1, serviceMinute: 490, origin: "official" as const }, { position: 2, serviceMinute: 494, origin: "declared" as const }] },
+      { id: "t2", patternId: "p", firstPosition: 1, lastPosition: 3, stopTimes: [{ position: 2, serviceMinute: 500, origin: "official" as const }] },
+    ];
+    expect([...declaredPassageKeys(trips)]).toEqual(["t1:2"]);
+  });
+});

@@ -5,8 +5,9 @@
  * - **Pequeno:** o cartão de ponto do Início (`StopCardView`, o mesmo componente): nome, e por linha o próximo ônibus
  *   com o "esteja no ponto às". Altura medida na tela (handle + cartão), como o pequeno da folha inicial.
  * - **Médio:** chips de tipo de dia (hoje por padrão) e de linha, e a lista do dia agrupada por linha, o próximo em destaque.
- * - **Grande:** a mesma lista, com mais espaço. "Registrar aqui" (E-03), "Declarar horário" e "editar o ponto" (E-08)
- *   ficam de fora: botão que não faz nada é pior que botão ausente. Tocar num horário empilha a TL-05 (`AheadSheet`).
+ * - **Grande:** a mesma lista, com mais espaço, e o botão "Declarar horário" (E-08, TL-07), que empilha a folha de declarar.
+ *   "Editar o ponto" (E-08, bloco 3) continua de fora: botão que não faz nada é pior que botão ausente. Tocar num horário
+ *   empilha a TL-05 (`AheadSheet`). O horário declarado leva o selo "declarado" (texto e ícone, nunca preenchido, D-051).
  *
  * Rolagem (Q-71, opção A): o gesto de arrastar a folha pelo conteúdo fica desligado (`enableContentPanningGesture`),
  * então a lista rola em qualquer detent; o detent muda pelo handle, e o ✕, o toque fora e o handle seguem fechando.
@@ -27,13 +28,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSchedule } from "../data/ScheduleProvider";
-import { type StopCard, buildStopCard } from "../data/stopCard";
+import { type StopCard, buildStopCard, declaredPassageKeys, passageKeyOf } from "../data/stopCard";
 import { type DayLine, type PassageRow, type StopDay, buildStopDay } from "../data/stopDay";
 import { dayTypeChipText, emptyTexts, lineHeaderText } from "../data/stopDayText";
 import { useNowTick } from "../data/useNowTick";
 import { t } from "../i18n";
-import { space, type, useTheme } from "../theme";
+import { minTouch, radius, space, type, useTheme } from "../theme";
 import { Chip } from "../ui/Chip";
+import { InfoGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { PassageRowView } from "../ui/PassageRowView";
 import { Skeleton } from "../ui/Skeleton";
@@ -135,6 +137,9 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
     };
   }, [schedule, stopId, instant, dayType]);
 
+  // As passagens com horário declarado (E-08): ganham o selo "declarado" na lista.
+  const declaredKeys = useMemo(() => (schedule.status === "ready" ? declaredPassageKeys(schedule.data.trips) : new Set<string>()), [schedule]);
+
   const lastIndex = useRef<number | null>(null);
 
   const onChange = useCallback((index: number) => {
@@ -187,6 +192,16 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
           <>
             {detent === 2 ? <StopLocationOffer stopId={stopId} /> : null}
             {detent === 2 ? <StopMapPick stopId={stopId} /> : null}
+            {detent === 2 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("declare.button")}
+                onPress={() => dispatch({ type: "push", sheet: { kind: "declare", stopId } })}
+                style={({ pressed }) => [styles.declareButton, { backgroundColor: colors.fill }, pressed && { opacity: 0.6 }]}
+              >
+                <Text style={[type.bodyStrong, { color: colors.accent }]}>{t("declare.button")}</Text>
+              </Pressable>
+            ) : null}
             <View style={styles.chips}>
               {DAY_TYPES.map((type_) => (
                 <Chip
@@ -219,7 +234,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
               </View>
             ) : null}
             {showLines.map((line) => (
-              <LineSection key={line.code} line={line} onOpen={openAhead} setRowRef={setRowRef} />
+              <LineSection key={line.code} line={line} declaredKeys={declaredKeys} onOpen={openAhead} setRowRef={setRowRef} />
             ))}
           </>
         ) : null}
@@ -253,10 +268,12 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
 /** Um grupo da lista: selo, "→ destino" (e "(fim do percurso)"), e as passagens ou o porquê de não haver. */
 function LineSection({
   line,
+  declaredKeys,
   onOpen,
   setRowRef,
 }: {
   line: DayLine;
+  declaredKeys: ReadonlySet<string>;
   onOpen: (row: PassageRow) => void;
   setRowRef: (key: string, node: View | null) => void;
 }) {
@@ -277,18 +294,41 @@ function LineSection({
         </View>
       ) : (
         <View>
-          {line.rows.map((row, i) => (
-            <PassageRowView
-              key={row.key}
-              line={line}
-              row={row}
-              last={i === line.rows.length - 1}
-              onPress={() => onOpen(row)}
-              rowRef={(node) => setRowRef(row.key, node)}
-            />
-          ))}
+          {line.rows.map((row, i) => {
+            const last = i === line.rows.length - 1;
+            const declared = declaredKeys.has(passageKeyOf(row.tripId, row.position));
+            const view = (
+              <PassageRowView
+                key={row.key}
+                line={line}
+                row={row}
+                // O horário declarado leva o selo logo abaixo da linha; a divisória passa para depois do selo.
+                last={last || declared}
+                onPress={() => onOpen(row)}
+                rowRef={(node) => setRowRef(row.key, node)}
+              />
+            );
+            if (!declared) return view;
+            return (
+              <View key={row.key} style={!last && { borderBottomColor: colors.divider, borderBottomWidth: StyleSheet.hairlineWidth }}>
+                {view}
+                <DeclaredSeal />
+              </View>
+            );
+          })}
         </View>
       )}
+    </View>
+  );
+}
+
+/** Selo "declarado" (E-08, D-051): só texto e ícone, nunca preenchido; o desenho do chip "para conferir" da lista de Registros. */
+function DeclaredSeal() {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.seal, { borderColor: colors.textSecondary }]}>
+      <InfoGlyph color={colors.textSecondary} />
+      <Text style={[type.caption, { color: colors.textSecondary }]}>{t("declare.seal")}</Text>
     </View>
   );
 }
@@ -311,5 +351,7 @@ const styles = StyleSheet.create({
   section: { gap: space.sm },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
   empty: { gap: 2, paddingVertical: space.xs },
+  declareButton: { minHeight: minTouch, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
+  seal: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 6, paddingVertical: 2, marginBottom: space.sm },
   num: { fontVariant: ["tabular-nums"] },
 });
