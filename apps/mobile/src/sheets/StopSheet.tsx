@@ -28,7 +28,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSchedule } from "../data/ScheduleProvider";
+import { useStopIndex } from "../data/StopIndexProvider";
 import { type StopCard, buildStopCard, declaredPassageKeys, passageKeyOf } from "../data/stopCard";
+import { aliasesLine, stopNameFor } from "../data/stopHeader";
 import { type DayLine, type PassageRow, type StopDay, buildStopDay } from "../data/stopDay";
 import { dayTypeChipText, emptyTexts, lineHeaderText } from "../data/stopDayText";
 import { useNowTick } from "../data/useNowTick";
@@ -87,6 +89,10 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   const window = useWindowDimensions();
   const schedule = useSchedule();
   const instant = useNowTick();
+  // O nome vem do índice da busca (recarregado a cada edição do ponto); `name` da pilha é só reserva (E-08 bloco 5, item 1).
+  const stopIndex = useStopIndex();
+  const stopName = stopNameFor(stopIndex, stopId, name);
+  const aliases = aliasesLine(stopIndex, stopId);
 
   const [detent, setDetent] = useState<Detent>(START_INDEX);
   const [handleHeight, setHandleHeight] = useState(0);
@@ -172,12 +178,13 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
         {loading || skeleton ? (
           skeleton ? <Skeleton variant="card" /> : null
         ) : card ? (
-          <StopCardView card={card} />
+          <StopCardView card={{ ...card, name: stopName }} />
         ) : (
           <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
-            {name}
+            {stopName}
           </Text>
         )}
+        {aliases ? <Text style={[type.caption, { color: colors.textSecondary }]}>{aliases}</Text> : null}
       </View>
 
       {/* No detent pequeno esta parte fica abaixo da borda da tela: fora da leitura do VoiceOver até a folha subir. */}

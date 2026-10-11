@@ -18,8 +18,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDeclaredTimes } from "../data/DeclaredTimesProvider";
 import { useNow } from "../data/NowProvider";
 import { useSchedule } from "../data/ScheduleProvider";
+import { useStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
 import { type DeclareDraft, buildDeclareView, declareToast } from "../data/declareView";
+import { stopNameFor } from "../data/stopHeader";
 import { createSubmitGuard } from "../data/submitGuard";
 import { hhmm } from "../data/testClockPicker";
 import { type MessageKey, t } from "../i18n";
@@ -59,6 +61,7 @@ export function DeclareSheet({ id, stopId }: { id: number; stopId: string }) {
   const declared = useDeclaredTimes();
   const now = useNow();
   const toast = useToast();
+  const stopIndex = useStopIndex();
 
   const [handleHeight, setHandleHeight] = useState(0);
   const [lineCode, setLineCode] = useState<string | null>(null);
@@ -70,7 +73,8 @@ export function DeclareSheet({ id, stopId }: { id: number; stopId: string }) {
   const submitGuard = useRef(createSubmitGuard()).current;
 
   const data = schedule.status === "ready" ? schedule.data : null;
-  const stopName = data?.stopNames.get(stopId) ?? "";
+  // Nome pelo índice da busca (recarregado a cada edição do ponto); o do snapshot dos horários é a reserva (E-08 bloco 5, item 1).
+  const stopName = stopNameFor(stopIndex, stopId, data?.stopNames.get(stopId) ?? "");
   const view = useMemo(
     () => (data ? buildDeclareView(stopId, data, { lineCode, hour, passage, dayTypes }) : null),
     [data, stopId, lineCode, hour, passage, dayTypes],
