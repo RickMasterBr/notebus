@@ -6,6 +6,9 @@
 
 export const TOAST_MS = 5000;
 export const TOAST_MS_SCREEN_READER = 8000;
+/** Aviso com ação (o Desfazer): fica mais tempo, para dar tempo de tocar (E-08 bloco 5, D11). */
+export const TOAST_MS_ACTION = 8000;
+export const TOAST_MS_ACTION_SCREEN_READER = 12000;
 
 export interface ToastAction {
   label: string;
@@ -33,6 +36,12 @@ export interface ToastTimers<Handle> {
   clear: (handle: Handle) => void;
 }
 
+/** Quanto tempo o aviso fica na tela: com ação 8 s (12 s com VoiceOver), sem ação 5 s (8 s com VoiceOver). */
+export function toastDuration(spec: Pick<ToastSpec, "action" | "screenReader">): number {
+  if (spec.action) return spec.screenReader ? TOAST_MS_ACTION_SCREEN_READER : TOAST_MS_ACTION;
+  return spec.screenReader ? TOAST_MS_SCREEN_READER : TOAST_MS;
+}
+
 export function createToastController<Handle>(timers: ToastTimers<Handle>, onChange: (toast: ToastState | null) => void) {
   let current: ToastState | null = null;
   let handle: Handle | null = null;
@@ -50,14 +59,14 @@ export function createToastController<Handle>(timers: ToastTimers<Handle>, onCha
   return {
     show(spec: ToastSpec): number {
       cancel();
-      const { screenReader, ...rest } = spec;
+      const { screenReader: _screenReader, ...rest } = spec;
       const toast: ToastState = { ...rest, id: nextId++ };
       set(toast);
       if (spec.kind !== "error") {
         handle = timers.set(() => {
           handle = null;
           if (current?.id === toast.id) set(null);
-        }, screenReader ? TOAST_MS_SCREEN_READER : TOAST_MS);
+        }, toastDuration(spec));
       }
       return toast.id;
     },
