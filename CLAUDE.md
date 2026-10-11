@@ -14,8 +14,9 @@ App pessoal de caderno de horários de ônibus (MOBILIS, Leiria). iPhone primeir
 1. Ler `docs/ESTADO-ATUAL.md` (só a parte "Onde paramos" e "Próximos passos").
 2. Ler o plano da etapa em curso: `docs/planos/E-xx-*.md`.
 3. Ler o prompt do bloco: `docs/fase-6/prompts/E-xx-bloco-N.md`.
-4. Antes de mexer em tela, folha ou texto, ler `DESIGN.md` (raiz do repositório `notebus`): tokens, quadro das folhas, textos, vocabulário. Regra do `DESIGN.md` que contradiga o plano ou uma decisão: **pare e pergunte**.
-5. Abrir outros documentos **só quando o plano citar e só a seção citada**. Não ler a pasta inteira: custa caro.
+4. Ler `docs/banco-de-ideias-distribuicao.md` e listar as ideias cujo destino é a etapa em curso. Cada uma entra no plano ou fica fora com o motivo. Ideia nova vai para `docs/banco-de-ideias.md`, nunca direto para o código.
+5. Antes de mexer em tela, folha ou texto, ler `DESIGN.md` (raiz do repositório `notebus`): tokens, quadro das folhas, textos, vocabulário. Regra do `DESIGN.md` que contradiga o plano ou uma decisão: **pare e pergunte**.
+6. Abrir outros documentos **só quando o plano citar e só a seção citada**. Não ler a pasta inteira: custa caro.
 
 ## Regras
 

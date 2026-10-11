@@ -13,6 +13,10 @@ App de caderno de horários de ônibus (MOBILIS Leiria), Expo SDK 57, React Nati
 3. **Não toque** em `packages/domain`, em `noDirectClock.test.ts` (garante um só ponto de leitura do relógio), nem no reducer da pilha de folhas (`stack.ts`) sem teste novo cobrindo o caso. Não adicione dependências, não renomeie nem mova arquivos além do necessário.
 4. Se a correção exigir mudar o **significado** de algo (regra de negócio, formato de dado, pilha de folhas), **pare e relate** em vez de improvisar.
 
+## Ideias distribuídas
+
+Antes de planejar ou executar qualquer etapa ou bloco, leia `docs/banco-de-ideias-distribuicao.md` e liste as ideias cujo destino é essa etapa. Cada ideia entra no plano da etapa ou fica fora com o motivo registrado no relatório. Ideia nova que aparecer durante o trabalho vai para `docs/banco-de-ideias.md`, nunca direto para o código (e, como agente, você não escreve `.md` em `docs/`: relate a ideia no relatório). Se o prompt do bloco não citar ideias e o arquivo listar alguma para a etapa, **pare e avise**.
+
 ## Código
 
 - **Antes de mexer em tela, folha ou texto, leia `DESIGN.md` (raiz do repositório).** Tokens, quadro das folhas (D-150), um só ✕, textos pelo catálogo, vocabulário da tela. Se uma regra dele contradisser o plano, **pare e relate**.
