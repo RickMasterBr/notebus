@@ -42,7 +42,7 @@ import {
   offlineSettingsButtons,
   runOfflineSettingsAction,
 } from "../data/offlineSettingsActions";
-import { createMarginStepper } from "../data/marginStepper";
+import { MarginStepper } from "./MarginStepper";
 import { usePreferences } from "../data/PreferencesProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import {
@@ -56,10 +56,8 @@ import {
   dayTypeCounts,
   formatHolidayLine,
   formatOverrideLine,
-  marginLimits,
   networkLine,
   splitOverrides,
-  stepMargin,
 } from "../data/settingsView";
 import { createTapCounter } from "../data/testClockPicker";
 import { useToast } from "../data/ToastProvider";
@@ -222,32 +220,6 @@ export function SettingsSheet({ id }: { id: number }) {
     });
   };
 
-  // Margem local para feedback imediato e reversão em caso de recusa (D1, E-08 bloco 1d)
-  const [margin, setMargin] = useState(prefs.margin);
-  const setMarginRef = useRef(setMargin);
-  setMarginRef.current = setMargin;
-  const prefsRef = useRef(prefs);
-  prefsRef.current = prefs;
-
-  const stepperRef = useRef<ReturnType<typeof createMarginStepper> | null>(null);
-  if (!stepperRef.current) {
-    stepperRef.current = createMarginStepper({
-      initial: prefs.margin,
-      show: (val) => setMarginRef.current(val),
-      write: (val) => prefsRef.current.setMargin(val),
-    });
-  }
-  const stepper = stepperRef.current;
-
-  useEffect(() => {
-    stepper.sync(prefs.margin);
-  }, [prefs.margin, stepper]);
-
-  const handleStepMargin = (dir: 1 | -1) => {
-    // createMarginStepper cuida da reversão (if (!ok) setMargin(prev)) e do feedback imediato (setMargin(next.value)).
-    stepper.step(dir);
-  };
-
   const backup = useBackup();
   const backupDays = backupDaysText(backup.lastExportAt, now());
 
@@ -288,7 +260,6 @@ export function SettingsSheet({ id }: { id: number }) {
     ),
   );
 
-  const limits = marginLimits(margin);
   const dayCounts = dayTypeCounts(schedule.status === "ready" ? schedule.data : null);
   const netLine = networkLine(networkInfoData.dataset, networkInfoData.network);
 
@@ -349,56 +320,7 @@ export function SettingsSheet({ id }: { id: number }) {
                 {t("settings.section.general")}
               </Text>
               <View style={styles.groupedList}>
-                <View
-                  accessibilityRole="adjustable"
-                  accessibilityLabel={t("settings.margin.a11y", { n: margin })}
-                  accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
-                  onAccessibilityAction={(e) => {
-                    if (e.nativeEvent.actionName === "increment") {
-                      handleStepMargin(1);
-                    } else if (e.nativeEvent.actionName === "decrement") {
-                      handleStepMargin(-1);
-                    }
-                  }}
-                  style={[styles.stepperRow, { borderBottomColor: colors.divider, backgroundColor: colors.bg }]}
-                >
-                  <Text style={[type.body, { color: colors.text, flex: 1 }]}>
-                    {t("settings.margin.title")}
-                  </Text>
-                  <View style={styles.stepperControls}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t("settings.margin.less")}
-                      disabled={limits.atMin}
-                      onPress={() => handleStepMargin(-1)}
-                      style={({ pressed }) => [
-                        styles.stepperButton,
-                        { backgroundColor: colors.fill },
-                        limits.atMin && { opacity: 0.3 },
-                        pressed && !limits.atMin && { opacity: 0.7 },
-                      ]}
-                    >
-                      <Text style={[type.title, { color: colors.text }]}>−</Text>
-                    </Pressable>
-                    <Text style={[type.bodyStrong, styles.stepperValue, { color: colors.text }]}>
-                      {t("settings.margin.value", { n: margin })}
-                    </Text>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t("settings.margin.more")}
-                      disabled={limits.atMax}
-                      onPress={() => handleStepMargin(1)}
-                      style={({ pressed }) => [
-                        styles.stepperButton,
-                        { backgroundColor: colors.fill },
-                        limits.atMax && { opacity: 0.3 },
-                        pressed && !limits.atMax && { opacity: 0.7 },
-                      ]}
-                    >
-                      <Text style={[type.title, { color: colors.text }]}>+</Text>
-                    </Pressable>
-                  </View>
-                </View>
+                <MarginStepper />
               </View>
               <Text style={[type.caption, { color: colors.textSecondary }]}>
                 {t("settings.margin.hint")}
@@ -757,32 +679,6 @@ const styles = StyleSheet.create({
   groupedList: {
     borderRadius: radius.md,
     overflow: "hidden",
-  },
-  stepperRow: {
-    minHeight: minTouch,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingVertical: space.sm,
-    paddingHorizontal: space.xs,
-    gap: space.sm,
-  },
-  stepperControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-  },
-  stepperButton: {
-    minWidth: minTouch,
-    minHeight: minTouch,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepperValue: {
-    minWidth: 50,
-    textAlign: "center",
   },
   switchRow: {
     minHeight: minTouch,

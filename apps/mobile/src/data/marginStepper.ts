@@ -4,24 +4,38 @@
  */
 import { stepMargin } from "./settingsView";
 
+/** Gravar só depois de `ms` sem toque (E-08 boost da margem). O agendador vem de fora: nunca `setTimeout` direto aqui (D-095). */
+export interface MarginDebounce {
+  ms: number;
+  setTimer: (fn: () => void, ms: number) => unknown;
+  clearTimer: (handle: unknown) => void;
+}
+
 export interface MarginStepperOptions {
   initial: number;
   write: (value: number) => Promise<boolean>;
   show: (value: number) => void;
+  /** Sem isto, cada toque grava na hora (comportamento do bloco 1d). */
+  debounce?: MarginDebounce;
 }
 
 export interface MarginStepper {
   step: (direction: 1 | -1) => void;
   sync: (confirmed: number) => void;
+  /** Grava já o que espera o fim da rajada (ex.: a folha fechou antes dos 500 ms). */
+  flush: () => void;
   isBusy: () => boolean;
   shown: () => number;
 }
 
-export function createMarginStepper({ initial, write, show }: MarginStepperOptions): MarginStepper {
+export function createMarginStepper({ initial, write, show, debounce }: MarginStepperOptions): MarginStepper {
   let confirmed = initial;
   let currentShown = initial;
   let pendingTarget: number | null = null;
   let busy = false;
+  let timer: unknown = null;
+  let timerArmed = false;
+
 
   async function run(): Promise<void> {
     busy = true;
@@ -52,6 +66,15 @@ export function createMarginStepper({ initial, write, show }: MarginStepperOptio
     busy = false;
   }
 
+  function fire(): void {
+    timerArmed = false;
+    timer = null;
+    pendingTarget = currentShown;
+    if (!busy) {
+      void run();
+    }
+  }
+
   function step(direction: 1 | -1): void {
     const next = stepMargin(currentShown, direction);
     if (next.value === currentShown) {
@@ -59,6 +82,16 @@ export function createMarginStepper({ initial, write, show }: MarginStepperOptio
     }
     currentShown = next.value;
     show(currentShown);
+
+    if (debounce) {
+      if (timerArmed) {
+        debounce.clearTimer(timer);
+      }
+      timerArmed = true;
+      timer = debounce.setTimer(fire, debounce.ms);
+      return;
+    }
+
     pendingTarget = currentShown;
 
     if (!busy) {
@@ -66,8 +99,15 @@ export function createMarginStepper({ initial, write, show }: MarginStepperOptio
     }
   }
 
+  function flush(): void {
+    if (debounce && timerArmed) {
+      debounce.clearTimer(timer);
+      fire();
+    }
+  }
+
   function sync(confirmado: number): void {
-    if (busy || pendingTarget !== null) {
+    if (busy || pendingTarget !== null || timerArmed) {
       return;
     }
     confirmed = confirmado;
@@ -78,7 +118,9 @@ export function createMarginStepper({ initial, write, show }: MarginStepperOptio
   return {
     step,
     sync,
-    isBusy: () => busy || pendingTarget !== null,
+    flush,
+    isBusy: () => busy || pendingTarget !== null || timerArmed,
     shown: () => currentShown,
   };
 }
+

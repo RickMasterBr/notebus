@@ -38,20 +38,31 @@ describe("SettingsSheet: quadro de rolagem e estrutura TL-12", () => {
   });
 });
 
-describe("SettingsSheet: ligações da Margem (Mutação 1)", () => {
+const readMarginStepper = () => readFileSync(join(__dirname, "MarginStepper.tsx"), "utf8").replace(/\r\n/g, "\n");
+const readMarginStepperData = () => readFileSync(join(__dirname, "../data/marginStepper.ts"), "utf8").replace(/\r\n/g, "\n");
+
+describe("MarginStepper: ligações da Margem (Mutação 1)", () => {
   it("stepper tem botões - e + com alvos de toque, limites e reversão de falha", () => {
-    const src = read();
+    const src = readMarginStepper();
+    const dataSrc = readMarginStepperData();
     // Botão menos passa -1, botão mais passa 1
     expect(src).toMatch(/settings\.margin\.less[\s\S]{1,150}handleStepMargin\(-1\)/);
     expect(src).toMatch(/settings\.margin\.more[\s\S]{1,150}handleStepMargin\(1\)/);
-    // setMargin chamado com o novo valor
-    expect(src).toMatch(/setMargin\(next\.value\)/);
-    // Se setMargin devolver false, restaura o valor anterior
-    expect(src).toMatch(/if\s*\(!ok\)\s*setMargin\(prev\)/);
+    // Feedback imediato no código puro do stepper (código real, não comentário):
+    expect(dataSrc).toMatch(/currentShown\s*=\s*next\.value;\s*show\(currentShown\)/);
+    // Se write devolver false, restaura o valor confirmado no código puro do stepper (código real, não comentário):
+    expect(dataSrc).toMatch(/if\s*\(!ok\)\s*\{[\s\S]*?show\(currentShown\)/);
     // VoiceOver: adjustable com ações
     expect(src).toMatch(/accessibilityRole="adjustable"/);
     expect(src).toMatch(/name:\s*"increment"/);
     expect(src).toMatch(/name:\s*"decrement"/);
+  });
+
+  it("SettingsSheet renderiza <MarginStepper e não tem mais createMarginStepper nem estado local de margem", () => {
+    const sheetSrc = read();
+    expect(sheetSrc).toMatch(/<MarginStepper\s*\/>/);
+    expect(sheetSrc).not.toMatch(/createMarginStepper/);
+    expect(sheetSrc).not.toMatch(/useState\([^)]*prefs\.margin\)/);
   });
 });
 

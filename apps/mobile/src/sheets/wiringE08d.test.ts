@@ -18,6 +18,7 @@ export function stripComments(source: string): string {
 }
 
 const settingsSheetSrc = stripComments(read("sheets/SettingsSheet.tsx"));
+const marginStepperSrc = stripComments(read("sheets/MarginStepper.tsx"));
 const alarmsSheetSrc = stripComments(read("sheets/AlarmsSheet.tsx"));
 const overrideSheetSrc = stripComments(read("sheets/OverrideSheet.tsx"));
 const holidaySheetSrc = stripComments(read("sheets/HolidaySheet.tsx"));
@@ -26,9 +27,28 @@ const lineDetailSheetSrc = stripComments(read("sheets/LineDetailSheet.tsx"));
 const networkSheetSrc = stripComments(read("sheets/NetworkSheet.tsx"));
 
 describe("wiringE08d: guardas de uso das novas ligações (Item 6)", () => {
-  describe("1. SettingsSheet: wiring do marginStepper", () => {
+  describe("1. SettingsSheet / MarginStepper: wiring do marginStepper", () => {
+    it("SettingsSheet renderiza <MarginStepper e não tem mais createMarginStepper nem estado local de margem", () => {
+      expect(settingsSheetSrc).toMatch(/<MarginStepper\s*\/>/);
+      expect(settingsSheetSrc).not.toMatch(/createMarginStepper/);
+      expect(settingsSheetSrc).not.toMatch(/useState\([^)]*prefs\.margin\)/);
+    });
+
+    it("MarginStepper é envolvido em React.memo", () => {
+      expect(marginStepperSrc).toMatch(/export\s+const\s+MarginStepper\s*=\s*(?:React\.)?memo\(/);
+    });
+
+    it("MarginStepper configura trailing debounce de 500 ms", () => {
+      expect(marginStepperSrc).toMatch(/debounce:\s*\{\s*ms:\s*DEBOUNCE_MS/);
+      expect(marginStepperSrc).toMatch(/const\s+DEBOUNCE_MS\s*=\s*500;/);
+    });
+
+    it("MarginStepper aciona stepper.flush() no cleanup de useEffect (fechamento)", () => {
+      expect(marginStepperSrc).toMatch(/return\s*\(\)\s*=>\s*\{\s*stepper\.flush\(\);\s*\};/);
+    });
+
     it("handleStepMargin delega a stepper.step com dir", () => {
-      const match = settingsSheetSrc.match(
+      const match = marginStepperSrc.match(
         /const\s+handleStepMargin\s*=\s*\([^)]*\)\s*=>\s*\{([\s\S]*?)\};/,
       );
       expect(match).not.toBeNull();
@@ -36,20 +56,20 @@ describe("wiringE08d: guardas de uso das novas ligações (Item 6)", () => {
     });
 
     it("useEffect com dependência [prefs.margin] chama stepper.sync(prefs.margin)", () => {
-      expect(settingsSheetSrc).toMatch(
+      expect(marginStepperSrc).toMatch(
         /useEffect\(\s*\(\)\s*=>\s*\{\s*stepper\.sync\(\s*prefs\.margin\s*\);\s*\}\s*,\s*\[prefs\.margin/s,
       );
     });
 
     it("stepper é instanciado dentro de useRef (não a cada render)", () => {
-      expect(settingsSheetSrc).toMatch(
+      expect(marginStepperSrc).toMatch(
         /const\s+stepperRef\s*=\s*useRef[\s\S]*?\(null\);[\s\S]*?if\s*\(!stepperRef\.current\)\s*\{\s*stepperRef\.current\s*=\s*createMarginStepper\(/,
       );
-      expect(settingsSheetSrc).toMatch(/const\s+stepper\s*=\s*stepperRef\.current;/);
+      expect(marginStepperSrc).toMatch(/const\s+stepper\s*=\s*stepperRef\.current;/);
     });
 
     it("0.5: createMarginStepper recebe initial: prefs.margin, show com setMargin e write com prefs.setMargin", () => {
-      const match = settingsSheetSrc.match(
+      const match = marginStepperSrc.match(
         /createMarginStepper\(\s*\{([\s\S]*?)\}\s*\)/,
       );
       expect(match).not.toBeNull();
