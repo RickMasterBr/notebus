@@ -4,11 +4,19 @@
  * Moldura da RecordsSheet (D-150, altura fixa, sem BottomSheetView).
  */
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from "react-native-gesture-handler/ReanimatedSwipeable";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useSchedule } from "../data/ScheduleProvider";
+import { useNow } from "../data/NowProvider";
+import { useSchedule, useScheduleReload } from "../data/ScheduleProvider";
+import { useReloadStopIndex } from "../data/StopIndexProvider";
+import { useToast } from "../data/ToastProvider";
 import { officialTag, stopSecondary } from "../data/networkView";
+import { NEW_STOP_ID } from "../data/stopEdit";
+import { deleteRefusalText } from "../data/stopManage";
 import {
   type NetworkLineItem,
   type NetworkStopItem,
@@ -16,6 +24,7 @@ import {
   listStops,
 } from "../db/networkList";
 import { getSharedDb } from "../db/sharedDb";
+import { deleteStop } from "../db/stopDelete";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CrossGlyph } from "../ui/Glyphs";
@@ -25,6 +34,7 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -42,6 +52,7 @@ const DETENTS: StackedDetents = { snapPoints: ["95%"], initialIndex: 0, Handle: 
 type NetworkListItem =
   | { type: "header"; id: string; title: string }
   | { type: "empty"; id: string; message: string }
+  | { type: "newStop"; id: string }
   | { type: "line"; id: string; line: NetworkLineItem }
   | { type: "stop"; id: string; stop: NetworkStopItem };
 
@@ -52,7 +63,12 @@ export function NetworkSheet({ id }: { id: number }) {
   const { dispatch } = useSheets();
   const handleClose = useCloseSheet();
   const schedule = useSchedule();
+  const reloadSchedule = useScheduleReload();
+  const reloadStopIndex = useReloadStopIndex();
+  const now = useNow();
+  const toast = useToast();
   const db = getSharedDb();
+  const activeSwipeable = useRef<SwipeableMethods | null>(null);
 
   const [handleHeight, setHandleHeight] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -111,6 +127,8 @@ export function NetworkSheet({ id }: { id: number }) {
       title: t("net.section.stops"),
     });
 
+    items.push({ type: "newStop", id: "new-stop" });
+
     if (stops.length === 0) {
       items.push({
         type: "empty",
@@ -152,8 +170,74 @@ export function NetworkSheet({ id }: { id: number }) {
     [dispatch],
   );
 
+  const handleNewStopPress = useCallback(() => {
+    dispatch({ type: "push", sheet: { kind: "stopEdit", stopId: NEW_STOP_ID } });
+  }, [dispatch]);
+
+  // Depois de criar, apagar ou desfazer: a busca, os horários e esta lista leem o banco de novo (como o saveStopEdit).
+  const reloadAll = useCallback(async () => {
+    await reloadStopIndex();
+    await reloadSchedule();
+    await loadData();
+  }, [reloadStopIndex, reloadSchedule, loadData]);
+
+  const handleDelete = useCallback(
+    async (item: NetworkStopItem) => {
+      if (!db) return;
+      const result = await deleteStop(db, item.id, now());
+      if (!result.ok) {
+        const text = deleteRefusalText(result.reason, "usage" in result ? result.usage : undefined);
+        toast.show({ title: t(text.key, text.params), kind: "error", haptic: "error" });
+        return;
+      }
+      await reloadAll();
+      toast.show({
+        title: t("stop_delete.done"),
+        haptic: "success",
+        action: {
+          label: t("toast.action.undo"),
+          run: async () => {
+            const undone = await result.undo(now());
+            await reloadAll();
+            if (!undone.ok) {
+              toast.show({ title: t("stop_edit.error.stale"), kind: "error", haptic: "error" });
+            }
+          },
+        },
+      });
+    },
+    [db, now, toast, reloadAll],
+  );
+
+  const handleWillOpen = useCallback((methods: SwipeableMethods) => {
+    activeSwipeable.current = openSingleSwipeable(activeSwipeable.current, methods);
+  }, []);
+
+  const handleSwipeClose = useCallback((methods: SwipeableMethods) => {
+    if (activeSwipeable.current === methods) {
+      activeSwipeable.current = closeAndClearSwipeable(activeSwipeable.current);
+    }
+  }, []);
+
   const renderItem = useCallback(
     ({ item }: { item: NetworkListItem }) => {
+      if (item.type === "newStop") {
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("net.stop.new")}
+            onPress={handleNewStopPress}
+            style={({ pressed }) => [
+              styles.row,
+              { borderBottomColor: colors.divider },
+              pressed && styles.rowPressed,
+            ]}
+          >
+            <Text style={[type.bodyStrong, { color: colors.accent }]}>{`+ ${t("net.stop.new")}`}</Text>
+          </Pressable>
+        );
+      }
+
       if (item.type === "header") {
         return (
           <View style={styles.sectionHeaderContainer}>
@@ -212,41 +296,20 @@ export function NetworkSheet({ id }: { id: number }) {
       }
 
       if (item.type === "stop") {
-        const stop = item.stop;
-        const secondary = stopSecondary(stop);
-        const a11yLabel = t("net.stop.a11y", { name: stop.name });
-
         return (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={a11yLabel}
-            onPress={() => handleStopPress(stop.id, stop.name)}
-            style={({ pressed }) => [
-              styles.row,
-              { borderBottomColor: colors.divider },
-              pressed && styles.rowPressed,
-            ]}
-          >
-            <View style={styles.rowContent}>
-              <Text style={[type.body, { color: colors.text, flexShrink: 1 }]}>{stop.name}</Text>
-              {secondary ? (
-                <Text style={[type.caption, { color: colors.textSecondary }]}>{secondary}</Text>
-              ) : null}
-            </View>
-            {officialTag(stop.source) && (
-              <View style={[styles.officialTag, { backgroundColor: colors.fill }]}>
-                <Text style={[type.caption, { color: colors.textSecondary }]}>
-                  {t("net.official")}
-                </Text>
-              </View>
-            )}
-          </Pressable>
+          <StopRow
+            stop={item.stop}
+            onPress={handleStopPress}
+            onDelete={(stop) => void handleDelete(stop)}
+            onWillOpen={handleWillOpen}
+            onClose={handleSwipeClose}
+          />
         );
       }
 
       return null;
     },
-    [colors, handleLinePress, handleStopPress],
+    [colors, handleLinePress, handleStopPress, handleNewStopPress, handleDelete, handleWillOpen, handleSwipeClose],
   );
 
   return (
@@ -299,7 +362,81 @@ export function NetworkSheet({ id }: { id: number }) {
   );
 }
 
+function StopRow({
+  stop,
+  onPress,
+  onDelete,
+  onWillOpen,
+  onClose,
+}: {
+  stop: NetworkStopItem;
+  onPress: (stopId: string, name: string) => void;
+  onDelete: (stop: NetworkStopItem) => void;
+  onWillOpen: (methods: SwipeableMethods) => void;
+  onClose: (methods: SwipeableMethods) => void;
+}) {
+  const { colors } = useTheme();
+  const swipeableRef = useRef<SwipeableMethods>(null);
+  const secondary = stopSecondary(stop);
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeableRef}
+      onSwipeableWillOpen={() => {
+        if (swipeableRef.current) onWillOpen(swipeableRef.current);
+      }}
+      onSwipeableClose={() => {
+        if (swipeableRef.current) onClose(swipeableRef.current);
+      }}
+      renderRightActions={(_progress, _translation, swipeableMethods) => (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("stop_delete.action")}
+          onPress={() => {
+            swipeableMethods.close();
+            onDelete(stop);
+          }}
+          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+        >
+          <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>{t("stop_delete.action")}</Text>
+        </Pressable>
+      )}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("net.stop.a11y", { name: stop.name })}
+        accessibilityActions={[{ name: "delete", label: t("stop_delete.action") }]}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "delete") onDelete(stop);
+        }}
+        onPress={() => onPress(stop.id, stop.name)}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: colors.divider, backgroundColor: colors.bg },
+          pressed && styles.rowPressed,
+        ]}
+      >
+        <View style={styles.rowContent}>
+          <Text style={[type.body, { color: colors.text, flexShrink: 1 }]}>{stop.name}</Text>
+          {secondary ? <Text style={[type.caption, { color: colors.textSecondary }]}>{secondary}</Text> : null}
+        </View>
+        {officialTag(stop.source) && (
+          <View style={[styles.officialTag, { backgroundColor: colors.fill }]}>
+            <Text style={[type.caption, { color: colors.textSecondary }]}>{t("net.official")}</Text>
+          </View>
+        )}
+      </Pressable>
+    </ReanimatedSwipeable>
+  );
+}
+
 const styles = StyleSheet.create({
+  deleteButton: {
+    minWidth: 80,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: space.md,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",

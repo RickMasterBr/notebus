@@ -7,6 +7,7 @@
  * qualquer momento, até HH:MM" (D-146). Sem `onPress` (dentro da folha do ponto, TL-02) o cartão não é um botão.
  */
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { cardLabel } from "../data/cardLabel";
 import type { NextBus, StopCard, StopCardLine } from "../data/stopCard";
 import { busEtaText, cardA11y, directionText, mayPassNowText, nextDayText, reasonText } from "../data/stopCardText";
 import { t } from "../i18n";
@@ -43,7 +44,7 @@ export function StopCardView({
       ))}
     </>
   );
-  const a11yLabel = aliases ? `${cardA11y(card, subtitle)}, ${aliases}` : cardA11y(card, subtitle);
+  const a11yLabel = cardLabel(cardA11y(card, subtitle), aliases);
   if (!onPress) {
     return (
       <View accessible accessibilityLabel={a11yLabel} style={[styles.card, { borderColor: colors.divider }]}>

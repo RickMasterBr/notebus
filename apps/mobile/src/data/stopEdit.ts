@@ -10,6 +10,9 @@ export const MAX_ALIASES = 10;
 export const MAX_ALIAS_LENGTH = 60;
 export const MAX_EXTERNAL_ID_LENGTH = 20;
 
+/** `stopId` da folha Editar ponto quando o ponto ainda não existe (E-08 bloco 7). */
+export const NEW_STOP_ID = "__new__";
+
 /** Limite de digitação de cada campo de Editar ponto (E-08 bloco 6, E2). A validação continua para texto colado e dados antigos. */
 export const FIELD_LIMITS = {
   name: MAX_NAME_LENGTH,

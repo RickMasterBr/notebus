@@ -668,6 +668,24 @@ export const ptBR = {
   "stop_edit.error.external_id_taken": "Este ID já é do ponto {{name}}", // provisório
   "stop_edit.error.stale": "O ponto mudou. Confira e tente de novo.", // provisório
   "stop_edit.error.generic": "Não foi possível salvar. Tente de novo.", // provisório
+  // E-08 Bloco 7: Novo ponto e apagar ponto
+  "net.stop.new": "Novo ponto", // provisório
+  "stop_new.title": "Novo ponto", // provisório
+  "stop_new.saved": "Ponto criado", // provisório
+  "stop_new.error.no_network": "A rede ainda não foi carregada. Tente de novo.", // provisório
+  "stop_delete.action": "Apagar", // provisório
+  "stop_delete.done": "Ponto apagado", // provisório
+  "stop_delete.official": "Pontos da MOBILIS não se apagam", // provisório
+  "stop_delete.not_found": "Este ponto já não existe", // provisório
+  "stop_delete.error": "Não foi possível apagar o ponto. Tente de novo.", // provisório
+  "stop_delete.in_use_records_one": "Este ponto tem 1 registro. Apague o registro antes", // provisório
+  "stop_delete.in_use_records_other": "Este ponto tem {{n}} registros. Apague os registros antes", // provisório
+  "stop_delete.in_use_walks_one": "Este ponto tem 1 tempo a pé. Apague o tempo antes", // provisório
+  "stop_delete.in_use_walks_other": "Este ponto tem {{n}} tempos a pé. Apague os tempos antes", // provisório
+  "stop_delete.in_use_options_one": "Este ponto tem 1 trajeto. Apague o trajeto antes", // provisório
+  "stop_delete.in_use_options_other": "Este ponto tem {{n}} trajetos. Apague os trajetos antes", // provisório
+  "stop_delete.in_use_lines_one": "Este ponto tem 1 linha. Apague a linha antes", // provisório
+  "stop_delete.in_use_lines_other": "Este ponto tem {{n}} linhas. Apague as linhas antes", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;

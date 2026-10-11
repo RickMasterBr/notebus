@@ -23,6 +23,7 @@ import { useToast } from "../data/ToastProvider";
 import {
   MAX_ALIASES,
   FIELD_LIMITS,
+  NEW_STOP_ID,
   addAlias,
   commitPendingAlias,
   stopEditView,
@@ -32,10 +33,12 @@ import {
   type StopEditDraft,
   type StopEditOther,
 } from "../data/stopEdit";
+import { newStopDraft } from "../data/stopManage";
 import { createSubmitGuard } from "../data/submitGuard";
 import { selectLive } from "../db/query";
 import { stop } from "../db/schema";
 import { getSharedDb } from "../db/sharedDb";
+import { createStop } from "../db/stopCreate";
 import { saveStopEdit } from "../db/stopEdit";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
@@ -71,6 +74,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
   // Os horários guardam o nome do ponto (`stopNames`): sem recarregar, as outras folhas mostram o nome antigo.
   const reloadSchedule = useScheduleReload();
   const db = getSharedDb();
+  const isNew = stopId === NEW_STOP_ID;
   // O teclado cobria a Nota, o ID externo e o novo apelido: a rolagem ganha o espaço do teclado (E-08 bloco 5, item 2).
   const keyboard = useKeyboardHeight();
   const scrollRef = useRef<React.ElementRef<typeof BottomSheetScrollView>>(null);
@@ -94,18 +98,8 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const [original, setOriginal] = useState<StopEditDraft>({
-    name: "",
-    externalId: null,
-    note: null,
-    aliases: [],
-  });
-  const [draft, setDraft] = useState<StopEditDraft>({
-    name: "",
-    externalId: null,
-    note: null,
-    aliases: [],
-  });
+  const [original, setOriginal] = useState<StopEditDraft>(newStopDraft);
+  const [draft, setDraft] = useState<StopEditDraft>(newStopDraft);
   const [others, setOthers] = useState<StopEditOther[]>([]);
   const [locationInfo, setLocationInfo] = useState<{
     lat: number | null;
@@ -124,6 +118,14 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
     let active = true;
     async function load() {
       if (!db) return;
+      if (isNew) {
+        // Ponto novo: começa vazio e só precisa dos outros pontos para conferir o ID externo.
+        const allRows = await selectLive(db, stop);
+        if (!active) return;
+        setOthers(allRows.map((o) => ({ id: o.id, name: o.name, externalId: o.externalId })));
+        setLoading(false);
+        return;
+      }
       const [row] = await selectLive(db, stop, eq(stop.id, stopId));
       if (!row || !active) return;
       const othersRows = await selectLive(db, stop, ne(stop.id, stopId));
@@ -215,23 +217,34 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
         return;
       }
       const nowMs = now();
-      const result = await saveStopEdit(
-        db,
-        stopId,
-        {
-          name: draft.name,
-          aliases: committed.aliases,
-          externalId: draft.externalId,
-          note: draft.note,
-        },
-        nowMs,
-      );
+      const result = isNew
+        ? await createStop(
+            db,
+            {
+              name: draft.name,
+              aliases: committed.aliases,
+              externalId: draft.externalId,
+              note: draft.note,
+            },
+            nowMs,
+          )
+        : await saveStopEdit(
+            db,
+            stopId,
+            {
+              name: draft.name,
+              aliases: committed.aliases,
+              externalId: draft.externalId,
+              note: draft.note,
+            },
+            nowMs,
+          );
       if (result.ok) {
         await reloadStopIndex();
         await reloadSchedule();
         close();
         toast.show({
-          title: t("stop_edit.toast.saved"),
+          title: isNew ? t("stop_new.saved") : t("stop_edit.toast.saved"),
           haptic: "success",
           action: {
             label: t("toast.action.undo"),
@@ -249,6 +262,8 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
             },
           },
         });
+      } else if (result.reason === "no_network") {
+        toast.show({ title: t("stop_new.error.no_network"), kind: "error", haptic: "error" });
       } else {
         setSaveError(
           result.reason === "duplicate_external_id"
@@ -291,7 +306,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
               {/* Cabeçalho */}
               <View style={styles.header}>
                 <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
-                  {t("stop_edit.title")}
+                  {isNew ? t("stop_new.title") : t("stop_edit.title")}
                 </Text>
                 <Pressable
                   accessibilityRole="button"
@@ -484,23 +499,25 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                     ) : null}
                   </View>
 
-                  {/* 5. Localização (só de leitura) */}
-                  <View style={styles.section}>
-                    <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
-                      {t("stop_edit.location")}
-                    </Text>
-                    <View style={[styles.readOnlyRow, { backgroundColor: colors.fill }]}>
-                      <Text style={[type.body, { color: colors.textSecondary }]}>
-                        {t(
-                          stopLocationStatusKey(
-                            locationInfo.lat,
-                            locationInfo.lon,
-                            locationInfo.locationSource,
-                          ),
-                        )}
+                  {/* 5. Localização (só de leitura; o ponto novo ainda não tem) */}
+                  {isNew ? null : (
+                    <View style={styles.section}>
+                      <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
+                        {t("stop_edit.location")}
                       </Text>
+                      <View style={[styles.readOnlyRow, { backgroundColor: colors.fill }]}>
+                        <Text style={[type.body, { color: colors.textSecondary }]}>
+                          {t(
+                            stopLocationStatusKey(
+                              locationInfo.lat,
+                              locationInfo.lon,
+                              locationInfo.locationSource,
+                            ),
+                          )}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
+                  )}
                 </>
               )}
             </BottomSheetScrollView>

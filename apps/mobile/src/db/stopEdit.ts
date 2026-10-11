@@ -5,11 +5,12 @@
  * Ponto official vira official_edited; user e official_edited mantêm o source.
  * updatedAt estritamente crescente.
  */
-import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { externalIdTooLong } from "../data/stopEdit";
 import { selectLive } from "./query";
 import { stop } from "./schema";
+import { externalIdTaken } from "./stopRules";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
 
@@ -79,19 +80,8 @@ export async function saveStopEdit(
     }
 
     // 2. Confere unicidade do externalId contra outros pontos vivos
-    if (externalIdTrimmed !== null) {
-      const needle = externalIdTrimmed.toLowerCase();
-      const othersWithId = await selectLive(
-        db,
-        stop,
-        and(ne(stop.id, stopId), isNotNull(stop.externalId)),
-      );
-      const isDuplicate = othersWithId.some(
-        (o) => o.externalId && o.externalId.trim().toLowerCase() === needle,
-      );
-      if (isDuplicate) {
-        return { ok: false, reason: "duplicate_external_id" };
-      }
+    if (externalIdTrimmed !== null && (await externalIdTaken(db, externalIdTrimmed, stopId))) {
+      return { ok: false, reason: "duplicate_external_id" };
     }
 
     // 3. Grava name, aliases, externalId, note; source vira official_edited se era official
