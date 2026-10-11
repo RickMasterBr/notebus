@@ -219,5 +219,316 @@ describe("data/networkView: lógica pura da rede (TL-11, Item 2)", () => {
       expect(resWeekday.times).toEqual(["08:00", "01:10"]);
       expect(resWeekday.partialCount).toBe(1);
     });
+
+    it("vigência: com duas tabelas, só a vigente hoje entra; sem nenhuma vigente, usa a mais recente", () => {
+      const snapshot: ScheduleSnapshot = {
+        calendar: { overrides: [], holidays: [], includeMunicipal: true },
+        schedule: {
+          trips: [
+            { id: "trip-old", timetableId: "tt-current", dayTypes: ["weekday"], seasonId: null },
+            { id: "trip-future", timetableId: "tt-future", dayTypes: ["weekday"], seasonId: null },
+          ],
+          timetables: [
+            { id: "tt-current", validFrom: "2026-06-01", validTo: null },
+            { id: "tt-future", validFrom: "2027-01-01", validTo: null },
+          ],
+          seasons: [],
+        },
+        patterns: [
+          {
+            id: "p1",
+            stops: [{ position: 1, stopId: "s1", isTimepoint: true }],
+          },
+        ],
+        trips: [
+          {
+            id: "trip-old",
+            patternId: "p1",
+            firstPosition: 1,
+            lastPosition: 1,
+            stopTimes: [{ position: 1, serviceMinute: 480, origin: "official" as const }],
+          },
+          {
+            id: "trip-future",
+            patternId: "p1",
+            firstPosition: 1,
+            lastPosition: 1,
+            stopTimes: [{ position: 1, serviceMinute: 600, origin: "official" as const }],
+          },
+        ],
+        patternLine: new Map(),
+        patternLineId: new Map(),
+        lineInfo: new Map(),
+        patternStopIds: new Map(),
+        patternStopById: new Map(),
+        stopNames: new Map([["s1", "Ponto Um"]]),
+      };
+
+      const res = baseTimes({
+        snapshot,
+        patternId: "p1",
+        dayType: "weekday",
+        todayLisbon: "2026-10-08",
+      });
+      expect(res.validFrom).toBe("2026-06-01");
+      expect(res.times).toEqual(["08:00"]);
+
+      const snapshotPast: ScheduleSnapshot = {
+        ...snapshot,
+        schedule: {
+          ...snapshot.schedule,
+          timetables: [
+            { id: "tt-old1", validFrom: "2024-01-01", validTo: "2024-06-01" },
+            { id: "tt-old2", validFrom: "2024-06-02", validTo: "2024-12-31" },
+          ],
+          trips: [
+            { id: "trip-old1", timetableId: "tt-old1", dayTypes: ["weekday"], seasonId: null },
+            { id: "trip-old2", timetableId: "tt-old2", dayTypes: ["weekday"], seasonId: null },
+          ],
+        },
+        trips: [
+          {
+            id: "trip-old1",
+            patternId: "p1",
+            firstPosition: 1,
+            lastPosition: 1,
+            stopTimes: [{ position: 1, serviceMinute: 420, origin: "official" as const }],
+          },
+          {
+            id: "trip-old2",
+            patternId: "p1",
+            firstPosition: 1,
+            lastPosition: 1,
+            stopTimes: [{ position: 1, serviceMinute: 500, origin: "official" as const }],
+          },
+        ],
+      };
+      const resPast = baseTimes({
+        snapshot: snapshotPast,
+        patternId: "p1",
+        dayType: "weekday",
+        todayLisbon: "2026-10-08",
+      });
+      expect(resPast.validFrom).toBe("2024-06-02");
+      expect(resPast.times).toEqual(["08:20"]);
+    });
+
+    it("interpolação: viagem sem horário no ponto de controle mas que passa por ele entra com horário interpolado", () => {
+      const snapshot: ScheduleSnapshot = {
+        calendar: { overrides: [], holidays: [], includeMunicipal: true },
+        schedule: {
+          trips: [{ id: "t1", timetableId: "tt1", dayTypes: ["weekday"], seasonId: null }],
+          timetables: [{ id: "tt1", validFrom: "2026-01-01", validTo: null }],
+          seasons: [],
+        },
+        patterns: [
+          {
+            id: "p1",
+            // As paragens do percurso começam na posição 2 (o ponto de controle)
+            stops: [
+              { position: 2, stopId: "s2", isTimepoint: true },
+              { position: 3, stopId: "s3", isTimepoint: true },
+            ],
+          },
+        ],
+        trips: [
+          {
+            id: "t1",
+            patternId: "p1",
+            firstPosition: 1,
+            lastPosition: 3,
+            // A viagem parte de 1 e termina em 3, com horários em 1 e 3, mas passa por 2
+            stopTimes: [
+              { position: 1, serviceMinute: 480, origin: "official" as const },
+              { position: 3, serviceMinute: 540, origin: "official" as const },
+            ],
+          },
+        ],
+        patternLine: new Map(),
+        patternLineId: new Map(),
+        lineInfo: new Map(),
+        patternStopIds: new Map(),
+        patternStopById: new Map(),
+        stopNames: new Map([["s2", "Controle"], ["s3", "Fim"]]),
+      };
+
+      const res = baseTimes({
+        snapshot,
+        patternId: "p1",
+        dayType: "weekday",
+        todayLisbon: "2026-10-08",
+      });
+
+      expect(res.position).toBe(2);
+      expect(res.stopName).toBe("Controle");
+      // Interpola a posição 2 entre pos 1 e pos 3 (480 + (540-480)*((2-1)/(3-1)) = 510 min -> 08:30)
+      expect(res.times).toEqual(["08:30"]);
+      expect(res.partialCount).toBe(0);
+    });
+
+    it("viagem apagada (deletedAt) não entra na listagem", () => {
+      const snapshot: ScheduleSnapshot = {
+        calendar: { overrides: [], holidays: [], includeMunicipal: true },
+        schedule: {
+          trips: [
+            { id: "t-live", timetableId: "tt1", dayTypes: ["weekday"], seasonId: null },
+            { id: "t-deleted", timetableId: "tt1", dayTypes: ["weekday"], seasonId: null, deletedAt: 1760000000000 },
+          ],
+          timetables: [{ id: "tt1", validFrom: "2026-01-01", validTo: null }],
+          seasons: [],
+        },
+        patterns: [
+          {
+            id: "p1",
+            stops: [{ position: 1, stopId: "s1", isTimepoint: true }],
+          },
+        ],
+        trips: [
+          {
+            id: "t-live",
+            patternId: "p1",
+            firstPosition: 1,
+            lastPosition: 1,
+            stopTimes: [{ position: 1, serviceMinute: 480, origin: "official" as const }],
+          },
+          {
+            id: "t-deleted",
+            patternId: "p1",
+            firstPosition: 1,
+            lastPosition: 1,
+            stopTimes: [{ position: 1, serviceMinute: 500, origin: "official" as const }],
+          },
+        ],
+        patternLine: new Map(),
+        patternLineId: new Map(),
+        lineInfo: new Map(),
+        patternStopIds: new Map(),
+        patternStopById: new Map(),
+        stopNames: new Map([["s1", "Ponto"]]),
+      };
+
+      const res = baseTimes({
+        snapshot,
+        patternId: "p1",
+        dayType: "weekday",
+        todayLisbon: "2026-10-08",
+      });
+
+      expect(res.times).toEqual(["08:00"]);
+      expect(res.partialCount).toBe(0);
+    });
+
+    it("ponto de controle: usa o primeiro ponto de controle e não a primeira paragem", () => {
+      const snapshot: ScheduleSnapshot = {
+        calendar: { overrides: [], holidays: [], includeMunicipal: true },
+        schedule: {
+          trips: [{ id: "t1", timetableId: "tt1", dayTypes: ["weekday"], seasonId: null }],
+          timetables: [{ id: "tt1", validFrom: "2026-01-01", validTo: null }],
+          seasons: [],
+        },
+        patterns: [
+          {
+            id: "p1",
+            // Paragem 1 não é timepoint nem tem stopTimes; paragem 2 é o ponto de controle
+            stops: [
+              { position: 1, stopId: "s1", isTimepoint: false },
+              { position: 2, stopId: "s2", isTimepoint: true },
+            ],
+          },
+        ],
+        trips: [
+          {
+            id: "t1",
+            patternId: "p1",
+            firstPosition: 2,
+            lastPosition: 2,
+            stopTimes: [
+              { position: 2, serviceMinute: 500, origin: "official" as const }, // 08:20
+            ],
+          },
+        ],
+        patternLine: new Map(),
+        patternLineId: new Map(),
+        lineInfo: new Map(),
+        patternStopIds: new Map(),
+        patternStopById: new Map(),
+        stopNames: new Map([["s1", "Paragem Comum"], ["s2", "Ponto de Controle"]]),
+      };
+
+      const res = baseTimes({
+        snapshot,
+        patternId: "p1",
+        dayType: "weekday",
+        todayLisbon: "2026-10-08",
+      });
+
+      // A paragem escolhida deve ser a posição 2 (primeiro ponto de controle), com o horário 08:20
+      expect(res.position).toBe(2);
+      expect(res.stopName).toBe("Ponto de Controle");
+      expect(res.times).toEqual(["08:20"]);
+    });
+
+    it("partialCount conta apenas as viagens que não passam pelo ponto de controle", () => {
+      const snapshot: ScheduleSnapshot = {
+        calendar: { overrides: [], holidays: [], includeMunicipal: true },
+        schedule: {
+          trips: [
+            { id: "t-full", timetableId: "tt1", dayTypes: ["weekday"], seasonId: null },
+            { id: "t-partial", timetableId: "tt1", dayTypes: ["weekday"], seasonId: null },
+          ],
+          timetables: [{ id: "tt1", validFrom: "2026-01-01", validTo: null }],
+          seasons: [],
+        },
+        patterns: [
+          {
+            id: "p1",
+            stops: [
+              { position: 1, stopId: "s1", isTimepoint: true }, // ponto de controle
+              { position: 2, stopId: "s2", isTimepoint: false },
+            ],
+          },
+        ],
+        trips: [
+          // Passa pelo ponto de controle (posição 1)
+          {
+            id: "t-full",
+            patternId: "p1",
+            firstPosition: 1,
+            lastPosition: 2,
+            stopTimes: [
+              { position: 1, serviceMinute: 500, origin: "official" as const },
+              { position: 2, serviceMinute: 520, origin: "official" as const },
+            ],
+          },
+          // Começa na posição 2 e não passa pelo ponto de controle (posição 1)
+          {
+            id: "t-partial",
+            patternId: "p1",
+            firstPosition: 2,
+            lastPosition: 2,
+            stopTimes: [
+              { position: 2, serviceMinute: 540, origin: "official" as const },
+            ],
+          },
+        ],
+        patternLine: new Map(),
+        patternLineId: new Map(),
+        lineInfo: new Map(),
+        patternStopIds: new Map(),
+        patternStopById: new Map(),
+        stopNames: new Map([["s1", "Terminal"], ["s2", "Meio"]]),
+      };
+
+      const res = baseTimes({
+        snapshot,
+        patternId: "p1",
+        dayType: "weekday",
+        todayLisbon: "2026-10-08",
+      });
+
+      expect(res.position).toBe(1);
+      expect(res.times).toEqual(["08:20"]);
+      expect(res.partialCount).toBe(1);
+    });
   });
 });

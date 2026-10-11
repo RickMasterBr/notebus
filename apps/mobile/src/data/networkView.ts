@@ -13,6 +13,7 @@ import { t } from "../i18n";
 import type { ScheduleSnapshot } from "./schedule";
 import { clockText } from "./stopCard";
 import { dateNumbers } from "./testClockPicker";
+import { currentTimetables } from "./settingsView";
 
 /**
  * Formata a data de vigência para o formato do app (dd/mm/aaaa).
@@ -103,14 +104,8 @@ export function baseTimes({
   const timetableIds = new Set(
     patternTrips.map((t) => scheduleTripMap.get(t.id)?.timetableId).filter((id): id is string => Boolean(id)),
   );
-  const patternTimetables = snapshot.schedule.timetables.filter(
-    (tt) => timetableIds.has(tt.id) || (tt as { patternId?: string }).patternId === patternId,
-  );
-
-  const inForce = patternTimetables.filter(
-    (tt) => tt.validFrom <= todayLisbon && (tt.validTo === null || tt.validTo >= todayLisbon),
-  );
-  const pool = inForce.length > 0 ? inForce : patternTimetables;
+  const patternTimetables = snapshot.schedule.timetables.filter((tt) => timetableIds.has(tt.id));
+  const pool = currentTimetables(patternTimetables, todayLisbon);
   const active = [...pool].sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0] ?? null;
   const validFrom = active?.validFrom ?? null;
 
