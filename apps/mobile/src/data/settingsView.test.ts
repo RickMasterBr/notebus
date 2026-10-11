@@ -4,6 +4,7 @@ import {
   backupDaysText,
   buildHolidayInput,
   buildOverrideInput,
+  currentTimetables,
   currentValidFrom,
   dayTypeCounts,
   formatHolidayLine,
@@ -210,6 +211,35 @@ describe("settingsView", () => {
     it("sem tabelas devolve null", () => {
       expect(currentValidFrom([], "2026-10-10")).toBeNull();
       expect(currentValidFrom(null, "2026-10-10")).toBeNull();
+    });
+  });
+
+  describe("currentTimetables (item 5.4)", () => {
+    it("vigente: com tabelas vigentes, devolve apenas as vigentes hoje", () => {
+      const timetables = [
+        { id: "tt-past", validFrom: "2026-01-01", validTo: "2026-05-31" },
+        { id: "tt-now1", validFrom: "2026-06-01", validTo: null },
+        { id: "tt-now2", validFrom: "2026-09-01", validTo: "2026-12-31" },
+        { id: "tt-future", validFrom: "2027-01-01", validTo: null },
+      ];
+      const result = currentTimetables(timetables, "2026-10-10");
+      expect(result.map((t) => t.id)).toEqual(["tt-now1", "tt-now2"]);
+    });
+
+    it("nenhuma vigente: devolve apenas a tabela com validFrom mais recente", () => {
+      const timetables = [
+        { id: "tt-old1", validFrom: "2025-01-01", validTo: "2025-05-31" },
+        { id: "tt-old2", validFrom: "2025-06-01", validTo: "2025-12-31" },
+      ];
+      const result = currentTimetables(timetables, "2026-10-10");
+      expect(result).toHaveLength(1);
+      expect(result[0]?.id).toBe("tt-old2");
+    });
+
+    it("vazia: array vazio ou nulo devolve array vazio", () => {
+      expect(currentTimetables([], "2026-10-10")).toEqual([]);
+      expect(currentTimetables(null, "2026-10-10")).toEqual([]);
+      expect(currentTimetables(undefined, "2026-10-10")).toEqual([]);
     });
   });
 });

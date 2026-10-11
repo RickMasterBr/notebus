@@ -10,7 +10,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNow } from "../data/NowProvider";
 import { useSchedule } from "../data/ScheduleProvider";
-import { baseTimes, controlPositions, officialTag } from "../data/networkView";
+import { baseTimes, controlPositions, officialTag, validFromText } from "../data/networkView";
 import {
   type NetworkLineItem,
   type NetworkPatternItem,
@@ -261,7 +261,7 @@ export function LineDetailSheet({ id, lineId }: { id: number; lineId: string }) 
                 </Text>
                 {timesResult?.validFrom ? (
                   <Text style={[type.caption, { color: colors.textSecondary }]}>
-                    {t("net.times.valid_from", { date: timesResult.validFrom })}
+                    {t("net.times.valid_from", { date: validFromText(timesResult.validFrom) ?? "" })}
                   </Text>
                 ) : null}
 

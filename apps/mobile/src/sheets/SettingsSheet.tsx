@@ -42,10 +42,10 @@ import {
   offlineSettingsButtons,
   runOfflineSettingsAction,
 } from "../data/offlineSettingsActions";
+import { createMarginStepper } from "../data/marginStepper";
 import { usePreferences } from "../data/PreferencesProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import {
-  changeMargin,
   deleteHolidayWithUndo,
   deleteOverrideWithUndo,
   toggleAlarms,
@@ -222,25 +222,30 @@ export function SettingsSheet({ id }: { id: number }) {
     });
   };
 
-  // Margem local para feedback imediato e reversão em caso de recusa
+  // Margem local para feedback imediato e reversão em caso de recusa (D1, E-08 bloco 1d)
   const [margin, setMargin] = useState(prefs.margin);
+  const setMarginRef = useRef(setMargin);
+  setMarginRef.current = setMargin;
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+
+  const stepperRef = useRef<ReturnType<typeof createMarginStepper> | null>(null);
+  if (!stepperRef.current) {
+    stepperRef.current = createMarginStepper({
+      initial: prefs.margin,
+      show: (val) => setMarginRef.current(val),
+      write: (val) => prefsRef.current.setMargin(val),
+    });
+  }
+  const stepper = stepperRef.current;
+
   useEffect(() => {
-    setMargin(prefs.margin);
-  }, [prefs.margin]);
+    stepper.sync(prefs.margin);
+  }, [prefs.margin, stepper]);
 
   const handleStepMargin = (dir: 1 | -1) => {
-    const next = stepMargin(margin, dir);
-    if (next.value === margin) return;
-    const prev = margin;
-    setMargin(next.value);
-    void changeMargin({
-      current: margin,
-      direction: dir,
-      setMargin: prefs.setMargin,
-    }).then((val) => {
-      const ok = val === next.value;
-      if (!ok) setMargin(prev);
-    });
+    // createMarginStepper cuida da reversão (if (!ok) setMargin(prev)) e do feedback imediato (setMargin(next.value)).
+    stepper.step(dir);
   };
 
   const backup = useBackup();

@@ -189,18 +189,34 @@ export function buildHolidayInput({
   };
 }
 
+/**
+ * Tabelas vigentes hoje por Lisboa, ou, se nenhuma, só a de validFrom mais recente.
+ * Devolve array vazio se a lista for nula ou vazia.
+ */
+export function currentTimetables<T extends { validFrom: string; validTo?: string | null }>(
+  timetables: readonly T[] | null | undefined,
+  todayLisbon: string,
+): T[] {
+  if (!timetables || timetables.length === 0) return [];
+  const inForce = timetables.filter(
+    (tt) =>
+      tt.validFrom <= todayLisbon &&
+      (tt.validTo === null || tt.validTo === undefined || tt.validTo >= todayLisbon),
+  );
+  if (inForce.length > 0) {
+    return inForce;
+  }
+  const mostRecent = [...timetables].sort((a, b) => b.validFrom.localeCompare(a.validFrom))[0];
+  return mostRecent ? [mostRecent] : [];
+}
+
 export function currentValidFrom(
   timetables: readonly { validFrom: string; validTo?: string | null }[] | null | undefined,
   todayLisbon: string,
 ): string | null {
-  if (!timetables || timetables.length === 0) return null;
-  const current = timetables.filter(
-    (t) => t.validFrom <= todayLisbon && (t.validTo === null || t.validTo === undefined || t.validTo >= todayLisbon),
-  );
-  if (current.length > 0) {
-    return current.reduce((max, t) => (t.validFrom > max ? t.validFrom : max), current[0]!.validFrom);
-  }
-  return timetables.reduce((max, t) => (t.validFrom > max ? t.validFrom : max), timetables[0]!.validFrom);
+  const current = currentTimetables(timetables, todayLisbon);
+  if (current.length === 0) return null;
+  return current.reduce((max, t) => (t.validFrom > max ? t.validFrom : max), current[0]!.validFrom);
 }
 
 

@@ -161,4 +161,132 @@ describe("db/networkList: consultas de leitura da rede (TL-11, Item 2)", () => {
     const stopsAfterDelete = patternsAfterStopDelete.find((p) => p.id === circularPattern!.id)!.stops;
     expect(stopsAfterDelete.some((s) => s.stopId === firstStopId)).toBe(false);
   });
+
+  it("listStops ordena nomes com acento e caixa como na busca (Évora entre Damas e Faro, Évora Centro antes de evora norte)", async () => {
+    const { db } = await fixture();
+    const now = 1760000000000;
+
+    await db.insert(schema.stop).values([
+      {
+        id: "stop-damas",
+        networkId: "net-test",
+        name: "Damas",
+        aliases: [],
+        externalId: null,
+        source: "official",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "stop-evora-norte",
+        networkId: "net-test",
+        name: "evora norte",
+        aliases: [],
+        externalId: null,
+        source: "official",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "stop-evora-centro",
+        networkId: "net-test",
+        name: "Évora Centro",
+        aliases: [],
+        externalId: null,
+        source: "official",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "stop-faro",
+        networkId: "net-test",
+        name: "Faro",
+        aliases: [],
+        externalId: null,
+        source: "official",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const stops = await listStops(db);
+    const names = stops.map((s) => s.name);
+    const damasIdx = names.indexOf("Damas");
+    const evoraCentroIdx = names.indexOf("Évora Centro");
+    const evoraNorteIdx = names.indexOf("evora norte");
+    const faroIdx = names.indexOf("Faro");
+
+    expect(damasIdx).toBeGreaterThanOrEqual(0);
+    expect(evoraCentroIdx).toBeGreaterThan(damasIdx);
+    expect(evoraNorteIdx).toBeGreaterThan(evoraCentroIdx);
+    expect(faroIdx).toBeGreaterThan(evoraNorteIdx);
+  });
+
+  it("listPatternsOfLine devolve paragens ordenadas por position crescente mesmo inseridas fora de ordem", async () => {
+    const { db } = await fixture();
+    const now = 1760000000000;
+
+    await db.insert(schema.line).values({
+      id: "line-order-test",
+      networkId: "net-test",
+      code: "99",
+      name: "Linha Ordenacao",
+      color: "#123456",
+      source: "official",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.pattern).values({
+      id: "pattern-order-test",
+      lineId: "line-order-test",
+      label: "Percurso Ordem",
+      isCircular: false,
+      source: "official",
+      createdAt: now,
+      updatedAt: now,
+    });
+    const existingStops = await listStops(db);
+    expect(existingStops.length).toBeGreaterThanOrEqual(3);
+
+    await db.insert(schema.patternStop).values([
+      {
+        id: "ps-pos-3",
+        patternId: "pattern-order-test",
+        stopId: existingStops[2]!.id,
+        position: 3,
+        source: "official",
+        isTimepoint: true,
+        timepointLabel: "P3",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "ps-pos-1",
+        patternId: "pattern-order-test",
+        stopId: existingStops[0]!.id,
+        position: 1,
+        source: "official",
+        isTimepoint: true,
+        timepointLabel: "P1",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "ps-pos-2",
+        patternId: "pattern-order-test",
+        stopId: existingStops[1]!.id,
+        position: 2,
+        source: "official",
+        isTimepoint: true,
+        timepointLabel: "P2",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    const patterns = await listPatternsOfLine(db, "line-order-test");
+    expect(patterns.length).toBe(1);
+    const positions = patterns[0]!.stops.map((s) => s.position);
+    expect(positions).toEqual([1, 2, 3]);
+  });
 });

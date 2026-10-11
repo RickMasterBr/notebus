@@ -148,6 +148,55 @@ describe("T-80: exceção de data", () => {
     expect(typeOn(e, "2026-12-24")).toEqual({ dayType: "saturday", reason: "override" });
   });
 
+  it("desfazer vencido no ramo replaced de saveOverride sob relógio parado não reverte versão mais nova", async () => {
+    const e = await setup();
+    const first = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: "v1" }, NOW);
+    if (!first.ok) throw new Error(first.reason);
+    const second = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "sunday_holiday", note: "v2" }, NOW);
+    if (!second.ok) throw new Error(second.reason);
+    const third = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "weekday", note: "v3" }, NOW);
+    if (!third.ok) throw new Error(third.reason);
+
+    // second foi a primeira substituição (ramo replaced). Seu undo está vencido porque third foi gravado depois.
+    await second.undo(NOW);
+
+    // A linha mais nova (v3) continua intacta
+    expect(liveOverrides(e, "2026-12-24")).toEqual([{ code: "weekday", note: "v3" }]);
+    expect(typeOn(e, "2026-12-24")).toEqual({ dayType: "weekday", reason: "override" });
+  });
+
+  it("desfazer vencido de deleteOverride sob relógio parado não permite reverter estado mais novo", async () => {
+    const e = await setup();
+    const first = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: "v1" }, NOW);
+    if (!first.ok) throw new Error(first.reason);
+    const del = await e.edits.deleteOverride(first.id, NOW);
+    if (!del.ok) throw new Error(del.reason);
+
+    // first.undo está vencido pois deleteOverride ocorreu depois sob o mesmo NOW
+    await first.undo(NOW);
+
+    // O registro mais novo continua intacto (apagado) e o undo de del ainda restaura o registro
+    expect(liveOverrides(e, "2026-12-24")).toEqual([]);
+    await del.undo(NOW);
+    expect(liveOverrides(e, "2026-12-24")).toEqual([{ code: "saturday", note: "v1" }]);
+  });
+
+  it("desfazer vencido de deleteHoliday sob relógio parado não permite reverter estado mais novo", async () => {
+    const e = await setup();
+    const hol = await e.edits.saveHoliday({ name: "Festa", date: "2026-06-01", recurring: false }, NOW);
+    if (!hol.ok) throw new Error(hol.reason);
+    const del = await e.edits.deleteHoliday(hol.id, NOW);
+    if (!del.ok) throw new Error(del.reason);
+
+    // hol.undo está vencido pois deleteHoliday ocorreu depois sob o mesmo NOW
+    await hol.undo(NOW);
+
+    // Continua apagado e o undo de del ainda restaura o feriado
+    expect(e.rows("SELECT name FROM holiday WHERE id = ? AND deleted_at IS NULL", [hol.id])).toHaveLength(0);
+    await del.undo(NOW);
+    expect(e.rows("SELECT name FROM holiday WHERE id = ? AND deleted_at IS NULL", [hol.id])).toHaveLength(1);
+  });
+
   it("deleteOverride apaga (deleted_at) e o undo traz de volta; id que não existe é recusado", async () => {
     const e = await setup();
     const saved = await e.edits.saveOverride({ date: "2026-12-24", dayTypeCode: "saturday", note: null }, NOW);
