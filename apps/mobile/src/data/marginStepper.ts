@@ -4,6 +4,13 @@
  */
 import { stepMargin } from "./settingsView";
 
+/** Ação de acessibilidade do VoiceOver (`increment`/`decrement`) para o passo da margem; outra ação não faz nada. */
+export function adjustableStep(actionName: string): 1 | -1 | null {
+  if (actionName === "increment") return 1;
+  if (actionName === "decrement") return -1;
+  return null;
+}
+
 /** Gravar só depois de `ms` sem toque (E-08 boost da margem). O agendador vem de fora: nunca `setTimeout` direto aqui (D-095). */
 export interface MarginDebounce {
   ms: number;
