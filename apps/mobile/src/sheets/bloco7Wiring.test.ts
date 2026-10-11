@@ -54,3 +54,76 @@ describe("item 0: lacunas das mutações do bloco 6", () => {
     expect(stopCardView.match(/accessibilityLabel=\{a11yLabel\}/g)).toHaveLength(2);
   });
 });
+
+const networkSheet = squash(read("sheets/NetworkSheet.tsx"));
+const stopEditSheet = squash(read("sheets/StopEditSheet.tsx"));
+
+describe("item 3: Novo ponto", () => {
+  it("a linha + Novo ponto é um botão e o toque abre a folha de edição com NEW_STOP_ID", () => {
+    expect(networkSheet).toContain(
+      'if (item.type === "newStop") { return ( <Pressable accessibilityRole="button" accessibilityLabel={t("net.stop.new")} onPress={handleNewStopPress}',
+    );
+    expect(networkSheet).toContain(
+      'const handleNewStopPress = useCallback(() => { dispatch({ type: "push", sheet: { kind: "stopEdit", stopId: NEW_STOP_ID } }); }, [dispatch]);',
+    );
+  });
+
+  it("a linha nova entra na lista logo sob o cabeçalho Pontos", () => {
+    expect(networkSheet).toContain(
+      'title: t("net.section.stops"), }); items.push({ type: "newStop", id: "new-stop" });',
+    );
+  });
+
+  it("a folha chama createStop só no modo novo e saveStopEdit só no modo edição, cada um no seu ramo", () => {
+    expect(stopEditSheet).toContain(
+      "const result = isNew ? await createStop(db, values, nowMs) : await saveStopEdit(db, stopId, values, nowMs);",
+    );
+    expect(stopEditSheet.match(/createStop\(/g)).toHaveLength(1);
+    expect(stopEditSheet.match(/saveStopEdit\(/g)).toHaveLength(1);
+  });
+
+  it("depois de criar, a busca e os horários recarregam e o toast traz o Desfazer", () => {
+    expect(stopEditSheet).toContain(
+      'if (result.ok) { await reloadStopIndex(); await reloadSchedule(); close(); toast.show({ title: isNew ? t("stop_new.saved") : t("stop_edit.toast.saved"), haptic: "success", action: { label: t("toast.action.undo"),',
+    );
+  });
+
+  it("o Desfazer da criação chama result.undo, recarrega e, se falhar, mostra o erro", () => {
+    expect(stopEditSheet).toContain(
+      'run: async () => { const undone = await result.undo(now()); await reloadStopIndex(); await reloadSchedule(); if (!undone.ok) { toast.show({ title: t("stop_edit.error.stale"), kind: "error", haptic: "error", }); } },',
+    );
+  });
+
+  it("a recusa no_network vira um toast de erro", () => {
+    expect(stopEditSheet).toContain(
+      '} else if (result.reason === "no_network") { toast.show({ title: t("stop_new.error.no_network"), kind: "error", haptic: "error" });',
+    );
+  });
+});
+
+describe("item 3: apagar ponto arrastando", () => {
+  it("o botão Apagar fecha a linha e apaga o ponto da linha", () => {
+    expect(networkSheet).toContain(
+      'onPress={() => { swipeableMethods.close(); onDelete(stop); }}',
+    );
+    expect(networkSheet).toContain("onDelete={(stop) => void handleDelete(stop)}");
+  });
+
+  it("apagar chama deleteStop e mostra o texto da recusa com o motivo e o uso do resultado", () => {
+    expect(networkSheet).toContain(
+      'const result = await deleteStop(db, item.id, now()); if (!result.ok) { const text = deleteRefusalText(result.reason, "usage" in result ? result.usage : undefined); toast.show({ title: t(text.key, text.params), kind: "error", haptic: "error" }); return; }',
+    );
+  });
+
+  it("apagou: recarrega, avisa com Desfazer, e o Desfazer chama result.undo, recarrega e mostra o erro se falhar", () => {
+    expect(networkSheet).toContain(
+      'await reloadAll(); toast.show({ title: t("stop_delete.done"), haptic: "success", action: { label: t("toast.action.undo"), run: async () => { const undone = await result.undo(now()); await reloadAll(); if (!undone.ok) { toast.show({ title: t("stop_edit.error.stale"), kind: "error", haptic: "error" }); } }, }, });',
+    );
+  });
+
+  it("a recarga lê o índice de busca, os horários e a lista", () => {
+    expect(networkSheet).toContain(
+      "const reloadAll = useCallback(async () => { await reloadStopIndex(); await reloadSchedule(); await loadData(); }, [reloadStopIndex, reloadSchedule, loadData]);",
+    );
+  });
+});
