@@ -293,3 +293,120 @@ describe("stopEdit (Item 2: Gravar e Desfazer no banco)", () => {
     expect(afterDst.note).toBe("Nota oficial editada");
   });
 });
+
+describe("stopEdit (bloco 4: lacunas da revisão do bloco 3)", () => {
+  const empty = { aliases: [] as string[], externalId: null, note: null };
+  const read = async (db: Awaited<ReturnType<typeof setup>>["db"], id: string) =>
+    (await db.select().from(stop).where(eq(stop.id, id)))[0]!;
+  const insertUserStop = async (db: Awaited<ReturnType<typeof setup>>["db"], id: string, over: Partial<typeof stop.$inferInsert> = {}) =>
+    db.insert(stop).values({
+      id,
+      createdAt: 100,
+      updatedAt: 100,
+      deletedAt: null,
+      source: "user",
+      officialKey: null,
+      networkId: "net-1",
+      name: `Nome ${id}`,
+      aliases: [],
+      externalId: null,
+      note: null,
+      ...over,
+    });
+
+  it("nome com 80 caracteres salva; com 81 devolve invalid", async () => {
+    const { db } = await setup();
+    const id = stopId("A");
+    expect((await saveStopEdit(db, id, { ...empty, name: "n".repeat(80) }, NOW)).ok).toBe(true);
+    expect((await read(db, id)).name).toBe("n".repeat(80));
+    expect(await saveStopEdit(db, id, { ...empty, name: "n".repeat(81) }, NOW + 10)).toEqual({ ok: false, reason: "invalid" });
+    expect((await read(db, id)).name).toBe("n".repeat(80));
+  });
+
+  it("nome só com espaços devolve invalid", async () => {
+    const { db } = await setup();
+    const id = stopId("A");
+    const before = await read(db, id);
+    expect(await saveStopEdit(db, id, { ...empty, name: "    " }, NOW)).toEqual({ ok: false, reason: "invalid" });
+    expect(await read(db, id)).toEqual(before);
+  });
+
+  it("nota com 200 caracteres salva; com 201 devolve invalid", async () => {
+    const { db } = await setup();
+    const id = stopId("A");
+    const name = (await read(db, id)).name;
+    expect((await saveStopEdit(db, id, { ...empty, name, note: "x".repeat(200) }, NOW)).ok).toBe(true);
+    expect((await read(db, id)).note).toBe("x".repeat(200));
+    expect(await saveStopEdit(db, id, { ...empty, name, note: "x".repeat(201) }, NOW + 10)).toEqual({ ok: false, reason: "invalid" });
+    expect((await read(db, id)).note).toBe("x".repeat(200));
+  });
+
+  it("ID externo de outro ponto com caixa diferente (ab-1 contra AB-1) devolve duplicate_external_id", async () => {
+    const { db } = await setup();
+    await insertUserStop(db, "u-1", { externalId: "AB-1" });
+    await insertUserStop(db, "u-2");
+    expect(await saveStopEdit(db, "u-2", { ...empty, name: "Nome u-2", externalId: "ab-1" }, NOW)).toEqual({
+      ok: false,
+      reason: "duplicate_external_id",
+    });
+  });
+
+  it("a caixa conta nos dois sentidos: AB-1 digitado contra ab-1 de outro ponto também é duplicado", async () => {
+    const { db } = await setup();
+    await insertUserStop(db, "u-1", { externalId: "ab-1" });
+    await insertUserStop(db, "u-2");
+    expect(await saveStopEdit(db, "u-2", { ...empty, name: "Nome u-2", externalId: "AB-1" }, NOW)).toEqual({
+      ok: false,
+      reason: "duplicate_external_id",
+    });
+  });
+
+  it("ID externo de outro ponto gravado com espaços nas pontas também é duplicado", async () => {
+    const { db } = await setup();
+    await insertUserStop(db, "u-1", { externalId: "  AB-1  " });
+    await insertUserStop(db, "u-2");
+    expect(await saveStopEdit(db, "u-2", { ...empty, name: "Nome u-2", externalId: "AB-1" }, NOW)).toEqual({
+      ok: false,
+      reason: "duplicate_external_id",
+    });
+  });
+
+  it("salvar o próprio ponto mantendo o ID externo que ele já tem funciona (só mudei a nota)", async () => {
+    const { db } = await setup();
+    await insertUserStop(db, "u-1", { externalId: "AB-1", note: "antiga" });
+    const res = await saveStopEdit(db, "u-1", { ...empty, name: "Nome u-1", externalId: "AB-1", note: "nova" }, NOW);
+    expect(res.ok).toBe(true);
+    const row = await read(db, "u-1");
+    expect(row.externalId).toBe("AB-1");
+    expect(row.note).toBe("nova");
+  });
+
+  it("nome e nota são gravados sem espaços nas pontas", async () => {
+    const { db } = await setup();
+    const id = stopId("A");
+    const res = await saveStopEdit(db, id, { ...empty, name: "  Largo Novo  ", note: "  uma nota  " }, NOW);
+    expect(res.ok).toBe(true);
+    const row = await read(db, id);
+    expect(row.name).toBe("Largo Novo");
+    expect(row.note).toBe("uma nota");
+  });
+
+  it("Desfazer devolve note e externalId exatamente como estavam (valores não vazios)", async () => {
+    const { db } = await setup();
+    await insertUserStop(db, "u-1", { externalId: "ID-ANTIGO", note: "nota antiga" });
+    const res = await saveStopEdit(
+      db,
+      "u-1",
+      { name: "Nome novo", aliases: ["a"], externalId: "ID-NOVO", note: "nota nova" },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(await res.undo(NOW + 1)).toEqual({ ok: true });
+    const row = await read(db, "u-1");
+    expect(row.externalId).toBe("ID-ANTIGO");
+    expect(row.note).toBe("nota antiga");
+    expect(row.name).toBe("Nome u-1");
+    expect(row.aliases).toEqual([]);
+  });
+});

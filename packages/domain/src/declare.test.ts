@@ -311,3 +311,48 @@ describe("planDeclaration: madrugada", () => {
     expect(r.ok && r.steps[0]).toMatchObject({ action: "update", tripId: "trip-night" });
   });
 });
+
+describe("planDeclaration: escolha da viagem (bestTrip, E-08 bloco 4)", () => {
+  const L2 = pattern("pat-l2", 51, { 2: ARRABALDE });
+  const mk = (id: string, patternId: string, base: number, dayTypes: DayTypeCode[] = WEEKDAY) =>
+    trip(id, patternId, dayTypes, [[1, base - 10], [2, base], [6, base + 10]]);
+  const first = (r: ReturnType<typeof plan>) => (r.ok ? r.steps[0] : r.reason);
+
+  it("duas viagens com a mesma hora-base em percursos diferentes: declarar no percurso A atualiza só a do A", () => {
+    const tripA = mk("trip-a", L1.id, hm(10, 0));
+    const tripB = mk("trip-b", L2.id, hm(10, 0));
+    // A do outro percurso vem primeiro na lista, para o filtro de patternId fazer diferença.
+    const r = planDeclaration({ patterns: [L1, L2], trips: [tripB, tripA], stopId: ARRABALDE, dayTypes: WEEKDAY, serviceMinute: hm(10, 0), choice: { patternId: L1.id, position: 2 } });
+    expect(first(r)).toMatchObject({ action: "update", tripId: "trip-a", patternId: L1.id });
+  });
+
+  it("viagem que não inclui o tipo de dia: vira create_partial naquele tipo de dia", () => {
+    const r = plan({ trips: [mk("so-sabado", L1.id, hm(10, 0), SATURDAY)], serviceMinute: hm(10, 0) });
+    expect(first(r)).toEqual({ dayType: "weekday", action: "create_partial", patternId: L1.id, position: 2 });
+  });
+
+  it("limites vindos de DOMAIN_CONFIG: −early e +late atualizam; um minuto além cria parcial", () => {
+    const base = hm(10, 0);
+    const kind = (minute: number) => first(plan({ trips: [mk("t", L1.id, base)], serviceMinute: minute }));
+    expect(kind(base - DOMAIN_CONFIG.matchEarlyMinutes)).toMatchObject({ action: "update", tripId: "t" });
+    expect(kind(base + DOMAIN_CONFIG.matchLateMinutes)).toMatchObject({ action: "update", tripId: "t" });
+    expect(kind(base - DOMAIN_CONFIG.matchEarlyMinutes - 1)).toMatchObject({ action: "create_partial" });
+    expect(kind(base + DOMAIN_CONFIG.matchLateMinutes + 1)).toMatchObject({ action: "create_partial" });
+  });
+
+  it("duas viagens à mesma distância: ganha a de base mais cedo, em qualquer ordem da lista", () => {
+    const early = mk("cedo", L1.id, hm(10, 0));
+    const late = mk("tarde", L1.id, hm(10, 10));
+    for (const trips of [[early, late], [late, early]]) {
+      expect(first(plan({ trips, serviceMinute: hm(10, 5) }))).toMatchObject({ action: "update", tripId: "cedo" });
+    }
+  });
+
+  it("duas viagens, uma mais perto que a outra: ganha a mais perto, em qualquer ordem da lista", () => {
+    const near = mk("perto", L1.id, hm(10, 4));
+    const far = mk("longe", L1.id, hm(10, 0));
+    for (const trips of [[near, far], [far, near]]) {
+      expect(first(plan({ trips, serviceMinute: hm(10, 5) }))).toMatchObject({ action: "update", tripId: "perto" });
+    }
+  });
+});

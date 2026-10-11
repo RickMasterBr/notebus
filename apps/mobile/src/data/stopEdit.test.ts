@@ -308,3 +308,43 @@ describe("stopEdit (Item 1: regras puras do formulário)", () => {
   });
 });
 
+
+describe("stopEdit (bloco 4: lacunas da revisão do bloco 3)", () => {
+  const original = { name: "Rua Exemplo", externalId: "1001", note: "Nota antiga", aliases: ["Um", "Dois"] };
+  const viewOf = (draft: typeof original) =>
+    stopEditView({ original, draft, validation: validateStopEdit({ ...draft, others: [] }) });
+
+  describe("stopEditView: cada campo sozinho liga o Salvar", () => {
+    it("mudar só a nota liga canSave", () => {
+      const view = viewOf({ ...original, note: "Nota nova" });
+      expect(view.isChanged).toBe(true);
+      expect(view.canSave).toBe(true);
+    });
+
+    it("mudar só o ID externo liga canSave", () => {
+      const view = viewOf({ ...original, externalId: "2002" });
+      expect(view.isChanged).toBe(true);
+      expect(view.canSave).toBe(true);
+    });
+
+    it("trocar a ordem de dois apelidos liga canSave", () => {
+      const view = viewOf({ ...original, aliases: ["Dois", "Um"] });
+      expect(view.isChanged).toBe(true);
+      expect(view.canSave).toBe(true);
+    });
+  });
+
+  describe("validateStopEdit: ID externo repetido com caixa diferente", () => {
+    const base = { name: "Rua Exemplo", note: null, aliases: [] };
+
+    it("ab-1 digitado contra AB-1 de outro ponto devolve o erro de duplicado", () => {
+      const res = validateStopEdit({ ...base, externalId: "ab-1", others: [{ id: "s1", name: "Estação", externalId: "AB-1" }] });
+      expect(res).toEqual({ ok: false, errors: { externalId: { duplicateOf: "Estação" } } });
+    });
+
+    it("AB-1 digitado contra ab-1 de outro ponto também devolve o erro de duplicado", () => {
+      const res = validateStopEdit({ ...base, externalId: "AB-1", others: [{ id: "s1", name: "Estação", externalId: "ab-1" }] });
+      expect(res).toEqual({ ok: false, errors: { externalId: { duplicateOf: "Estação" } } });
+    });
+  });
+});
