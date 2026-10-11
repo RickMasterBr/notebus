@@ -10,7 +10,6 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import type { DayTypeCode } from "@notebus/domain";
 import { createContext, useContext, useRef, useState } from "react";
 import {
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -33,6 +32,7 @@ import { useToast } from "../data/ToastProvider";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { Chip } from "../ui/Chip";
+import { PickerModal } from "../ui/PickerModal";
 import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
@@ -250,40 +250,24 @@ export function OverrideSheet({ id }: { id: number }) {
         {/* DateTimePicker nativo */}
         {showDatePicker &&
           (Platform.OS === "ios" ? (
-            <Modal
-              transparent
-              animationType="fade"
+            <PickerModal
               visible={showDatePicker}
-              onRequestClose={() => setShowDatePicker(false)}
+              onClose={() => setShowDatePicker(false)}
+              doneLabel={t("alarm.repeat.done")}
+              onDone={() => setShowDatePicker(false)}
             >
-              <Pressable style={styles.modalOverlay} onPress={() => setShowDatePicker(false)}>
-                <Pressable
-                  style={[styles.modalBox, { backgroundColor: colors.surface }]}
-                  onPress={(e) => e.stopPropagation()}
-                >
-                  <DateTimePicker
-                    value={chosenDate}
-                    mode="date"
-                    display="inline"
-                    textColor={colors.text}
-                    onChange={(_event: DateTimePickerEvent, date?: Date) => {
-                      if (date) {
-                        setChosenDate(date);
-                      }
-                    }}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setShowDatePicker(false)}
-                    style={[styles.modalDoneButton, { backgroundColor: colors.fill }]}
-                  >
-                    <Text style={[type.bodyStrong, { color: colors.text }]}>
-                      {t("alarm.repeat.done")}
-                    </Text>
-                  </Pressable>
-                </Pressable>
-              </Pressable>
-            </Modal>
+              <DateTimePicker
+                value={chosenDate}
+                mode="date"
+                display="inline"
+                textColor={colors.text}
+                onChange={(_event: DateTimePickerEvent, date?: Date) => {
+                  if (date) {
+                    setChosenDate(date);
+                  }
+                }}
+              />
+            </PickerModal>
           ) : (
             <DateTimePicker
               value={chosenDate}
@@ -342,25 +326,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: space.md,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: space.md,
-  },
-  modalBox: {
-    borderRadius: radius.lg,
-    padding: space.md,
-    width: "100%",
-    maxWidth: 360,
-    gap: space.md,
-  },
-  modalDoneButton: {
-    minHeight: minTouch,
-    borderRadius: radius.md,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

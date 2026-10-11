@@ -13,7 +13,7 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import type { DayTypeCode } from "@notebus/domain";
 import { createContext, useContext, useMemo, useRef, useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDeclaredTimes } from "../data/DeclaredTimesProvider";
 import { useNow } from "../data/NowProvider";
@@ -28,6 +28,7 @@ import { type MessageKey, t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { Chip } from "../ui/Chip";
 import { LineBadge } from "../ui/LineBadge";
+import { PickerModal } from "../ui/PickerModal";
 import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
@@ -318,33 +319,26 @@ export function DeclareSheet({ id, stopId }: { id: number; stopId: string }) {
         {/* Seletor de hora nativo */}
         {showPicker &&
           (Platform.OS === "ios" ? (
-            <Modal transparent animationType="fade" visible={showPicker} onRequestClose={() => setShowPicker(false)}>
-              <Pressable style={[styles.modalOverlay, { backgroundColor: colors.scrim }]} onPress={() => setShowPicker(false)}>
-                <Pressable style={[styles.modalBox, { backgroundColor: colors.surface }]} onPress={(e) => e.stopPropagation()}>
-                  <DateTimePicker
-                    value={pickerDate}
-                    mode="time"
-                    is24Hour
-                    display="spinner"
-                    textColor={colors.text}
-                    onChange={(_event: DateTimePickerEvent, date?: Date) => {
-                      if (date) setPickerDate(date);
-                    }}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("alarm.repeat.done")}
-                    onPress={() => {
-                      setHour({ hour: pickerDate.getHours(), minute: pickerDate.getMinutes() });
-                      setShowPicker(false);
-                    }}
-                    style={[styles.modalDoneButton, { backgroundColor: colors.fill }]}
-                  >
-                    <Text style={[type.bodyStrong, { color: colors.text }]}>{t("alarm.repeat.done")}</Text>
-                  </Pressable>
-                </Pressable>
-              </Pressable>
-            </Modal>
+            <PickerModal
+              visible={showPicker}
+              onClose={() => setShowPicker(false)}
+              doneLabel={t("alarm.repeat.done")}
+              onDone={() => {
+                setHour({ hour: pickerDate.getHours(), minute: pickerDate.getMinutes() });
+                setShowPicker(false);
+              }}
+            >
+              <DateTimePicker
+                value={pickerDate}
+                mode="time"
+                is24Hour
+                display="spinner"
+                textColor={colors.text}
+                onChange={(_event: DateTimePickerEvent, date?: Date) => {
+                  if (date) setPickerDate(date);
+                }}
+              />
+            </PickerModal>
           ) : (
             <DateTimePicker
               value={pickerDate}
@@ -384,7 +378,4 @@ const styles = StyleSheet.create({
   partialHint: { textAlign: "center" },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.6 },
-  modalOverlay: { flex: 1, justifyContent: "center", alignItems: "center", padding: space.md },
-  modalBox: { borderRadius: radius.lg, padding: space.md, width: "100%", maxWidth: 360, gap: space.md },
-  modalDoneButton: { minHeight: minTouch, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
 });
