@@ -16,6 +16,7 @@ import { useReloadStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
 import { officialTag, stopSecondary } from "../data/networkView";
 import { NEW_LINE_ID } from "../data/lineForm";
+import { lineDeleteRefusalText } from "../data/lineManage";
 import { NEW_STOP_ID } from "../data/stopEdit";
 import { deleteRefusalText, isDeleteAction } from "../data/stopManage";
 import {
@@ -24,6 +25,7 @@ import {
   listLines,
   listStops,
 } from "../db/networkList";
+import { deleteLine } from "../db/lineDelete";
 import { getSharedDb } from "../db/sharedDb";
 import { deleteStop } from "../db/stopDelete";
 import { t } from "../i18n";
@@ -217,6 +219,34 @@ export function NetworkSheet({ id }: { id: number }) {
     [db, now, toast, reloadAll],
   );
 
+  const handleDeleteLine = useCallback(
+    async (item: NetworkLineItem) => {
+      if (!db) return;
+      const result = await deleteLine(db, item.id, now());
+      if (!result.ok) {
+        const text = lineDeleteRefusalText(result.reason, "usage" in result ? result.usage : undefined);
+        toast.show({ title: t(text.key, text.params), kind: "error", haptic: "error" });
+        return;
+      }
+      await reloadAll();
+      toast.show({
+        title: t("line_delete.done"),
+        haptic: "success",
+        action: {
+          label: t("toast.action.undo"),
+          run: async () => {
+            const undone = await result.undo(now());
+            await reloadAll();
+            if (!undone.ok) {
+              toast.show({ title: t("line_create.error.stale"), kind: "error", haptic: "error" });
+            }
+          },
+        },
+      });
+    },
+    [db, now, toast, reloadAll],
+  );
+
   const handleWillOpen = useCallback((methods: SwipeableMethods) => {
     activeSwipeable.current = openSingleSwipeable(activeSwipeable.current, methods);
   }, []);
@@ -282,41 +312,14 @@ export function NetworkSheet({ id }: { id: number }) {
       }
 
       if (item.type === "line") {
-        const line = item.line;
-        const patternText =
-          line.patternCount === 1
-            ? t("net.line.patterns_one")
-            : t("net.line.patterns_other", { n: line.patternCount });
-        const a11yLabel = t("net.line.a11y", {
-          code: line.code,
-          name: line.name,
-          patterns: patternText,
-        });
-
         return (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={a11yLabel}
-            onPress={() => handleLinePress(line.id)}
-            style={({ pressed }) => [
-              styles.row,
-              { borderBottomColor: colors.divider },
-              pressed && styles.rowPressed,
-            ]}
-          >
-            <LineBadge code={line.code} color={line.color} />
-            <View style={styles.rowContent}>
-              <Text style={[type.body, { color: colors.text, flexShrink: 1 }]}>{line.name}</Text>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>{patternText}</Text>
-            </View>
-            {officialTag(line.source) && (
-              <View style={[styles.officialTag, { backgroundColor: colors.fill }]}>
-                <Text style={[type.caption, { color: colors.textSecondary }]}>
-                  {t("net.official")}
-                </Text>
-              </View>
-            )}
-          </Pressable>
+          <LineRow
+            line={item.line}
+            onPress={handleLinePress}
+            onDelete={(line) => void handleDeleteLine(line)}
+            onWillOpen={handleWillOpen}
+            onClose={handleSwipeClose}
+          />
         );
       }
 
@@ -334,7 +337,7 @@ export function NetworkSheet({ id }: { id: number }) {
 
       return null;
     },
-    [colors, handleLinePress, handleStopPress, handleNewStopPress, handleDelete, handleWillOpen, handleSwipeClose],
+    [colors, handleLinePress, handleStopPress, handleNewStopPress, handleDelete, handleDeleteLine, handleWillOpen, handleSwipeClose],
   );
 
   return (
@@ -448,6 +451,85 @@ function StopRow({
         {officialTag(stop.source) && (
           <View style={[styles.officialTag, { backgroundColor: colors.fill }]}>
             <Text style={[type.caption, { color: colors.textSecondary }]}>{t("net.official")}</Text>
+          </View>
+        )}
+      </Pressable>
+    </ReanimatedSwipeable>
+  );
+}
+
+function LineRow({
+  line,
+  onPress,
+  onDelete,
+  onWillOpen,
+  onClose,
+}: {
+  line: NetworkLineItem;
+  onPress: (lineId: string) => void;
+  onDelete: (line: NetworkLineItem) => void;
+  onWillOpen: (methods: SwipeableMethods) => void;
+  onClose: (methods: SwipeableMethods) => void;
+}) {
+  const { colors } = useTheme();
+  const swipeableRef = useRef<SwipeableMethods>(null);
+  const patternText =
+    line.patternCount === 1
+      ? t("net.line.patterns_one")
+      : t("net.line.patterns_other", { n: line.patternCount });
+  const a11yLabel = t("net.line.a11y", {
+    code: line.code,
+    name: line.name,
+    patterns: patternText,
+  });
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeableRef}
+      onSwipeableWillOpen={() => {
+        if (swipeableRef.current) onWillOpen(swipeableRef.current);
+      }}
+      onSwipeableClose={() => {
+        if (swipeableRef.current) onClose(swipeableRef.current);
+      }}
+      renderRightActions={(_progress, _translation, swipeableMethods) => (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("line_delete.action")}
+          onPress={() => {
+            swipeableMethods.close();
+            onDelete(line);
+          }}
+          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+        >
+          <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>{t("line_delete.action")}</Text>
+        </Pressable>
+      )}
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={a11yLabel}
+        accessibilityActions={[{ name: "delete", label: t("line_delete.action") }]}
+        onAccessibilityAction={(event) => {
+          if (isDeleteAction(event.nativeEvent.actionName)) onDelete(line);
+        }}
+        onPress={() => onPress(line.id)}
+        style={({ pressed }) => [
+          styles.row,
+          { borderBottomColor: colors.divider, backgroundColor: colors.bg },
+          pressed && styles.rowPressed,
+        ]}
+      >
+        <LineBadge code={line.code} color={line.color} />
+        <View style={styles.rowContent}>
+          <Text style={[type.body, { color: colors.text, flexShrink: 1 }]}>{line.name}</Text>
+          <Text style={[type.caption, { color: colors.textSecondary }]}>{patternText}</Text>
+        </View>
+        {officialTag(line.source) && (
+          <View style={[styles.officialTag, { backgroundColor: colors.fill }]}>
+            <Text style={[type.caption, { color: colors.textSecondary }]}>
+              {t("net.official")}
+            </Text>
           </View>
         )}
       </Pressable>
