@@ -188,3 +188,40 @@ describe("searchLines: ordem numérica e código com letra", () => {
     expect(searchLines(lettered, "7A").map((l) => l.code)).toEqual(["7A"]);
   });
 });
+
+describe("searchLines: lacunas do 12b", () => {
+  const codes = (lines: { id: string; code: string; name: string }[], term: string) =>
+    searchLines(lines, term).map((l) => l.code);
+
+  it("a: o prefixo L só vale se o termo acaba no código ('l1 sul' não casa a linha 1)", () => {
+    const lines = [
+      { id: "a", code: "1", name: "Linha Norte" },
+      { id: "b", code: "12", name: "Modelo 1 Sul" },
+    ];
+    expect(codes(lines, "l1 sul")).toEqual([]);
+  });
+
+  it("b: código com sublinhado casa depois do L", () => {
+    expect(codes([{ id: "a", code: "7_A", name: "Rota Sete" }], "l7_a")).toEqual(["7_A"]);
+  });
+
+  it("c: código com hífen casa depois do L", () => {
+    expect(codes([{ id: "a", code: "7-A", name: "Rota Sete" }], "l7-a")).toEqual(["7-A"]);
+  });
+
+  it("d: código igual ao termo vem antes de quem só começa com ele", () => {
+    const lines = [
+      { id: "a", code: "5", name: "Zeta" },
+      { id: "b", code: "4", name: "L5 Centro" },
+    ];
+    expect(codes(lines, "l5")).toEqual(["5", "4"]);
+  });
+
+  it("e: a segunda leitura melhora a faixa de quem só casa no nome", () => {
+    const lines = [
+      { id: "a", code: "6", name: "Rota L6" },
+      { id: "b", code: "3", name: "L6 Centro" },
+    ];
+    expect(codes(lines, "l6")).toEqual(["6", "3"]);
+  });
+});
