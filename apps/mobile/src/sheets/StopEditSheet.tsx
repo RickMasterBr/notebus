@@ -517,9 +517,13 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                           accessibilityRole="button"
                           accessibilityLabel={t("map_pick.open.stop.a11y")}
                           onPress={() => setPickerVisible(true)}
-                          style={[styles.smallActionButton, { backgroundColor: colors.fill }]}
+                          style={[
+                            styles.smallActionButton,
+                            locationView.canRemove && styles.locationButtonHalf,
+                            { backgroundColor: colors.fill },
+                          ]}
                         >
-                          <Text style={[type.bodyStrong, { color: colors.accent }]}>
+                          <Text style={[type.bodyStrong, { color: colors.accent, textAlign: "center" }]}>
                             {t("map_pick.open")}
                           </Text>
                         </Pressable>
@@ -528,9 +532,13 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                             accessibilityRole="button"
                             accessibilityLabel={t("stop_new.location.remove")}
                             onPress={() => setLocation(null)}
-                            style={[styles.smallActionButton, { backgroundColor: colors.fill }]}
+                            style={[
+                              styles.smallActionButton,
+                              locationView.canRemove && styles.locationButtonHalf,
+                              { backgroundColor: colors.fill },
+                            ]}
                           >
-                            <Text style={[type.bodyStrong, { color: colors.danger }]}>
+                            <Text style={[type.bodyStrong, { color: colors.danger, textAlign: "center" }]}>
                               {t("stop_new.location.remove")}
                             </Text>
                           </Pressable>
@@ -686,12 +694,15 @@ const styles = StyleSheet.create({
   locationButtonsRow: {
     flexDirection: "row",
     gap: space.sm,
-    flexWrap: "wrap",
     marginTop: space.xs,
+  },
+  locationButtonHalf: {
+    flex: 1,
   },
   smallActionButton: {
     minHeight: minTouch,
     paddingHorizontal: space.md,
+    paddingVertical: space.xs,
     borderRadius: radius.md,
     justifyContent: "center",
     alignItems: "center",
