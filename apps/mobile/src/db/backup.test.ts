@@ -113,8 +113,8 @@ describe("T-23: ida e volta", () => {
     await dst.registro.refreshDeductions(SCENARIO_NOW);
     const after = userRows(dst);
     for (const t of BACKUP_TABLES) expect([t, after[t]]).toEqual([t, before[t]]);
-    // Estado do aparelho não veio.
-    expect(await readSettingNumber(dst.raw, LAST_EXPORT_AT)).toBeNull();
+    // A data do último backup vem do arquivo (D-187); first_run_done continua sem vir.
+    expect(await readSettingNumber(dst.raw, LAST_EXPORT_AT)).toBe(Date.parse(preview.file.exportedAt));
     expect(all(dst, "SELECT 1 FROM setting WHERE `key` = 'first_run_done'", [])).toEqual([]);
   });
 });

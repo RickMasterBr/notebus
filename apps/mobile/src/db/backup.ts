@@ -21,6 +21,7 @@ import {
   type Orphan,
   findOrphans,
   planMerge,
+  uuidv7,
 } from "@notebus/domain";
 import type { ImportDb } from "./importMobilis";
 import { type BackupStore, pruneBackups } from "./migrate";
@@ -205,6 +206,23 @@ async function overwriteRow(db: ImportDb, table: BackupTableName, id: string, ro
 }
 
 /**
+ * D-187: importar herda a data do último backup do arquivo. Nunca recua e nunca passa de "agora"; data ilegível não grava.
+ * A linha entra no Desfazer, mas não nos totais da importação.
+ */
+async function inheritLastExport(db: ImportDb, file: BackupFile, now: number, undo: ImportUndo): Promise<void> {
+  const fileAt = Date.parse(file.exportedAt);
+  if (!Number.isFinite(fileAt)) return;
+  const before = (await all(db, `SELECT ${selectColumns("setting")} FROM ${q("setting")} WHERE ${q("key")} = ?`, [LAST_EXPORT_AT]))[0];
+  const previous = await readSettingNumber(db, LAST_EXPORT_AT);
+  const next = Math.max(previous ?? -Infinity, Math.min(fileAt, now));
+  if (next === previous) return;
+  let newId = "";
+  await writeSettingNumber(db, LAST_EXPORT_AT, next, now, () => (newId = uuidv7(now)));
+  if (before) undo.replaced.push({ table: "setting", id: String(before.id), before: asRow(before) });
+  else undo.inserted.push({ table: "setting", id: newId });
+}
+
+/**
  * Grava um backup já validado (`parseBackup` ok). Cópia do banco antes; uma transação só; falhou no meio → nada fica
  * gravado e o erro sobe. Devolve o que o Desfazer precisa.
  */
@@ -244,6 +262,7 @@ export async function importBackup(
         requeued++;
       }
     }
+    await inheritLastExport(db, file, opts.now, undo);
     await db.exec("COMMIT");
     return { summary: plan.total, byTable: plan.byTable, orphans, undo, copyName, requeued };
   } catch (error) {
