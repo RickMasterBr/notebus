@@ -4,12 +4,14 @@
  * Cada viagem tem horário só na primeira e na última posição; o resto o domínio interpola (`baseTimeAt`).
  * Os horários são `origin = "official"` de propósito: `declared` é o horário que a pessoa pode remover, e removê-lo
  * apagaria a viagem por baixo (declaredTimes.removeDeclared).
- * Uma transação só: tudo ou nada. O Desfazer apaga logicamente tudo que foi criado, e só se ninguém mexeu na linha.
+ * Uma transação só: tudo ou nada. O Desfazer apaga logicamente tudo que foi criado, e só se ninguém mexeu na linha
+ * e nada a usa (registro ou trajeto vivos, T-129): senão apagaria uma linha em uso.
  */
 import { lisbonWallClock, uuidv7 } from "@notebus/domain";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { validateLineDraft, type LineDraft } from "../data/lineDraft";
 import { inTransaction, type AnyDb } from "./inTransaction";
+import { isLineUnused, lineUsage } from "./lineUsage";
 import { selectLive } from "./query";
 import {
   dayType,
@@ -210,6 +212,7 @@ export async function createLine(
         const [currentPattern] = await selectLive(db, pattern, eq(pattern.id, created.pattern));
         if (!currentLine || !currentPattern) return { ok: false, reason: "stale" };
         if (currentLine.updatedAt !== nowMs || currentPattern.updatedAt !== nowMs) return { ok: false, reason: "stale" };
+        if (!isLineUnused(await lineUsage(db, created.line))) return { ok: false, reason: "stale" };
 
         const deletedAt = Math.max(undoNowMs, nowMs + 1);
         await softDelete(db, line, [created.line], deletedAt);
