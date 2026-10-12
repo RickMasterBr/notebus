@@ -34,13 +34,16 @@ import {
   type StopEditOther,
 } from "../data/stopEdit";
 import { newStopDraft } from "../data/stopManage";
+import { buildNewStopValues, newStopLocationView } from "../data/stopNewLocation";
 import { createSubmitGuard } from "../data/submitGuard";
 import { selectLive } from "../db/query";
 import { stop } from "../db/schema";
 import { getSharedDb } from "../db/sharedDb";
 import { createStop } from "../db/stopCreate";
 import { saveStopEdit } from "../db/stopEdit";
+import type { StopPoint } from "../db/stopLocation";
 import { t } from "../i18n";
+import { MapPicker } from "../screens/MapPicker";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CrossGlyph } from "../ui/Glyphs";
 import { Skeleton } from "../ui/Skeleton";
@@ -113,6 +116,10 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
 
   const [newAliasText, setNewAliasText] = useState("");
   const [aliasError, setAliasError] = useState<AliasRefusal | null>(null);
+
+  const [location, setLocation] = useState<StopPoint | null>(null);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const locationView = newStopLocationView(location);
 
   useEffect(() => {
     let active = true;
@@ -220,12 +227,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
       const result = isNew
         ? await createStop(
             db,
-            {
-              name: draft.name,
-              aliases: committed.aliases,
-              externalId: draft.externalId,
-              note: draft.note,
-            },
+            buildNewStopValues(draft, committed.aliases, location),
             nowMs,
           )
         : await saveStopEdit(
@@ -499,8 +501,43 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                     ) : null}
                   </View>
 
-                  {/* 5. Localização (só de leitura; o ponto novo ainda não tem) */}
-                  {isNew ? null : (
+                  {/* 5. Localização */}
+                  {isNew ? (
+                    <View style={styles.section}>
+                      <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
+                        {t("stop_edit.location")}
+                      </Text>
+                      <View style={[styles.readOnlyRow, { backgroundColor: colors.fill }]}>
+                        <Text style={[type.body, { color: colors.textSecondary }]}>
+                          {t(locationView.statusKey)}
+                        </Text>
+                      </View>
+                      <View style={styles.locationButtonsRow}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t("map_pick.open.stop.a11y")}
+                          onPress={() => setPickerVisible(true)}
+                          style={[styles.smallActionButton, { backgroundColor: colors.fill }]}
+                        >
+                          <Text style={[type.bodyStrong, { color: colors.accent }]}>
+                            {t("map_pick.open")}
+                          </Text>
+                        </Pressable>
+                        {locationView.canRemove ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("stop_new.location.remove")}
+                            onPress={() => setLocation(null)}
+                            style={[styles.smallActionButton, { backgroundColor: colors.fill }]}
+                          >
+                            <Text style={[type.bodyStrong, { color: colors.danger }]}>
+                              {t("stop_new.location.remove")}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    </View>
+                  ) : (
                     <View style={styles.section}>
                       <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
                         {t("stop_edit.location")}
@@ -549,6 +586,16 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
             </Pressable>
           </View>
         </View>
+
+        <MapPicker
+          visible={pickerVisible}
+          existing={location}
+          onCancel={() => setPickerVisible(false)}
+          onConfirm={(point) => {
+            setLocation(point);
+            setPickerVisible(false);
+          }}
+        />
       </StackedSheet>
     </HeightContext.Provider>
   );
@@ -635,6 +682,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: space.md,
     justifyContent: "center",
+  },
+  locationButtonsRow: {
+    flexDirection: "row",
+    gap: space.sm,
+    flexWrap: "wrap",
+    marginTop: space.xs,
+  },
+  smallActionButton: {
+    minHeight: minTouch,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    justifyContent: "center",
+    alignItems: "center",
   },
   footer: {
     paddingTop: space.sm,

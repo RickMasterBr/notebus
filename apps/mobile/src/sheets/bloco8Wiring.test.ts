@@ -41,9 +41,15 @@ describe("item 0: lacunas do bloco 7", () => {
     );
   });
 
-  it("0.4: seção Localização é omitida quando isNew é verdadeiro", () => {
+  it("0.4: seção Localização é exibida no modo isNew com statusKey, botão Marcar no mapa e MapPicker", () => {
     expect(stopEditSheet).toContain(
-      '{isNew ? null : ( <View style={styles.section}> <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}> {t("stop_edit.location")} </Text>',
+      "t(locationView.statusKey)",
+    );
+    expect(stopEditSheet).toContain(
+      'accessibilityLabel={t("map_pick.open.stop.a11y")} onPress={() => setPickerVisible(true)}',
+    );
+    expect(stopEditSheet).toContain(
+      '<MapPicker visible={pickerVisible} existing={location} onCancel={() => setPickerVisible(false)} onConfirm={(point) => { setLocation(point); setPickerVisible(false); }}',
     );
   });
 });

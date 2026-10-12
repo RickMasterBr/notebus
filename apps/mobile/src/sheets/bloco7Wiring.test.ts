@@ -78,7 +78,7 @@ describe("item 3: Novo ponto", () => {
     const draftFields =
       "{ name: draft.name, aliases: committed.aliases, externalId: draft.externalId, note: draft.note, }";
     expect(stopEditSheet).toContain(
-      `const result = isNew ? await createStop( db, ${draftFields}, nowMs, ) : await saveStopEdit( db, stopId, ${draftFields}, nowMs, );`,
+      `const result = isNew ? await createStop( db, buildNewStopValues(draft, committed.aliases, location), nowMs, ) : await saveStopEdit( db, stopId, ${draftFields}, nowMs, );`,
     );
     expect(stopEditSheet.match(/createStop\(/g)).toHaveLength(1);
     expect(stopEditSheet.match(/saveStopEdit\(/g)).toHaveLength(1);
