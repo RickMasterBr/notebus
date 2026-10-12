@@ -1,7 +1,7 @@
 /** Estado da pilha de folhas para a árvore de componentes. A lógica está em `stack.ts` (testada no Node). */
 import { useNow } from "../data/NowProvider";
 import { notifyPendingIntent, onPendingIntent, peekPendingIntent, takePendingIntent } from "../notifications/pendingIntent";
-import { DIAG_SCROLL, recordCloseRequest, recordOpenRequest } from "./diagScroll";
+import { DIAG_SCROLL, recordCloseRequest, recordDiagEvent, recordOpenRequest } from "./diagScroll";
 import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
 import { type SheetAction, type SheetContent, type SheetStackState, initialSheetState, sheetReducer } from "./stack";
 
@@ -63,6 +63,20 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
     if (DIAG_SCROLL && action.type === "close") {
       const closing = stateRef.current.stack.find((e) => e.id === action.id);
       recordCloseRequest(action.id, closing ? closing.kind : "desconhecido");
+    }
+    if (DIAG_SCROLL && action.type === "close") {
+      const top = stateRef.current.stack[stateRef.current.stack.length - 1];
+      if (top && action.id !== top.id) {
+        const target = stateRef.current.stack.find((e) => e.id === action.id);
+        const targetKind = target ? target.kind : "desconhecido";
+        recordDiagEvent(`fechar ignorado ${targetKind}#${action.id} (topo=${top.kind}#${top.id})`);
+      }
+    }
+
+    if (DIAG_SCROLL && action.type === "replace") {
+      const top = stateRef.current.stack[stateRef.current.stack.length - 1];
+      const oldKind = top ? top.kind : "desconhecido";
+      recordDiagEvent(`trocar ${oldKind} > ${action.sheet.kind}`);
     }
     rawDispatch(action);
   }, []);

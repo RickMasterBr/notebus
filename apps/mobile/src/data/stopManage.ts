@@ -40,3 +40,8 @@ export function deleteRefusalText(reason: DeleteRefusal, usage?: StopUsage): Ref
   if (!first) return { key: "stop_delete.error" };
   return first.n === 1 ? { key: IN_USE[first.kind].one } : { key: IN_USE[first.kind].other, params: { n: first.n } };
 }
+
+export function isDeleteAction(actionName: string): boolean {
+  return actionName === "delete";
+}
+
