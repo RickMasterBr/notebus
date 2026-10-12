@@ -72,3 +72,13 @@ describe("submitLineForm: paragens", () => {
     expect(touched).toBe(false);
   });
 });
+
+describe("lineFormView: identidade da paragem é o id, não o nome (D-186)", () => {
+  const withStops = (stops: { id: string; name: string }[]): LineFormState => ({ ...validState([S, K]), stops });
+  it("dois pontos diferentes com o mesmo nome podem salvar", () => {
+    expect(lineFormView(withStops([{ id: "x", name: "Largo Igual" }, { id: "y", name: "Largo Igual" }])).canSave).toBe(true);
+  });
+  it("o mesmo id com nomes diferentes não salva", () => {
+    expect(lineFormView(withStops([{ id: "x", name: "Largo Igual" }, { id: "x", name: "Largo Outro" }])).canSave).toBe(false);
+  });
+});
