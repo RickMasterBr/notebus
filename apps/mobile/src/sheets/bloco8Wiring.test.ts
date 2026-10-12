@@ -55,8 +55,8 @@ describe("item 0: lacunas do bloco 7", () => {
 });
 
 describe("item 1.5: guardas do diagnóstico", () => {
-  it("diagScroll.tsx exporta DIAG_SCROLL = true", () => {
-    expect(diagScroll).toContain("export const DIAG_SCROLL = true;");
+  it("diagScroll.tsx exporta DIAG_SCROLL = false", () => {
+    expect(diagScroll).toContain("export const DIAG_SCROLL = false;");
   });
 
   it("SheetsContext.tsx registra fechamento ignorado e troca antes de rawDispatch", () => {
