@@ -90,5 +90,12 @@ describe("bloco11bWiring: guardas de ligação (Item 4)", () => {
         "<MapPicker visible={pickerVisible} existing={location} onCancel={() => setPickerVisible(false)} onConfirm={(point) => { setLocation(point); setPickerVisible(false); }}",
       );
     });
+
+    it("o botão Remover localização liga o onPress a setLocation(null), uma vez só", () => {
+      expect(stopEditSheet).toContain(
+        'accessibilityLabel={t("stop_new.location.remove")} onPress={() => setLocation(null)}',
+      );
+      expect(stopEditSheet.split("setLocation(null)").length - 1).toBe(1);
+    });
   });
 });

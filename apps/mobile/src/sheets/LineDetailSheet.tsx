@@ -10,6 +10,7 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-na
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNow } from "../data/NowProvider";
 import { useSchedule } from "../data/ScheduleProvider";
+import { lineProfile, lineProfileText } from "../data/lineProfile";
 import { baseTimes, controlPositions, officialTag, validFromText } from "../data/networkView";
 import {
   type NetworkLineItem,
@@ -114,6 +115,11 @@ export function LineDetailSheet({ id, lineId }: { id: number; lineId: string }) 
     });
   }, [snapshot, activePatternId, selectedDayType, todayLisbon]);
 
+  const profile = useMemo(
+    () => lineProfile({ patterns, snapshot, dayType: selectedDayType, todayLisbon }),
+    [patterns, snapshot, selectedDayType, todayLisbon],
+  );
+
   const handleStopPress = useCallback(
     (stopId: string, name: string) => {
       dispatch({ type: "push", sheet: { kind: "stop", stopId, name } });
@@ -174,6 +180,8 @@ export function LineDetailSheet({ id, lineId }: { id: number; lineId: string }) 
               ]}
               showsVerticalScrollIndicator={false}
             >
+              <Text style={[type.caption, { color: colors.textSecondary }]}>{lineProfileText(profile)}</Text>
+
               {/* Seção Percursos */}
               {patterns.map((pat) => {
                 const snapPattern = snapshot?.patterns.find((p) => p.id === pat.id);
