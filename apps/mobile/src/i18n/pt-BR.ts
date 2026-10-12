@@ -686,6 +686,72 @@ export const ptBR = {
   "stop_delete.in_use_options_other": "Este ponto tem {{n}} trajetos. Apague os trajetos antes", // provisório
   "stop_delete.in_use_lines_one": "Este ponto tem 1 linha. Apague a linha antes", // provisório
   "stop_delete.in_use_lines_other": "Este ponto tem {{n}} linhas. Apague as linhas antes", // provisório
+  // E-08 Bloco 11: Nova linha
+  "net.line.new": "Nova linha", // provisório
+  "line_create.title": "Nova linha", // provisório
+  "line_create.code": "Código", // provisório
+  "line_create.name": "Nome da linha", // provisório
+  "line_create.color": "Cor", // provisório
+  "line_create.pattern": "Percurso", // provisório
+  "line_create.pattern_label": "Nome do percurso", // provisório
+  "line_create.circular": "Circular", // provisório
+  "line_create.stops": "Paragens", // provisório
+  "line_create.stop.add": "Adicionar paragem", // provisório
+  "line_create.stop.move_up": "Subir", // provisório
+  "line_create.stop.move_down": "Descer", // provisório
+  "line_create.stop.remove": "Remover", // provisório
+  "line_create.duration": "Duração da viagem, em minutos", // provisório
+  "line_create.duration.helper": "Tempo da primeira à última paragem", // provisório
+  "line_create.days": "Dias", // provisório
+  "line_create.departures_section": "Saídas", // provisório
+  "line_create.mode.departures": "Horários avulsos", // provisório
+  "line_create.mode.frequency": "A cada X minutos", // provisório
+  "line_create.departure.add": "Adicionar horário", // provisório
+  "line_create.departure.from": "De", // provisório
+  "line_create.departure.to": "Até", // provisório
+  "line_create.frequency.headway": "A cada {{n}} min", // provisório
+  "line_create.button.save": "Criar linha", // provisório
+  "line_create.toast.created": "Linha criada", // provisório
+  "line_create.error.stale": "A linha mudou. Confira e tente de novo.", // provisório
+  "line_create.error.generic": "Não foi possível criar a linha. Tente de novo.", // provisório
+  "line_create.madrugada_hint": "00:00 a 03:59 contam como o fim do dia anterior", // provisório
+  "line_create.color.purple": "Roxo", // provisório
+  "line_create.color.blue": "Azul", // provisório
+  "line_create.color.green": "Verde", // provisório
+  "line_create.color.orange": "Laranja", // provisório
+  "line_create.color.red": "Vermelho", // provisório
+  "line_create.color.pink": "Rosa", // provisório
+  "line_create.color.lime": "Lima", // provisório
+  "line_create.color.cyan": "Ciano", // provisório
+  "line_create.color.a11y": "Cor {{color}}", // provisório
+  "line_create.color.selected_a11y": "Cor {{color}}, selecionada", // provisório
+  "line_create.refusal.code_required": "Dê um código à linha.", // provisório
+  "line_create.refusal.code_too_long": "Código com no máximo {{max}} caracteres.", // provisório
+  "line_create.refusal.name_required": "Dê um nome à linha.", // provisório
+  "line_create.refusal.name_too_long": "Nome com no máximo {{max}} caracteres.", // provisório
+  "line_create.refusal.color_invalid": "Escolha uma cor válida.", // provisório
+  "line_create.refusal.pattern_label_required": "Dê um nome ao percurso.", // provisório
+  "line_create.refusal.pattern_label_too_long": "Nome do percurso com no máximo {{max}} caracteres.", // provisório
+  "line_create.refusal.stops_min": "Escolha pelo menos {{min}} paragens.", // provisório
+  "line_create.refusal.duration_invalid": "A duração vai de 1 a {{max}} minutos.", // provisório
+  "line_create.refusal.day_types_required": "Escolha pelo menos um tipo de dia.", // provisório
+  "line_create.refusal.day_type_invalid": "Tipo de dia inválido.", // provisório
+  "line_create.refusal.times_required": "Informe os horários.", // provisório
+  "line_create.refusal.times_conflict": "Conflito entre horários avulsos e frequência.", // provisório
+  "line_create.refusal.times_invalid": "Horário inválido.", // provisório
+  "line_create.refusal.ref_position_invalid": "A primeira saída ficaria antes das 00:00.", // provisório
+  "line_create.refusal.crosses_cutoff": "Esta faixa passa das 04:00. Crie duas frequências: uma até 03:59 e outra a partir das 04:00.", // provisório
+  "line_create.refusal.invalid_headway": "O intervalo tem de ser de pelo menos 1 minuto.", // provisório
+  "line_create.refusal.invalid_range": "Confira a hora de início e de fim.", // provisório
+  "line_create.refusal.too_many": "No máximo {{max}} saídas por frequência.", // provisório
+  "line_create.refusal.duplicate_code": "Já existe uma linha com este código.", // provisório
+  "line_create.refusal.unknown_stop": "Um dos pontos não existe mais.", // provisório
+  "line_create.refusal.unknown_day_type": "Tipo de dia não reconhecido.", // provisório
+  "line_create.refusal.no_network": "A rede ainda não foi carregada. Tente de novo.", // provisório
+  "line_create.refusal.invalid": "Não foi possível criar a linha. Confira os dados.", // provisório
+  "line_delete.not_found": "(bloco 11b)", // provisório
+  "line_delete.official": "(bloco 11b)", // provisório
+  "line_delete.in_use": "(bloco 11b)", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;
