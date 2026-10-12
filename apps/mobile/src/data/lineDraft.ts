@@ -3,7 +3,7 @@
  * calculadas. Puro, sem banco. Os motivos são códigos; os textos vêm com as telas.
  */
 import type { DayTypeCode } from "@notebus/domain";
-import { departureMinutesFromClock, firstStopMinute, frequencyMinutes, type FrequencyRefusal } from "./frequency";
+import { crossesServiceCutoff, departureMinutesFromClock, firstStopMinute, frequencyMinutes, serviceRange, type FrequencyRefusal } from "./frequency";
 
 export const LINE_LIMITS = {
   codeMax: 6,
@@ -15,7 +15,6 @@ export const LINE_LIMITS = {
 
 const DAY_TYPE_CODES: readonly DayTypeCode[] = ["weekday", "saturday", "sunday_holiday"];
 const COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
-const MINUTES_PER_DAY = 1440;
 
 export type LineDraft = {
   code: string;
@@ -44,6 +43,7 @@ export type LineDraftReason =
   | "times_conflict"
   | "times_invalid"
   | "ref_position_invalid"
+  | "crosses_cutoff"
   | FrequencyRefusal;
 
 /** O rascunho conferido: texto aparado, tipos de dia sem repetição e as saídas em minutos de serviço na 1ª paragem. */
@@ -56,7 +56,7 @@ export type ValidLineDraft = {
   dayTypeCodes: DayTypeCode[];
   /** Minuto de serviço da saída na primeira paragem, em ordem crescente (1440 ou mais = depois da meia-noite). */
   departureMinutes: number[];
-  /** Presente só quando as saídas vêm de uma frequência; `toMinute` já com +1440 se passou da meia-noite. */
+  /** Presente só quando as saídas vêm de uma frequência, em minutos de serviço: `toMinute` com +1440 se passou da meia-noite; os dois com +1440 se o início é antes das 04:00. */
   frequency: { refPosition: number; fromMinute: number; toMinute: number; headwayMinutes: number } | null;
 };
 
@@ -114,17 +114,16 @@ export function validateLineDraft(draft: LineDraft): LineDraftResult {
     } else if (!Number.isInteger(refPosition) || refPosition < 1 || refPosition > stopIds.length) {
       reasons.push("ref_position_invalid");
     } else if (durationOk && stopIds.length >= LINE_LIMITS.stopsMin) {
-      const shifted = generated.minutes.map((m) => firstStopMinute(m, durationMinutes, stopIds.length, refPosition));
-      if (shifted.some((m) => m < 0)) {
+      const clockFirst = firstStopMinute(fromMinute, durationMinutes, stopIds.length, refPosition);
+      if (clockFirst < 0) {
         reasons.push("ref_position_invalid");
+      } else if (crossesServiceCutoff(fromMinute, toMinute)) {
+        reasons.push("crosses_cutoff");
       } else {
+        const shifted = generated.minutes.map((m) => firstStopMinute(m, durationMinutes, stopIds.length, refPosition));
         departureMinutes = shifted;
-        frequency = {
-          refPosition,
-          fromMinute,
-          toMinute: toMinute < fromMinute ? toMinute + MINUTES_PER_DAY : toMinute,
-          headwayMinutes,
-        };
+        const range = serviceRange(fromMinute, toMinute);
+        frequency = { refPosition, fromMinute: range.start, toMinute: range.end, headwayMinutes };
       }
     }
   }

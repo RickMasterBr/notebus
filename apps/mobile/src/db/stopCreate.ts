@@ -1,9 +1,10 @@
 /**
  * Criação de ponto e Desfazer (E-08 §5.4, bloco 7, Item 1).
- * O ponto nasce `source = "user"`, sem chave oficial e sem localização (a localização se faz depois, editando).
+ * O ponto nasce `source = "user"` e sem chave oficial. A localização, se vier (D-184), entra no mesmo INSERT, com o mesmo `updatedAt`:
+ * gravar depois com `saveStopLocation` mudaria o `updatedAt` e o Desfazer responderia `stale`.
  * O Desfazer apaga logicamente, e só se ninguém mexeu no ponto desde a criação.
  */
-import { uuidv7 } from "@notebus/domain";
+import { uuidv7, validateLocation } from "@notebus/domain";
 import { eq } from "drizzle-orm";
 import {
   MAX_NAME_LENGTH,
@@ -14,7 +15,11 @@ import { inTransaction, type AnyDb } from "./inTransaction";
 import { selectLive } from "./query";
 import { network, stop } from "./schema";
 import type { StopEditUndo, StopEditValues } from "./stopEdit";
+import type { StopPoint } from "./stopLocation";
 import { externalIdTaken } from "./stopRules";
+
+/** Valores do "Novo ponto": os da edição e, opcionalmente, o lugar no mapa. */
+export type NewStopValues = StopEditValues & { location?: StopPoint | null };
 
 export type CreateStopRefusal = "invalid" | "duplicate_external_id" | "no_network";
 
@@ -24,7 +29,7 @@ export type CreateStopResult =
 
 export async function createStop(
   db: AnyDb,
-  value: StopEditValues,
+  value: NewStopValues,
   nowMs: number,
   deps: { newId?: (now: number) => string } = {},
 ): Promise<CreateStopResult> {
@@ -36,6 +41,9 @@ export async function createStop(
 
   const externalId = value.externalId?.trim() || null;
   if (externalIdTooLong(externalId, null)) return { ok: false, reason: "invalid" };
+
+  const location = value.location ?? null;
+  if (location !== null && !validateLocation(location, null, "suggested").ok) return { ok: false, reason: "invalid" };
 
   const newId = deps.newId ?? uuidv7;
 
@@ -59,9 +67,9 @@ export async function createStop(
       name,
       aliases: value.aliases,
       externalId,
-      lat: null,
-      lon: null,
-      locationSource: null,
+      lat: location?.lat ?? null,
+      lon: location?.lon ?? null,
+      locationSource: location === null ? null : "manual",
       note,
     });
 
