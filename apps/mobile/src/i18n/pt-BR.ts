@@ -53,12 +53,14 @@ export const ptBR = {
   "first_run.import_invalid": "Não foi possível importar. O arquivo não está no formato esperado.",
   "first_run.import_failed": "Não foi possível importar. Nada foi alterado. Tente de novo.",
   "search.group.stops": "Pontos",
+  "search.group.lines": "Linhas", // provisório
   "search.group.recent": "Recentes",
   "search.empty.prompt": "Pesquise um ponto de ônibus para começar",
   "search.empty.no_results": "Nada encontrado para “{{term}}”",
   "search.clear.a11y": "Limpar busca",
   "search.result.stop.a11y": "{{name}}, linhas {{lines}}",
   "search.result.alias": "apelido: {{alias}}", // provisório
+  "search.result.line.a11y": "Linha {{code}}, {{name}}", // provisório
   "sheet.handle.a11y": "Tamanho da folha",
   "sheet.detent.small": "pequeno",
   "sheet.detent.medium": "médio",
@@ -637,6 +639,8 @@ export const ptBR = {
   "net.pattern.circular": "Circular", // provisório
   "net.pattern.stops_one": "1 paragem", // provisório
   "net.pattern.stops_other": "{{n}} paragens", // provisório
+  "net.profile.trips_one": "1 viagem neste tipo de dia", // provisório
+  "net.profile.trips_other": "{{n}} viagens neste tipo de dia", // provisório
   "net.pattern.control": "ponto de controle", // provisório
   "net.times.title": "Horários-base", // provisório
   "net.times.valid_from": "Vigência desde {{date}}", // provisório

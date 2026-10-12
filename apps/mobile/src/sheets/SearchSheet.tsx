@@ -1,10 +1,11 @@
 /**
  * TL-14 Busca (4.1 §15a; campo em pílula 4.4 §5.9/D-136, linha de lista §5.12, esqueleto §5.17).
- * Acha pontos por nome, apelido ou ID. Antes de digitar (D-137): "Recentes" ou a mensagem de convite. Só o grupo "Pontos": Linhas (E-08) e Lugares (E-05)
- * só entram quando o destino deles existir.
+ * Acha pontos por nome, apelido ou ID e linhas por código ou nome (Q-101; o toque numa linha abre o detalhe TL-11). Antes de digitar
+ * (D-137): "Recentes" ou a mensagem de convite. Grupos "Pontos" e "Linhas"; Lugares (E-05) só entra quando o destino existir.
+ * No modo `pick` só pontos. Linha não entra nos recentes (são de ponto).
  */
 import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
-import { searchStops } from "@notebus/domain";
+import { searchLines, searchStops } from "@notebus/domain";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
@@ -14,17 +15,21 @@ import { useToast } from "../data/ToastProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { matchedAlias } from "../data/matchedAlias";
 import { searchPanel } from "../data/searchPanel";
+import { searchView } from "../data/searchResults";
 import type { StopEntry } from "../data/stopIndex";
 import { stopIdDetail } from "../data/stopIdDetail";
+import { type NetworkLineItem, listLines } from "../db/networkList";
+import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import { minTouch, opacity, space, type, useTheme } from "../theme";
 import { CrossGlyph, SearchGlyph } from "../ui/Glyphs";
+import { LineBadge } from "../ui/LineBadge";
 import { ListRow } from "../ui/ListRow";
 import { pillStyles } from "../ui/SearchPill";
 import { Skeleton } from "../ui/Skeleton";
 import { useReorderTransition } from "../ui/useReorderTransition";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
-import { useStopPick } from "./SheetsContext";
+import { useSheets, useStopPick } from "./SheetsContext";
 import { StackedSheet, useCloseSheet } from "./StackedSheet";
 import { useKeyboardHeight } from "./useKeyboardHeight";
 import { useOpenStop } from "./useOpenStop";
@@ -36,6 +41,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
   // `pick`: a folha Registrar pediu para escolher um ponto ("Trocar"); o toque devolve o ponto e fecha, sem abrir o ponto
   // nem entrar nos recentes.
   const stopPick = useStopPick();
+  const { dispatch } = useSheets();
   const closeSheet = useCloseSheet();
   const toast = useToast();
   const index = useStopIndex();
@@ -44,6 +50,33 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
   const layout = useReorderTransition();
   const input = useRef<React.ComponentRef<typeof BottomSheetTextInput>>(null);
   const [term, setTerm] = useState("");
+  const db = getSharedDb();
+  const [lines, setLines] = useState<NetworkLineItem[]>([]);
+  const [linesReady, setLinesReady] = useState(false);
+
+  // As linhas só mudam pela Rede, que não abre por cima da Busca: carregar na abertura basta. Sem banco ou com erro, a Busca
+  // segue só com pontos (nunca fica esperando as linhas).
+  useEffect(() => {
+    let active = true;
+    if (!db) {
+      setLines([]);
+      setLinesReady(true);
+      return;
+    }
+    listLines(db)
+      .then((rows) => {
+        if (active) setLines(rows);
+      })
+      .catch(() => {
+        if (active) setLines([]);
+      })
+      .finally(() => {
+        if (active) setLinesReady(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [db]);
 
   const typed = term.trim() !== "";
   const loading = (index.status === "loading" && typed) || (!typed && (index.status === "loading" || recent.status === "loading"));
@@ -55,6 +88,15 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
     return recent.ids.flatMap((id) => byId.get(id) ?? []);
   }, [index, recent.ids]);
   const panel = searchPanel(term, recents.length);
+  const lineResults = useMemo(() => searchLines(lines, term), [lines, term]);
+  const view = searchView({
+    term,
+    recentCount: recents.length,
+    pick,
+    stopCount: results.length,
+    lineCount: lineResults.length,
+    linesReady,
+  });
 
   // A mensagem do vazio não é decorativa: o VoiceOver a lê uma vez, quando ela aparece.
   const announced = useRef(false);
@@ -123,6 +165,24 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
     </View>
   );
 
+  const lineRow = (line: NetworkLineItem) => (
+    <ListRow
+      key={line.id}
+      leading={<LineBadge code={line.code} color={line.color} />}
+      title={line.name}
+      accessibilityLabel={t("search.result.line.a11y", { code: line.code, name: line.name })}
+      onPress={() => dispatch({ type: "push", sheet: { kind: "lineDetail", lineId: line.id } })}
+    />
+  );
+  const lineGroup = (title: string, items: NetworkLineItem[]) => (
+    <View>
+      <Text accessibilityRole="header" style={[type.label, styles.group, { color: colors.textSecondary }]}>
+        {title}
+      </Text>
+      {items.map(lineRow)}
+    </View>
+  );
+
   let body: ReactNode = null;
   if (loading || skeleton) body = skeleton ? <Skeleton /> : null;
   else if (panel === "recents") body = group(t("search.group.recent"), recents, true);
@@ -132,8 +192,14 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
         {t("search.empty.prompt")}
       </Text>
     );
-  else if (results.length > 0) body = group(t("search.group.stops"), results);
-  else if (index.status === "ready")
+  else if (view.showStops || view.showLines)
+    body = (
+      <View>
+        {view.showStops ? group(t("search.group.stops"), results) : null}
+        {view.showLines ? lineGroup(t("search.group.lines"), lineResults) : null}
+      </View>
+    );
+  else if (view.showNoResults && index.status === "ready")
     body = (
       <Text style={[type.body, styles.empty, { color: colors.textSecondary }]}>
         {t("search.empty.no_results", { term: term.trim() })}
