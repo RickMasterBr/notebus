@@ -6,7 +6,7 @@ import type { DayTypeCode } from "@notebus/domain";
 import { declaredServiceMinute } from "@notebus/domain";
 import type { AnyDb } from "../db/inTransaction";
 import { createLine, type CreateLineRefusal } from "../db/lineCreate";
-import { LINE_LIMITS, validateLineDraft, type LineDraft, type LineDraftReason } from "./lineDraft";
+import { LINE_LIMITS, stopsIssue, validateLineDraft, type LineDraft, type LineDraftReason } from "./lineDraft";
 import { MAX_FREQUENCY_TRIPS } from "./frequency";
 import { t } from "../i18n";
 import type { MessageKey } from "../i18n/pt-BR";
@@ -223,7 +223,7 @@ export interface LineFormView {
 export function lineFormView(state: LineFormState): LineFormView {
   const codeValid = state.code.trim().length > 0;
   const nameValid = state.name.trim().length > 0;
-  const stopsValid = state.stops.length >= 2;
+  const stopsValid = stopsIssue(state.stops.map((s) => s.id)) === null;
   const dayTypesValid = state.dayTypeCodes.length > 0;
   const timesValid =
     state.mode === "departures"
@@ -284,6 +284,10 @@ export function lineRefusalText(reason: LineFormRefusalReason): {
       return { key: "line_create.refusal.pattern_label_required" };
     case "pattern_label_too_long":
       return { key: "line_create.refusal.pattern_label_too_long", params: { max: LINE_LIMITS.patternLabelMax } };
+    case "stops_distinct":
+      return { key: "line_create.refusal.stops_distinct", params: { min: LINE_LIMITS.stopsMin } };
+    case "stops_adjacent":
+      return { key: "line_create.refusal.stops_adjacent" };
     case "stops_min":
       return { key: "line_create.refusal.stops_min", params: { min: LINE_LIMITS.stopsMin } };
     case "duration_invalid":

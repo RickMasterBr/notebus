@@ -36,6 +36,8 @@ export type LineDraftReason =
   | "pattern_label_required"
   | "pattern_label_too_long"
   | "stops_min"
+  | "stops_distinct"
+  | "stops_adjacent"
   | "duration_invalid"
   | "day_types_required"
   | "day_type_invalid"
@@ -65,6 +67,16 @@ export type LineDraftResult = { ok: true; value: ValidLineDraft } | { ok: false;
 const isClockTime = (t: { hour: number; minute: number }) =>
   Number.isInteger(t.hour) && t.hour >= 0 && t.hour <= 23 && Number.isInteger(t.minute) && t.minute >= 0 && t.minute <= 59;
 
+export type StopsIssue = "stops_min" | "stops_distinct" | "stops_adjacent";
+
+/** Primeiro problema das paragens do percurso, ou null. Circular (A, B, A) vale; a mesma paragem em posições vizinhas não. */
+export function stopsIssue(stopIds: readonly string[]): StopsIssue | null {
+  if (stopIds.length < LINE_LIMITS.stopsMin) return "stops_min";
+  if (new Set(stopIds).size < 2) return "stops_distinct";
+  if (stopIds.some((id, i) => i > 0 && id === stopIds[i - 1])) return "stops_adjacent";
+  return null;
+}
+
 export function validateLineDraft(draft: LineDraft): LineDraftResult {
   const reasons: LineDraftReason[] = [];
 
@@ -84,7 +96,8 @@ export function validateLineDraft(draft: LineDraft): LineDraftResult {
   else if (label.length > LINE_LIMITS.patternLabelMax) reasons.push("pattern_label_too_long");
 
   const stopIds = draft.pattern.stopIds;
-  if (stopIds.length < LINE_LIMITS.stopsMin) reasons.push("stops_min");
+  const stopsProblem = stopsIssue(stopIds);
+  if (stopsProblem) reasons.push(stopsProblem);
 
   const { durationMinutes } = draft;
   const durationOk = Number.isInteger(durationMinutes) && durationMinutes >= 1 && durationMinutes <= LINE_LIMITS.durationMax;
