@@ -239,8 +239,8 @@ export function LineEditSheet({ id }: { id: number }) {
   return (
     <HeightContext.Provider value={setHandleHeight}>
       <StackedSheet id={id} detents={DETENTS}>
-        <View style={{ flex: 1 }}>
-          <View style={{ height: listHeight, overflow: "hidden" }}>
+        <View collapsable={false} style={{ height: scrollAreaHeight, overflow: "hidden" }}>
+          <View collapsable={false} style={{ height: listHeight, overflow: "hidden" }}>
             <BottomSheetScrollView
               contentContainerStyle={[
                 styles.scrollContent,
