@@ -15,6 +15,7 @@ import { useSchedule, useScheduleReload } from "../data/ScheduleProvider";
 import { useReloadStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
 import { officialTag, stopSecondary } from "../data/networkView";
+import { NEW_LINE_ID } from "../data/lineForm";
 import { NEW_STOP_ID } from "../data/stopEdit";
 import { deleteRefusalText, isDeleteAction } from "../data/stopManage";
 import {
@@ -52,6 +53,7 @@ const DETENTS: StackedDetents = { snapPoints: ["95%"], initialIndex: 0, Handle: 
 type NetworkListItem =
   | { type: "header"; id: string; title: string }
   | { type: "empty"; id: string; message: string }
+  | { type: "newLine"; id: string }
   | { type: "newStop"; id: string }
   | { type: "line"; id: string; line: NetworkLineItem }
   | { type: "stop"; id: string; stop: NetworkStopItem };
@@ -103,6 +105,8 @@ export function NetworkSheet({ id }: { id: number }) {
       id: "header-lines",
       title: t("net.section.lines"),
     });
+
+    items.push({ type: "newLine", id: "new-line" });
 
     if (lines.length === 0) {
       items.push({
@@ -170,6 +174,10 @@ export function NetworkSheet({ id }: { id: number }) {
     [dispatch],
   );
 
+  const handleNewLinePress = useCallback(() => {
+    dispatch({ type: "push", sheet: { kind: "lineDetail", lineId: NEW_LINE_ID } });
+  }, [dispatch]);
+
   const handleNewStopPress = useCallback(() => {
     dispatch({ type: "push", sheet: { kind: "stopEdit", stopId: NEW_STOP_ID } });
   }, [dispatch]);
@@ -221,6 +229,23 @@ export function NetworkSheet({ id }: { id: number }) {
 
   const renderItem = useCallback(
     ({ item }: { item: NetworkListItem }) => {
+      if (item.type === "newLine") {
+        return (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("net.line.new")}
+            onPress={handleNewLinePress}
+            style={({ pressed }) => [
+              styles.row,
+              { borderBottomColor: colors.divider },
+              pressed && styles.rowPressed,
+            ]}
+          >
+            <Text style={[type.bodyStrong, { color: colors.accent }]}>{`+ ${t("net.line.new")}`}</Text>
+          </Pressable>
+        );
+      }
+
       if (item.type === "newStop") {
         return (
           <Pressable

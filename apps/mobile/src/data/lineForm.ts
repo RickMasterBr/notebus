@@ -7,8 +7,9 @@ import { declaredServiceMinute } from "@notebus/domain";
 import { LINE_LIMITS, type LineDraft, type LineDraftReason } from "./lineDraft";
 import { MAX_FREQUENCY_TRIPS, type FrequencyRefusal } from "./frequency";
 import type { CreateLineRefusal } from "../db/lineCreate";
-import type { DeleteLineRefusal } from "./stopManage";
 import type { MessageKey } from "../i18n/pt-BR";
+
+export type DeleteLineRefusal = "not_found" | "official" | "in_use";
 
 export const NEW_LINE_ID = "__new__";
 
