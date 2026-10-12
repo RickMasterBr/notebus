@@ -739,6 +739,8 @@ export const ptBR = {
   "line_create.refusal.pattern_label_required": "Dê um nome ao percurso.", // provisório
   "line_create.refusal.pattern_label_too_long": "Nome do percurso com no máximo {{max}} caracteres.", // provisório
   "line_create.refusal.stops_min": "Escolha pelo menos {{min}} paragens.", // provisório
+  "line_create.refusal.stops_distinct": "A linha precisa de pelo menos {{min}} paragens diferentes.", // provisório
+  "line_create.refusal.stops_adjacent": "A mesma paragem não pode aparecer duas vezes seguidas.", // provisório
   "line_create.refusal.duration_invalid": "A duração vai de 1 a {{max}} minutos.", // provisório
   "line_create.refusal.day_types_required": "Escolha pelo menos um tipo de dia.", // provisório
   "line_create.refusal.day_type_invalid": "Tipo de dia inválido.", // provisório
