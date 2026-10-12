@@ -7,7 +7,7 @@
  * por vez no mesmo banco.
  */
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { type BackupProblem, backupReminder, lisbonWallClock, snoozeUntil, uuidv7 } from "@notebus/domain";
+import { type BackupProblem, backupReminder, lisbonWallClock, uuidv7 } from "@notebus/domain";
 import {
   BACKUP_REMINDER_SNOOZED_UNTIL,
   type ImportOutcome,
@@ -20,6 +20,7 @@ import type { ImportDb } from "../db/importMobilis";
 import type { BackupStore } from "../db/migrate";
 import { t } from "../i18n";
 import { type ImportPreview, exportBackup, prepareImport } from "./backupFlow";
+import { reminderSnoozeUntil } from "./backupSnooze";
 import { nativeExportIO, nativeSha256, pickBackupText } from "./backupNative";
 import { useNow } from "./NowProvider";
 import { usePlaces } from "./PlacesProvider";
@@ -102,6 +103,8 @@ export function BackupProvider({
   const nowRef = useRef(now);
   nowRef.current = now;
   const instant = useNowTick();
+  const instantRef = useRef(instant);
+  instantRef.current = instant;
   const toast = useToast();
   const { observations, exclusive, refresh } = useRegistro();
   const recentStops = useRecentStops();
@@ -236,7 +239,7 @@ export function BackupProvider({
     const at = nowRef.current();
     void (async () => {
       try {
-        await exclusive(() => writeSettingNumber(raw, BACKUP_REMINDER_SNOOZED_UNTIL, snoozeUntil(at), at, () => uuidv7(at)));
+        await exclusive(() => writeSettingNumber(raw, BACKUP_REMINDER_SNOOZED_UNTIL, reminderSnoozeUntil({ pressAt: at, shownAt: instantRef.current }), at, () => uuidv7(at)));
       } catch {
         // continua aparecendo; nada se perde
       }
