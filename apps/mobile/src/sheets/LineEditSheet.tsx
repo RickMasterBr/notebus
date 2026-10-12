@@ -165,8 +165,7 @@ export function LineEditSheet({ id }: { id: number }) {
     if (!view.canSave) return;
     await submitGuard.run(async () => {
       if (!db) return;
-      const draft = buildLineDraft(state);
-      const result = await createLine(db, draft, now());
+      const result = await createLine(db, buildLineDraft(state), now());
       if (result.ok) {
         await reloadStopIndex();
         await reloadSchedule();
@@ -192,7 +191,7 @@ export function LineEditSheet({ id }: { id: number }) {
         });
       } else {
         if (result.reason === "invalid") {
-          const validated = validateLineDraft(draft);
+          const validated = validateLineDraft(buildLineDraft(state));
           const firstReason = !validated.ok && validated.reasons.length > 0 ? validated.reasons[0]! : "invalid";
           const refusal = lineRefusalText(firstReason);
           toast.show({
