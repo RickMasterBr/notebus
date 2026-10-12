@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeSearch, searchStops } from "./search";
+import { normalizeSearch, searchLines, searchStops } from "./search";
 
 // Dados inventados.
 const stops = [
@@ -71,5 +71,70 @@ describe("T-31 (plano E-02 §5): dois pontos com o mesmo nome ficam separados", 
     expect(found("9517")).toEqual(["c"]);
     expect(found("9102")).toEqual(["b"]);
     expect(found("norte")).toEqual(["b"]);
+  });
+});
+
+describe("searchLines (Q-101): busca por linha", () => {
+  // Dados inventados.
+  const lines = [
+    { id: "l1", code: "1", name: "Linha Fictícia Norte" },
+    { id: "l2", code: "2", name: "Circular Exemplo" },
+    { id: "l10", code: "10", name: "Expresso Alfa" },
+    { id: "l11", code: "11", name: "Estação Beta" },
+    { id: "l12", code: "12", name: "Modelo 1 Sul" },
+    { id: "l21", code: "21", name: "Ligação 1 Centro" },
+  ];
+  const codes = (term: string) => searchLines(lines, term).map((l) => l.code);
+
+  it.each([
+    ["1", ["1", "10", "11", "12", "21"]],
+    ["2", ["2", "21", "12"]],
+    ["est", ["11"]],
+    ["ESTAÇÃO", ["11"]],
+    ["circ", ["2"]],
+    ["exemplo", ["2"]],
+    ["sul", ["12"]],
+    ["centro", ["21"]],
+    ["1 s", ["12"]],
+    ["", []],
+    ["   ", []],
+    ["zzz", []],
+  ])("termo %j devolve %j", (term, expected) => {
+    expect(codes(term)).toEqual(expected);
+  });
+
+  it("não altera a lista recebida", () => {
+    const copy = lines.map((l) => ({ ...l }));
+    searchLines(lines, "1");
+    expect(lines).toEqual(copy);
+  });
+
+  it("preserva os campos extras", () => {
+    const withColor = [{ id: "x", code: "7", name: "Linha Cor", color: "#112233" }];
+    expect(searchLines(withColor, "7")).toEqual([{ id: "x", code: "7", name: "Linha Cor", color: "#112233" }]);
+  });
+
+  it("mesmo código: desempata pelo id", () => {
+    const twins = [
+      { id: "b", code: "5", name: "Gêmea B" },
+      { id: "a", code: "5", name: "Gêmea A" },
+    ];
+    expect(searchLines(twins, "5").map((l) => l.id)).toEqual(["a", "b"]);
+  });
+});
+
+describe("searchLines: ordem numérica e código com letra", () => {
+  it("dentro da faixa o código vai em ordem numérica: 2 antes de 11", () => {
+    const same = [
+      { id: "a", code: "11", name: "Rota Onze" },
+      { id: "b", code: "2", name: "Rota Dois" },
+    ];
+    expect(searchLines(same, "rota").map((l) => l.code)).toEqual(["2", "11"]);
+  });
+
+  it("código com letra casa sem diferenciar maiúsculas", () => {
+    const lettered = [{ id: "a", code: "7A", name: "Rota Sete" }];
+    expect(searchLines(lettered, "7a").map((l) => l.code)).toEqual(["7A"]);
+    expect(searchLines(lettered, "7A").map((l) => l.code)).toEqual(["7A"]);
   });
 });

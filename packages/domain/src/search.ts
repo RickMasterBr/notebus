@@ -36,3 +36,36 @@ export function searchStops<T extends SearchableStop>(stops: readonly T[], term:
     )
     .map((h) => h.stop);
 }
+
+export interface SearchableLine {
+  id: string;
+  code: string;
+  name: string;
+}
+
+/**
+ * Linhas que casam com o termo no código ou no nome. Termo vazio devolve nada.
+ * Faixas: (0) código igual ao termo; (1) código ou nome começa com o termo; (2) só contém.
+ * Dentro da faixa: código em ordem numérica ("2" antes de "11"); empate, pelo id.
+ * Exemplo: "1" devolve 1, 10, 11, 12, 21.
+ */
+export function searchLines<T extends SearchableLine>(lines: readonly T[], term: string): T[] {
+  const needle = normalizeSearch(term);
+  if (needle === "") return [];
+  const hits: { line: T; rank: number }[] = [];
+  for (const line of lines) {
+    const code = normalizeSearch(line.code);
+    const name = normalizeSearch(line.name);
+    if (!code.includes(needle) && !name.includes(needle)) continue;
+    const rank = code === needle ? 0 : code.startsWith(needle) || name.startsWith(needle) ? 1 : 2;
+    hits.push({ line, rank });
+  }
+  return hits
+    .sort(
+      (a, b) =>
+        a.rank - b.rank ||
+        a.line.code.localeCompare(b.line.code, "pt", { numeric: true }) ||
+        a.line.id.localeCompare(b.line.id),
+    )
+    .map((h) => h.line);
+}
