@@ -58,6 +58,7 @@ import { PickerModal } from "../ui/PickerModal";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets, useStopPick } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
+import { footerTotalHeight } from "./footerNote";
 import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { useKeyboardHeight } from "./useKeyboardHeight";
@@ -211,6 +212,7 @@ export function LineEditSheet({ id }: { id: number }) {
   const [handleHeight, setHandleHeight] = useState(0);
   const [state, setState] = useState<LineFormState>(initialLineFormState);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [missingNoteHeight, setMissingNoteHeight] = useState(0);
 
   type PickerTarget = "departure" | "freqFrom" | "freqTo";
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
@@ -297,9 +299,15 @@ export function LineEditSheet({ id }: { id: number }) {
     bottomInset: insets.bottom,
   });
 
+  const footerTotal = footerTotalHeight({
+    base: footerHeight,
+    noteHeight: missingNoteHeight,
+    noteVisible: view.missingText !== null,
+  });
+
   const { listHeight } = placeSheetFrame({
     scrollAreaHeight,
-    footerHeight,
+    footerHeight: footerTotal,
   });
 
   const formatClock = (minutes: number) => {
@@ -473,9 +481,14 @@ export function LineEditSheet({ id }: { id: number }) {
                   />
                 </View>
 
-                <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600", marginTop: space.sm }]}>
-                  {t("line_create.stops")}
-                </Text>
+                <View style={styles.stopsHeaderRow}>
+                  <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
+                    {t("line_create.stops")}
+                  </Text>
+                  <Text style={[type.caption, { color: colors.textSecondary }]}>
+                    {view.stopsNoteText}
+                  </Text>
+                </View>
 
                 <View style={styles.stopsList}>
                   {view.stopRows.map((row) => (
@@ -490,6 +503,12 @@ export function LineEditSheet({ id }: { id: number }) {
                     />
                   ))}
                 </View>
+
+                {view.stopsProblemText !== null ? (
+                  <Text style={[type.caption, { color: colors.danger }]}>
+                    {view.stopsProblemText}
+                  </Text>
+                ) : null}
 
                 <Pressable
                   accessibilityRole="button"
@@ -685,11 +704,19 @@ export function LineEditSheet({ id }: { id: number }) {
             style={[
               styles.footer,
               {
-                height: footerHeight,
+                height: footerTotal,
                 borderTopColor: colors.divider,
               },
             ]}
           >
+            {view.missingText !== null ? (
+              <Text
+                onLayout={(e) => setMissingNoteHeight(e.nativeEvent.layout.height)}
+                style={[type.caption, { color: colors.textSecondary, textAlign: "center" }]}
+              >
+                {view.missingText}
+              </Text>
+            ) : null}
             <Pressable
               accessibilityRole="button"
               disabled={!view.canSave}
@@ -803,6 +830,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     minHeight: minTouch,
   },
+  stopsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: space.sm,
+    marginTop: space.sm,
+  },
   stopsList: {
     gap: space.xs,
   },
@@ -898,6 +931,7 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingHorizontal: space.md,
     borderTopWidth: StyleSheet.hairlineWidth,
+    gap: space.xs,
   },
   saveButton: {
     minHeight: minTouch,

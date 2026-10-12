@@ -219,17 +219,24 @@ export interface LineFormStopRow {
   actions: LineFormStopRowAction[];
 }
 
+export type LineFormMissing = "code" | "name" | "stops" | "day_types" | "times";
+
 export interface LineFormView {
   canSave: boolean;
+  missing: LineFormMissing[];
+  missingText: string | null;
+  stopsNoteText: string;
+  stopsProblemText: string | null;
   stopRows: LineFormStopRow[];
   showMadrugadaHint: boolean;
   durationHelperKey: MessageKey;
 }
 
 export function lineFormView(state: LineFormState): LineFormView {
+  const stopsIssueCode = stopsIssue(state.stops.map((s) => s.id));
   const codeValid = state.code.trim().length > 0;
   const nameValid = state.name.trim().length > 0;
-  const stopsValid = stopsIssue(state.stops.map((s) => s.id)) === null;
+  const stopsValid = stopsIssueCode === null;
   const dayTypesValid = state.dayTypeCodes.length > 0;
   const timesValid =
     state.mode === "departures"
@@ -239,7 +246,47 @@ export function lineFormView(state: LineFormState): LineFormView {
         Number.isInteger(state.frequency.fromMinute) &&
         Number.isInteger(state.frequency.toMinute);
 
+  const missing: LineFormMissing[] = [];
+  if (!codeValid) missing.push("code");
+  if (!nameValid) missing.push("name");
+  if (!stopsValid) missing.push("stops");
+  if (!dayTypesValid) missing.push("day_types");
+  if (!timesValid) missing.push("times");
+
   const canSave = codeValid && nameValid && stopsValid && dayTypesValid && timesValid;
+
+  let missingText: string | null = null;
+  if (missing.length > 0) {
+    const items = missing.map((item) => {
+      switch (item) {
+        case "code":
+          return t("line_create.missing.code");
+        case "name":
+          return t("line_create.missing.name");
+        case "stops":
+          if (stopsIssueCode === "stops_distinct") {
+            return t("line_create.missing.stops_distinct", { min: LINE_LIMITS.stopsMin });
+          }
+          if (stopsIssueCode === "stops_adjacent") {
+            return t("line_create.missing.stops_adjacent");
+          }
+          return t("line_create.missing.stops_min", { min: LINE_LIMITS.stopsMin });
+        case "day_types":
+          return t("line_create.missing.day_types");
+        case "times":
+          return t("line_create.missing.times");
+      }
+    });
+    missingText = t("line_create.missing.summary", { items: items.join(", ") });
+  }
+
+  const stopsNoteText = t("line_create.stops.min_note", { min: LINE_LIMITS.stopsMin });
+
+  let stopsProblemText: string | null = null;
+  if (stopsIssueCode === "stops_distinct" || stopsIssueCode === "stops_adjacent") {
+    const refusal = lineRefusalText(stopsIssueCode);
+    stopsProblemText = t(refusal.key, refusal.params);
+  }
 
   const stopRows: LineFormStopRow[] = state.stops.map((stop, index) => {
     const canMoveUp = index > 0;
@@ -268,6 +315,10 @@ export function lineFormView(state: LineFormState): LineFormView {
 
   return {
     canSave,
+    missing,
+    missingText,
+    stopsNoteText,
+    stopsProblemText,
     stopRows,
     showMadrugadaHint,
     durationHelperKey: "line_create.duration.helper",
