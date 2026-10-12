@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /**
- * Guardas de ligação do E-08 bloco 11: confere o USO no texto-fonte.
+ * Guardas de ligação do E-08 bloco 11 / bloco 11b: confere o USO no texto-fonte.
  * (Rolagem, teclado, toque e VoiceOver só o iPhone decide).
  */
 import { readFileSync } from "node:fs";
@@ -40,25 +40,64 @@ describe("E-08 bloco 11 Item 4: guardas de ligação da Nova linha", () => {
     );
   });
 
-  it("LineEditSheet.tsx: createLine(db, buildLineDraft( com o resultado atribuído", () => {
+  it("LineEditSheet.tsx: applyPickedTime dentro do commitPickerTime", () => {
     expect(lineEditSheet).toContain(
-      "const result = await createLine(db, buildLineDraft(state), now());",
+      "setState((prev) => applyPickedTime(prev, pickerTarget, hour, minute));",
     );
   });
 
-  it("LineEditSheet.tsx: lineRefusalText usado no ramo de falha", () => {
+  it("LineEditSheet.tsx: pickerInitialMinute em openTimePicker", () => {
     expect(lineEditSheet).toContain(
-      "const refusal = lineRefusalText(firstReason);",
+      "pickerInitialMinute(state, target)",
+    );
+  });
+
+  it("LineEditSheet.tsx: setMode no botão Frequência e no botão Avulsos", () => {
+    expect(lineEditSheet).toContain(
+      'label={t("line_create.mode.departures")} selected={state.mode === "departures"} onPress={() => setState((prev) => setMode(prev, "departures"))}',
     );
     expect(lineEditSheet).toContain(
-      "const refusal = lineRefusalText(result.reason);",
+      'label={t("line_create.mode.frequency")} selected={state.mode === "frequency"} onPress={() => setState((prev) => setMode(prev, "frequency"))}',
+    );
+  });
+
+  it("LineEditSheet.tsx: toggleDayType nos chips de dia", () => {
+    expect(lineEditSheet).toContain(
+      "onPress={() => setState((prev) => toggleDayType(prev, code))}",
+    );
+  });
+
+  it("LineEditSheet.tsx: moveStop no botão Subir ('up') e no Descer ('down')", () => {
+    expect(lineEditSheet).toContain(
+      'accessibilityLabel={t("line_create.stop.move_up")} disabled={!row.canMoveUp} accessibilityState={{ disabled: !row.canMoveUp }} onPress={() => setState((prev) => ({ ...prev, stops: moveStop(prev.stops, row.index, "up") }))}',
+    );
+    expect(lineEditSheet).toContain(
+      'accessibilityLabel={t("line_create.stop.move_down")} disabled={!row.canMoveDown} accessibilityState={{ disabled: !row.canMoveDown }} onPress={() => setState((prev) => ({ ...prev, stops: moveStop(prev.stops, row.index, "down") }))}',
+    );
+  });
+
+  it("LineEditSheet.tsx: submitLineForm(db, state, now()) com resultado em outcome", () => {
+    expect(lineEditSheet).toContain(
+      "const outcome = await submitLineForm(db, state, now());",
+    );
+  });
+
+  it("LineEditSheet.tsx: outcome.undo(now()) no Desfazer", () => {
+    expect(lineEditSheet).toContain(
+      "const undone = await outcome.undo(now());",
+    );
+  });
+
+  it("LineEditSheet.tsx: reloadSchedule seguido de close no ramo created", () => {
+    expect(lineEditSheet).toContain(
+      "if (outcome.kind === \"created\") { await reloadStopIndex(); await reloadSchedule(); close();",
     );
   });
 
   it("LineEditSheet.tsx: view.canSave ligado a disabled do botão Criar", () => {
     expect(lineEditSheet).toContain("disabled={!view.canSave}");
     expect(lineEditSheet).toContain("accessibilityState={{ disabled: !view.canSave }}");
-    expect(lineEditSheet).toContain("{t(\"line_create.button.save\")}");
+    expect(lineEditSheet).toContain('{t("line_create.button.save")}');
   });
 
   it("LineEditSheet.tsx: view.showMadrugadaHint consumido no JSX", () => {

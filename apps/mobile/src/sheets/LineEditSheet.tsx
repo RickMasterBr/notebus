@@ -24,19 +24,21 @@ import {
   LINE_COLORS,
   addDeparture,
   addStop,
-  buildLineDraft,
+  applyPickedTime,
   initialLineFormState,
   lineFormView,
-  lineRefusalText,
   moveStop,
+  pickerInitialMinute,
   removeDeparture,
   removeStop,
+  setMode,
+  submitLineForm,
+  toggleDayType,
   type LineFormMode,
   type LineFormState,
 } from "../data/lineForm";
-import { LINE_LIMITS, validateLineDraft } from "../data/lineDraft";
+import { LINE_LIMITS } from "../data/lineDraft";
 import { createSubmitGuard } from "../data/submitGuard";
-import { createLine } from "../db/lineCreate";
 import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import type { MessageKey } from "../i18n/pt-BR";
@@ -108,25 +110,10 @@ export function LineEditSheet({ id }: { id: number }) {
   const view = useMemo(() => lineFormView(state), [state]);
   const submitGuard = useRef(createSubmitGuard()).current;
 
-  const toggleDayType = (code: DayTypeCode) => {
-    setState((prev) => {
-      const exists = prev.dayTypeCodes.includes(code);
-      const next = exists
-        ? prev.dayTypeCodes.filter((c) => c !== code)
-        : [...prev.dayTypeCodes, code];
-      return { ...prev, dayTypeCodes: next };
-    });
-  };
-
   const openTimePicker = (target: PickerTarget) => {
     const base = new Date(now());
-    if (target === "freqFrom") {
-      base.setHours(Math.floor(state.frequency.fromMinute / 60), state.frequency.fromMinute % 60, 0, 0);
-    } else if (target === "freqTo") {
-      base.setHours(Math.floor(state.frequency.toMinute / 60), state.frequency.toMinute % 60, 0, 0);
-    } else {
-      base.setHours(12, 0, 0, 0);
-    }
+    const initialMinute = pickerInitialMinute(state, target);
+    base.setHours(Math.floor(initialMinute / 60), initialMinute % 60, 0, 0);
     setPickerDate(base);
     setPickerTarget(target);
   };
@@ -135,22 +122,7 @@ export function LineEditSheet({ id }: { id: number }) {
     if (!pickerTarget) return;
     const hour = date.getHours();
     const minute = date.getMinutes();
-    if (pickerTarget === "departure") {
-      setState((prev) => ({
-        ...prev,
-        departures: addDeparture(prev.departures, { hour, minute }),
-      }));
-    } else if (pickerTarget === "freqFrom") {
-      setState((prev) => ({
-        ...prev,
-        frequency: { ...prev.frequency, fromMinute: hour * 60 + minute },
-      }));
-    } else if (pickerTarget === "freqTo") {
-      setState((prev) => ({
-        ...prev,
-        frequency: { ...prev.frequency, toMinute: hour * 60 + minute },
-      }));
-    }
+    setState((prev) => applyPickedTime(prev, pickerTarget, hour, minute));
     setPickerTarget(null);
   };
 
@@ -165,8 +137,8 @@ export function LineEditSheet({ id }: { id: number }) {
     if (!view.canSave) return;
     await submitGuard.run(async () => {
       if (!db) return;
-      const result = await createLine(db, buildLineDraft(state), now());
-      if (result.ok) {
+      const outcome = await submitLineForm(db, state, now());
+      if (outcome.kind === "created") {
         await reloadStopIndex();
         await reloadSchedule();
         close();
@@ -176,7 +148,7 @@ export function LineEditSheet({ id }: { id: number }) {
           action: {
             label: t("toast.action.undo"),
             run: async () => {
-              const undone = await result.undo(now());
+              const undone = await outcome.undo(now());
               await reloadStopIndex();
               await reloadSchedule();
               if (!undone.ok) {
@@ -189,24 +161,12 @@ export function LineEditSheet({ id }: { id: number }) {
             },
           },
         });
-      } else {
-        if (result.reason === "invalid") {
-          const validated = validateLineDraft(buildLineDraft(state));
-          const firstReason = !validated.ok && validated.reasons.length > 0 ? validated.reasons[0]! : "invalid";
-          const refusal = lineRefusalText(firstReason);
-          toast.show({
-            title: t(refusal.key, refusal.params),
-            kind: "error",
-            haptic: "error",
-          });
-        } else {
-          const refusal = lineRefusalText(result.reason);
-          toast.show({
-            title: t(refusal.key, refusal.params),
-            kind: "error",
-            haptic: "error",
-          });
-        }
+      } else if (outcome.kind === "refused") {
+        toast.show({
+          title: t(outcome.text.key, outcome.text.params),
+          kind: "error",
+          haptic: "error",
+        });
       }
     });
   };
@@ -497,7 +457,7 @@ export function LineEditSheet({ id }: { id: number }) {
                       key={code}
                       label={t(labelKey)}
                       selected={state.dayTypeCodes.includes(code)}
-                      onPress={() => toggleDayType(code)}
+                      onPress={() => setState((prev) => toggleDayType(prev, code))}
                     />
                   ))}
                 </View>
@@ -512,12 +472,12 @@ export function LineEditSheet({ id }: { id: number }) {
                   <Chip
                     label={t("line_create.mode.departures")}
                     selected={state.mode === "departures"}
-                    onPress={() => setState((prev) => ({ ...prev, mode: "departures" }))}
+                    onPress={() => setState((prev) => setMode(prev, "departures"))}
                   />
                   <Chip
                     label={t("line_create.mode.frequency")}
                     selected={state.mode === "frequency"}
-                    onPress={() => setState((prev) => ({ ...prev, mode: "frequency" }))}
+                    onPress={() => setState((prev) => setMode(prev, "frequency"))}
                   />
                 </View>
 

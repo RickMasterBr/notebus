@@ -18,6 +18,11 @@ import {
   moveStop,
   removeDeparture,
   removeStop,
+  applyPickedTime,
+  pickerInitialMinute,
+  setMode,
+  toggleDayType,
+  submitLineForm,
   type LineFormRefusalReason,
   type LineFormState,
 } from "./lineForm";
@@ -323,9 +328,6 @@ describe("E-08 bloco 11 Item 0: regras puras de lineForm", () => {
       "duplicate_code",
       "unknown_stop",
       "unknown_day_type",
-      "not_found",
-      "official",
-      "in_use",
     ];
 
     it("mapeia todos os motivos para chaves do catálogo e cada motivo tem chave única", () => {
@@ -338,6 +340,151 @@ describe("E-08 bloco 11 Item 0: regras puras de lineForm", () => {
         keys.add(text.key);
       }
       expect(keys.size).toBe(reasons.length);
+    });
+  });
+
+  describe("applyPickedTime", () => {
+    const baseState = initialLineFormState();
+
+    it("departure adiciona a partida sem tocar em frequency", () => {
+      const next = applyPickedTime(baseState, "departure", 8, 30);
+      expect(next.departures).toEqual([{ hour: 8, minute: 30 }]);
+      expect(next.frequency).toEqual(baseState.frequency);
+    });
+
+    it("freqFrom grava fromMinute e não toca em toMinute", () => {
+      const custom = {
+        ...baseState,
+        frequency: { fromMinute: 400, toMinute: 1100, headwayMinutes: 30 },
+      };
+      const next = applyPickedTime(custom, "freqFrom", 6, 15);
+      expect(next.frequency.fromMinute).toBe(375);
+      expect(next.frequency.toMinute).toBe(1100);
+      expect(next.departures).toEqual(custom.departures);
+    });
+
+    it("freqTo grava toMinute e não toca em fromMinute", () => {
+      const custom = {
+        ...baseState,
+        frequency: { fromMinute: 400, toMinute: 1100, headwayMinutes: 30 },
+      };
+      const next = applyPickedTime(custom, "freqTo", 22, 45);
+      expect(next.frequency.toMinute).toBe(1365);
+      expect(next.frequency.fromMinute).toBe(400);
+      expect(next.departures).toEqual(custom.departures);
+    });
+  });
+
+  describe("pickerInitialMinute", () => {
+    const state = {
+      ...initialLineFormState(),
+      frequency: { fromMinute: 420, toMinute: 1080, headwayMinutes: 20 },
+    };
+
+    it("devolve 720 para departure", () => {
+      expect(pickerInitialMinute(state, "departure")).toBe(720);
+    });
+
+    it("devolve fromMinute para freqFrom", () => {
+      expect(pickerInitialMinute(state, "freqFrom")).toBe(420);
+    });
+
+    it("devolve toMinute para freqTo", () => {
+      expect(pickerInitialMinute(state, "freqTo")).toBe(1080);
+    });
+  });
+
+  describe("setMode e toggleDayType", () => {
+    const base = initialLineFormState();
+
+    it("setMode altera somente o modo", () => {
+      expect(base.mode).toBe("departures");
+      const next = setMode(base, "frequency");
+      expect(next.mode).toBe("frequency");
+      expect(next.code).toBe(base.code);
+    });
+
+    it("toggleDayType liga e desliga sem repetir", () => {
+      expect(base.dayTypeCodes).toEqual(["weekday"]);
+      const withSaturday = toggleDayType(base, "saturday");
+      expect(withSaturday.dayTypeCodes).toEqual(["weekday", "saturday"]);
+
+      const withoutWeekday = toggleDayType(withSaturday, "weekday");
+      expect(withoutWeekday.dayTypeCodes).toEqual(["saturday"]);
+
+      const toggledBack = toggleDayType(withoutWeekday, "saturday");
+      expect(toggledBack.dayTypeCodes).toEqual([]);
+    });
+  });
+
+  describe("submitLineForm", () => {
+    const validState: LineFormState = {
+      code: "99",
+      name: "Linha Nova",
+      color: LINE_COLORS[0],
+      patternLabel: "Ida",
+      isCircular: false,
+      stops: [
+        { id: S, name: NAMES.S },
+        { id: A, name: NAMES.A },
+      ],
+      durationText: "20",
+      dayTypeCodes: ["weekday"],
+      mode: "departures",
+      departures: [{ hour: 9, minute: 0 }],
+      frequency: { fromMinute: 360, toMinute: 1200, headwayMinutes: 30 },
+    };
+
+    it("bloqueada sem chamar o banco quando canSave for falso", async () => {
+      const { db } = await setupTestDb();
+      const invalidState = { ...validState, code: "" };
+      let touched = false;
+      const fakeDb = new Proxy(db, {
+        get(target, prop, receiver) {
+          touched = true;
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+      const outcome = await submitLineForm(fakeDb, invalidState, 1_800_000_000_000);
+      expect(outcome).toEqual({ kind: "blocked" });
+      expect(touched).toBe(false);
+    });
+
+    it("criada com sucesso quando válido, e undo desfaz", async () => {
+      const { db } = await setupTestDb();
+      const outcome = await submitLineForm(db, validState, 1_800_000_000_000);
+      expect(outcome.kind).toBe("created");
+      if (outcome.kind === "created") {
+        const undone = await outcome.undo(1_800_000_001_000);
+        expect(undone.ok).toBe(true);
+      }
+    });
+
+    it("recusada por duplicate_code quando já existe linha com esse código", async () => {
+      const { db } = await setupTestDb();
+      // "1" é a linha semeada
+      const dupState = { ...validState, code: "1" };
+      const outcome = await submitLineForm(db, dupState, 1_800_000_000_000);
+      expect(outcome.kind).toBe("refused");
+      if (outcome.kind === "refused") {
+        expect(outcome.text.key).toBe("line_create.refusal.duplicate_code");
+      }
+    });
+
+    it("recusada por invalid devolvendo o texto do primeiro motivo", async () => {
+      const { db } = await setupTestDb();
+      // Estado com patternLabel vazio e durationText vazio: ambos falham em validateLineDraft.
+      // Primeiro motivo é pattern_label_required, segundo é duration_invalid.
+      const multiInvalidState: LineFormState = {
+        ...validState,
+        patternLabel: "",
+        durationText: "",
+      };
+      const outcome = await submitLineForm(db, multiInvalidState, 1_800_000_000_000);
+      expect(outcome.kind).toBe("refused");
+      if (outcome.kind === "refused") {
+        expect(outcome.text.key).toBe("line_create.refusal.pattern_label_required");
+      }
     });
   });
 

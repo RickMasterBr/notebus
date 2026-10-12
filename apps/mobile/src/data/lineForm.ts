@@ -4,12 +4,12 @@
  */
 import type { DayTypeCode } from "@notebus/domain";
 import { declaredServiceMinute } from "@notebus/domain";
-import { LINE_LIMITS, type LineDraft, type LineDraftReason } from "./lineDraft";
-import { MAX_FREQUENCY_TRIPS, type FrequencyRefusal } from "./frequency";
-import type { CreateLineRefusal } from "../db/lineCreate";
+import type { AnyDb } from "../db/inTransaction";
+import { createLine, type CreateLineRefusal } from "../db/lineCreate";
+import { LINE_LIMITS, validateLineDraft, type LineDraft, type LineDraftReason } from "./lineDraft";
+import { MAX_FREQUENCY_TRIPS } from "./frequency";
+import { t } from "../i18n";
 import type { MessageKey } from "../i18n/pt-BR";
-
-export type DeleteLineRefusal = "not_found" | "official" | "in_use";
 
 export const NEW_LINE_ID = "__new__";
 
@@ -54,7 +54,7 @@ export const initialLineFormState = (): LineFormState => ({
   code: "",
   name: "",
   color: LINE_COLORS[0],
-  patternLabel: "Ida",
+  patternLabel: t("line_create.pattern_label.default"),
   isCircular: false,
   stops: [],
   durationText: "",
@@ -146,6 +146,65 @@ export function removeStop(stops: readonly LineFormStop[], index: number): LineF
   return stops.filter((_, idx) => idx !== index);
 }
 
+/** Altera o modo de saídas/frequência do formulário. */
+export function setMode(state: LineFormState, mode: LineFormMode): LineFormState {
+  return { ...state, mode };
+}
+
+/** Liga ou desliga um tipo de dia na lista sem repetir. */
+export function toggleDayType(state: LineFormState, code: DayTypeCode): LineFormState {
+  const exists = state.dayTypeCodes.includes(code);
+  const next = exists
+    ? state.dayTypeCodes.filter((c) => c !== code)
+    : [...state.dayTypeCodes, code];
+  return { ...state, dayTypeCodes: next };
+}
+
+/** Aplica a hora selecionada no alvo do seletor. */
+export function applyPickedTime(
+  state: LineFormState,
+  target: "departure" | "freqFrom" | "freqTo",
+  hour: number,
+  minute: number,
+): LineFormState {
+  if (target === "departure") {
+    return {
+      ...state,
+      departures: addDeparture(state.departures, { hour, minute }),
+    };
+  }
+  if (target === "freqFrom") {
+    return {
+      ...state,
+      frequency: {
+        ...state.frequency,
+        fromMinute: hour * 60 + minute,
+      },
+    };
+  }
+  return {
+    ...state,
+    frequency: {
+      ...state.frequency,
+      toMinute: hour * 60 + minute,
+    },
+  };
+}
+
+/** Minuto inicial a mostrar no seletor para cada alvo (720 para partida avulsa, minuto configurado para frequência). */
+export function pickerInitialMinute(
+  state: LineFormState,
+  target: "departure" | "freqFrom" | "freqTo",
+): number {
+  if (target === "freqFrom") {
+    return state.frequency.fromMinute;
+  }
+  if (target === "freqTo") {
+    return state.frequency.toMinute;
+  }
+  return 720;
+}
+
 export interface LineFormStopRow {
   id: string;
   name: string;
@@ -199,14 +258,13 @@ export function lineFormView(state: LineFormState): LineFormView {
 
 export type LineFormRefusalReason =
   | LineDraftReason
-  | CreateLineRefusal
-  | DeleteLineRefusal;
+  | CreateLineRefusal;
 
 function assertNever(x: never): never {
   throw new Error(`Motivo não mapeado: ${x}`);
 }
 
-/** Mapeia todos os motivos para chaves do catálogo. */
+/** Mapeia todos os motivos de validação/criação para chaves do catálogo. */
 export function lineRefusalText(reason: LineFormRefusalReason): {
   key: MessageKey;
   params?: Record<string, string | number>;
@@ -260,13 +318,40 @@ export function lineRefusalText(reason: LineFormRefusalReason): {
       return { key: "line_create.refusal.unknown_stop" };
     case "unknown_day_type":
       return { key: "line_create.refusal.unknown_day_type" };
-    case "not_found":
-      return { key: "line_delete.not_found" };
-    case "official":
-      return { key: "line_delete.official" };
-    case "in_use":
-      return { key: "line_delete.in_use" };
     default:
       return assertNever(reason);
   }
+}
+
+export type SubmitLineFormOutcome =
+  | { kind: "blocked" }
+  | { kind: "created"; undo: (nowMs: number) => Promise<{ ok: boolean }> }
+  | { kind: "refused"; text: { key: MessageKey; params?: Record<string, string | number> } };
+
+/**
+ * Concentra a decisão de salvar o formulário de linha.
+ * Se canSave for falso, não toca o banco e devolve kind: "blocked".
+ */
+export async function submitLineForm(
+  db: AnyDb,
+  state: LineFormState,
+  nowMs: number,
+): Promise<SubmitLineFormOutcome> {
+  const view = lineFormView(state);
+  if (!view.canSave) {
+    return { kind: "blocked" };
+  }
+  const draft = buildLineDraft(state);
+  const result = await createLine(db, draft, nowMs);
+  if (result.ok) {
+    return { kind: "created", undo: result.undo };
+  }
+  if (result.reason === "invalid") {
+    const validation = validateLineDraft(draft);
+    if (!validation.ok && validation.reasons.length > 0) {
+      return { kind: "refused", text: lineRefusalText(validation.reasons[0]!) };
+    }
+    return { kind: "refused", text: lineRefusalText("invalid") };
+  }
+  return { kind: "refused", text: lineRefusalText(result.reason) };
 }

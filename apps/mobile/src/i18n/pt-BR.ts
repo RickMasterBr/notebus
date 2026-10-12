@@ -673,6 +673,7 @@ export const ptBR = {
   "stop_new.title": "Novo ponto", // provisório
   "stop_new.saved": "Ponto criado", // provisório
   "stop_new.error.no_network": "A rede ainda não foi carregada. Tente de novo.", // provisório
+  "stop_new.location.remove": "Remover localização", // provisório
   "stop_delete.action": "Apagar", // provisório
   "stop_delete.done": "Ponto apagado", // provisório
   "stop_delete.official": "Pontos da MOBILIS não se apagam", // provisório
@@ -694,6 +695,7 @@ export const ptBR = {
   "line_create.color": "Cor", // provisório
   "line_create.pattern": "Percurso", // provisório
   "line_create.pattern_label": "Nome do percurso", // provisório
+  "line_create.pattern_label.default": "Ida", // provisório
   "line_create.circular": "Circular", // provisório
   "line_create.stops": "Paragens", // provisório
   "line_create.stop.add": "Adicionar paragem", // provisório
@@ -749,9 +751,15 @@ export const ptBR = {
   "line_create.refusal.unknown_day_type": "Tipo de dia não reconhecido.", // provisório
   "line_create.refusal.no_network": "A rede ainda não foi carregada. Tente de novo.", // provisório
   "line_create.refusal.invalid": "Não foi possível criar a linha. Confira os dados.", // provisório
-  "line_delete.not_found": "(bloco 11b)", // provisório
-  "line_delete.official": "(bloco 11b)", // provisório
-  "line_delete.in_use": "(bloco 11b)", // provisório
+  "line_delete.action": "Apagar", // provisório
+  "line_delete.done": "Linha apagada", // provisório
+  "line_delete.official": "Linhas da MOBILIS não se apagam", // provisório
+  "line_delete.not_found": "Esta linha já não existe", // provisório
+  "line_delete.error": "Não foi possível apagar a linha. Tente de novo.", // provisório
+  "line_delete.in_use_records_one": "Esta linha tem 1 registro. Apague o registro antes", // provisório
+  "line_delete.in_use_records_other": "Esta linha tem {{n}} registros. Apague os registros antes", // provisório
+  "line_delete.in_use_options_one": "Esta linha tem 1 trajeto. Apague o trajeto antes", // provisório
+  "line_delete.in_use_options_other": "Esta linha tem {{n}} trajetos. Apague os trajetos antes", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;
