@@ -205,12 +205,18 @@ export function pickerInitialMinute(
   return 720;
 }
 
+export interface LineFormStopRowAction {
+  name: "moveUp" | "moveDown";
+  labelKey: "line_create.stop.move_up" | "line_create.stop.move_down";
+}
+
 export interface LineFormStopRow {
   id: string;
   name: string;
   canMoveUp: boolean;
   canMoveDown: boolean;
   index: number;
+  actions: LineFormStopRowAction[];
 }
 
 export interface LineFormView {
@@ -235,13 +241,25 @@ export function lineFormView(state: LineFormState): LineFormView {
 
   const canSave = codeValid && nameValid && stopsValid && dayTypesValid && timesValid;
 
-  const stopRows: LineFormStopRow[] = state.stops.map((stop, index) => ({
-    id: stop.id,
-    name: stop.name,
-    canMoveUp: index > 0,
-    canMoveDown: index < state.stops.length - 1,
-    index,
-  }));
+  const stopRows: LineFormStopRow[] = state.stops.map((stop, index) => {
+    const canMoveUp = index > 0;
+    const canMoveDown = index < state.stops.length - 1;
+    const actions: LineFormStopRowAction[] = [];
+    if (canMoveUp) {
+      actions.push({ name: "moveUp", labelKey: "line_create.stop.move_up" });
+    }
+    if (canMoveDown) {
+      actions.push({ name: "moveDown", labelKey: "line_create.stop.move_down" });
+    }
+    return {
+      id: stop.id,
+      name: stop.name,
+      canMoveUp,
+      canMoveDown,
+      index,
+      actions,
+    };
+  });
 
   const showMadrugadaHint =
     state.mode === "departures"
