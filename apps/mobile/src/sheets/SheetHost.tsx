@@ -30,6 +30,8 @@ import { HolidaySheet } from "./HolidaySheet";
 import { NetworkInfoSheet } from "./NetworkInfoSheet";
 import { NetworkSheet } from "./NetworkSheet";
 import { LineDetailSheet } from "./LineDetailSheet";
+import { LineEditSheet } from "./LineEditSheet";
+import { NEW_LINE_ID } from "../data/lineForm";
 import { DeclareSheet } from "./DeclareSheet";
 import { StopEditSheet } from "./StopEditSheet";
 import { CloseSheetProvider } from "./StackedSheet";
@@ -78,6 +80,9 @@ function StackedSheetSlot({ entry }: { entry: SheetEntry }) {
 }
 
 function StackedSheetContent({ entry }: { entry: SheetEntry }) {
+  if (entry.kind === "lineDetail" && entry.lineId === NEW_LINE_ID) {
+    return <LineEditSheet id={entry.id} />;
+  }
   switch (entry.kind) {
     case "search":
       return <SearchSheet id={entry.id} pick={entry.pick === true} />;
