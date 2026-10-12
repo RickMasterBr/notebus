@@ -1,0 +1,118 @@
+/// <reference types="node" />
+/**
+ * Guardas de ligação do E-08.5 bloco 3 (Item 5):
+ * Confere o USO no texto-fonte de LineEditSheet.tsx e StopEditSheet.tsx.
+ * (Rolagem, teclado, toque e VoiceOver só o iPhone decide).
+ */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const root = process.env.NB_WIRING_ROOT ?? join(__dirname, "..");
+
+const read = (rel: string) =>
+  readFileSync(join(root, rel), "utf8")
+    .replace(/\r\n/g, "\n")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[\s;{(,])\/\/.*$/gm, "$1");
+
+const squash = (text: string) => text.replace(/\s+/g, " ");
+
+const lineEditSheet = squash(read("sheets/LineEditSheet.tsx"));
+const stopEditSheet = squash(read("sheets/StopEditSheet.tsx"));
+
+describe("E-08.5 bloco 3 Item 5: guardas de ligação", () => {
+  describe("LineEditSheet.tsx", () => {
+    it("1. view.stopRows iterado com StopOrderRow recebendo row, total e onMove", () => {
+      expect(lineEditSheet).toContain(
+        "{view.stopRows.map((row) => ( <StopOrderRow",
+      );
+      expect(lineEditSheet).toContain(
+        "row={row} total={view.stopRows.length} onMove={moveStopRow}",
+      );
+    });
+
+    it("2. moveStopRow chama moveStopTo(prev.stops, from, to) dentro de setState", () => {
+      expect(lineEditSheet).toContain(
+        "const moveStopRow = (from: number, to: number) => setState((prev) => ({ ...prev, stops: moveStopTo(prev.stops, from, to) }));",
+      );
+    });
+
+    it("3. StopOrderRow: .activeOffsetY([-6, 6]), runOnJS(onDrop) com dois argumentos, dragTargetIndex e destino diferente", () => {
+      expect(lineEditSheet).toContain(".activeOffsetY([-6, 6])");
+      expect(lineEditSheet).toContain("runOnJS(onDrop)(event.translationY, itemHeight.value)");
+      expect(lineEditSheet).toContain("dragTargetIndex({ index: row.index, translationY, rowHeight, total })");
+      expect(lineEditSheet).toContain("if (target !== row.index) { onMove(row.index, target); }");
+    });
+
+    it("4. accessibilityActions consumindo a.name e t(a.labelKey), stopActionTarget e onMove se não for null", () => {
+      expect(lineEditSheet).toContain(
+        "accessibilityActions={row.actions.map((a) => ({ name: a.name, label: t(a.labelKey) }))}",
+      );
+      expect(lineEditSheet).toContain(
+        "const target = stopActionTarget(event.nativeEvent.actionName, row.index); if (target !== null) { onMove(row.index, target); }",
+      );
+    });
+
+    it("5. botão Remover fora da View accessible do nome, com onRemove(row.index) e removeStop na lista", () => {
+      expect(lineEditSheet).toContain(
+        '</View> <Pressable accessibilityRole="button" accessibilityLabel={t("line_create.stop.remove")} onPress={() => onRemove(row.index)}',
+      );
+      expect(lineEditSheet).toContain(
+        "onRemove={(index) => setState((prev) => ({ ...prev, stops: removeStop(prev.stops, index) }))",
+      );
+    });
+
+    it("6. nenhum Pressable com Subir ou Descer no accessibilityLabel", () => {
+      expect(lineEditSheet).not.toContain('accessibilityLabel={t("line_create.stop.move_up")}');
+      expect(lineEditSheet).not.toContain('accessibilityLabel={t("line_create.stop.move_down")}');
+    });
+
+    it("7. stopsNoteText com stops na mesma linha, stopsProblemText e missingText no rodapé antes do botão Criar", () => {
+      expect(lineEditSheet).toContain(
+        '{t("line_create.stops")} </Text> <Text style={[type.caption, { color: colors.textSecondary }]}> {view.stopsNoteText}',
+      );
+      expect(lineEditSheet).toContain("{view.stopsProblemText !== null ? (");
+      expect(lineEditSheet).toContain("{view.missingText !== null ? (");
+
+      const footerIdx = lineEditSheet.indexOf("styles.footer");
+      const missingIdx = lineEditSheet.indexOf("{view.missingText !== null ? (", footerIdx);
+      const saveBtnIdx = lineEditSheet.indexOf('{t("line_create.button.save")}', footerIdx);
+      expect(missingIdx).toBeGreaterThan(footerIdx);
+      expect(missingIdx).toBeLessThan(saveBtnIdx);
+    });
+
+    it("8. footerTotalHeight, footerTotal no height do rodapé e em placeSheetFrame, e placeFooterHeight intacto", () => {
+      expect(lineEditSheet).toContain(
+        "footerTotalHeight({ base: footerHeight, noteHeight: missingNoteHeight, noteVisible: view.missingText !== null, })",
+      );
+      expect(lineEditSheet).toContain(
+        "placeSheetFrame({ scrollAreaHeight, footerHeight: footerTotal, })",
+      );
+      expect(lineEditSheet).toContain(
+        "height: footerTotal, borderTopColor: colors.divider,",
+      );
+      expect(lineEditSheet).toContain(
+        "placeFooterHeight({ minTouch, space, bottomInset: insets.bottom, })",
+      );
+    });
+  });
+
+  describe("StopEditSheet.tsx", () => {
+    it("locationButtonsRow sem flexWrap", () => {
+      const start = stopEditSheet.indexOf("locationButtonsRow:");
+      const end = stopEditSheet.indexOf("locationButtonHalf:");
+      const locStyle = stopEditSheet.substring(start, end);
+      expect(locStyle).not.toContain("flexWrap");
+    });
+
+    it("locationButtonHalf com flex: 1", () => {
+      expect(stopEditSheet).toContain("locationButtonHalf: { flex: 1, }");
+    });
+
+    it("os dois botões usam locationView.canRemove && styles.locationButtonHalf", () => {
+      const matches = stopEditSheet.match(/locationView\.canRemove\s*&&\s*styles\.locationButtonHalf/g) ?? [];
+      expect(matches).toHaveLength(2);
+    });
+  });
+});
