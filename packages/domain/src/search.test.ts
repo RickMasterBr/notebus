@@ -123,6 +123,56 @@ describe("searchLines (Q-101): busca por linha", () => {
   });
 });
 
+describe("searchLines: 'L1' e 'linha 1' acham a linha 1", () => {
+  // Mesmos dados inventados do bloco anterior.
+  const lines = [
+    { id: "l1", code: "1", name: "Linha Fictícia Norte" },
+    { id: "l2", code: "2", name: "Circular Exemplo" },
+    { id: "l10", code: "10", name: "Expresso Alfa" },
+    { id: "l11", code: "11", name: "Estação Beta" },
+    { id: "l12", code: "12", name: "Modelo 1 Sul" },
+    { id: "l21", code: "21", name: "Ligação 1 Centro" },
+  ];
+  const codes = (term: string) => searchLines(lines, term).map((l) => l.code);
+
+  it.each([
+    ["L1", ["1", "10", "11", "12", "21"]],
+    ["l1", ["1", "10", "11", "12", "21"]],
+    ["linha1", ["1", "10", "11", "12", "21"]],
+    ["linha 2", ["2", "21", "12"]],
+    ["LINHA 11", ["11"]],
+    ["l 12", ["12"]],
+    ["linha", ["1"]],
+    ["l", ["1", "21", "2", "10", "12"]],
+    ["lx", []],
+    ["lisboa", []],
+    ["xl1", []],
+  ])("termo %j devolve %j", (term, expected) => {
+    expect(codes(term)).toEqual(expected);
+  });
+
+  it("as duas leituras casam: vale a menor faixa", () => {
+    // "l9": o código "L9" é igual ao termo (faixa 0 na leitura direta; 2 na segunda, que procura "9"); o nome "L9 Centro" começa
+    // com o termo (faixa 1). Com a menor faixa, "L9" vem antes; com a maior, viria depois.
+    const both = [
+      { id: "b", code: "3", name: "L9 Centro" },
+      { id: "a", code: "L9", name: "Zeta" },
+    ];
+    expect(searchLines(both, "l9").map((l) => l.id)).toEqual(["a", "b"]);
+  });
+
+  it("a segunda interpretação olha só o código, não o nome", () => {
+    // O nome "Rota 5 Sul" tem "5", mas "linha 5" e "l5" não podem casar só por isso.
+    const onlyName = [{ id: "n", code: "9", name: "Rota 5 Sul" }];
+    expect(searchLines(onlyName, "linha 5")).toEqual([]);
+    expect(searchLines(onlyName, "l5")).toEqual([]);
+  });
+
+  it("a interpretação direta continua valendo: 'linha' acha o nome 'Linha Fictícia Norte'", () => {
+    expect(codes("linha")).toEqual(["1"]);
+  });
+});
+
 describe("searchLines: ordem numérica e código com letra", () => {
   it("dentro da faixa o código vai em ordem numérica: 2 antes de 11", () => {
     const same = [
