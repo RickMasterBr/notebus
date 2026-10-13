@@ -278,7 +278,7 @@ export function LineEditSheet({ id }: { id: number }) {
       } else if (outcome.kind === "refused") {
         toast.show({
           title: t(outcome.text.key, outcome.text.params),
-          kind: "error",
+          kind: "refusal",
           haptic: "error",
         });
       }
