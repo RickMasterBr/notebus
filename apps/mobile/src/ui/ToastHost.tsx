@@ -9,10 +9,13 @@ import { PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { Easing, FadeIn, FadeOut, withTiming } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useToast } from "../data/ToastProvider";
+import { toastShowsClose } from "../data/toastDismiss";
+import { t } from "../i18n";
 import { elevation, motion, radius, type, useTheme } from "../theme";
 import { toastBottom } from "../data/toastPosition";
 import { useKeyboardHeight } from "../sheets/useKeyboardHeight";
 import { useReduceMotion } from "../sheets/useReduceMotion";
+import { CrossGlyph } from "./Glyphs";
 
 const RISE = 16;
 
@@ -91,6 +94,16 @@ export function ToastHost() {
               <Text style={[type.subtitle, { color: colors.toastAction }]}>{toast.secondaryAction.label}</Text>
             </Pressable>
           ) : null}
+          {toastShowsClose(toast) ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("toast.dismiss.a11y")}
+              onPress={dismiss}
+              style={({ pressed }) => [styles.closeAction, pressed && { opacity: 0.6 }]}
+            >
+              <CrossGlyph color={colors.toastText} />
+            </Pressable>
+          ) : null}
         </Animated.View>
       ) : null}
     </View>
@@ -112,5 +125,6 @@ const styles = StyleSheet.create({
   },
   text: { flex: 1, gap: 2 },
   action: { minHeight: 44, paddingHorizontal: 10, justifyContent: "center" },
+  closeAction: { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center" },
   num: { fontVariant: ["tabular-nums"] },
 });

@@ -20,6 +20,7 @@ const squash = (text: string) => text.replace(/\s+/g, " ");
 
 const lineEditSheet = squash(read("sheets/LineEditSheet.tsx"));
 const toastController = read("data/toastController.ts");
+const toastHost = squash(read("ui/ToastHost.tsx"));
 
 describe("E-08.5 bloco 4 guardas de ligação", () => {
   describe("Item 1: recusa de formulário some sozinha", () => {
@@ -45,6 +46,23 @@ describe("E-08.5 bloco 4 guardas de ligação", () => {
     it("toastController.ts: primeira linha nova de toastDuration trata refusal", () => {
       expect(toastController).toContain(
         'if (spec.kind === "refusal") return spec.screenReader ? TOAST_MS_REFUSAL_SCREEN_READER : TOAST_MS_REFUSAL;',
+      );
+    });
+  });
+
+  describe("Item 2: botão Fechar no aviso que não some sozinho", () => {
+    it("ToastHost.tsx: {toastShowsClose(toast) ? ( no JSX com Pressable dismiss, accessibilityLabel e CrossGlyph", () => {
+      expect(toastHost).toContain("{toastShowsClose(toast) ? (");
+
+      const closeBranchStart = toastHost.indexOf("{toastShowsClose(toast) ? (");
+      const closeBranchEnd = toastHost.indexOf(") : null}", closeBranchStart);
+      const closeBranch = toastHost.substring(closeBranchStart, closeBranchEnd);
+
+      expect(closeBranch).toContain('accessibilityLabel={t("toast.dismiss.a11y")}');
+      expect(closeBranch).toContain("onPress={dismiss}");
+      expect(closeBranch).toContain("<CrossGlyph color={colors.toastText} />");
+      expect(closeBranch).toContain(
+        '<Pressable accessibilityRole="button" accessibilityLabel={t("toast.dismiss.a11y")} onPress={dismiss}',
       );
     });
   });
