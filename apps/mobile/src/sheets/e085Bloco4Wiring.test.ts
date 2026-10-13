@@ -6,6 +6,7 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { ptBR } from "../i18n/pt-BR";
 import { describe, expect, it } from "vitest";
 
 const root = process.env.NB_WIRING_ROOT ?? join(__dirname, "..");
@@ -64,6 +65,21 @@ describe("E-08.5 bloco 4 guardas de ligação", () => {
       expect(closeBranch).toContain(
         '<Pressable accessibilityRole="button" accessibilityLabel={t("toast.dismiss.a11y")} onPress={dismiss}',
       );
+      expect(closeBranch).toContain(
+        "style={({ pressed }) => [styles.closeAction, pressed && { opacity: 0.6 }]}",
+      );
+    });
+
+    it("ToastHost.tsx: estilo closeAction confere minHeight: 44 e minWidth: 44 separadamente", () => {
+      const match = toastHost.match(/closeAction:\s*\{([^}]*)\}/);
+      expect(match).not.toBeNull();
+      const closeActionStyle = match![1];
+      expect(closeActionStyle).toContain("minHeight: 44");
+      expect(closeActionStyle).toContain("minWidth: 44");
+    });
+
+    it("i18n/pt-BR.ts: catálogo confere toast.dismiss.a11y como 'Fechar aviso'", () => {
+      expect(ptBR["toast.dismiss.a11y"]).toBe("Fechar aviso");
     });
   });
 });
