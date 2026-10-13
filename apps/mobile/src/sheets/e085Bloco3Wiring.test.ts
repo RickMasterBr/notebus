@@ -115,4 +115,67 @@ describe("E-08.5 bloco 3 Item 5: guardas de ligação", () => {
       expect(matches).toHaveLength(2);
     });
   });
+
+  describe("Item 0: lacunas do guarda do bloco 3", () => {
+    it("M1. a View do nome acessível contígua", () => {
+      expect(lineEditSheet).toContain(
+        "<View accessible accessibilityLabel={labelText} accessibilityActions=",
+      );
+    });
+
+    it("M2. o 'Falta' mede a altura no rodapé", () => {
+      expect(lineEditSheet).toContain(
+        "{view.missingText !== null ? ( <Text onLayout={(e) => setMissingNoteHeight(e.nativeEvent.layout.height)}",
+      );
+    });
+
+    it("M3. o gesto pan está na alça", () => {
+      expect(lineEditSheet).toContain(
+        "<GestureDetector gesture={pan}> <View style={styles.dragHandleHitTarget}",
+      );
+    });
+
+    it("M4. runOnJS no onEnd e não no onUpdate", () => {
+      const updateIdx = lineEditSheet.indexOf(".onUpdate(");
+      const endIdx = lineEditSheet.indexOf(".onEnd(", updateIdx);
+      const finalizeIdx = lineEditSheet.indexOf(".onFinalize(", endIdx);
+      const updateBlock = lineEditSheet.substring(updateIdx, endIdx);
+      const endBlock = lineEditSheet.substring(endIdx, finalizeIdx);
+      expect(endBlock).toContain(
+        "runOnJS(onDrop)(event.translationY, itemHeight.value)",
+      );
+      expect(updateBlock).not.toContain("runOnJS");
+    });
+
+    it("M5. a alça escondida do VoiceOver", () => {
+      expect(lineEditSheet).toContain(
+        'style={styles.dragHandleHitTarget} accessibilityElementsHidden={true} importantForAccessibility="no" > <DragHandleGlyph',
+      );
+    });
+
+    it("M6. o estilo animado aplicado na Animated.View", () => {
+      expect(lineEditSheet).toContain(
+        "<Animated.View style={animatedStyle} onLayout=",
+      );
+    });
+
+    it("M7. a chave StopOrderRow com row.id e row.index", () => {
+      expect(lineEditSheet).toContain(
+        '<StopOrderRow key={`${row.id}-${row.index}`}',
+      );
+    });
+
+    it("M8. a altura medida dentro do onLayout da Animated.View", () => {
+      const animStart = lineEditSheet.indexOf("<Animated.View style={animatedStyle} onLayout=");
+      const stopRowIdx = lineEditSheet.indexOf("<View style={[styles.stopRow", animStart);
+      const animTag = lineEditSheet.substring(animStart, stopRowIdx);
+      expect(animTag).toContain(
+        "itemHeight.value = e.nativeEvent.layout.height + space.xs;",
+      );
+      expect(lineEditSheet).toContain(
+        "<Animated.View style={animatedStyle} onLayout={(e) => { itemHeight.value = e.nativeEvent.layout.height + space.xs; }}",
+      );
+    });
+  });
 });
+

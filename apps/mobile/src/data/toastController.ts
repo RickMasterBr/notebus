@@ -1,6 +1,7 @@
 /**
- * Regras do toast (E-03 bloco 2; 4.5 §2.1 D-039, §2.5 D-043, §2.6 D-044): um toast por vez, o novo substitui o
- * anterior; some sozinho em 5 s (8 s com VoiceOver ligado) e na hora ao tocar numa ação; o de erro **não some sozinho**.
+ * Regras do toast (E-03 bloco 2; 4.5 §2.1 D-039, §2.5 D-043, §2.6 D-044; E-08.5 bloco 4 E2): um toast por vez, o novo substitui o
+ * anterior; três tipos (info, refusal, error); some sozinho em 5 s (8 s com VoiceOver) ou 8 s (12 s com VoiceOver para recusa ou ação);
+ * só o toast de "error" **não some sozinho**.
  * Puro (sem React): os temporizadores entram por parâmetro, para o teste usar um relógio falso.
  */
 
@@ -9,6 +10,9 @@ export const TOAST_MS_SCREEN_READER = 8000;
 /** Aviso com ação (o Desfazer): fica mais tempo, para dar tempo de tocar (E-08 bloco 5, D11). */
 export const TOAST_MS_ACTION = 8000;
 export const TOAST_MS_ACTION_SCREEN_READER = 12000;
+/** Aviso de recusa de formulário (E-08.5 bloco 4, E2): some sozinho em 8 s (12 s com VoiceOver). */
+export const TOAST_MS_REFUSAL = 8000;
+export const TOAST_MS_REFUSAL_SCREEN_READER = 12000;
 
 export interface ToastAction {
   label: string;
@@ -18,8 +22,8 @@ export interface ToastAction {
 export interface ToastSpec {
   title: string;
   body?: string;
-  /** `error`: não some sozinho (um erro que some em 5 s pode não ser visto por quem registra sem olhar a tela). */
-  kind?: "info" | "error";
+  /** `error`: não some sozinho; `refusal`: recusa de regra de formulário (some sozinho); `info`: aviso padrão (some sozinho). */
+  kind?: "info" | "error" | "refusal";
   action?: ToastAction;
   secondaryAction?: ToastAction;
   /** O VoiceOver está ligado: 8 s em vez de 5 s. */
@@ -36,8 +40,9 @@ export interface ToastTimers<Handle> {
   clear: (handle: Handle) => void;
 }
 
-/** Quanto tempo o aviso fica na tela: com ação 8 s (12 s com VoiceOver), sem ação 5 s (8 s com VoiceOver). */
-export function toastDuration(spec: Pick<ToastSpec, "action" | "screenReader">): number {
+/** Quanto tempo o aviso fica na tela: recusa 8 s (12 s VoiceOver), com ação 8 s (12 s VoiceOver), sem ação 5 s (8 s VoiceOver). */
+export function toastDuration(spec: Pick<ToastSpec, "action" | "screenReader" | "kind">): number {
+  if (spec.kind === "refusal") return spec.screenReader ? TOAST_MS_REFUSAL_SCREEN_READER : TOAST_MS_REFUSAL;
   if (spec.action) return spec.screenReader ? TOAST_MS_ACTION_SCREEN_READER : TOAST_MS_ACTION;
   return spec.screenReader ? TOAST_MS_SCREEN_READER : TOAST_MS;
 }

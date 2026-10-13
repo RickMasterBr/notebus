@@ -243,6 +243,7 @@ export const ptBR = {
   "toast.dont_know.title": "Fica para depois",
   "toast.dont_know.body": "Fora da estimativa. Está em Registros.",
   "toast.undo_verify.body": "Voltou para conferir",
+  "toast.dismiss.a11y": "Fechar aviso", // provisório
   "sheet_record.title": "Registro",
   "sheet_record.field.line": "Linha",
   "sheet_record.field.stop": "Ponto",
