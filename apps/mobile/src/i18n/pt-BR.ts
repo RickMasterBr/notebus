@@ -635,6 +635,13 @@ export const ptBR = {
   "net.official": "MOBILIS", // provisório
   "net.empty.lines": "Nenhuma linha na rede", // provisório
   "net.empty.stops": "Nenhum ponto na rede", // provisório
+  "net.stops.search_placeholder": "Buscar ponto", // provisório
+  "net.stops.no_match": "Nenhum ponto encontrado", // provisório
+  "net.stops.page_prev": "Anterior", // provisório
+  "net.stops.page_next": "Próxima", // provisório
+  "net.stops.page_prev.a11y": "Página anterior de pontos", // provisório
+  "net.stops.page_next.a11y": "Próxima página de pontos", // provisório
+  "net.stops.range": "{{from}} a {{to}} de {{total}}", // provisório
   "net.empty.line": "Esta linha não existe mais", // provisório
   "net.error": "Não foi possível carregar a rede", // provisório
   "net.pattern.circular": "Circular", // provisório
