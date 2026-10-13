@@ -5,7 +5,7 @@
  * Seções:
  * 1. Código e Nome (máximos LINE_LIMITS, contadores, mensagens de erro).
  * 2. Cor (LINE_COLORS selecionáveis com alvo minTouch, LineBadge ao vivo).
- * 3. Percurso (Nome do percurso, Circular, paragens com Subir, Descer, Remover, + Adicionar paragem).
+ * 3. Percurso (Nome do percurso, Circular, paragens com alça de arrastar e Remover, + Adicionar paragem).
  * 4. Duração (minutos, texto de apoio).
  * 5. Dias (Chips: dia útil, sábado, domingo e feriado).
  * 6. Saídas (Chips de modo: Horários avulsos ou Frequência; apoio da madrugada).
@@ -15,6 +15,13 @@ import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-shee
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Switch, Text, View, useWindowDimensions } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNow } from "../data/NowProvider";
 import { useScheduleReload } from "../data/ScheduleProvider";
@@ -27,7 +34,6 @@ import {
   applyPickedTime,
   initialLineFormState,
   lineFormView,
-  moveStop,
   pickerInitialMinute,
   removeDeparture,
   removeStop,
@@ -36,7 +42,9 @@ import {
   toggleDayType,
   type LineFormMode,
   type LineFormState,
+  type LineFormStopRow,
 } from "../data/lineForm";
+import { dragTargetIndex, moveStopTo, stopActionTarget } from "../data/lineStopReorder";
 import { LINE_LIMITS } from "../data/lineDraft";
 import { createSubmitGuard } from "../data/submitGuard";
 import { getSharedDb } from "../db/sharedDb";
@@ -44,12 +52,13 @@ import { t } from "../i18n";
 import type { MessageKey } from "../i18n/pt-BR";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { Chip } from "../ui/Chip";
-import { CrossGlyph } from "../ui/Glyphs";
+import { CrossGlyph, DragHandleGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { PickerModal } from "../ui/PickerModal";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets, useStopPick } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
+import { footerTotalHeight } from "./footerNote";
 import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { useKeyboardHeight } from "./useKeyboardHeight";
@@ -85,6 +94,107 @@ const DAY_TYPES: { code: DayTypeCode; labelKey: MessageKey }[] = [
   { code: "sunday_holiday", labelKey: "settings.day.sunday_holiday" },
 ];
 
+interface StopOrderRowProps {
+  row: LineFormStopRow;
+  total: number;
+  onMove: (from: number, to: number) => void;
+  onRemove: (index: number) => void;
+}
+
+function StopOrderRow({ row, total, onMove, onRemove }: StopOrderRowProps) {
+  const { colors } = useTheme();
+  const translateY = useSharedValue(0);
+  const isDragging = useSharedValue(false);
+  const itemHeight = useSharedValue(56);
+
+  const onDrop = (translationY: number, rowHeight: number) => {
+    const target = dragTargetIndex({ index: row.index, translationY, rowHeight, total });
+    if (target !== row.index) {
+      onMove(row.index, target);
+    }
+  };
+
+  const pan = Gesture.Pan()
+    .activeOffsetY([-6, 6])
+    .onStart(() => {
+      isDragging.value = true;
+    })
+    .onUpdate((event) => {
+      translateY.value = event.translationY;
+    })
+    .onEnd((event) => {
+      runOnJS(onDrop)(event.translationY, itemHeight.value);
+    })
+    .onFinalize(() => {
+      translateY.value = withSpring(0);
+      isDragging.value = false;
+    });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: isDragging.value ? 1.02 : 1 },
+    ],
+    zIndex: isDragging.value ? 999 : 1,
+    elevation: isDragging.value ? 8 : 0,
+    shadowColor: "#000",
+    shadowOpacity: isDragging.value ? 0.2 : 0,
+    shadowRadius: isDragging.value ? 6 : 0,
+    shadowOffset: { width: 0, height: 3 },
+  }));
+
+  const labelText = `${row.index + 1}. ${row.name}`;
+
+  return (
+    <Animated.View
+      style={animatedStyle}
+      onLayout={(e) => {
+        itemHeight.value = e.nativeEvent.layout.height + space.xs;
+      }}
+    >
+      <View style={[styles.stopRow, { backgroundColor: colors.fill }]}>
+        <GestureDetector gesture={pan}>
+          <View
+            style={styles.dragHandleHitTarget}
+            accessibilityElementsHidden={true}
+            importantForAccessibility="no"
+          >
+            <DragHandleGlyph color={colors.textSecondary} />
+          </View>
+        </GestureDetector>
+
+        <View
+          accessible
+          accessibilityLabel={labelText}
+          accessibilityActions={row.actions.map((a) => ({ name: a.name, label: t(a.labelKey) }))}
+          onAccessibilityAction={(event) => {
+            const target = stopActionTarget(event.nativeEvent.actionName, row.index);
+            if (target !== null) {
+              onMove(row.index, target);
+            }
+          }}
+          style={styles.stopNameContainer}
+        >
+          <Text style={[type.body, { color: colors.text }]} numberOfLines={1}>
+            {labelText}
+          </Text>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("line_create.stop.remove")}
+          onPress={() => onRemove(row.index)}
+          style={styles.smallAction}
+        >
+          <Text style={[type.caption, { color: colors.danger }]}>
+            {t("line_create.stop.remove")}
+          </Text>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
 export function LineEditSheet({ id }: { id: number }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -102,6 +212,7 @@ export function LineEditSheet({ id }: { id: number }) {
   const [handleHeight, setHandleHeight] = useState(0);
   const [state, setState] = useState<LineFormState>(initialLineFormState);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [missingNoteHeight, setMissingNoteHeight] = useState(0);
 
   type PickerTarget = "departure" | "freqFrom" | "freqTo";
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
@@ -109,6 +220,9 @@ export function LineEditSheet({ id }: { id: number }) {
 
   const view = useMemo(() => lineFormView(state), [state]);
   const submitGuard = useRef(createSubmitGuard()).current;
+
+  const moveStopRow = (from: number, to: number) =>
+    setState((prev) => ({ ...prev, stops: moveStopTo(prev.stops, from, to) }));
 
   const openTimePicker = (target: PickerTarget) => {
     const base = new Date(now());
@@ -185,9 +299,15 @@ export function LineEditSheet({ id }: { id: number }) {
     bottomInset: insets.bottom,
   });
 
+  const footerTotal = footerTotalHeight({
+    base: footerHeight,
+    noteHeight: missingNoteHeight,
+    noteVisible: view.missingText !== null,
+  });
+
   const { listHeight } = placeSheetFrame({
     scrollAreaHeight,
-    footerHeight,
+    footerHeight: footerTotal,
   });
 
   const formatClock = (minutes: number) => {
@@ -361,55 +481,34 @@ export function LineEditSheet({ id }: { id: number }) {
                   />
                 </View>
 
-                <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600", marginTop: space.sm }]}>
-                  {t("line_create.stops")}
-                </Text>
+                <View style={styles.stopsHeaderRow}>
+                  <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
+                    {t("line_create.stops")}
+                  </Text>
+                  <Text style={[type.caption, { color: colors.textSecondary }]}>
+                    {view.stopsNoteText}
+                  </Text>
+                </View>
 
                 <View style={styles.stopsList}>
                   {view.stopRows.map((row) => (
-                    <View key={`${row.id}-${row.index}`} style={[styles.stopRow, { backgroundColor: colors.fill }]}>
-                      <Text style={[type.body, { color: colors.text, flex: 1 }]} numberOfLines={1}>
-                        {`${row.index + 1}. ${row.name}`}
-                      </Text>
-                      <View style={styles.stopActions}>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={t("line_create.stop.move_up")}
-                          disabled={!row.canMoveUp}
-                          accessibilityState={{ disabled: !row.canMoveUp }}
-                          onPress={() => setState((prev) => ({ ...prev, stops: moveStop(prev.stops, row.index, "up") }))}
-                          style={[styles.smallAction, !row.canMoveUp && styles.disabledButton]}
-                        >
-                          <Text style={[type.caption, { color: row.canMoveUp ? colors.accent : colors.textSecondary }]}>
-                            {t("line_create.stop.move_up")}
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={t("line_create.stop.move_down")}
-                          disabled={!row.canMoveDown}
-                          accessibilityState={{ disabled: !row.canMoveDown }}
-                          onPress={() => setState((prev) => ({ ...prev, stops: moveStop(prev.stops, row.index, "down") }))}
-                          style={[styles.smallAction, !row.canMoveDown && styles.disabledButton]}
-                        >
-                          <Text style={[type.caption, { color: row.canMoveDown ? colors.accent : colors.textSecondary }]}>
-                            {t("line_create.stop.move_down")}
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={t("line_create.stop.remove")}
-                          onPress={() => setState((prev) => ({ ...prev, stops: removeStop(prev.stops, row.index) }))}
-                          style={styles.smallAction}
-                        >
-                          <Text style={[type.caption, { color: colors.danger }]}>
-                            {t("line_create.stop.remove")}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    </View>
+                    <StopOrderRow
+                      key={`${row.id}-${row.index}`}
+                      row={row}
+                      total={view.stopRows.length}
+                      onMove={moveStopRow}
+                      onRemove={(index) =>
+                        setState((prev) => ({ ...prev, stops: removeStop(prev.stops, index) }))
+                      }
+                    />
                   ))}
                 </View>
+
+                {view.stopsProblemText !== null ? (
+                  <Text style={[type.caption, { color: colors.danger }]}>
+                    {view.stopsProblemText}
+                  </Text>
+                ) : null}
 
                 <Pressable
                   accessibilityRole="button"
@@ -605,11 +704,19 @@ export function LineEditSheet({ id }: { id: number }) {
             style={[
               styles.footer,
               {
-                height: footerHeight,
+                height: footerTotal,
                 borderTopColor: colors.divider,
               },
             ]}
           >
+            {view.missingText !== null ? (
+              <Text
+                onLayout={(e) => setMissingNoteHeight(e.nativeEvent.layout.height)}
+                style={[type.caption, { color: colors.textSecondary, textAlign: "center" }]}
+              >
+                {view.missingText}
+              </Text>
+            ) : null}
             <Pressable
               accessibilityRole="button"
               disabled={!view.canSave}
@@ -723,6 +830,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     minHeight: minTouch,
   },
+  stopsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: space.sm,
+    marginTop: space.sm,
+  },
   stopsList: {
     gap: space.xs,
   },
@@ -734,10 +847,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     borderRadius: radius.md,
   },
-  stopActions: {
-    flexDirection: "row",
+  dragHandleHitTarget: {
+    minWidth: 32,
+    minHeight: minTouch,
     alignItems: "center",
-    gap: space.xs,
+    justifyContent: "center",
+  },
+  stopNameContainer: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: space.xs,
   },
   smallAction: {
     minWidth: minTouch,
@@ -812,6 +931,7 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     paddingHorizontal: space.md,
     borderTopWidth: StyleSheet.hairlineWidth,
+    gap: space.xs,
   },
   saveButton: {
     minHeight: minTouch,

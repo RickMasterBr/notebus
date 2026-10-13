@@ -69,10 +69,13 @@ describe("E-08 bloco 11 Item 4: guardas de ligação da Nova linha", () => {
 
   it("LineEditSheet.tsx: moveStop no botão Subir ('up') e no Descer ('down')", () => {
     expect(lineEditSheet).toContain(
-      'accessibilityLabel={t("line_create.stop.move_up")} disabled={!row.canMoveUp} accessibilityState={{ disabled: !row.canMoveUp }} onPress={() => setState((prev) => ({ ...prev, stops: moveStop(prev.stops, row.index, "up") }))}',
+      "setState((prev) => ({ ...prev, stops: moveStopTo(prev.stops, from, to) }))",
     );
-    expect(lineEditSheet).toContain(
-      'accessibilityLabel={t("line_create.stop.move_down")} disabled={!row.canMoveDown} accessibilityState={{ disabled: !row.canMoveDown }} onPress={() => setState((prev) => ({ ...prev, stops: moveStop(prev.stops, row.index, "down") }))}',
+    expect(lineEditSheet).not.toContain(
+      'accessibilityLabel={t("line_create.stop.move_up")}',
+    );
+    expect(lineEditSheet).not.toContain(
+      'accessibilityLabel={t("line_create.stop.move_down")}',
     );
   });
 
@@ -111,10 +114,7 @@ describe("E-08 bloco 11 Item 4: guardas de ligação da Nova linha", () => {
       "{view.stopRows.map((row) => (",
     );
     expect(lineEditSheet).toContain(
-      "disabled={!row.canMoveUp}",
-    );
-    expect(lineEditSheet).toContain(
-      "disabled={!row.canMoveDown}",
+      "accessibilityActions={row.actions.map((a) => ({ name: a.name, label: t(a.labelKey) }))}",
     );
   });
 });

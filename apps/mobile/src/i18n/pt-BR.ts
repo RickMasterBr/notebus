@@ -702,6 +702,7 @@ export const ptBR = {
   "line_create.pattern_label.default": "Ida", // provisório
   "line_create.circular": "Circular", // provisório
   "line_create.stops": "Paragens", // provisório
+  "line_create.stops.min_note": "Mínimo de {{min}} paragens", // provisório
   "line_create.stop.add": "Adicionar paragem", // provisório
   "line_create.stop.move_up": "Subir", // provisório
   "line_create.stop.move_down": "Descer", // provisório
@@ -717,6 +718,14 @@ export const ptBR = {
   "line_create.departure.to": "Até", // provisório
   "line_create.frequency.headway": "A cada {{n}} min", // provisório
   "line_create.button.save": "Criar linha", // provisório
+  "line_create.missing.summary": "Falta: {{items}}", // provisório
+  "line_create.missing.code": "código", // provisório
+  "line_create.missing.name": "nome", // provisório
+  "line_create.missing.stops_min": "{{min}} paragens", // provisório
+  "line_create.missing.stops_distinct": "{{min}} paragens diferentes", // provisório
+  "line_create.missing.stops_adjacent": "sem a mesma paragem em seguida", // provisório
+  "line_create.missing.day_types": "dia", // provisório
+  "line_create.missing.times": "horários", // provisório
   "line_create.toast.created": "Linha criada", // provisório
   "line_create.error.stale": "A linha mudou. Confira e tente de novo.", // provisório
   "line_create.error.generic": "Não foi possível criar a linha. Tente de novo.", // provisório
