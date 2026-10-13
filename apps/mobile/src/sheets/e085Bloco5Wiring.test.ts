@@ -122,3 +122,164 @@ describe("E-08.5 bloco 5 guardas de ligação (NetworkSheet.tsx)", () => {
     expect(body).toContain("AccessibilityInfo.announceForAccessibility(");
   });
 });
+
+// Bloco 6 · Item 0: lacunas que a revisão do bloco 5 achou por mutação (A a P).
+// Cada asserção confere dentro de um recorte e tem mensagem própria.
+describe("E-08.5 bloco 6 guardas de ligação (NetworkSheet.tsx, lacunas A a P)", () => {
+  const between = (start: string, end: string) => {
+    const s = networkSheet.indexOf(start);
+    expect(s, `recorte: início não achado: ${start}`).toBeGreaterThan(-1);
+    const e = networkSheet.indexOf(end, s + start.length);
+    expect(e, `recorte: fim não achado: ${end}`).toBeGreaterThan(-1);
+    return networkSheet.substring(s, e);
+  };
+
+  const pressableOf = (label: string) => {
+    const idx = networkSheet.indexOf(`accessibilityLabel={t("${label}")}`);
+    expect(idx, `Pressable com rótulo ${label} não achado`).toBeGreaterThan(-1);
+    return networkSheet.substring(networkSheet.lastIndexOf("<Pressable", idx), networkSheet.indexOf("</Pressable>", idx));
+  };
+
+  const handlerOf = (name: string) => {
+    const m = networkSheet.match(new RegExp(`const ${name} = useCallback\\(\\(\\) => \\{([\\s\\S]*?)\\}, \\[([^\\]]*)\\]\\);`));
+    expect(m, `${name} não achado`).not.toBeNull();
+    return { body: m![1] ?? "", deps: (m![2] ?? "").split(",").map((d) => d.trim()) };
+  };
+
+  const inputEl = between("<BottomSheetTextInput", " />");
+  const listEl = between("<BottomSheetFlatList", " />");
+
+  it("(A) renderItem passa handlePrev/handleNext ao StopsPager na ordem certa", () => {
+    expect(
+      networkSheet,
+      "A: uso de StopsPager com handlePrev e handleNext trocados ou fora de ordem",
+    ).toContain("<StopsPager stopsView={stopsView} handlePrev={handlePrev} handleNext={handleNext} />");
+  });
+
+  it("(A) dentro do StopsPager, Anterior liga onPress={handlePrev} e Próxima liga onPress={handleNext}", () => {
+    expect(pressableOf("net.stops.page_prev.a11y"), "A: botão Anterior sem onPress={handlePrev}").toContain(
+      "onPress={handlePrev}",
+    );
+    expect(pressableOf("net.stops.page_next.a11y"), "A: botão Próxima sem onPress={handleNext}").toContain(
+      "onPress={handleNext}",
+    );
+  });
+
+  it("(C) pager do fim só aparece com showPager e vem depois da iteração; o do topo vem antes", () => {
+    expect(
+      networkSheet,
+      'C: pager do fim sem a condição "if (stopsView.showPager)"',
+    ).toContain('if (stopsView.showPager) { items.push({ type: "stopPager", id: "stop-pager-bottom" }); }');
+    expect(
+      networkSheet,
+      'C: pager do topo sem a condição "if (stopsView.showPager)"',
+    ).toContain('if (stopsView.showPager) { items.push({ type: "stopPager", id: "stop-pager-top" }); }');
+    const top = networkSheet.indexOf('id: "stop-pager-top"');
+    const loop = networkSheet.indexOf("for (const stop of stopsView.items)");
+    const bottom = networkSheet.indexOf('id: "stop-pager-bottom"');
+    expect(top, "C: pager do topo deve vir antes do for dos pontos").toBeLessThan(loop);
+    expect(bottom, "C: pager do fim deve vir depois do for dos pontos").toBeGreaterThan(loop);
+  });
+
+  it("(D) campo de busca só entra quando há pontos", () => {
+    expect(
+      networkSheet,
+      "D: stop-search sem a condição stops.length > 0",
+    ).toContain('if (stops.length > 0) { items.push({ type: "stopSearch", id: "stop-search" }); }');
+  });
+
+  it("(E) mensagem de sem resultado depende de stopsView.showNoMatch", () => {
+    expect(
+      networkSheet,
+      "E: ramo empty-stops-search sem a condição stopsView.showNoMatch",
+    ).toContain(
+      '} else if (stopsView.showNoMatch) { items.push({ type: "empty", id: "empty-stops-search", message: t("net.stops.no_match"), }); }',
+    );
+  });
+
+  it("(F) cada botão do pager tem o accessibilityState do seu lado", () => {
+    expect(
+      pressableOf("net.stops.page_prev.a11y"),
+      "F: botão Anterior sem accessibilityState disabled",
+    ).toContain("accessibilityState={{ disabled: !stopsView.hasPrev }}");
+    expect(
+      pressableOf("net.stops.page_next.a11y"),
+      "F: botão Próxima sem accessibilityState disabled",
+    ).toContain("accessibilityState={{ disabled: !stopsView.hasNext }}");
+  });
+
+  it("(G) o × da busca limpa pelo handleTermChange (termo e página juntos)", () => {
+    const clear = between('{term !== "" ? (', ") : null}");
+    expect(clear, "G: × sem o rótulo search.clear.a11y").toContain('accessibilityLabel={t("search.clear.a11y")}');
+    expect(clear, 'G: × sem onPress={() => handleTermChange("")}').toContain('onPress={() => handleTermChange("")}');
+  });
+
+  it("(H) listItems depende de lines, stops e stopsView", () => {
+    expect(
+      networkSheet,
+      "H: dependências de listItems sem stopsView",
+    ).toContain("return items; }, [lines, stops, stopsView]);");
+  });
+
+  it("(I) renderItem depende de term, stopsView e dos três handlers da busca", () => {
+    const tail = networkSheet.substring(networkSheet.indexOf("const renderItem = useCallback("));
+    const m = tail.match(/return null; \}, \[([^\]]*)\]/);
+    expect(m, "I: fecho do useCallback do renderItem não achado").not.toBeNull();
+    const deps = m![1]!.split(",").map((d) => d.trim());
+    for (const name of ["term", "stopsView", "handleTermChange", "handlePrev", "handleNext"]) {
+      expect(deps, `I: renderItem sem ${name} nas dependências`).toContain(name);
+    }
+  });
+
+  it("(J) lista sobe com a altura do teclado", () => {
+    expect(networkSheet, "J: useKeyboardHeight não chamado").toContain("const keyboardHeight = useKeyboardHeight();");
+    expect(
+      networkSheet,
+      "J: paddingBottom sem + keyboardHeight",
+    ).toContain("paddingBottom: insets.bottom + space.lg + keyboardHeight");
+  });
+
+  it("(K) lista tem ref e trata falha de rolagem", () => {
+    expect(listEl, "K: lista sem ref={listRef}").toContain("ref={listRef}");
+    expect(
+      listEl,
+      "K: lista sem o onScrollToIndexFailed que rola por offset",
+    ).toContain(
+      "onScrollToIndexFailed={(info) => { listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false, }); }}",
+    );
+  });
+
+  it("(L) handlePrev e handleNext anunciam a faixa da página nova, não a antiga", () => {
+    const range = 't("net.stops.range", { from: nextView.from, to: nextView.to, total: nextView.total })';
+    const nextView = "const nextView = stopsPageView({ stops, term, page: newPage });";
+    const prev = handlerOf("handlePrev").body;
+    const next = handlerOf("handleNext").body;
+    expect(prev, "L: handlePrev não calcula nextView da página nova").toContain(nextView);
+    expect(prev, "L: handlePrev não anuncia a faixa de nextView").toContain(range);
+    expect(next, "L: handleNext não calcula nextView da página nova").toContain(nextView);
+    expect(next, "L: handleNext não anuncia a faixa de nextView").toContain(range);
+  });
+
+  it("(N) campo de busca tem placeholder e rótulo de acessibilidade", () => {
+    expect(inputEl, "N: campo sem placeholder").toContain('placeholder={t("net.stops.search_placeholder")}');
+    expect(inputEl, "N: campo sem accessibilityLabel").toContain(
+      'accessibilityLabel={t("net.stops.search_placeholder")}',
+    );
+  });
+
+  it("(O) atributos do campo de busca: sem autocorreção, sem maiúscula, tecla de busca, sem autoFocus", () => {
+    expect(inputEl, "O: campo sem autoCorrect={false}").toContain("autoCorrect={false}");
+    expect(inputEl, 'O: campo sem autoCapitalize="none"').toContain('autoCapitalize="none"');
+    expect(inputEl, 'O: campo sem returnKeyType="search"').toContain('returnKeyType="search"');
+    expect(inputEl, "O: campo com autoFocus").not.toContain("autoFocus");
+  });
+
+  it("(P) handlePrev e handleNext dependem de stopsView.page, stops, term e listItems", () => {
+    for (const name of ["handlePrev", "handleNext"]) {
+      const { deps } = handlerOf(name);
+      for (const dep of ["stopsView.page", "stops", "term", "listItems"]) {
+        expect(deps, `P: ${name} sem ${dep} nas dependências`).toContain(dep);
+      }
+    }
+  });
+});
