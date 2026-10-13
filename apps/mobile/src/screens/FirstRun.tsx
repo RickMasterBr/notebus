@@ -22,12 +22,14 @@ export function FirstRun({
 }: {
   /** Abre o seletor e importa. `onCount` recebe o número de linhas do arquivo; devolve `true` se entrou. */
   onImport: (onCount: (lines: number) => void) => Promise<"done" | "cancelled" | "invalid" | "failed">;
-  /** Passa à frente sem importar nada, registrando o fim do primeiro uso. */
-  onStartEmpty: () => void;
+  /** Cria a rede do usuário e passa à frente sem importar nada; `"failed"` não alterou nada. */
+  onStartEmpty: () => Promise<"done" | "failed">;
 }) {
   const { colors } = useTheme();
   const [importing, setImporting] = useState<number | "picking" | null>(null);
   const [error, setError] = useState<"invalid" | "failed" | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [startFailed, setStartFailed] = useState(false);
 
   async function startImport() {
     if (importing !== null) return;
@@ -37,6 +39,18 @@ export function FirstRun({
     // "done": a tela some (o app troca de fase); nos outros casos o cartão volta ao normal.
     if (result !== "done") setImporting(null);
     if (result === "invalid" || result === "failed") setError(result);
+  }
+
+  async function startEmpty() {
+    if (starting) return;
+    setStartFailed(false);
+    setStarting(true);
+    const result = await onStartEmpty();
+    // "done": a tela some (o app troca de fase); em "failed" o cartão volta ao normal.
+    if (result === "failed") {
+      setStarting(false);
+      setStartFailed(true);
+    }
   }
 
   return (
@@ -77,7 +91,8 @@ export function FirstRun({
 
         <Pressable
           accessibilityRole="button"
-          onPress={onStartEmpty}
+          accessibilityState={{ busy: starting }}
+          onPress={startEmpty}
           style={({ pressed }) => [
             styles.card,
             { backgroundColor: colors.surface, borderColor: colors.divider, borderWidth: 1 },
@@ -86,6 +101,11 @@ export function FirstRun({
         >
           <Text style={[type.bodyStrong, { color: colors.text }]}>{t("first_run.start_empty")}</Text>
           <Text style={[type.caption, { color: colors.textSecondary }]}>{t("first_run.start_empty.detail")}</Text>
+          {startFailed ? (
+            <Text accessibilityLiveRegion="polite" style={[type.caption, { color: colors.danger }]}>
+              {t("first_run.start_failed")}
+            </Text>
+          ) : null}
         </Pressable>
 
         <Text style={[type.caption, styles.privacy, { color: colors.textSecondary }]}>{t("first_run.privacy")}</Text>
