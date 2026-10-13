@@ -3,9 +3,9 @@
  * Lista agrupada em duas seções (Linhas e Pontos) num só BottomSheetFlatList.
  * Moldura da RecordsSheet (D-150, altura fixa, sem BottomSheetView).
  */
-import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import { BottomSheetFlatList, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -19,6 +19,7 @@ import { NEW_LINE_ID } from "../data/lineForm";
 import { lineDeleteRefusalText } from "../data/lineManage";
 import { NEW_STOP_ID } from "../data/stopEdit";
 import { deleteRefusalText, isDeleteAction } from "../data/stopManage";
+import { stopsAnchorIndex, stopsPageView, type StopsPageView } from "../data/stopsPaging";
 import {
   type NetworkLineItem,
   type NetworkStopItem,
@@ -30,14 +31,16 @@ import { getSharedDb } from "../db/sharedDb";
 import { deleteStop } from "../db/stopDelete";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
-import { CrossGlyph } from "../ui/Glyphs";
+import { CrossGlyph, SearchGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
+import { pillStyles } from "../ui/SearchPill";
 import { Skeleton } from "../ui/Skeleton";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
+import { useKeyboardHeight } from "./useKeyboardHeight";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -57,6 +60,8 @@ type NetworkListItem =
   | { type: "empty"; id: string; message: string }
   | { type: "newLine"; id: string }
   | { type: "newStop"; id: string }
+  | { type: "stopSearch"; id: string }
+  | { type: "stopPager"; id: string }
   | { type: "line"; id: string; line: NetworkLineItem }
   | { type: "stop"; id: string; stop: NetworkStopItem };
 
@@ -73,12 +78,18 @@ export function NetworkSheet({ id }: { id: number }) {
   const toast = useToast();
   const db = getSharedDb();
   const activeSwipeable = useRef<SwipeableMethods | null>(null);
+  const listRef = useRef<React.ComponentRef<typeof BottomSheetFlatList>>(null);
+  const keyboardHeight = useKeyboardHeight();
 
   const [handleHeight, setHandleHeight] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [lines, setLines] = useState<NetworkLineItem[]>([]);
   const [stops, setStops] = useState<NetworkStopItem[]>([]);
+  const [term, setTerm] = useState("");
+  const [page, setPage] = useState(0);
+
+  const stopsView = useMemo(() => stopsPageView({ stops, term, page }), [stops, term, page]);
 
   const loadData = useCallback(async () => {
     if (!db) return;
@@ -135,14 +146,28 @@ export function NetworkSheet({ id }: { id: number }) {
 
     items.push({ type: "newStop", id: "new-stop" });
 
+    if (stops.length > 0) {
+      items.push({ type: "stopSearch", id: "stop-search" });
+    }
+
+    if (stopsView.showPager) {
+      items.push({ type: "stopPager", id: "stop-pager-top" });
+    }
+
     if (stops.length === 0) {
       items.push({
         type: "empty",
         id: "empty-stops",
         message: t("net.empty.stops"),
       });
+    } else if (stopsView.showNoMatch) {
+      items.push({
+        type: "empty",
+        id: "empty-stops-search",
+        message: t("net.stops.no_match"),
+      });
     } else {
-      for (const stop of stops) {
+      for (const stop of stopsView.items) {
         items.push({
           type: "stop",
           id: `stop-${stop.id}`,
@@ -151,8 +176,12 @@ export function NetworkSheet({ id }: { id: number }) {
       }
     }
 
+    if (stopsView.showPager) {
+      items.push({ type: "stopPager", id: "stop-pager-bottom" });
+    }
+
     return items;
-  }, [lines, stops]);
+  }, [lines, stops, stopsView]);
 
   const scrollAreaHeight = Math.max(
     80,
@@ -183,6 +212,34 @@ export function NetworkSheet({ id }: { id: number }) {
   const handleNewStopPress = useCallback(() => {
     dispatch({ type: "push", sheet: { kind: "stopEdit", stopId: NEW_STOP_ID } });
   }, [dispatch]);
+
+  const handleTermChange = useCallback((text: string) => {
+    activeSwipeable.current?.close();
+    setTerm(text);
+    setPage(0);
+  }, []);
+
+  const handlePrev = useCallback(() => {
+    activeSwipeable.current?.close();
+    const newPage = stopsView.page - 1;
+    setPage(stopsView.page - 1);
+    const nextView = stopsPageView({ stops, term, page: newPage });
+    AccessibilityInfo.announceForAccessibility(
+      t("net.stops.range", { from: nextView.from, to: nextView.to, total: nextView.total }),
+    );
+    listRef.current?.scrollToIndex({ index: stopsAnchorIndex(listItems), animated: false });
+  }, [stopsView.page, stops, term, listItems]);
+
+  const handleNext = useCallback(() => {
+    activeSwipeable.current?.close();
+    const newPage = stopsView.page + 1;
+    setPage(stopsView.page + 1);
+    const nextView = stopsPageView({ stops, term, page: newPage });
+    AccessibilityInfo.announceForAccessibility(
+      t("net.stops.range", { from: nextView.from, to: nextView.to, total: nextView.total }),
+    );
+    listRef.current?.scrollToIndex({ index: stopsAnchorIndex(listItems), animated: false });
+  }, [stopsView.page, stops, term, listItems]);
 
   // Depois de criar, apagar ou desfazer: a busca, os horários e esta lista leem o banco de novo (como o saveStopEdit).
   const reloadAll = useCallback(async () => {
@@ -303,6 +360,48 @@ export function NetworkSheet({ id }: { id: number }) {
         );
       }
 
+      if (item.type === "stopSearch") {
+        return (
+          <View style={styles.searchContainer}>
+            <View style={[pillStyles.pill, styles.searchPill, { backgroundColor: colors.fill }]}>
+              <SearchGlyph color={colors.textSecondary} />
+              <BottomSheetTextInput
+                value={term}
+                onChangeText={handleTermChange}
+                placeholder={t("net.stops.search_placeholder")}
+                placeholderTextColor={colors.textSecondary}
+                accessibilityLabel={t("net.stops.search_placeholder")}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+                style={[type.body, styles.searchInput, { color: colors.text }]}
+              />
+              {term !== "" ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("search.clear.a11y")}
+                  hitSlop={space.xs}
+                  onPress={() => handleTermChange("")}
+                  style={styles.searchClear}
+                >
+                  <CrossGlyph color={colors.textSecondary} />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        );
+      }
+
+      if (item.type === "stopPager") {
+        return (
+          <StopsPager
+            stopsView={stopsView}
+            handlePrev={handlePrev}
+            handleNext={handleNext}
+          />
+        );
+      }
+
       if (item.type === "empty") {
         return (
           <View style={styles.emptyRow}>
@@ -337,7 +436,7 @@ export function NetworkSheet({ id }: { id: number }) {
 
       return null;
     },
-    [colors, handleLinePress, handleStopPress, handleNewStopPress, handleDelete, handleDeleteLine, handleWillOpen, handleSwipeClose],
+    [colors, term, stopsView, handleTermChange, handlePrev, handleNext, handleLinePress, handleStopPress, handleNewStopPress, handleDelete, handleDeleteLine, handleWillOpen, handleSwipeClose],
   );
 
   return (
@@ -371,15 +470,23 @@ export function NetworkSheet({ id }: { id: number }) {
             </View>
           ) : (
             <BottomSheetFlatList
+              ref={listRef}
               data={listItems}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               initialNumToRender={15}
               windowSize={7}
               maxToRenderPerBatch={12}
+              keyboardShouldPersistTaps="handled"
+              onScrollToIndexFailed={(info) => {
+                listRef.current?.scrollToOffset({
+                  offset: info.averageItemLength * info.index,
+                  animated: false,
+                });
+              }}
               contentContainerStyle={[
                 styles.listContent,
-                { paddingBottom: insets.bottom + space.lg },
+                { paddingBottom: insets.bottom + space.lg + keyboardHeight },
               ]}
               showsVerticalScrollIndicator={false}
             />
@@ -537,6 +644,76 @@ function LineRow({
   );
 }
 
+function StopsPager({
+  stopsView,
+  handlePrev,
+  handleNext,
+}: {
+  stopsView: StopsPageView<NetworkStopItem>;
+  handlePrev: () => void;
+  handleNext: () => void;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <View style={styles.pagerContainer}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("net.stops.page_prev.a11y")}
+        accessibilityState={{ disabled: !stopsView.hasPrev }}
+        disabled={!stopsView.hasPrev}
+        onPress={handlePrev}
+        style={({ pressed }) => [
+          styles.pagerButton,
+          !stopsView.hasPrev && styles.pagerButtonDisabled,
+          pressed && stopsView.hasPrev && styles.rowPressed,
+        ]}
+      >
+        <Text
+          style={[
+            type.label,
+            { color: stopsView.hasPrev ? colors.accent : colors.textSecondary },
+            !stopsView.hasPrev && styles.pagerTextDisabled,
+          ]}
+        >
+          {t("net.stops.page_prev")}
+        </Text>
+      </Pressable>
+
+      <Text style={[type.caption, styles.pagerRange, { color: colors.textSecondary }]}>
+        {t("net.stops.range", {
+          from: stopsView.from,
+          to: stopsView.to,
+          total: stopsView.total,
+        })}
+      </Text>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("net.stops.page_next.a11y")}
+        accessibilityState={{ disabled: !stopsView.hasNext }}
+        disabled={!stopsView.hasNext}
+        onPress={handleNext}
+        style={({ pressed }) => [
+          styles.pagerButton,
+          !stopsView.hasNext && styles.pagerButtonDisabled,
+          pressed && stopsView.hasNext && styles.rowPressed,
+        ]}
+      >
+        <Text
+          style={[
+            type.label,
+            { color: stopsView.hasNext ? colors.accent : colors.textSecondary },
+            !stopsView.hasNext && styles.pagerTextDisabled,
+          ]}
+        >
+          {t("net.stops.page_next")}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   deleteButton: {
     minWidth: 80,
@@ -568,6 +745,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingTop: space.md,
     paddingBottom: space.xs,
+  },
+  searchContainer: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+  },
+  searchPill: {
+    marginBottom: space.xs,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: space.sm,
+  },
+  searchClear: {
+    width: minTouch,
+    height: minTouch,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -space.sm,
+  },
+  pagerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+  },
+  pagerButton: {
+    minHeight: 44,
+    minWidth: 44,
+    paddingHorizontal: space.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pagerButtonDisabled: {
+    opacity: 0.4,
+  },
+  pagerTextDisabled: {
+    opacity: 0.5,
+  },
+  pagerRange: {
+    flex: 1,
+    textAlign: "center",
   },
   row: {
     minHeight: minTouch,
