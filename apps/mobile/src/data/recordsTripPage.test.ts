@@ -41,11 +41,11 @@ function makeRow(partial: Partial<ObservationRow> & { id: string; observedAt: nu
 function makeRide(partial: Partial<RideRow> & { id: string; boardingObservationId: string }): RideRow {
   return {
     id: partial.id,
+    source: "user",
     boardingObservationId: partial.boardingObservationId,
     alightingObservationId: partial.alightingObservationId ?? null,
+    tripId: partial.tripId ?? null,
     status: partial.status ?? "closed",
-    dismissedAt: partial.dismissedAt ?? null,
-    expiredAt: null,
     deletedAt: partial.deletedAt ?? null,
     createdAt: 1000,
     updatedAt: 1000,
@@ -65,8 +65,12 @@ function makeFullSnapshot(): ScheduleSnapshot {
   };
 
   return {
-    calendar: { dayTypes: [], holidays: [], overrides: [] },
-    schedule: { timetables: [], seasons: [], trips: [trip1] },
+    calendar: { holidays: [], overrides: [] },
+    schedule: {
+      timetables: [],
+      seasons: [],
+      trips: [{ id: "trip-1", timetableId: "tt-1", dayTypes: ["weekday"], seasonId: null }],
+    },
     patterns: [
       {
         id: "pattern-1",

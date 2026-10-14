@@ -44,11 +44,11 @@ function makeRow(partial: Partial<ObservationRow> & { id: string; observedAt: nu
 function makeRide(partial: Partial<RideRow> & { id: string; boardingObservationId: string }): RideRow {
   return {
     id: partial.id,
+    source: "user",
     boardingObservationId: partial.boardingObservationId,
     alightingObservationId: partial.alightingObservationId ?? null,
+    tripId: partial.tripId ?? null,
     status: partial.status ?? "closed",
-    dismissedAt: partial.dismissedAt ?? null,
-    expiredAt: null,
     deletedAt: partial.deletedAt ?? null,
     createdAt: 1000,
     updatedAt: 1000,
@@ -194,7 +194,6 @@ describe("recordsTrips", () => {
       id: "ride-dismissed",
       boardingObservationId: "passed-1",
       status: "dismissed",
-      dismissedAt: lisbonMs(TODAY, "12:21"),
     });
 
     const model = buildTripsList({
