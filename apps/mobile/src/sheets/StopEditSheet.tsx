@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNow } from "../data/NowProvider";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useScheduleReload } from "../data/ScheduleProvider";
+import { useStopLocations } from "../data/StopLocationsProvider";
 import { useReloadStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
 import {
@@ -28,14 +29,14 @@ import {
   addAlias,
   commitPendingAlias,
   stopEditView,
-  stopLocationStatusKey,
   validateStopEdit,
   type AliasRefusal,
   type StopEditDraft,
   type StopEditOther,
 } from "../data/stopEdit";
+import { locationEdit, stopLocationView } from "../data/stopLocationEdit";
 import { newStopDraft } from "../data/stopManage";
-import { buildNewStopValues, newStopLocationView } from "../data/stopNewLocation";
+import { buildNewStopValues } from "../data/stopNewLocation";
 import { createSubmitGuard } from "../data/submitGuard";
 import { selectLive } from "../db/query";
 import { stop } from "../db/schema";
@@ -78,6 +79,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
   const { remember } = useRecentStops();
   // Os horários guardam o nome do ponto (`stopNames`): sem recarregar, as outras folhas mostram o nome antigo.
   const reloadSchedule = useScheduleReload();
+  const locations = useStopLocations();
   const db = getSharedDb();
   const isNew = stopId === NEW_STOP_ID;
   // O teclado cobria a Nota, o ID externo e o novo apelido: a rolagem ganha o espaço do teclado (E-08 bloco 5, item 2).
@@ -121,7 +123,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
 
   const [location, setLocation] = useState<StopPoint | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
-  const locationView = newStopLocationView(location);
+  const locationView = stopLocationView(locationInfo, location);
 
   useEffect(() => {
     let active = true;
@@ -159,6 +161,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
         lon: row.lon,
         locationSource: row.locationSource,
       });
+      setLocation(row.lat !== null && row.lon !== null ? { lat: row.lat, lon: row.lon } : null);
       setLoading(false);
     }
     void load();
@@ -188,8 +191,9 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
         validation,
         aliasError,
         pendingAlias: newAliasText,
+        locationChanged: locationView.changed,
       }),
-    [original, draft, validation, aliasError, newAliasText],
+    [original, draft, validation, aliasError, newAliasText, locationView.changed],
   );
 
   const handleAddAlias = () => {
@@ -240,12 +244,14 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
               aliases: committed.aliases,
               externalId: draft.externalId,
               note: draft.note,
+              location: locationEdit(locationInfo, location),
             },
             nowMs,
           );
       if (result.ok) {
         await reloadStopIndex();
         await reloadSchedule();
+        await locations.reload();
         close();
         toast.show({
           title: isNew ? t("stop_new.saved") : t("stop_edit.toast.saved"),
@@ -256,6 +262,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
               const undone = await result.undo(now());
               await reloadStopIndex();
               await reloadSchedule();
+              await locations.reload();
               if (!undone.ok) {
                 toast.show({
                   title: t("stop_edit.error.stale"),
@@ -506,67 +513,40 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
                   </View>
 
                   {/* 5. Localização */}
-                  {isNew ? (
-                    <View style={styles.section}>
-                      <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
-                        {t("stop_edit.location")}
+                  <View style={styles.section}>
+                    <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
+                      {t("stop_edit.location")}
+                    </Text>
+                    <View style={[styles.readOnlyRow, { backgroundColor: colors.fill }]}>
+                      <Text style={[type.body, { color: colors.textSecondary }]}>
+                        {t(locationView.statusKey)}
                       </Text>
-                      <View style={[styles.readOnlyRow, { backgroundColor: colors.fill }]}>
-                        <Text style={[type.body, { color: colors.textSecondary }]}>
-                          {t(locationView.statusKey)}
+                    </View>
+                    <View style={styles.locationButtonsRow}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("map_pick.open.stop.a11y")}
+                        onPress={() => setPickerVisible(true)}
+                        style={[styles.locationButton, { backgroundColor: colors.fill }]}
+                      >
+                        <Text style={[type.bodyStrong, { color: colors.accent, textAlign: "center" }]}>
+                          {t("map_pick.open")}
                         </Text>
-                      </View>
-                      <View style={styles.locationButtonsRow}>
+                      </Pressable>
+                      {locationView.canRemove ? (
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={t("map_pick.open.stop.a11y")}
-                          onPress={() => setPickerVisible(true)}
-                          style={[
-                            styles.smallActionButton,
-                            locationView.canRemove && styles.locationButtonHalf,
-                            { backgroundColor: colors.fill },
-                          ]}
+                          accessibilityLabel={t("stop_new.location.remove")}
+                          onPress={() => setLocation(null)}
+                          style={[styles.locationButton, { backgroundColor: colors.fill }]}
                         >
-                          <Text style={[type.bodyStrong, { color: colors.accent, textAlign: "center" }]}>
-                            {t("map_pick.open")}
+                          <Text style={[type.bodyStrong, { color: colors.danger, textAlign: "center" }]}>
+                            {t("stop_new.location.remove")}
                           </Text>
                         </Pressable>
-                        {locationView.canRemove ? (
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={t("stop_new.location.remove")}
-                            onPress={() => setLocation(null)}
-                            style={[
-                              styles.smallActionButton,
-                              locationView.canRemove && styles.locationButtonHalf,
-                              { backgroundColor: colors.fill },
-                            ]}
-                          >
-                            <Text style={[type.bodyStrong, { color: colors.danger, textAlign: "center" }]}>
-                              {t("stop_new.location.remove")}
-                            </Text>
-                          </Pressable>
-                        ) : null}
-                      </View>
+                      ) : null}
                     </View>
-                  ) : (
-                    <View style={styles.section}>
-                      <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
-                        {t("stop_edit.location")}
-                      </Text>
-                      <View style={[styles.readOnlyRow, { backgroundColor: colors.fill }]}>
-                        <Text style={[type.body, { color: colors.textSecondary }]}>
-                          {t(
-                            stopLocationStatusKey(
-                              locationInfo.lat,
-                              locationInfo.lon,
-                              locationInfo.locationSource,
-                            ),
-                          )}
-                        </Text>
-                      </View>
-                    </View>
-                  )}
+                  </View>
                 </>
               )}
             </BottomSheetScrollView>
@@ -696,20 +676,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   locationButtonsRow: {
-    flexDirection: "row",
     gap: space.sm,
     marginTop: space.xs,
   },
-  locationButtonHalf: {
-    flex: 1,
-  },
-  smallActionButton: {
+  locationButton: {
     minHeight: minTouch,
     paddingHorizontal: space.md,
     paddingVertical: space.xs,
     borderRadius: radius.md,
     justifyContent: "center",
     alignItems: "center",
+    alignSelf: "stretch",
   },
   footer: {
     paddingTop: space.sm,

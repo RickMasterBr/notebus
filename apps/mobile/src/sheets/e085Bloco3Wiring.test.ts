@@ -101,17 +101,19 @@ describe("E-08.5 bloco 3 Item 5: guardas de ligação", () => {
   describe("StopEditSheet.tsx", () => {
     it("locationButtonsRow sem flexWrap", () => {
       const start = stopEditSheet.indexOf("locationButtonsRow:");
-      const end = stopEditSheet.indexOf("locationButtonHalf:");
+      const end = stopEditSheet.indexOf("locationButton:");
       const locStyle = stopEditSheet.substring(start, end);
       expect(locStyle).not.toContain("flexWrap");
     });
 
-    it("locationButtonHalf com flex: 1", () => {
-      expect(stopEditSheet).toContain("locationButtonHalf: { flex: 1, }");
+    it("locationButton com alignSelf: 'stretch' e minHeight: minTouch", () => {
+      expect(stopEditSheet).toContain(
+        'locationButton: { minHeight: minTouch, paddingHorizontal: space.md, paddingVertical: space.xs, borderRadius: radius.md, justifyContent: "center", alignItems: "center", alignSelf: "stretch", }',
+      );
     });
 
-    it("os dois botões usam locationView.canRemove && styles.locationButtonHalf", () => {
-      const matches = stopEditSheet.match(/locationView\.canRemove\s*&&\s*styles\.locationButtonHalf/g) ?? [];
+    it("os dois botões usam styles.locationButton", () => {
+      const matches = stopEditSheet.match(/styles\.locationButton\b/g) ?? [];
       expect(matches).toHaveLength(2);
     });
   });

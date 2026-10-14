@@ -1,15 +1,17 @@
 /**
  * Gravação e Desfazer da edição de ponto (E-08 §5.1, D-113, Item 2).
  * Modifica name, aliases, externalId e note de stop.
- * Não toca em lat, lon nem locationSource.
+ * Não toca em lat, lon nem locationSource quando location é undefined (F3, D-190).
  * Ponto official vira official_edited; user e official_edited mantêm o source.
  * updatedAt estritamente crescente.
  */
+import { validateLocation } from "@notebus/domain";
 import { eq, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { externalIdTooLong } from "../data/stopEdit";
 import { selectLive } from "./query";
 import { stop } from "./schema";
+import type { StopPoint } from "./stopLocation";
 import { externalIdTaken } from "./stopRules";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
@@ -20,6 +22,8 @@ export interface StopEditValues {
   externalId: string | null;
   note: string | null;
 }
+
+export type StopEditSaveValues = StopEditValues & { location?: StopPoint | null };
 
 export type SaveStopEditRefusal =
   | "not_found"
@@ -52,7 +56,7 @@ const editedSource = (current: "user" | "official" | "official_edited") =>
 export async function saveStopEdit(
   db: AnyDb,
   stopId: string,
-  value: StopEditValues,
+  value: StopEditSaveValues,
   nowMs: number,
 ): Promise<SaveStopEditResult> {
   const nameTrimmed = value.name.trim();
@@ -64,6 +68,12 @@ export async function saveStopEdit(
   const noteTrimmed = value.note?.trim() || null;
   if (noteTrimmed && noteTrimmed.length > 200) {
     return { ok: false, reason: "invalid" };
+  }
+
+  if (value.location !== undefined && value.location !== null) {
+    if (!validateLocation(value.location, null, "suggested").ok) {
+      return { ok: false, reason: "invalid" };
+    }
   }
 
   return inTransaction(db, async () => {
@@ -88,16 +98,30 @@ export async function saveStopEdit(
     const targetUpdatedAt = Math.max(nowMs, existing.updatedAt + 1);
     const newSource = editedSource(existing.source);
 
+    const updateSet: Record<string, unknown> = {
+      name: nameTrimmed,
+      aliases: value.aliases,
+      externalId: externalIdTrimmed,
+      note: noteTrimmed,
+      source: newSource,
+      updatedAt: targetUpdatedAt,
+    };
+
+    if (value.location !== undefined) {
+      if (value.location === null) {
+        updateSet.lat = null;
+        updateSet.lon = null;
+        updateSet.locationSource = null;
+      } else {
+        updateSet.lat = value.location.lat;
+        updateSet.lon = value.location.lon;
+        updateSet.locationSource = "manual";
+      }
+    }
+
     await db
       .update(stop)
-      .set({
-        name: nameTrimmed,
-        aliases: value.aliases,
-        externalId: externalIdTrimmed,
-        note: noteTrimmed,
-        source: newSource,
-        updatedAt: targetUpdatedAt,
-      })
+      .set(updateSet)
       .where(eq(stop.id, stopId));
 
     // 4. Desfazer: devolve exatamente o estado anterior se updatedAt não mudou
@@ -109,16 +133,24 @@ export async function saveStopEdit(
           return { ok: false, reason: "stale" };
         }
 
+        const undoSet: Record<string, unknown> = {
+          name: existing.name,
+          aliases: existing.aliases,
+          externalId: existing.externalId,
+          note: existing.note,
+          source: existing.source,
+          updatedAt: existing.updatedAt,
+        };
+
+        if (value.location !== undefined) {
+          undoSet.lat = existing.lat;
+          undoSet.lon = existing.lon;
+          undoSet.locationSource = existing.locationSource;
+        }
+
         await db
           .update(stop)
-          .set({
-            name: existing.name,
-            aliases: existing.aliases,
-            externalId: existing.externalId,
-            note: existing.note,
-            source: existing.source,
-            updatedAt: existing.updatedAt,
-          })
+          .set(undoSet)
           .where(eq(stop.id, stopId));
 
         return { ok: true };

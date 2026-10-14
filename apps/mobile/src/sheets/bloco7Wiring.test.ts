@@ -76,7 +76,7 @@ describe("item 3: Novo ponto", () => {
 
   it("a folha chama createStop só no modo novo e saveStopEdit só no modo edição, cada um no seu ramo", () => {
     const draftFields =
-      "{ name: draft.name, aliases: committed.aliases, externalId: draft.externalId, note: draft.note, }";
+      "{ name: draft.name, aliases: committed.aliases, externalId: draft.externalId, note: draft.note, location: locationEdit(locationInfo, location), }";
     expect(stopEditSheet).toContain(
       `const result = isNew ? await createStop( db, buildNewStopValues(draft, committed.aliases, location), nowMs, ) : await saveStopEdit( db, stopId, ${draftFields}, nowMs, );`,
     );
@@ -86,13 +86,13 @@ describe("item 3: Novo ponto", () => {
 
   it("depois de criar, a busca e os horários recarregam e o toast traz o Desfazer", () => {
     expect(stopEditSheet).toContain(
-      'if (result.ok) { await reloadStopIndex(); await reloadSchedule(); close(); toast.show({ title: isNew ? t("stop_new.saved") : t("stop_edit.toast.saved"), haptic: "success", action: { label: t("toast.action.undo"),',
+      'if (result.ok) { await reloadStopIndex(); await reloadSchedule(); await locations.reload(); close(); toast.show({ title: isNew ? t("stop_new.saved") : t("stop_edit.toast.saved"), haptic: "success", action: { label: t("toast.action.undo"),',
     );
   });
 
   it("o Desfazer da criação chama result.undo, recarrega e, se falhar, mostra o erro", () => {
     expect(stopEditSheet).toContain(
-      'run: async () => { const undone = await result.undo(now()); await reloadStopIndex(); await reloadSchedule(); if (!undone.ok) { toast.show({ title: t("stop_edit.error.stale"), kind: "error", haptic: "error", }); } },',
+      'run: async () => { const undone = await result.undo(now()); await reloadStopIndex(); await reloadSchedule(); await locations.reload(); if (!undone.ok) { toast.show({ title: t("stop_edit.error.stale"), kind: "error", haptic: "error", }); } },',
     );
   });
 

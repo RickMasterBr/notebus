@@ -186,6 +186,7 @@ export interface StopEditViewInput {
   aliasError?: AliasRefusal | null;
   /** Texto que está no campo de novo apelido e ainda não foi adicionado (D8). */
   pendingAlias?: string;
+  locationChanged?: boolean;
 }
 
 export interface StopEditView {
@@ -199,7 +200,7 @@ export interface StopEditView {
 }
 
 export function stopEditView(input: StopEditViewInput): StopEditView {
-  const { original, draft, validation, aliasError, pendingAlias } = input;
+  const { original, draft, validation, aliasError, pendingAlias, locationChanged } = input;
 
   const origName = original.name.trim();
   const draftName = draft.name.trim();
@@ -222,7 +223,8 @@ export function stopEditView(input: StopEditViewInput): StopEditView {
     origExt !== draftExt ||
     origNote !== draftNote ||
     aliasesChanged ||
-    pendingChange;
+    pendingChange ||
+    locationChanged === true;
 
   const nameError = !validation.ok ? validation.errors.name ?? null : null;
   const externalIdError =
