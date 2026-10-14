@@ -8,6 +8,7 @@ import {
   sheetReducer,
   stackedSheets,
 } from "./stack";
+import { NEW_LINE_ID } from "../data/lineForm";
 
 /** `POP` = fechar a folha que está no topo agora (o id é lido do estado); `closeId(n)` = aviso de fechamento de uma folha específica. */
 const POP = Symbol("pop");
@@ -279,5 +280,27 @@ describe("E-08.5 bloco 12: ahead com serviceDate e folha why (Item 1)", () => {
       { type: "push", sheet: { kind: "why", tripId: "v1", position: 3, serviceDate: "2026-10-14", dayType: "weekday" } },
     );
     expect(kinds(s2)).toEqual(["home", "stop", "why", "why"]);
+  });
+});
+
+describe("E-08.5 bloco 13: lineDetail com initialStop (Item 1)", () => {
+  it("Item 1: empilhar lineDetail com NEW_LINE_ID duas vezes (com e sem initialStop) não duplica; o initialStop sobrevive ao push; com lineId diferente empilha", () => {
+    const s1 = run(
+      { type: "push", sheet: { kind: "lineDetail", lineId: NEW_LINE_ID, initialStop: { id: "p1", name: "Ponto 1" } } },
+      { type: "push", sheet: { kind: "lineDetail", lineId: NEW_LINE_ID } },
+    );
+    expect(kinds(s1)).toEqual(["home", "lineDetail"]);
+    const top = activeSheet(s1);
+    expect(top).toMatchObject({
+      kind: "lineDetail",
+      lineId: NEW_LINE_ID,
+      initialStop: { id: "p1", name: "Ponto 1" },
+    });
+
+    const s2 = run(
+      { type: "push", sheet: { kind: "lineDetail", lineId: NEW_LINE_ID, initialStop: { id: "p1", name: "Ponto 1" } } },
+      { type: "push", sheet: { kind: "lineDetail", lineId: "other_line" } },
+    );
+    expect(kinds(s2)).toEqual(["home", "lineDetail", "lineDetail"]);
   });
 });

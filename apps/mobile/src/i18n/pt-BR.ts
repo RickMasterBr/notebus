@@ -818,6 +818,16 @@ export const ptBR = {
   "why.delta.on_time": "na hora da tabela", // provisório
   "why.footnote": "O app usa a mediana das suas anotações, com mais peso para as recentes. Registros “para conferir” não entram.", // provisório
   "why.row.a11y": "{{label}}, {{value}}, {{detail}}", // provisório
+  // E-08.5 Bloco 13: Cartões de guia do Início (D-196, D-202, ux/4.8 §5.3)
+  "home.guide.line.title": "Agora, a linha que passa no seu ponto", // provisório
+  "home.guide.line.body": "Cadastre o número, as paragens e os horários. A linha precisa de pelo menos 2 paragens: o seu ponto e outra por onde ela passa.", // provisório
+  "home.guide.line.action": "Cadastrar a linha", // provisório
+  "home.guide.register.title": "Pronto para anotar", // provisório
+  "home.guide.register.body": "Quando pegar o ônibus, toque em Registrar. Cada embarque que você anota ajusta o horário do seu ponto.", // provisório
+  "home.guide.register.action": "Ver os horários", // provisório
+  "home.guide.mobilis.title": "Ache o seu ponto", // provisório
+  "home.guide.mobilis.body": "Busque o ponto onde você pega o ônibus. Os horários começam como “estimado” e se ajustam a cada embarque que você anota.", // provisório
+  "home.guide.mobilis.action": "Buscar meu ponto", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;

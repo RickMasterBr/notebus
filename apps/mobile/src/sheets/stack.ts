@@ -57,7 +57,7 @@ export type SheetContent =
   | { kind: "networkInfo" }
   /** E-08 Bloco 1c: TL-11 só para ver */
   | { kind: "network" }
-  | { kind: "lineDetail"; lineId: string }
+  | { kind: "lineDetail"; lineId: string; initialStop?: { id: string; name: string } }
   /** E-08 Bloco 2: TL-07 Declarar horário */
   | { kind: "declare"; stopId: string }
   /** E-08 Bloco 3: Editar ponto */

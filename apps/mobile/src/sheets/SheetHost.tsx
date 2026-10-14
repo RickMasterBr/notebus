@@ -81,6 +81,9 @@ function StackedSheetSlot({ entry }: { entry: SheetEntry }) {
 }
 
 function StackedSheetContent({ entry }: { entry: SheetEntry }) {
+  if (entry.kind === "lineDetail" && entry.lineId === NEW_LINE_ID && entry.initialStop) {
+    return <LineEditSheet id={entry.id} initialStop={entry.initialStop} />;
+  }
   if (entry.kind === "lineDetail" && entry.lineId === NEW_LINE_ID) {
     return <LineEditSheet id={entry.id} />;
   }
