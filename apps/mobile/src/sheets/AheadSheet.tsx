@@ -10,7 +10,7 @@
  * Dynamic Type acima de `.xxLarge`: hora e nome empilham por paragem (4.6 §6). Sem lugares do usuário (E-05).
  */
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRegistro } from "../data/RegistroProvider";
@@ -69,10 +69,13 @@ export function AheadSheet({ id, tripId, position }: { id: number; tripId: strin
   const instant = useNowTick();
   const loading = schedule.status === "loading";
   const skeleton = useSkeletonVisible(loading);
-  const ahead =
-    schedule.status === "ready"
-      ? buildAhead(tripId, position, schedule.data, { learning: { records: registro.records, now: instant } })
-      : null;
+  const ahead = useMemo(
+    () =>
+      schedule.status === "ready"
+        ? buildAhead(tripId, position, schedule.data, { learning: { records: registro.records, now: instant } })
+        : null,
+    [schedule, tripId, position, registro.records, instant],
+  );
   const [handleHeight, setHandleHeight] = useState(0);
 
   // Receita da D-150 (a mesma do Ponto e do Início, `scrollInset.ts`): lista numa `View` de altura FIXA, a da folha aberta

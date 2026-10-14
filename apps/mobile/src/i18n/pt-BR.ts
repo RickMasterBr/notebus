@@ -784,6 +784,13 @@ export const ptBR = {
   "line_delete.in_use_records_other": "Esta linha tem {{n}} registros. Apague os registros antes", // provisório
   "line_delete.in_use_options_one": "Esta linha tem 1 trajeto. Apague o trajeto antes", // provisório
   "line_delete.in_use_options_other": "Esta linha tem {{n}} trajetos. Apague os trajetos antes", // provisório
+  "why.next.to_medium_from_zero": "Com {{n}} anotações, a confiança sobe para média.", // provisório
+  "why.next.to_medium": "Com mais {{n}}, a confiança sobe para média.", // provisório
+  "why.next.to_medium_one": "Com mais uma, a confiança sobe para média.", // provisório
+  "why.next.to_high": "Com {{n}} a mais nos últimos {{days}} dias, a confiança sobe para alta.", // provisório
+  "why.next.to_high_one": "Com mais uma nos últimos {{days}} dias, a confiança sobe para alta.", // provisório
+  "why.next.to_high_range": "Sobe para alta quando a faixa ficar em até {{minutes}} min.", // provisório
+  "why.next.high": "Confiança alta: {{n}} anotações recentes e faixa de {{width}} min.", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;
