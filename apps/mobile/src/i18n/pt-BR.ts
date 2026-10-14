@@ -892,6 +892,42 @@ export const ptBR = {
   "greeting.night": "Boa noite", // provisório
   "greeting.with_name": "{{greeting}}, {{name}}.", // provisório
   "greeting.plain": "{{greeting}}.", // provisório
+  // E-08.5 Bloco 16: Registros por viagem (D-207)
+  "sheet_records.section.now": "Agora", // provisório
+  "sheet_records.now.badge": "Em viagem", // provisório
+  "sheet_records.pending.check": "Conferir", // provisório
+  "sheet_records.pending.unsure": "Não sei", // provisório
+  "sheet_records.allchecked.headline": "Tudo conferido", // provisório
+  "sheet_records.allchecked.body": "Nenhum registro pede sua atenção agora. Quando o app não souber qual viagem foi, ele avisa aqui.", // provisório
+  "sheet_records.trip.route": "{{from}} → {{to}}", // provisório
+  "sheet_records.trip.route_unknown": "{{from}} → ?", // provisório
+  "sheet_records.trip.time_range": "{{start}} → {{end}}", // provisório
+  "sheet_records.trip.time_line": "{{range}} · {{duration}}", // provisório
+  "sheet_records.trip.duration": "{{n}} min", // provisório
+  "sheet_records.trip.time_open": "embarcou {{time}}", // provisório
+  "sheet_records.trip.delta": "embarque {{delta}}", // provisório
+  "sheet_records.trip.no_alight": "a descida não foi registrada", // provisório
+  "sheet_records.trip.a11y": "Linha {{line}}, {{route}}, {{time}}{{state}}", // provisório
+  "sheet_records.line.passed": "Vi passar · {{stop}}", // provisório
+  "sheet_records.line.alighted": "Desci · {{stop}}", // provisório
+  "sheet_records.back": "Registros", // provisório
+  "sheet_records.back.a11y": "Voltar para Registros", // provisório
+  "sheet_records.page.subtitle": "{{day}} · {{duration}} de viagem", // provisório
+  "sheet_records.page.boarding": "Embarque", // provisório
+  "sheet_records.page.alighting": "Descida", // provisório
+  "sheet_records.page.edit": "Editar", // provisório
+  "sheet_records.page.table_line": "tabela {{time}} · {{delta}}", // provisório
+  "sheet_records.page.table_line_plain": "tabela {{time}}", // provisório
+  "sheet_records.page.alight_open": "Ainda em viagem", // provisório
+  "sheet_records.page.alight_missing": "Descida não registrada", // provisório
+  "sheet_records.page.learns": "Esta viagem ajuda o app a aprender o horário da linha {{line}} em {{stop}}.", // provisório
+  "sheet_records.page.unmatched": "O app ainda não ligou esta viagem a um horário da tabela, então ela não ensina nada a ele.", // provisório
+  "sheet_records.page.table_trip": "Viagem da tabela", // provisório
+  "sheet_records.page.table_trip_value": "{{time}} de {{stop}}", // provisório
+  "sheet_records.page.note": "Nota", // provisório
+  "sheet_records.page.delete": "Apagar viagem", // provisório
+  "sheet_records.page.delete_hint": "Apaga o embarque e a descida. Dá para desfazer logo depois.", // provisório
+  "sheet_records.page.delete_hint_single": "Apaga o embarque. Dá para desfazer logo depois.", // provisório
 } as const;
 
 
