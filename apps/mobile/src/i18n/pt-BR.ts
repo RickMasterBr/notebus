@@ -928,6 +928,21 @@ export const ptBR = {
   "sheet_records.page.delete": "Apagar viagem", // provisório
   "sheet_records.page.delete_hint": "Apaga o embarque e a descida. Dá para desfazer logo depois.", // provisório
   "sheet_records.page.delete_hint_single": "Apaga o embarque. Dá para desfazer logo depois.", // provisório
+  // E-08.5 Bloco 17: Início com frase viva (D-207, ideia 50)
+  "home.greeting.eyebrow_with_name": "{{greeting}}, {{name}}", // provisório
+  "home.greeting.eyebrow_plain": "{{greeting}}", // provisório
+  "home.greeting.a11y": "{{eyebrow}}. {{headline}}", // provisório
+  "home.greeting.arriving.minutes": "Seu ônibus chega em {{n}} minutos", // provisório
+  "home.greeting.arriving.minutes_one": "Seu ônibus chega em 1 minuto", // provisório
+  "home.greeting.arriving.leave": "Hora de sair para o ponto", // provisório
+  "home.greeting.arriving.line": "→ {{place}} · esteja em {{stop}} às {{time}}", // provisório
+  "home.greeting.arriving.line_no_place": "Esteja em {{stop}} às {{time}}", // provisório
+  "home.greeting.invite.where": "Para onde vamos hoje?", // provisório
+  "home.greeting.invite.line": "Qual linha você vai pegar?", // provisório
+  "home.greeting.invite.faculty_or_home": "Vai para a Facul ou para casa?", // provisório
+  "home.greeting.invite.first_bus": "Primeiro ônibus do dia?", // provisório
+  "home.greeting.invite.going_home": "Voltando para casa?", // provisório
+  "home.greeting.invite.note_next": "Anote o próximo ônibus que você pegar.", // provisório
 } as const;
 
 

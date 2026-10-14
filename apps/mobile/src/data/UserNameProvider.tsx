@@ -20,15 +20,34 @@ type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
 
 export interface UserNameContextValue {
   name: string | null;
+  loaded: boolean;
   setName: (raw: string | null | undefined) => Promise<void>;
   clear: () => Promise<void>;
 }
 
-const UserNameContext = createContext<UserNameContextValue>({
+export const USER_NAME_CONTEXT_DEFAULT: UserNameContextValue = {
   name: null,
+  loaded: true,
   setName: async () => {},
   clear: async () => {},
-});
+};
+
+const UserNameContext = createContext<UserNameContextValue>(USER_NAME_CONTEXT_DEFAULT);
+
+export async function loadUserNameState(
+  db: AnyDb,
+  onName: (name: string | null) => void,
+  onLoaded: () => void,
+): Promise<void> {
+  try {
+    const current = await readUserName(db);
+    onName(current);
+  } catch {
+    // Ignora erro de leitura inicial
+  } finally {
+    onLoaded();
+  }
+}
 
 export function UserNameProvider({
   db,
@@ -41,14 +60,10 @@ export function UserNameProvider({
   const nowRef = useRef(now);
   nowRef.current = now;
   const [name, setNameState] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
-    try {
-      const current = await readUserName(db);
-      setNameState(current);
-    } catch {
-      // Ignora erro de leitura inicial
-    }
+    await loadUserNameState(db, setNameState, () => setLoaded(true));
   }, [db]);
 
   useEffect(() => {
@@ -71,10 +86,11 @@ export function UserNameProvider({
   const value = useMemo(
     () => ({
       name,
+      loaded,
       setName,
       clear,
     }),
-    [name, setName, clear],
+    [name, loaded, setName, clear],
   );
 
   return <UserNameContext.Provider value={value}>{children}</UserNameContext.Provider>;

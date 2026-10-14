@@ -121,6 +121,8 @@ export const type = {
   timeMd: { fontSize: 17, fontWeight: "600", fontVariant: ["tabular-nums"] },
   caption: { fontSize: 13, fontWeight: "400" },
   label: { fontSize: 13, fontWeight: "600" },
+  eyebrow: { fontSize: 14, fontWeight: "600" },
+  phrase: { fontSize: 26, fontWeight: "700", lineHeight: 31 },
 } satisfies Record<string, TextStyle>;
 
 /** §3.1 */

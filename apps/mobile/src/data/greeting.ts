@@ -26,3 +26,13 @@ export function greetingText({ hour, name }: GreetingInput): string {
   }
   return t("greeting.plain", { greeting });
 }
+
+export function greetingEyebrow({ hour, name }: GreetingInput): string {
+  const period = greetingPeriod(hour);
+  const greeting = t(`greeting.${period}`);
+  const trimmedName = name?.trim();
+  if (trimmedName) {
+    return t("home.greeting.eyebrow_with_name", { greeting, name: trimmedName });
+  }
+  return t("home.greeting.eyebrow_plain", { greeting });
+}

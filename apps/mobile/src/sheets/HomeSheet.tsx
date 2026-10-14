@@ -38,13 +38,16 @@ import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { homeCardsPlan } from "../data/homeCards";
 import { homeGuide } from "../data/homeGuide";
 import { homePendingInfo } from "../data/homePending";
+import { phraseVisible } from "../data/homePhraseVisible";
 import { initialDetent } from "../data/homeStart";
+import { useHomePhrase } from "../data/useHomePhrase";
 import { NEW_LINE_ID } from "../data/lineForm";
 import { dismissHomeGuide, isHomeGuideDismissed, readHomeGuideFacts, type HomeGuideFactsResult } from "../db/homeGuide";
 import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import { elevation, radius, space, type, useTheme } from "../theme";
 import { PlaceIconGlyph, PlusGlyph } from "../ui/Glyphs";
+import { HomePhrase } from "../ui/HomePhrase";
 import { OfflineMapCard } from "../ui/OfflineMapCard";
 import { REGISTER_BUTTON_HEIGHT, RegisterButton } from "../ui/RegisterButton";
 import { SearchPill } from "../ui/SearchPill";
@@ -132,6 +135,20 @@ export function HomeSheet() {
   const [pillHeight, setPillHeight] = useState(0);
   // Altura medida do cartão ("Em viagem", lembrete de backup ou mapa sem internet); 0 sem nenhum.
   const [cardHeight, setCardHeight] = useState(0);
+  const [phraseHeight, setPhraseHeight] = useState(0);
+  const { phrase, lineColor } = useHomePhrase();
+  const showPhrase = phraseVisible({
+    phrase,
+    inTrip: Boolean(tripCard),
+    detent: state.detent,
+  });
+
+  useEffect(() => {
+    if (!showPhrase) {
+      setPhraseHeight(0);
+    }
+  }, [showPhrase]);
+
   const cards = homeCardsPlan({
     hasTripCard: Boolean(tripCard),
     hasBackupReminder: Boolean(reminder),
@@ -209,13 +226,14 @@ export function HomeSheet() {
     [],
   );
 
-  // Altura da lista: a da folha aberta menos handle, cartão e pílula; igual em todos os detents.
+  // Altura da lista: a da folha aberta menos handle, cartão, frase e pílula; igual em todos os detents.
   const scrollAreaHeight = Math.max(
     80,
     Math.round(
       (detentMetrics(snapPoints, containerHeightOf(window.height, insets.top), handleHeight)[0]?.scrollAreaHeight ?? 0) -
         pillHeight -
         cards.effectiveHeight -
+        phraseHeight -
         space.md,
     ),
   );
@@ -262,6 +280,11 @@ export function HomeSheet() {
               ) : null}
               {reminder ? <BackupReminderCard text={reminder} onExport={backup.exportNow} onSnooze={backup.snooze} /> : null}
               {cards.showOffline ? <OfflineMapCard /> : null}
+            </View>
+          ) : null}
+          {showPhrase && phrase ? (
+            <View collapsable={false} onLayout={(e) => setPhraseHeight(e.nativeEvent.layout.height)}>
+              <HomePhrase phrase={phrase} lineColor={lineColor} />
             </View>
           ) : null}
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
