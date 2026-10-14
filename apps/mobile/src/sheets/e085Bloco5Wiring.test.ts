@@ -283,3 +283,45 @@ describe("E-08.5 bloco 6 guardas de ligação (NetworkSheet.tsx, lacunas A a P)"
     }
   });
 });
+
+describe("E-08.5 bloco 8 Item 0.3: lacunas Q3 e Q4", () => {
+  const handlerOf = (name: string) => {
+    const m = networkSheet.match(
+      new RegExp(`const ${name} = useCallback\\(\\(\\) => \\{([\\s\\S]*?)\\}, \\[([^\\]]*)\\]\\);`),
+    );
+    expect(m, `${name} não achado`).not.toBeNull();
+    return { body: (m![1] ?? "").trim(), deps: (m![2] ?? "").split(",").map((d) => d.trim()) };
+  };
+
+  it("(Q3) o corpo de handlePrev e o de handleNext começam por activeSwipeable.current?.close(); antes de setPage(", () => {
+    for (const name of ["handlePrev", "handleNext"]) {
+      const { body } = handlerOf(name);
+      expect(
+        body.startsWith("activeSwipeable.current?.close();"),
+        `Q3: ${name} não começa por activeSwipeable.current?.close();`,
+      ).toBe(true);
+      const closeIdx = body.indexOf("activeSwipeable.current?.close();");
+      const setPageIdx = body.indexOf("setPage(");
+      expect(setPageIdx, `Q3: ${name} não chama setPage(`).toBeGreaterThan(-1);
+      expect(closeIdx, `Q3: em ${name}, activeSwipeable.current?.close() deve vir antes de setPage(`).toBeLessThan(setPageIdx);
+    }
+  });
+
+  it("(Q4) dentro de StopsPager, o Text com styles.pagerRange contém contíguo {t('net.stops.range', { from: stopsView.from, to: stopsView.to, total: stopsView.total, })}", () => {
+    const pagerStart = networkSheet.indexOf("function StopsPager(");
+    expect(pagerStart, "Q4: StopsPager não achado").toBeGreaterThan(-1);
+    const pagerChunk = networkSheet.substring(pagerStart);
+    const rangeIdx = pagerChunk.indexOf("styles.pagerRange");
+    expect(rangeIdx, "Q4: styles.pagerRange não achado no StopsPager").toBeGreaterThan(-1);
+    const textStart = pagerChunk.lastIndexOf("<Text", rangeIdx);
+    const textEnd = pagerChunk.indexOf("</Text>", rangeIdx);
+    const textChunk = pagerChunk.substring(textStart, textEnd);
+    expect(
+      textChunk,
+      'Q4: Text do pagerRange sem {t("net.stops.range", { from: stopsView.from, to: stopsView.to, total: stopsView.total, })}',
+    ).toContain(
+      '{t("net.stops.range", { from: stopsView.from, to: stopsView.to, total: stopsView.total, })}',
+    );
+  });
+});
+

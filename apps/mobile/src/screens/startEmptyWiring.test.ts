@@ -104,3 +104,58 @@ describe("startEmptyWiring (D-201)", () => {
     expect(checkRememberNewStop(none)).toBe(false);
   });
 });
+
+describe("lacunas L3 a L6 (abertura e primeiro uso)", () => {
+  const app = read("..", "..", "App.tsx");
+  const firstRun = read("FirstRun.tsx");
+
+  it("(L3) o caminho da abertura em App.tsx chama ensureUserNetwork com .catch antes de setPhase('list')", () => {
+    const openPath = between(app, 'if (await needsFirstRun(opened)) return setPhase("first_run");', "}, []);");
+    expect(
+      openPath,
+      "L3: ensureUserNetwork com .catch antes de setPhase('list')",
+    ).toContain(
+      'await ensureUserNetwork(opened).catch((error) => console.warn("ensureUserNetwork falhou", error)); setPhase("list");',
+    );
+  });
+
+  it("(L4) onStartEmpty em App.tsx contém try/catch com return 'failed' antes de setPhase('list') e return 'done'", () => {
+    const onStartEmpty = between(app, "onStartEmpty={", "/>");
+    expect(
+      onStartEmpty,
+      "L4: try { await startEmpty(db); } catch { return 'failed'; } setPhase('list'); return 'done';",
+    ).toContain(
+      'try { await startEmpty(db); } catch { return "failed"; } setPhase("list"); return "done";',
+    );
+  });
+
+  it("(L5) em FirstRun.tsx, startEmpty fecha contígua com trava e cartão Começar do zero tem accessibilityState busy", () => {
+    expect(
+      firstRun,
+      "L5: função startEmpty contígua com trava e setStartFailed",
+    ).toContain(
+      'async function startEmpty() { if (starting) return; setStartFailed(false); setStarting(true); const result = await onStartEmpty(); if (result === "failed") { setStarting(false); setStartFailed(true); } }',
+    );
+    const cardIdx = firstRun.indexOf("onPress={startEmpty}");
+    expect(cardIdx, "L5: onPress={startEmpty} não achado").toBeGreaterThan(-1);
+    const cardHeader = firstRun.substring(
+      firstRun.lastIndexOf("<Pressable", cardIdx),
+      firstRun.indexOf(">", cardIdx) + 1,
+    );
+    expect(
+      cardHeader,
+      "L5: Pressable do startEmpty tem accessibilityState={{ busy: starting }} no mesmo elemento",
+    ).toContain("accessibilityState={{ busy: starting }}");
+  });
+
+  it("(L6) em FirstRun.tsx, no cartão Começar do zero, {startFailed ? ( abre o Text com t('first_run.start_failed')", () => {
+    const card = between(firstRun, "onPress={startEmpty}", "</Pressable>");
+    expect(
+      card,
+      "L6: {startFailed ? ( abre Text com t('first_run.start_failed')",
+    ).toContain(
+      '{startFailed ? ( <Text accessibilityLiveRegion="polite" style={[type.caption, { color: colors.danger }]}> {t("first_run.start_failed")}',
+    );
+  });
+});
+
