@@ -5,7 +5,7 @@
 export interface SearchEmptyInput {
   term: string;
   pick: boolean;
-  stopTotal: number;
+  stopTotal: number | null;
   recentCount: number;
   showNoResults?: boolean;
 }

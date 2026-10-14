@@ -38,6 +38,19 @@ describe("emptyStates (Item 2, D-198, ideias 2 e 51)", () => {
         searchEmpty({ term: "Barroca", pick: true, stopTotal: 5, recentCount: 0, showNoResults: true }),
       ).toBe("no_results");
     });
+
+    it("índice não pronto ou em erro (stopTotal: null) não cai em no_stops", () => {
+      // campo vazio, sem recentes -> prompt
+      expect(searchEmpty({ term: "", pick: false, stopTotal: null, recentCount: 0 })).toBe("prompt");
+      expect(searchEmpty({ term: "   ", pick: false, stopTotal: null, recentCount: 0 })).toBe("prompt");
+      // com pick -> prompt_pick
+      expect(searchEmpty({ term: "", pick: true, stopTotal: null, recentCount: 0 })).toBe("prompt_pick");
+      expect(searchEmpty({ term: "   ", pick: true, stopTotal: null, recentCount: 0 })).toBe("prompt_pick");
+      // termo sem resultado -> no_results (não muda)
+      expect(
+        searchEmpty({ term: "Barroca", pick: false, stopTotal: null, recentCount: 0, showNoResults: true }),
+      ).toBe("no_results");
+    });
   });
 
   describe("networkEmpty", () => {
