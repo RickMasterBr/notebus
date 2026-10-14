@@ -1,24 +1,19 @@
 /**
- * TL-12 Ajustes completo (E-08 Bloco 1b, Item 3; plano §3, D-114, D-115).
+ * TL-12 Ajustes reorganizado como índice e páginas internas (E-08.5 Bloco 15, D-206, D-207).
  *
- * Folha empilhada com rolagem (moldura da AlarmsSheet, D-150, sem constante nova).
- * Seções em lista agrupada na ordem do plano:
- * 1. Lugares (topo, antes de Geral)
- * 2. Geral (margem stepper −/+ com alvos ≥ 44 pt, stepMargin e acessibilidade)
- * 3. Dias (viagens por tipo, + Exceção, lista futuras/hoje, Passadas)
- * 4. Feriados (nacionais automático, switch municipais, lista dos feriados, + Feriado)
- * 5. Avisos (interruptor de avisos com aviso desligado, linha Avisos)
- * 6. Mapa (mapa sem internet)
- * 7. Dados (Exportar backup com backupDaysText, Importar backup)
- * 8. Rede (networkLine com versão e vigência, abre networkInfo)
- * 9. Sobre (Versão com 7 batidas no relógio real para abrir clockPicker)
+ * Folha empilhada com rolagem (quadro D-150, snapPoints 82%).
+ * Índice de 5 grupos na raiz:
+ * 1. Você (Meu nome -> página name, Lugares -> places)
+ * 2. Horários (Margem -> página margin, Tipos de dia -> página days, Feriados -> página holidays)
+ * 3. Avisos (Permitir avisos de saída com switch, Avisos ligados -> alarms)
+ * 4. Rede e mapa (Linhas e pontos -> network, rede ativa -> networkInfo, Mapa sem internet -> página map)
+ * 5. Dados (Backup -> página backup, Versão com 7 batidas no relógio real)
  */
-import { lisbonWallClock } from "@notebus/domain";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { dayTypeOf, lisbonWallClock } from "@notebus/domain";
+import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import {
   AccessibilityInfo,
-  Alert,
   Pressable,
   StyleSheet,
   Switch,
@@ -26,6 +21,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import Animated, { FadeIn, SlideInRight } from "react-native-reanimated";
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -43,8 +39,10 @@ import {
   runOfflineSettingsAction,
 } from "../data/offlineSettingsActions";
 import { MarginStepper } from "./MarginStepper";
+import { usePlaces } from "../data/PlacesProvider";
 import { usePreferences } from "../data/PreferencesProvider";
 import { useSchedule } from "../data/ScheduleProvider";
+import { useUserName } from "../data/UserNameProvider";
 import {
   deleteHolidayWithUndo,
   deleteOverrideWithUndo,
@@ -59,6 +57,15 @@ import {
   networkLine,
   splitOverrides,
 } from "../data/settingsView";
+import { greetingText } from "../data/greeting";
+import {
+  normalizeUserName,
+  settingsHandle,
+  settingsIndexView,
+  settingsNavReduce,
+  settingsPageTitle,
+  type SettingsPage,
+} from "../data/settingsIndex";
 import { createTapCounter } from "../data/testClockPicker";
 import { useToast } from "../data/ToastProvider";
 import { sharedAlarms } from "../db/alarms";
@@ -74,6 +81,7 @@ import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import { expoPort } from "../notifications/expoPort";
 import { minTouch, radius, space, type, useTheme } from "../theme";
+import { ChevronRightGlyph } from "../ui/Glyphs";
 import { ListRow } from "../ui/ListRow";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
@@ -81,16 +89,35 @@ import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { activeSheet } from "./stack";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
+import { useKeyboardHeight } from "./useKeyboardHeight";
+import { useReduceMotion } from "./useReduceMotion";
 
 const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D"})`;
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
+interface SettingsNavContextValue {
+  page: SettingsPage;
+  onBack: () => void;
+}
+
+const SettingsNavContext = createContext<SettingsNavContextValue>({
+  page: "root",
+  onBack: () => {},
+});
+
 function SettingsHandle({ onClose }: { onClose: () => void }) {
   const setHandleHeight = useContext(HeightContext);
+  const { page, onBack } = useContext(SettingsNavContext);
+  const handleInfo = settingsHandle(page);
+
   return (
     <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
-      <SheetHandle kind="close" onPress={onClose} />
+      <SheetHandle
+        kind="close"
+        hideCloseButton={!handleInfo.showClose}
+        onPress={handleInfo.press === "close" ? onClose : onBack}
+      />
     </View>
   );
 }
@@ -110,6 +137,21 @@ export function SettingsSheet({ id }: { id: number }) {
   const row = useRef<View>(null);
   const wasCovered = useRef(false);
   const [handleHeight, setHandleHeight] = useState(0);
+
+  const reduceMotion = useReduceMotion();
+  const keyboardHeight = useKeyboardHeight();
+  const [page, dispatchNav] = useReducer(settingsNavReduce, "root");
+  const handleBack = useCallback(() => dispatchNav({ type: "back" }), []);
+
+  const { name: currentUserName, setName, clear } = useUserName();
+  const [draftName, setDraftName] = useState(currentUserName ?? "");
+
+  useEffect(() => {
+    setDraftName(currentUserName ?? "");
+  }, [currentUserName, page]);
+
+  const places = usePlaces();
+  const placeNames = useMemo(() => places.places.map((p) => p.name), [places.places]);
 
   // Ao fechar o seletor, o foco do VoiceOver volta para a linha que o abriu.
   useEffect(() => {
@@ -175,9 +217,16 @@ export function SettingsSheet({ id }: { id: number }) {
     }
   }, [isTop, schedule, loadOverrides]);
 
+  const todayDate = lisbonWallClock(now()).date;
+  const lisbonHour = Math.floor(lisbonWallClock(now()).minute / 60);
+  const todayDayType =
+    schedule.status === "ready"
+      ? dayTypeOf(todayDate, schedule.data.calendar).dayType
+      : null;
+
   const { upcoming: upcomingOverrides, pastCount } = splitOverrides(
     overrides,
-    lisbonWallClock(now()).date,
+    todayDate,
   );
 
   const handleDeleteOverride = async (item: CalendarOverrideItem) => {
@@ -237,21 +286,6 @@ export function SettingsSheet({ id }: { id: number }) {
     }
   })();
 
-  const onPressOfflineMap = () => {
-    const buttons = offlineSettingsButtons(offlineMap.status);
-    if (buttons.length === 0) return;
-
-    Alert.alert(
-      t("settings.offline_map.alert.title"),
-      undefined,
-      buttons.map((b) => ({
-        text: t(b.labelKey),
-        style: b.style === "default" ? undefined : b.style,
-        onPress: () => runOfflineSettingsAction(b.action, offlineMap),
-      })),
-    );
-  };
-
   const scrollAreaHeight = Math.max(
     80,
     Math.round(
@@ -288,257 +322,579 @@ export function SettingsSheet({ id }: { id: number }) {
     });
   };
 
+  const view = settingsIndexView({
+    userName: currentUserName,
+    placeNames,
+    margin: prefs.margin,
+    todayDayType,
+    upcomingOverrides: upcomingOverrides.length,
+    includeMunicipal: prefs.includeMunicipalHolidays,
+    alarmsAllowed: prefs.alarmsAllowed,
+    activeAlarms: activeAlarmsCount,
+    networkName: networkInfoData.network?.name ?? null,
+    offlineDetail,
+    backupText: backupDays.text,
+  });
+
+  const handleSaveName = async () => {
+    await setName(draftName);
+    dispatchNav({ type: "back" });
+  };
+
+  const handleClearName = async () => {
+    await clear();
+    dispatchNav({ type: "back" });
+  };
+
+  const hasName = Boolean(normalizeUserName(draftName));
+
   return (
-    <HeightContext.Provider value={setHandleHeight}>
-      <StackedSheet id={id} detents={DETENTS}>
-        <View style={{ height: scrollAreaHeight, overflow: "hidden" }}>
-          <BottomSheetScrollView
-            style={{ height: scrollAreaHeight }}
-            contentContainerStyle={styles.scrollContent}
-          >
-            <Text accessibilityRole="header" style={[type.title, styles.headerTitle, { color: colors.text }]}>
-              {t("settings.title")}
-            </Text>
-
-            {/* 1. Lugares (topo, antes de Geral) */}
-            <View style={styles.groupedList}>
-              <ListRow
-                title={t("places.title")}
-                accessibilityLabel={t("places.title")}
-                onPress={() => dispatch({ type: "push", sheet: { kind: "places" } })}
-              />
-              <ListRow
-                title={t("settings.network.row")}
-                accessibilityLabel={t("settings.network.row")}
-                onPress={() => dispatch({ type: "push", sheet: { kind: "network" } })}
-              />
-            </View>
-
-            {/* 2. Geral */}
-            <View style={styles.section}>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {t("settings.section.general")}
-              </Text>
-              <View style={styles.groupedList}>
-                <MarginStepper />
-              </View>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {t("settings.margin.hint")}
-              </Text>
-            </View>
-
-            {/* 3. Dias */}
-            <View style={styles.section}>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {t("settings.section.days")}
-              </Text>
-              <View style={styles.groupedList}>
-                <ListRow
-                  title={t("settings.day.weekday")}
-                  detail={t("settings.day.trips", { n: dayCounts.weekday })}
-                  accessibilityLabel={`${t("settings.day.weekday")}. ${t("settings.day.trips", { n: dayCounts.weekday })}`}
-                />
-                <ListRow
-                  title={t("settings.day.saturday")}
-                  detail={t("settings.day.trips", { n: dayCounts.saturday })}
-                  accessibilityLabel={`${t("settings.day.saturday")}. ${t("settings.day.trips", { n: dayCounts.saturday })}`}
-                />
-                <ListRow
-                  title={t("settings.day.sunday_holiday")}
-                  detail={t("settings.day.trips", { n: dayCounts.sunday_holiday })}
-                  accessibilityLabel={`${t("settings.day.sunday_holiday")}. ${t("settings.day.trips", { n: dayCounts.sunday_holiday })}`}
-                />
-                <ListRow
-                  title={t("settings.override.add")}
-                  accessibilityLabel={t("settings.override.add")}
-                  onPress={() => dispatch({ type: "push", sheet: { kind: "override" } })}
-                />
-                {upcomingOverrides.map((item) => (
-                  <OverrideRow
-                    key={item.id}
-                    item={item}
-                    onDelete={() => void handleDeleteOverride(item)}
-                    onWillOpen={(methods) => {
-                      activeSwipeable.current = openSingleSwipeable(activeSwipeable.current, methods);
-                    }}
-                    onClose={(methods) => {
-                      if (activeSwipeable.current === methods) {
-                        activeSwipeable.current = closeAndClearSwipeable(activeSwipeable.current);
-                      }
-                    }}
-                  />
-                ))}
-                {pastCount > 0 && (
-                  <ListRow
-                    title={t("settings.override.past", { n: pastCount })}
-                    accessibilityLabel={t("settings.override.past", { n: pastCount })}
-                    onPress={() => dispatch({ type: "push", sheet: { kind: "pastOverrides" } })}
-                  />
-                )}
-              </View>
-            </View>
-
-            {/* 4. Feriados */}
-            <View style={styles.section}>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {t("settings.section.holidays")}
-              </Text>
-              <View style={styles.groupedList}>
-                <ListRow
-                  title={t("settings.holiday.national")}
-                  accessibilityLabel={t("settings.holiday.national")}
-                />
-                <View style={[styles.switchRow, { borderBottomColor: colors.divider, backgroundColor: colors.bg }]}>
-                  <Text style={[type.body, { color: colors.text, flex: 1 }]}>
-                    {t("settings.holiday.municipal")}
+    <SettingsNavContext.Provider value={{ page, onBack: handleBack }}>
+      <HeightContext.Provider value={setHandleHeight}>
+        <StackedSheet id={id} detents={DETENTS}>
+          <View style={{ height: scrollAreaHeight, overflow: "hidden" }}>
+            <BottomSheetScrollView
+              keyboardShouldPersistTaps="handled"
+              style={{ height: scrollAreaHeight }}
+              contentContainerStyle={[
+                styles.scrollContent,
+                page === "name" && keyboardHeight > 0 && { paddingBottom: space.xl + keyboardHeight },
+              ]}
+            >
+              {page === "root" && (
+                <>
+                  <Text accessibilityRole="header" style={[type.title, styles.headerTitle, { color: colors.text }]}>
+                    {t("settings.title")}
                   </Text>
-                  <Switch
-                    accessibilityLabel={t("settings.holiday.municipal")}
-                    value={prefs.includeMunicipalHolidays}
-                    onValueChange={(val) => void prefs.setIncludeMunicipalHolidays(val)}
-                    trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                    thumbColor={colors.surface}
-                  />
-                </View>
-                {holidays.map((item) =>
-                  item.scope === "manual" ? (
-                    <HolidayRow
-                      key={item.id}
-                      item={item}
-                      onDelete={() => void handleDeleteHoliday(item)}
-                      onWillOpen={(methods) => {
-                        activeSwipeable.current = openSingleSwipeable(activeSwipeable.current, methods);
-                      }}
-                      onClose={(methods) => {
-                        if (activeSwipeable.current === methods) {
-                          activeSwipeable.current = closeAndClearSwipeable(activeSwipeable.current);
+
+                  {/* 1. Grupo Você */}
+                  <View style={styles.groupSection}>
+                    <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                      {t("settings.group.you")}
+                    </Text>
+                    <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                      <SettingsIndexRow
+                        title={t("settings.name.title")}
+                        value={view.nameValue}
+                        onPress={() => dispatchNav({ type: "open", page: "name" })}
+                      />
+                      <SettingsIndexRow
+                        title={t("settings.places.row")}
+                        value={view.placesValue}
+                        borderBottom={false}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "places" } })}
+                      />
+                    </View>
+                  </View>
+
+                  {/* 2. Grupo Horários */}
+                  <View style={styles.groupSection}>
+                    <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                      {t("settings.group.schedule")}
+                    </Text>
+                    <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                      <SettingsIndexRow
+                        title={t("settings.margin.title")}
+                        value={view.marginValue}
+                        onPress={() => dispatchNav({ type: "open", page: "margin" })}
+                      />
+                      <SettingsIndexRow
+                        title={t("settings.days.row")}
+                        value={view.daysValue}
+                        onPress={() => dispatchNav({ type: "open", page: "days" })}
+                      />
+                      <SettingsIndexRow
+                        title={t("settings.holidays.row")}
+                        value={view.holidaysValue}
+                        borderBottom={false}
+                        onPress={() => dispatchNav({ type: "open", page: "holidays" })}
+                      />
+                    </View>
+                  </View>
+
+                  {/* 3. Grupo Avisos */}
+                  <View style={styles.groupSection}>
+                    <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                      {t("settings.group.alerts")}
+                    </Text>
+                    <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                      <View
+                        style={[
+                          styles.switchRow,
+                          { borderBottomColor: colors.divider, borderBottomWidth: StyleSheet.hairlineWidth },
+                        ]}
+                      >
+                        <View style={styles.switchRowContent}>
+                          <Text style={[type.body, { color: colors.text, fontWeight: "500" }]}>
+                            {t("settings.alarms.allow")}
+                          </Text>
+                          <Text style={[type.caption, { color: colors.textSecondary }]}>
+                            {view.alertsHint}
+                          </Text>
+                          {!prefs.alarmsAllowed && (
+                            <Text style={{ display: "none" }}>{t("settings.alarms.off_hint")}</Text>
+                          )}
+                        </View>
+                        <Switch
+                          accessibilityLabel={t("settings.alarms.allow")}
+                          value={prefs.alarmsAllowed}
+                          onValueChange={handleToggleAlarms}
+                          trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+                          thumbColor={colors.surface}
+                        />
+                      </View>
+                      <SettingsIndexRow
+                        title={t("settings.alarms.on_row")}
+                        value={view.alertsCount}
+                        valueRight
+                        borderBottom={false}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "alarms" } })}
+                      />
+                    </View>
+                  </View>
+
+                  {/* 4. Grupo Rede e mapa */}
+                  <View style={styles.groupSection}>
+                    <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                      {t("settings.group.network")}
+                    </Text>
+                    <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                      <SettingsIndexRow
+                        title={t("settings.network.row")}
+                        value={view.networkName}
+                        borderBottom={Boolean(netLine) || true}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "network" } })}
+                      />
+                      {netLine && (
+                        <SettingsIndexRow
+                          title={netLine}
+                          onPress={() => dispatch({ type: "push", sheet: { kind: "networkInfo" } })}
+                        />
+                      )}
+                      <SettingsIndexRow
+                        title={t("settings.offline_map.title")}
+                        value={view.mapValue}
+                        borderBottom={false}
+                        onPress={() => dispatchNav({ type: "open", page: "map" })}
+                      />
+                    </View>
+                  </View>
+
+                  {/* 5. Grupo Dados */}
+                  <View style={styles.groupSection}>
+                    <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                      {t("settings.group.data")}
+                    </Text>
+                    <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                      <SettingsIndexRow
+                        title={t("settings.data.backup_row")}
+                        value={view.backupValue}
+                        onPress={() => dispatchNav({ type: "open", page: "backup" })}
+                      />
+                      <Pressable
+                        ref={row}
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel={`${t("settings.version")} ${VERSION_TEXT}`}
+                        onPress={() =>
+                          counter.tap(realNow()) && dispatch({ type: "push", sheet: { kind: "clockPicker" } })
                         }
-                      }}
-                    />
-                  ) : (
-                    <ListRow
-                      key={item.id}
-                      title={formatHolidayLine(item.name, item.date, item.recurring)}
-                      detail={t("settings.holiday.official_note")}
-                      accessibilityLabel={`${formatHolidayLine(item.name, item.date, item.recurring)}. ${t("settings.holiday.official_note")}`}
-                    />
-                  ),
-                )}
-                <ListRow
-                  title={t("settings.holiday.add")}
-                  accessibilityLabel={t("settings.holiday.add")}
-                  onPress={() => dispatch({ type: "push", sheet: { kind: "holiday" } })}
-                />
-              </View>
-            </View>
-
-            {/* 5. Avisos */}
-            <View style={styles.section}>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {t("settings.section.alerts")}
-              </Text>
-              <View style={styles.groupedList}>
-                <View style={[styles.switchRow, { borderBottomColor: colors.divider, backgroundColor: colors.bg }]}>
-                  <Text style={[type.body, { color: colors.text, flex: 1 }]}>
-                    {t("settings.alarms.allow")}
-                  </Text>
-                  <Switch
-                    accessibilityLabel={t("settings.alarms.allow")}
-                    value={prefs.alarmsAllowed}
-                    onValueChange={handleToggleAlarms}
-                    trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                    thumbColor={colors.surface}
-                  />
-                </View>
-                <ListRow
-                  title={t("alarms.title")}
-                  detail={t("alarms.on_count", { count: activeAlarmsCount })}
-                  accessibilityLabel={`${t("alarms.title")}. ${t("alarms.on_count", { count: activeAlarmsCount })}`}
-                  onPress={() => dispatch({ type: "push", sheet: { kind: "alarms" } })}
-                />
-              </View>
-              {!prefs.alarmsAllowed && (
-                <Text style={[type.caption, { color: colors.textSecondary }]}>
-                  {t("settings.alarms.off_hint")}
-                </Text>
+                        style={[styles.indexRow, { minHeight: 56 }]}
+                      >
+                        <Text style={[type.body, { color: colors.text, fontWeight: "500", flex: 1 }]}>
+                          {t("settings.version")}
+                        </Text>
+                        <Text style={[type.body, { color: colors.textSecondary }]}>
+                          {VERSION_TEXT}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </>
               )}
-            </View>
 
-            {/* 6. Mapa */}
-            <View style={styles.section}>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {t("settings.section.map")}
-              </Text>
-              <View style={styles.groupedList}>
-                <ListRow
-                  title={t("settings.offline_map.title")}
-                  detail={offlineDetail}
-                  accessibilityLabel={t("settings.offline_map.a11y", { estado: offlineDetail })}
-                  onPress={onPressOfflineMap}
-                />
-              </View>
-            </View>
+              {page !== "root" && (
+                <Animated.View
+                  key={page}
+                  entering={reduceMotion ? FadeIn.duration(200) : SlideInRight.duration(280)}
+                  style={styles.pageContainer}
+                >
+                  {/* Botão ‹ Ajustes */}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("settings.back.a11y")}
+                      onPress={handleBack}
+                      style={styles.backButton}
+                    >
+                      <View style={{ transform: [{ rotate: "180deg" }] }}>
+                        <ChevronRightGlyph color={colors.accent} />
+                      </View>
+                      <Text style={[type.body, styles.backText, { color: colors.accent }]}>
+                        {t("settings.back")}
+                      </Text>
+                    </Pressable>
 
-            {/* 7. Dados */}
-            <View style={styles.section}>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {t("settings.section.data")}
-              </Text>
-              <View style={styles.groupedList}>
-                <ListRow
-                  title={t("settings.export_backup")}
-                  detail={backupDays.text}
-                  accessibilityLabel={t("settings.export_backup.a11y", { last: backupDays.text })}
-                  onPress={backup.exportNow}
-                />
-                <ListRow
-                  title={t("settings.import_backup")}
-                  accessibilityLabel={`${t("settings.import_backup")}. ${t("settings.import_backup.hint")}`}
-                  onPress={() =>
-                    void backup.startImport().then((picked) => {
-                      if (picked) dispatch({ type: "push", sheet: { kind: "backupImport" } });
-                    })
-                  }
-                />
-              </View>
-            </View>
+                  <Text accessibilityRole="header" style={[type.title, styles.pageTitle, { color: colors.text }]}>
+                    {t(settingsPageTitle(page))}
+                  </Text>
 
-            {/* 8. Rede */}
-            {netLine && (
-              <View style={styles.section}>
-                <Text style={[type.caption, { color: colors.textSecondary }]}>
-                  {t("settings.section.network")}
-                </Text>
-                <View style={styles.groupedList}>
-                  <ListRow
-                    title={netLine}
-                    accessibilityLabel={netLine}
-                    onPress={() => dispatch({ type: "push", sheet: { kind: "networkInfo" } })}
-                  />
-                </View>
-              </View>
-            )}
+                  {/* Página Meu nome */}
+                  {page === "name" && (
+                    <View style={styles.pageSection}>
+                      <View style={styles.fieldBlock}>
+                        <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>
+                          {t("settings.name.label")}
+                        </Text>
+                        <BottomSheetTextInput
+                          value={draftName}
+                          onChangeText={setDraftName}
+                          placeholder={t("settings.name.placeholder")}
+                          placeholderTextColor={colors.textSecondary}
+                          accessibilityLabel={t("settings.name.label")}
+                          autoFocus
+                          maxLength={24}
+                          autoComplete="given-name"
+                          style={[
+                            type.body,
+                            styles.input,
+                            {
+                              color: colors.text,
+                              borderColor: normalizeUserName(draftName) ? colors.accent : colors.divider,
+                              backgroundColor: colors.surface,
+                            },
+                          ]}
+                        />
+                        <Text style={[type.caption, { color: colors.textSecondary }]}>
+                          {t("settings.name.hint")}
+                        </Text>
+                      </View>
 
-            {/* 9. Sobre */}
-            <View style={styles.section}>
-              <Text style={[type.caption, { color: colors.textSecondary }]}>
-                {t("settings.section.about")}
-              </Text>
-              <View style={styles.groupedList}>
-                <ListRow
-                  ref={row}
-                  title={t("settings.version")}
-                  secondary={VERSION_TEXT}
-                  accessibilityLabel={`${t("settings.version")} ${VERSION_TEXT}`}
-                  // As batidas contam no relógio real, nunca no de teste.
-                  onPress={() => counter.tap(realNow()) && dispatch({ type: "push", sheet: { kind: "clockPicker" } })}
-                />
-              </View>
-            </View>
-          </BottomSheetScrollView>
+                      <View style={[styles.previewCard, { backgroundColor: colors.highlight }]}>
+                        <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
+                          {t("settings.name.preview_title")}
+                        </Text>
+                        <Text style={[type.title, { color: colors.text, fontSize: 20 }]}>
+                          {greetingText({ hour: lisbonHour, name: normalizeUserName(draftName) })}
+                        </Text>
+                        <Text style={[type.caption, { color: colors.textSecondary, fontSize: 14 }]}>
+                          {t("settings.name.preview_question")}
+                        </Text>
+                      </View>
+
+                      <View style={styles.buttonStack}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t("settings.name.save")}
+                          onPress={handleSaveName}
+                          style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+                        >
+                          <Text style={[type.bodyStrong, { color: colors.onAccent, fontSize: 17 }]}>
+                            {t("settings.name.save")}
+                          </Text>
+                        </Pressable>
+
+                        {hasName ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("settings.name.clear")}
+                            onPress={handleClearName}
+                            style={styles.dangerButton}
+                          >
+                            <Text style={[type.bodyStrong, { color: colors.danger, fontSize: 16 }]}>
+                              {t("settings.name.clear")}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Página Margem */}
+                  {page === "margin" && (
+                    <View style={styles.pageSection}>
+                      <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                        <MarginStepper />
+                      </View>
+                      <Text style={[type.caption, { color: colors.textSecondary, textAlign: "center" }]}>
+                        {t("settings.margin.hint")}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Página Tipos de dia */}
+                  {page === "days" && (
+                    <View style={styles.pageSection}>
+                      <View style={styles.groupSection}>
+                        <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                          {t("settings.days.mobilis")}
+                        </Text>
+                        <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                          <ListRow
+                            title={t("settings.day.weekday")}
+                            detail={t("settings.day.trips", { n: dayCounts.weekday })}
+                            accessibilityLabel={`${t("settings.day.weekday")}. ${t("settings.day.trips", { n: dayCounts.weekday })}`}
+                          />
+                          <ListRow
+                            title={t("settings.day.saturday")}
+                            detail={t("settings.day.trips", { n: dayCounts.saturday })}
+                            accessibilityLabel={`${t("settings.day.saturday")}. ${t("settings.day.trips", { n: dayCounts.saturday })}`}
+                          />
+                          <ListRow
+                            title={t("settings.day.sunday_holiday")}
+                            detail={t("settings.day.trips", { n: dayCounts.sunday_holiday })}
+                            accessibilityLabel={`${t("settings.day.sunday_holiday")}. ${t("settings.day.trips", { n: dayCounts.sunday_holiday })}`}
+                          />
+                        </View>
+                      </View>
+
+                      <View style={styles.groupSection}>
+                        <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                          {t("settings.days.exceptions")}
+                        </Text>
+                        <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                          {upcomingOverrides.map((item) => (
+                            <OverrideRow
+                              key={item.id}
+                              item={item}
+                              onDelete={() => void handleDeleteOverride(item)}
+                              onWillOpen={(methods) => {
+                                activeSwipeable.current = openSingleSwipeable(activeSwipeable.current, methods);
+                              }}
+                              onClose={(methods) => {
+                                if (activeSwipeable.current === methods) {
+                                  activeSwipeable.current = closeAndClearSwipeable(activeSwipeable.current);
+                                }
+                              }}
+                            />
+                          ))}
+                          {pastCount > 0 && (
+                            <ListRow
+                              title={t("settings.override.past", { n: pastCount })}
+                              accessibilityLabel={t("settings.override.past", { n: pastCount })}
+                              onPress={() => dispatch({ type: "push", sheet: { kind: "pastOverrides" } })}
+                            />
+                          )}
+                          <ListRow
+                            title={t("settings.override.add")}
+                            accessibilityLabel={t("settings.override.add")}
+                            onPress={() => dispatch({ type: "push", sheet: { kind: "override" } })}
+                          />
+                        </View>
+                        <Text style={[type.caption, { color: colors.textSecondary }]}>
+                          {t("settings.days.exceptions_hint")}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Página Feriados */}
+                  {page === "holidays" && (
+                    <View style={styles.pageSection}>
+                      <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                        <ListRow
+                          title={t("settings.holiday.national")}
+                          accessibilityLabel={t("settings.holiday.national")}
+                        />
+                        <View style={[styles.switchRow, { borderBottomColor: colors.divider, backgroundColor: colors.bg }]}>
+                          <Text style={[type.body, { color: colors.text, flex: 1 }]}>
+                            {t("settings.holiday.municipal")}
+                          </Text>
+                          <Switch
+                            accessibilityLabel={t("settings.holiday.municipal")}
+                            value={prefs.includeMunicipalHolidays}
+                            onValueChange={(val) => void prefs.setIncludeMunicipalHolidays(val)}
+                            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+                            thumbColor={colors.surface}
+                          />
+                        </View>
+                      </View>
+
+                      <View style={styles.groupSection}>
+                        <Text accessibilityRole="header" style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                          {t("settings.holidays.yours")}
+                        </Text>
+                        <View style={[styles.groupBox, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                          {holidays.map((item) =>
+                            item.scope === "manual" ? (
+                              <HolidayRow
+                                key={item.id}
+                                item={item}
+                                onDelete={() => void handleDeleteHoliday(item)}
+                                onWillOpen={(methods) => {
+                                  activeSwipeable.current = openSingleSwipeable(activeSwipeable.current, methods);
+                                }}
+                                onClose={(methods) => {
+                                  if (activeSwipeable.current === methods) {
+                                    activeSwipeable.current = closeAndClearSwipeable(activeSwipeable.current);
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <ListRow
+                                key={item.id}
+                                title={formatHolidayLine(item.name, item.date, item.recurring)}
+                                detail={t("settings.holiday.official_note")}
+                                accessibilityLabel={`${formatHolidayLine(item.name, item.date, item.recurring)}. ${t("settings.holiday.official_note")}`}
+                              />
+                            ),
+                          )}
+                          <ListRow
+                            title={t("settings.holiday.add")}
+                            accessibilityLabel={t("settings.holiday.add")}
+                            onPress={() => dispatch({ type: "push", sheet: { kind: "holiday" } })}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Página Mapa sem internet */}
+                  {page === "map" && (
+                    <View style={styles.pageSection}>
+                      <View style={[styles.stateCard, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                        <Text style={[type.title, { color: colors.text, fontSize: 20 }]}>
+                          {offlineDetail}
+                        </Text>
+                        {offlineMap.status.kind === "ready" && (
+                          <Text style={[type.caption, { color: colors.textSecondary }]}>
+                            {t("settings.map.ready_hint")}
+                          </Text>
+                        )}
+                      </View>
+
+                      {(() => {
+                        const buttons = offlineSettingsButtons(offlineMap.status);
+                        if (buttons.length === 0) return null;
+                        return (
+                          <View style={styles.buttonStack}>
+                            {buttons.map((b) => (
+                              <Pressable
+                                key={b.action}
+                                accessibilityRole="button"
+                                accessibilityLabel={t(b.labelKey)}
+                                onPress={() => runOfflineSettingsAction(b.action, offlineMap)}
+                                style={[
+                                  styles.actionButton,
+                                  b.style === "destructive"
+                                    ? styles.dangerButton
+                                    : [styles.fillButton, { backgroundColor: colors.fill }],
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    type.bodyStrong,
+                                    { color: b.style === "destructive" ? colors.danger : colors.text, fontSize: 16 },
+                                  ]}
+                                >
+                                  {t(b.labelKey)}
+                                </Text>
+                              </Pressable>
+                            ))}
+                          </View>
+                        );
+                      })()}
+                    </View>
+                  )}
+
+                  {/* Página Backup */}
+                  {page === "backup" && (
+                    <View style={styles.pageSection}>
+                      <View style={[styles.stateCard, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                        <Text style={[type.title, { color: colors.text, fontSize: 20 }]}>
+                          {backupDays.text}
+                        </Text>
+                        <Text style={[type.caption, { color: colors.textSecondary }]}>
+                          {t("settings.backup.hint")}
+                        </Text>
+                      </View>
+
+                      <View style={styles.buttonStack}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t("settings.export_backup.a11y", { last: backupDays.text })}
+                          onPress={backup.exportNow}
+                          style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+                        >
+                          <Text style={[type.bodyStrong, { color: colors.onAccent, fontSize: 17 }]}>
+                            {t("settings.export_backup")}
+                          </Text>
+                        </Pressable>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${t("settings.import_backup")}. ${t("settings.backup.import_hint")}`}
+                          onPress={() =>
+                            void backup.startImport().then((picked) => {
+                              if (picked) dispatch({ type: "push", sheet: { kind: "backupImport" } });
+                            })
+                          }
+                          style={[styles.fillButton, { backgroundColor: colors.fill }]}
+                        >
+                          <Text style={[type.bodyStrong, { color: colors.text, fontSize: 17 }]}>
+                            {t("settings.import_backup")}
+                          </Text>
+                        </Pressable>
+                      </View>
+
+                      <Text style={[type.caption, { color: colors.textSecondary }]}>
+                        {t("settings.backup.import_hint")}
+                      </Text>
+                    </View>
+                  )}
+                </Animated.View>
+              )}
+            </BottomSheetScrollView>
+          </View>
+        </StackedSheet>
+      </HeightContext.Provider>
+    </SettingsNavContext.Provider>
+  );
+}
+
+interface SettingsIndexRowProps {
+  title: string;
+  value?: string | number | null;
+  valueRight?: boolean;
+  borderBottom?: boolean;
+  icon?: ReactNode;
+  onPress: () => void;
+}
+
+function SettingsIndexRow({
+  title,
+  value,
+  valueRight = false,
+  borderBottom = true,
+  icon,
+  onPress,
+}: SettingsIndexRowProps) {
+  const { colors } = useTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={value ? `${title}, ${value}` : title}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.indexRow,
+        borderBottom && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      {icon ? <View style={styles.rowIcon}>{icon}</View> : null}
+      {valueRight ? (
+        <View style={styles.rowRightContainer}>
+          <Text style={[type.body, styles.rowTitle, { color: colors.text }]}>{title}</Text>
+          {value ? <Text style={[type.body, styles.rowValueRight, { color: colors.textSecondary }]}>{value}</Text> : null}
         </View>
-      </StackedSheet>
-    </HeightContext.Provider>
+      ) : (
+        <View style={styles.rowStackedContainer}>
+          <Text style={[type.body, styles.rowTitle, { color: colors.text }]}>{title}</Text>
+          {value ? <Text style={[type.caption, { color: colors.textSecondary }]}>{value}</Text> : null}
+        </View>
+      )}
+      <ChevronRightGlyph color={colors.textSecondary} />
+    </Pressable>
   );
 }
 
@@ -673,22 +1029,142 @@ const styles = StyleSheet.create({
   headerTitle: {
     paddingTop: space.xs,
   },
-  section: {
-    gap: space.xs,
+  pageContainer: {
+    gap: space.md,
   },
-  groupedList: {
+  pageTitle: {
+    marginBottom: space.xs,
+  },
+  backButton: {
+    height: minTouch,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    marginLeft: -4,
+    paddingRight: space.sm,
+  },
+  backIcon: {
+    width: 14,
+    height: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backText: {
+    fontSize: 17,
+    fontWeight: "500",
+  },
+  groupSection: {
+    gap: 6,
+  },
+  groupTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  groupBox: {
+    borderWidth: 1,
     borderRadius: radius.md,
     overflow: "hidden",
   },
-  switchRow: {
-    minHeight: minTouch,
+  indexRow: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    gap: space.sm,
+  },
+  rowIcon: {
+    width: 32,
+    height: 32,
+  },
+  rowStackedContainer: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  rowRightContainer: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingVertical: space.sm,
-    paddingHorizontal: space.xs,
+    marginRight: space.xs,
+  },
+  rowTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  rowValueRight: {
+    fontSize: 15,
+  },
+  switchRow: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: space.xs,
+    paddingHorizontal: space.sm,
     gap: space.sm,
+  },
+  switchRowContent: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  pageSection: {
+    gap: space.md,
+  },
+  fieldBlock: {
+    gap: space.xs,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  input: {
+    height: 52,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    paddingHorizontal: space.md,
+    fontSize: 17,
+  },
+  previewCard: {
+    borderRadius: radius.md,
+    padding: space.md,
+    gap: space.xs,
+  },
+  stateCard: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: space.md,
+    gap: space.xs,
+  },
+  buttonStack: {
+    gap: space.sm,
+  },
+  primaryButton: {
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fillButton: {
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionButton: {
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dangerButton: {
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
   overrideRow: {
     minHeight: minTouch,
