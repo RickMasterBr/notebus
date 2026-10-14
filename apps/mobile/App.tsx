@@ -9,6 +9,7 @@ import { PlacesProvider } from "./src/data/PlacesProvider";
 import { CalendarEditsProvider } from "./src/data/CalendarEditsProvider";
 import { DeclaredTimesProvider } from "./src/data/DeclaredTimesProvider";
 import { PreferencesProvider } from "./src/data/PreferencesProvider";
+import { UserNameProvider } from "./src/data/UserNameProvider";
 import { RegistroProvider } from "./src/data/RegistroProvider";
 import { ScheduleProvider } from "./src/data/ScheduleProvider";
 import { StopIndexProvider } from "./src/data/StopIndexProvider";
@@ -98,17 +99,19 @@ export default function App() {
                       <StopLocationsProvider db={db}>
                         <RegistroProvider db={db}>
                           <PreferencesProvider db={db}>
-                            <CalendarEditsProvider db={db}>
-                              <DeclaredTimesProvider db={db}>
-                                <PlacesProvider db={db}>
-                                  <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
-                                    <OfflineMapProvider db={db}>
-                                      <Home />
-                                    </OfflineMapProvider>
-                                  </BackupProvider>
-                                </PlacesProvider>
-                              </DeclaredTimesProvider>
-                            </CalendarEditsProvider>
+                            <UserNameProvider db={db}>
+                              <CalendarEditsProvider db={db}>
+                                <DeclaredTimesProvider db={db}>
+                                  <PlacesProvider db={db}>
+                                    <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
+                                      <OfflineMapProvider db={db}>
+                                        <Home />
+                                      </OfflineMapProvider>
+                                    </BackupProvider>
+                                  </PlacesProvider>
+                                </DeclaredTimesProvider>
+                              </CalendarEditsProvider>
+                            </UserNameProvider>
                           </PreferencesProvider>
                         </RegistroProvider>
                       </StopLocationsProvider>
