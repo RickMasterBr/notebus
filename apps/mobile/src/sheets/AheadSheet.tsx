@@ -10,6 +10,7 @@
  * Dynamic Type acima de `.xxLarge`: hora e nome empilham por paragem (4.6 §6). Sem lugares do usuário (E-05).
  */
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import type { DayTypeCode } from "@notebus/domain";
 import { createContext, useContext, useMemo, useState } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -61,7 +62,19 @@ function AheadHandle({ onClose }: { onClose: () => void }) {
 /** Detent único de 90%: sem espaçador do fim (`HiddenBelowSpacer`), que só existe para os detents menores. */
 const DETENTS: StackedDetents = { snapPoints: ["90%"], initialIndex: 0, Handle: AheadHandle };
 
-export function AheadSheet({ id, tripId, position }: { id: number; tripId: string; position: number }) {
+export function AheadSheet({
+  id,
+  tripId,
+  position,
+  serviceDate,
+  dayType,
+}: {
+  id: number;
+  tripId: string;
+  position: number;
+  serviceDate?: string;
+  dayType?: DayTypeCode;
+}) {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const schedule = useSchedule();
@@ -72,9 +85,15 @@ export function AheadSheet({ id, tripId, position }: { id: number; tripId: strin
   const ahead = useMemo(
     () =>
       schedule.status === "ready"
-        ? buildAhead(tripId, position, schedule.data, { learning: { records: registro.records, now: instant } })
+        ? buildAhead(tripId, position, schedule.data, {
+            learning: {
+              records: registro.records,
+              now: instant,
+              ...(serviceDate && dayType ? { serviceDay: { date: serviceDate, dayType } } : {}),
+            },
+          })
         : null,
-    [schedule, tripId, position, registro.records, instant],
+    [schedule, tripId, position, registro.records, instant, serviceDate, dayType],
   );
   const [handleHeight, setHandleHeight] = useState(0);
 

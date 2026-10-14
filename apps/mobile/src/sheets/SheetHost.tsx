@@ -95,7 +95,15 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
     case "stop":
       return <StopSheet id={entry.id} stopId={entry.stopId} name={entry.name} />;
     case "ahead":
-      return <AheadSheet id={entry.id} tripId={entry.tripId} position={entry.position} />;
+      return (
+        <AheadSheet
+          id={entry.id}
+          tripId={entry.tripId}
+          position={entry.position}
+          serviceDate={entry.serviceDate}
+          dayType={entry.dayType}
+        />
+      );
     case "settings":
       return <SettingsSheet id={entry.id} />;
     case "clockPicker":

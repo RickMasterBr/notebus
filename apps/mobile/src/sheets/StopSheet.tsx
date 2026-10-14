@@ -113,9 +113,20 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   const openAhead = useCallback(
     (row: PassageRow) => {
       openedRow.current = row.key;
-      dispatch({ type: "push", sheet: { kind: "ahead", tripId: row.tripId, position: row.position } });
+      const serviceDate = row.key.split("/")[0]!;
+      const currentDayType = day?.dayType ?? dayType ?? "weekday";
+      dispatch({
+        type: "push",
+        sheet: {
+          kind: "ahead",
+          tripId: row.tripId,
+          position: row.position,
+          serviceDate,
+          dayType: currentDayType,
+        },
+      });
     },
-    [dispatch],
+    [dispatch, day, dayType],
   );
   useEffect(() => {
     if (!isTop || openedRow.current === null) return;

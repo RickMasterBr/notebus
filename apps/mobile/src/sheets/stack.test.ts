@@ -254,3 +254,30 @@ describe("E-03 bloco 3: prévia da importação do backup", () => {
     expect(kinds(s)).toEqual(["home", "settings"]);
   });
 });
+
+describe("E-08.5 bloco 12: ahead com serviceDate e folha why (Item 1)", () => {
+  it("Item 1: ahead com e sem serviceDate é a mesma folha", () => {
+    const s1 = run(
+      stop("a"),
+      { type: "push", sheet: { kind: "ahead", tripId: "v1", position: 2 } },
+      { type: "push", sheet: { kind: "ahead", tripId: "v1", position: 2, serviceDate: "2026-10-14", dayType: "weekday" } },
+    );
+    expect(kinds(s1)).toEqual(["home", "stop", "ahead"]);
+  });
+
+  it("Item 1: empilhar why duas vezes com mesma viagem e posição não duplica; com posição diferente empilha", () => {
+    const s1 = run(
+      stop("a"),
+      { type: "push", sheet: { kind: "why", tripId: "v1", position: 2, serviceDate: "2026-10-14", dayType: "weekday" } },
+      { type: "push", sheet: { kind: "why", tripId: "v1", position: 2, serviceDate: "2026-10-14", dayType: "weekday" } },
+    );
+    expect(kinds(s1)).toEqual(["home", "stop", "why"]);
+
+    const s2 = run(
+      stop("a"),
+      { type: "push", sheet: { kind: "why", tripId: "v1", position: 2, serviceDate: "2026-10-14", dayType: "weekday" } },
+      { type: "push", sheet: { kind: "why", tripId: "v1", position: 3, serviceDate: "2026-10-14", dayType: "weekday" } },
+    );
+    expect(kinds(s2)).toEqual(["home", "stop", "why", "why"]);
+  });
+});

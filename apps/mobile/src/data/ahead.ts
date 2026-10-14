@@ -15,6 +15,7 @@
 import {
   type BaseKind,
   type Confidence,
+  type DayTypeCode,
   type ExpectedTime,
   type PassageRecord,
   aheadFrom,
@@ -73,7 +74,11 @@ export interface Ahead {
 export interface AheadOptions {
   /** D-070, E-03. Padrão 0. */
   shiftMinutes?: number;
-  learning?: { records: readonly PassageRecord[]; now: number };
+  learning?: {
+    records: readonly PassageRecord[];
+    now: number;
+    serviceDay?: { date: string; dayType: DayTypeCode };
+  };
 }
 
 /** `null` se a viagem, a posição ou o percurso não existem nos dados (viagem apagada, importação trocada). */
@@ -84,7 +89,9 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
   if (!pattern || !pattern.stops.some((s) => s.position === position)) return null;
   const shiftMinutes = options.shiftMinutes ?? 0;
   const shouldLearn = Boolean(options.learning && shiftMinutes === 0);
-  const serviceDay = shouldLearn ? aheadServiceDay(data, tripId, options.learning!.now) : null;
+  const serviceDay = shouldLearn
+    ? (options.learning?.serviceDay ?? aheadServiceDay(data, tripId, options.learning!.now))
+    : null;
 
   const timepoints = timepointPositions(
     pattern,

@@ -27,4 +27,11 @@ describe("E-08.5 bloco 12 guardas de ligação", () => {
       expect(deps).toContain("term");
     });
   });
+
+  describe("Item 1 (1b): StopSheet.tsx openAhead passa dayType do chip", () => {
+    it("openAhead empilha ahead com dayType", () => {
+      const stopSheet = squash(read("sheets/StopSheet.tsx"));
+      expect(stopSheet).toMatch(/dispatch\(\{\s*type:\s*"push",\s*sheet:\s*\{[^}]*kind:\s*"ahead"[^}]*dayType:/);
+    });
+  });
 });

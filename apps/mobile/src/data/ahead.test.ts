@@ -436,4 +436,46 @@ describe("buildAhead: aprendizado (E-08.5 bloco 10, T-132)", () => {
     // o alvo vira weekday e não aprende registros de saturday, dando 08:10.
     expect(a.here.time).toBe("08:16");
   });
+
+  it("Item 1: com serviceDay de sábado e registros de sábado aprende; com serviceDay de dia útil não aprende", async () => {
+    const { data } = await learnedFixture();
+    const wednesdayNow = lisbon("2026-10-07", "10:00");
+    const satTripId = learnedTripIdOf("1", "0810_sat");
+    const target = passageTarget(data, satTripId, 1, "2026-10-07", "saturday")!;
+
+    // 4 registros de sábado com desvio +6
+    const records: PassageRecord[] = [1, 2, 3, 4].map((d) => ({
+      deviation: 6,
+      observedAt: wednesdayNow - d * 86_400_000,
+      serviceDate: `2026-10-0${d}`,
+      dayType: "saturday",
+      tripId: target.tripId,
+      patternId: target.patternId,
+      position: target.position,
+      stopId: target.stopId,
+      matchStatus: "auto",
+      mode: "live",
+      kind: "boarded",
+    }));
+
+    // Com serviceDay de sábado: aprende (+6) -> "08:16"
+    const learned = buildAhead(satTripId, 1, data, {
+      learning: {
+        records,
+        now: wednesdayNow,
+        serviceDay: { date: "2026-10-07", dayType: "saturday" },
+      },
+    })!;
+    expect(learned.here.time).toBe("08:16");
+
+    // Com serviceDay de dia útil: NÃO aprende os registros de sábado -> base "08:10"
+    const unlearned = buildAhead(satTripId, 1, data, {
+      learning: {
+        records,
+        now: wednesdayNow,
+        serviceDay: { date: "2026-10-07", dayType: "weekday" },
+      },
+    })!;
+    expect(unlearned.here.time).toBe("08:10");
+  });
 });
