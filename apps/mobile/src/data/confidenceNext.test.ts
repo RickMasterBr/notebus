@@ -47,4 +47,8 @@ describe("confidenceNext (T-138)", () => {
     ];
     for (const e of all) for (const c of [DOMAIN_CONFIG, OTHER]) expect(text(e, c)).not.toContain("{{");
   });
+
+  it("L24: high usa recentCount e não count", () => {
+    expect(text(est("high", 8, 7, 1, 4))).toBe("Confiança alta: 7 anotações recentes e faixa de 3 min.");
+  });
 });

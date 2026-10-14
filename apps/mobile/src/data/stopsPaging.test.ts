@@ -263,4 +263,9 @@ describe("stopsPaging", () => {
       }
     });
   });
+
+  it("L15: isSearching('   ') é false e isSearching(' a ') é true", () => {
+    expect(isSearching("   ")).toBe(false);
+    expect(isSearching(" a ")).toBe(true);
+  });
 });

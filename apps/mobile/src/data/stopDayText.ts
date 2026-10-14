@@ -17,7 +17,7 @@ export function dayTypeChipText(dayType: DayTypeCode, isToday: boolean): string 
 }
 
 /** "~08:13": o horário esperado (centro). */
-export const rowTimeText = (row: PassageRow) => `~${row.time}`;
+export const rowTimeText = (row: Pick<PassageRow, "time">) => `~${row.time}`;
 
 /** "08:09–08:18" (en-dash, 4.6 §4). */
 export const rowRangeText = (row: Pick<PassageRow, "rangeStart" | "rangeEnd">) => `${row.rangeStart}–${row.rangeEnd}`;

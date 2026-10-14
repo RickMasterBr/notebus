@@ -18,6 +18,7 @@ type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
 export interface LineInfo {
   code: string;
   color: string;
+  source?: "user" | "official" | "official_edited";
 }
 
 export interface ScheduleSnapshot {
@@ -109,7 +110,9 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
     stopsByPattern.set(ps.patternId, list);
   }
 
-  const lineById = new Map(lines.map((l) => [l.id, { code: l.code, color: l.color }]));
+  const lineById = new Map(
+    lines.map((l) => [l.id, { code: l.code, color: l.color, ...(l.source !== "official" ? { source: l.source } : {}) }]),
+  );
   const patternLine = new Map<string, LineInfo>();
   const patternLineId = new Map<string, string>();
   for (const p of patterns) {

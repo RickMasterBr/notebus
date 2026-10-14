@@ -9,7 +9,8 @@ import { exampleSeed } from "../db/testing/exampleSeed";
 import { boardChoices } from "./boardChoices";
 import { passageTarget } from "./records";
 import { type ScheduleSnapshot, loadSchedule } from "./schedule";
-import { type NextBus, buildStopCard, clockText, seasonMonths } from "./stopCard";
+import { type NextBus, type NextDay, buildStopCard, clockText, seasonMonths } from "./stopCard";
+import { learnedFixture, learnedStopId, learnedTripIdOf } from "./learnedFixture";
 
 async function load(seed: SeedFile): Promise<ScheduleSnapshot> {
   const { db, sqlite } = testDbWithSqlite();
@@ -263,5 +264,113 @@ describe("buildStopCard: aprendizado (E-08.5 bloco 10, T-130)", () => {
     const learned = buildStopCard(stopId, snapshot, at0812, records)!;
     expect(learned.lines[0]!.state.status).toBe("next");
     expect((learned.lines[0]!.state as NextBus).time).toBe("08:16");
+  });
+
+  it("L18: cartão do dia seguinte aprende (+6) na primeira viagem de amanhã", async () => {
+    const { data } = await learnedFixture();
+    const stopId = learnedStopId("S");
+    // Quarta-feira 07/10/2026 às 10:00: as viagens de hoje da Linha 1 (08:10 e 08:40) já terminaram
+    const instant10h = lisbon("2026-10-07", "10:00");
+    const tripId = learnedTripIdOf("1", "0810");
+    const target = passageTarget(data, tripId, 1, "2026-10-08", "weekday")!;
+    expect(target).toBeDefined();
+
+    // 4 registros auto de +6 na primeira viagem do dia seguinte (L1 08:10 pos 1, base 490):
+    // Conta: base 490 (08:10) + desvio 6 min = 496 ("08:16").
+    const records: PassageRecord[] = [1, 2, 3, 4].map((d) => ({
+      deviation: 6,
+      observedAt: instant10h - d * 86_400_000,
+      serviceDate: "2026-10-08",
+      dayType: "weekday",
+      tripId: target.tripId,
+      patternId: target.patternId,
+      position: target.position,
+      stopId: target.stopId,
+      matchStatus: "auto",
+      mode: "live",
+      kind: "boarded",
+    }));
+
+    const card = buildStopCard(stopId, data, instant10h, records)!;
+    expect(card).not.toBeNull();
+    const line1 = card.lines.find((l) => l.code === "1")!;
+    expect(line1.state.status).toBe("later");
+    // Com aprendizado: 08:16. Com records=[] (mutação): 08:10.
+    expect((line1.state as NextDay).time).toBe("08:16");
+  });
+
+  it("L21: recência em stopCard: 3 registros de +10 com 200 dias e 1 registro de +2 de hoje", async () => {
+    const { data } = await learnedFixture();
+    const stopId = learnedStopId("S");
+    const instant = lisbon("2026-10-08", "08:00");
+    const tripId = learnedTripIdOf("1", "0810");
+    const target = passageTarget(data, tripId, 1, "2026-10-08", "weekday")!;
+
+    // 3 registros de +10 com 200 dias de idade: peso = 0.5^(200/28) ≈ 0.007 cada (soma ≈ 0.021).
+    // 1 registro de +2 de hoje: peso = 1.
+    // Com now correto (instant), o registro recente domina (peso 1 contra 0.021):
+    // Mediana local dos desvios ponderados: +2.
+    // Com encolhimento (k=3), o centro fica próximo de +2: base 490 (08:10) + 2 min = 492 ("08:12").
+    // Com now = 0, todos os 4 registros teriam peso 1, mediana dos desvios = +10, horário = "08:20".
+    const oldObs = instant - 200 * 86_400_000;
+    const records: PassageRecord[] = [
+      {
+        deviation: 10,
+        observedAt: oldObs,
+        serviceDate: "2026-03-22",
+        dayType: "weekday",
+        tripId: target.tripId,
+        patternId: target.patternId,
+        position: target.position,
+        stopId: target.stopId,
+        matchStatus: "auto",
+        mode: "live",
+        kind: "boarded",
+      },
+      {
+        deviation: 10,
+        observedAt: oldObs,
+        serviceDate: "2026-03-21",
+        dayType: "weekday",
+        tripId: target.tripId,
+        patternId: target.patternId,
+        position: target.position,
+        stopId: target.stopId,
+        matchStatus: "auto",
+        mode: "live",
+        kind: "boarded",
+      },
+      {
+        deviation: 10,
+        observedAt: oldObs,
+        serviceDate: "2026-03-20",
+        dayType: "weekday",
+        tripId: target.tripId,
+        patternId: target.patternId,
+        position: target.position,
+        stopId: target.stopId,
+        matchStatus: "auto",
+        mode: "live",
+        kind: "boarded",
+      },
+      {
+        deviation: 2,
+        observedAt: instant,
+        serviceDate: "2026-10-08",
+        dayType: "weekday",
+        tripId: target.tripId,
+        patternId: target.patternId,
+        position: target.position,
+        stopId: target.stopId,
+        matchStatus: "auto",
+        mode: "live",
+        kind: "boarded",
+      },
+    ];
+
+    const card = buildStopCard(stopId, data, instant, records)!;
+    const line1 = card.lines.find((l) => l.code === "1")!;
+    expect(line1.state.status).toBe("next");
+    expect((line1.state as NextBus).time).toBe("08:12");
   });
 });

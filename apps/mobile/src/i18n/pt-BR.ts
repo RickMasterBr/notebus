@@ -97,7 +97,7 @@ export const ptBR = {
   "terminal_detail.you_are_here": "você",
   "terminal_detail.return_here": "↺ volta aqui · fim",
   "terminal_detail.gap": "+ {{count}} paragens",
-  "terminal_detail.footnote": "Entre os pontos de controlo, horário interpolado.",
+  "terminal_detail.footnote": "Entre os pontos de controle, horário interpolado.",
   // Q-72 (provisórias, a aprovar): a 4.6 só tem a frase inteira "…volta ao Terminal às {{time}}", com o nome do ponto
   // de exemplo, e não cobre ponto que a viagem passa uma vez só, volta no meio da viagem, ponto de controle na leitura
   // do VoiceOver nem a dica da linha do Ponto.
@@ -791,6 +791,33 @@ export const ptBR = {
   "why.next.to_high_one": "Com mais uma nos últimos {{days}} dias, a confiança sobe para alta.", // provisório
   "why.next.to_high_range": "Sobe para alta quando a faixa ficar em até {{minutes}} min.", // provisório
   "why.next.high": "Confiança alta: {{n}} anotações recentes e faixa de {{width}} min.", // provisório
+  "why.title": "Por que {{time}}?", // provisório
+  "why.entry": "Por que {{time}}?", // provisório
+  "why.entry.a11y": "Por que este horário, {{time}}", // provisório
+  "why.entry.hint": "Abre como o horário foi calculado", // provisório
+  "why.table.label": "Na tabela", // provisório
+  "why.table.official": "Horário da MOBILIS neste ponto", // provisório
+  "why.table.user_line": "Horário que você cadastrou na linha", // provisório
+  "why.table.interpolated": "Calculado pela tabela: {{from}} {{from_time}} → {{to}} {{to_time}}", // provisório
+  "why.table.declared": "Horário que você declarou", // provisório
+  "why.typical.label": "Costuma passar", // provisório
+  "why.typical.none": "Ainda sem anotações: vale a tabela, com {{minutes}} min de folga para cada lado.", // provisório
+  "why.count.label": "Anotações", // provisório
+  "why.count.level_trip": "desta viagem, em {{day_type}}", // provisório
+  "why.count.level_stop": "deste ponto, de outras viagens da linha, em {{day_type}}. Nenhuma desta viagem ainda.", // provisório
+  "why.count.level_pattern": "de outros pontos deste percurso, em {{day_type}}. Nenhuma neste ponto ainda.", // provisório
+  "why.count.none": "Nenhuma ainda", // provisório
+  "why.day_type.weekday": "dias úteis", // provisório
+  "why.day_type.saturday": "sábados", // provisório
+  "why.day_type.sunday_holiday": "domingos e feriados", // provisório
+  "why.last.label": "Última", // provisório
+  "why.last.detail": "{{weekday}}, {{date}} · {{delta}}", // provisório
+  "why.last.other_trip": " · viagem das {{time}}", // provisório
+  "why.delta.late": "{{n}} min depois da tabela", // provisório
+  "why.delta.early": "{{n}} min antes da tabela", // provisório
+  "why.delta.on_time": "na hora da tabela", // provisório
+  "why.footnote": "O app usa a mediana das suas anotações, com mais peso para as recentes. Registros “para conferir” não entram.", // provisório
+  "why.row.a11y": "{{label}}, {{value}}, {{detail}}", // provisório
 } as const;
 
 export type MessageKey = keyof typeof ptBR;

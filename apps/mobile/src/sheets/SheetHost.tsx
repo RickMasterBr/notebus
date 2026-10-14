@@ -35,6 +35,7 @@ import { NEW_LINE_ID } from "../data/lineForm";
 import { DeclareSheet } from "./DeclareSheet";
 import { StopEditSheet } from "./StopEditSheet";
 import { CloseSheetProvider } from "./StackedSheet";
+import { WhySheet } from "./WhySheet";
 import { homeLayerPointerEvents } from "./diagLog";
 import { type SheetEntry, stackedSheets } from "./stack";
 
@@ -95,7 +96,25 @@ function StackedSheetContent({ entry }: { entry: SheetEntry }) {
     case "stop":
       return <StopSheet id={entry.id} stopId={entry.stopId} name={entry.name} />;
     case "ahead":
-      return <AheadSheet id={entry.id} tripId={entry.tripId} position={entry.position} />;
+      return (
+        <AheadSheet
+          id={entry.id}
+          tripId={entry.tripId}
+          position={entry.position}
+          serviceDate={entry.serviceDate}
+          dayType={entry.dayType}
+        />
+      );
+    case "why":
+      return (
+        <WhySheet
+          id={entry.id}
+          tripId={entry.tripId}
+          position={entry.position}
+          serviceDate={entry.serviceDate}
+          dayType={entry.dayType}
+        />
+      );
     case "settings":
       return <SettingsSheet id={entry.id} />;
     case "clockPicker":
