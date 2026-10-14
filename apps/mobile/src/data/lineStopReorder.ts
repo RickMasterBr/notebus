@@ -32,9 +32,28 @@ export function dragTargetIndex(input: {
   rowHeight: number;
   total: number;
 }): number {
+  "worklet";
   const { index, translationY, rowHeight, total } = input;
   const delta = Math.round(translationY / Math.max(rowHeight, 40));
   return Math.min(Math.max(0, index + delta), total - 1);
+}
+
+/**
+ * Calcula o deslocamento (-1, 0, 1 altura de linha) para uma linha durante o arrasto de outra.
+ * index: índice da linha sendo avaliada.
+ * from: índice da linha arrastada (-1 se nenhuma).
+ * to: índice alvo do arrasto.
+ */
+export function rowShift(input: { index: number; from: number; to: number }): -1 | 0 | 1 {
+  "worklet";
+  const { index, from, to } = input;
+  if (from === -1 || from === to || index === from) return 0;
+  if (from < to) {
+    if (index > from && index <= to) return -1;
+    return 0;
+  }
+  if (index >= to && index < from) return 1;
+  return 0;
 }
 
 /**

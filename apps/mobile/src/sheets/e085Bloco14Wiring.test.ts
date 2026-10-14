@@ -29,6 +29,7 @@ const recordsSheet = squash(read("sheets/RecordsSheet.tsx"));
 const placesSheet = squash(read("sheets/PlacesSheet.tsx"));
 const alarmsSheet = squash(read("sheets/AlarmsSheet.tsx"));
 const networkSheet = squash(read("sheets/NetworkSheet.tsx"));
+const lineEditSheet = squash(read("sheets/LineEditSheet.tsx"));
 
 describe("e085Bloco14Wiring (Item 1)", () => {
   it("o StopEditSheet usa afterCreateActions(, stopPick.resolve( e o initialName no rascunho", () => {
@@ -88,5 +89,16 @@ describe("e085Bloco14Wiring (Item 3)", () => {
     expect(emptyBlock).not.toContain("onPress");
   });
 });
+
+describe("e085Bloco14Wiring (Item 5, F1)", () => {
+  it("o StopOrderRow usa rowShift( com dragFrom e dragTo e desloca a linha", () => {
+    expect(lineEditSheet).toContain("rowShift(");
+    expect(lineEditSheet).toMatch(
+      /rowShift\(\{\s*index:\s*row\.index,\s*from:\s*dragFrom\.value,\s*to:\s*dragTo\.value,?\s*\}\)/,
+    );
+    expect(lineEditSheet).toMatch(/targetY\s*=\s*shift\s*\*\s*itemHeight\.value/);
+  });
+});
+
 
 

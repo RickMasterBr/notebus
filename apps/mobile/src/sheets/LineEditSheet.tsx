@@ -17,6 +17,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState } fro
 import { Platform, Pressable, StyleSheet, Switch, Text, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  type SharedValue,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -45,9 +46,10 @@ import {
   type LineFormStop,
   type LineFormStopRow,
 } from "../data/lineForm";
-import { dragTargetIndex, moveStopTo, stopActionTarget } from "../data/lineStopReorder";
+import { dragTargetIndex, moveStopTo, rowShift, stopActionTarget } from "../data/lineStopReorder";
 import { LINE_LIMITS } from "../data/lineDraft";
 import { createSubmitGuard } from "../data/submitGuard";
+import { useReduceMotion } from "./useReduceMotion";
 import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import type { MessageKey } from "../i18n/pt-BR";
@@ -98,12 +100,15 @@ const DAY_TYPES: { code: DayTypeCode; labelKey: MessageKey }[] = [
 interface StopOrderRowProps {
   row: LineFormStopRow;
   total: number;
+  dragFrom: SharedValue<number>;
+  dragTo: SharedValue<number>;
   onMove: (from: number, to: number) => void;
   onRemove: (index: number) => void;
 }
 
-function StopOrderRow({ row, total, onMove, onRemove }: StopOrderRowProps) {
+function StopOrderRow({ row, total, dragFrom, dragTo, onMove, onRemove }: StopOrderRowProps) {
   const { colors } = useTheme();
+  const reduceMotion = useReduceMotion();
   const translateY = useSharedValue(0);
   const isDragging = useSharedValue(false);
   const itemHeight = useSharedValue(56);
@@ -119,9 +124,17 @@ function StopOrderRow({ row, total, onMove, onRemove }: StopOrderRowProps) {
     .activeOffsetY([-6, 6])
     .onStart(() => {
       isDragging.value = true;
+      dragFrom.value = row.index;
+      dragTo.value = row.index;
     })
     .onUpdate((event) => {
       translateY.value = event.translationY;
+      dragTo.value = dragTargetIndex({
+        index: row.index,
+        translationY: event.translationY,
+        rowHeight: itemHeight.value,
+        total,
+      });
     })
     .onEnd((event) => {
       runOnJS(onDrop)(event.translationY, itemHeight.value);
@@ -129,20 +142,47 @@ function StopOrderRow({ row, total, onMove, onRemove }: StopOrderRowProps) {
     .onFinalize(() => {
       translateY.value = withSpring(0);
       isDragging.value = false;
+      dragFrom.value = -1;
+      dragTo.value = -1;
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: isDragging.value ? 1.02 : 1 },
-    ],
-    zIndex: isDragging.value ? 999 : 1,
-    elevation: isDragging.value ? 8 : 0,
-    shadowColor: "#000",
-    shadowOpacity: isDragging.value ? 0.2 : 0,
-    shadowRadius: isDragging.value ? 6 : 0,
-    shadowOffset: { width: 0, height: 3 },
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    if (isDragging.value) {
+      return {
+        transform: [
+          { translateY: translateY.value },
+          { scale: 1.02 },
+        ],
+        zIndex: 999,
+        elevation: 8,
+        shadowColor: "#000",
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 3 },
+      };
+    }
+
+    const shift = rowShift({
+      index: row.index,
+      from: dragFrom.value,
+      to: dragTo.value,
+    });
+    const targetY = shift * itemHeight.value;
+    const animatedY = reduceMotion ? 0 : withSpring(targetY, { damping: 20, stiffness: 200 });
+
+    return {
+      transform: [
+        { translateY: animatedY },
+        { scale: 1 },
+      ],
+      zIndex: 1,
+      elevation: 0,
+      shadowColor: "#000",
+      shadowOpacity: 0,
+      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 0 },
+    };
+  });
 
   const labelText = `${row.index + 1}. ${row.name}`;
 
@@ -209,6 +249,8 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
   const { dispatch } = useSheets();
   const db = getSharedDb();
   const keyboard = useKeyboardHeight();
+  const dragFrom = useSharedValue(-1);
+  const dragTo = useSharedValue(-1);
 
   const [handleHeight, setHandleHeight] = useState(0);
   const [state, setState] = useState<LineFormState>(() => initialLineFormState(initialStop));
@@ -498,6 +540,8 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                       row={row}
                       total={view.stopRows.length}
                       onMove={moveStopRow}
+                      dragFrom={dragFrom}
+                      dragTo={dragTo}
                       onRemove={(index) =>
                         setState((prev) => ({ ...prev, stops: removeStop(prev.stops, index) }))
                       }
