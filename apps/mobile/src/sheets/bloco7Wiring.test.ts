@@ -108,7 +108,7 @@ describe("item 3: apagar ponto arrastando", () => {
     expect(networkSheet).toContain(
       'onPress={() => { swipeableMethods.close(); onDelete(stop); }}',
     );
-    expect(networkSheet).toContain("onDelete={(stop) => void handleDelete(stop)}");
+    expect(networkSheet).toContain("onDelete={handleStopDelete}");
   });
 
   it("apagar chama deleteStop e mostra o texto da recusa com o motivo e o uso do resultado", () => {
