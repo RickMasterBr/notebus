@@ -67,3 +67,55 @@ describe("e085Bloco16Wiring (Item 3: A lista na RecordsSheet)", () => {
     );
   });
 });
+
+describe("e085Bloco16Wiring (Item 4: A página da viagem, dentro da folha)", () => {
+  it("4a: o onPress do RecordsHandle lê recordsHandle(page).press", () => {
+    expect(recordsSheet).toMatch(
+      /handleInfo\.press === "close" \? onClose : onBack|recordsHandle\(page\)\.press === "close" \? onClose : onBack/,
+    );
+  });
+
+  it("4b: o ✕ do cabeçalho só aparece se showHeaderClose(page)", () => {
+    expect(recordsSheet).toMatch(/showHeaderClose\(page\)\s*&&/);
+  });
+
+  it("4c: o botão '‹ Registros' aparece só na página da viagem e não na lista", () => {
+    const listPart = recordsSheet.split(/page\.kind === "trip"\s*&&\s*\(\s*<Animated\.View/)[0];
+    expect(listPart).not.toMatch(/sheet_records\.back/);
+    expect(recordsSheet).toMatch(
+      /page\.kind === "trip"\s*&&\s*\(\s*<Animated\.View[\s\S]*?accessibilityLabel=\{t\("sheet_records\.back\.a11y"\)\}/,
+    );
+  });
+
+  it("4d: 'Apagar viagem' chama registro.remove(tripModel.boarding.id)", () => {
+    expect(recordsSheet).toMatch(
+      /handleDeleteFromPage\s*=\s*useCallback\([\s\S]*?registro\.remove\(tripModel\.boarding\.id\)[\s\S]*?dispatchNav\(\{\s*type:\s*"back"\s*\}\)/,
+    );
+  });
+
+  it("4e: 'Editar' do embarque usa o id do embarque", () => {
+    expect(recordsSheet).toMatch(
+      /sheet:\s*\{\s*kind:\s*"record",\s*observationId:\s*tripModel\.boarding\.id\s*\}[\s\S]*?styles\.editHitTarget/,
+    );
+  });
+
+  it("4f: 'Conferir' só com verifyId !== null", () => {
+    expect(recordsSheet).toMatch(
+      /tripModel\.verifyId !== null\s*&&[\s\S]*?kind:\s*"verify",\s*observationId:\s*tripModel\.verifyId/,
+    );
+  });
+
+  it("4g: o efeito de volta exige page.kind === 'trip' e tripModel === null", () => {
+    expect(recordsSheet).toMatch(
+      /if\s*\(\s*page\.kind === "trip" && tripModel === null\s*\)\s*\{\s*dispatchNav\(\{\s*type:\s*"back"\s*\}\);\s*\}/,
+    );
+    expect(recordsSheet).toMatch(/\[page\.kind,\s*tripBoardingId,\s*tripModel === null\]/);
+  });
+
+  it("4h: a página usa o quadro D-150 com scrollAreaHeight e overflow hidden", () => {
+    expect(recordsSheet).toMatch(
+      /page\.kind === "trip"\s*&&[\s\S]*?height:\s*scrollAreaHeight,\s*overflow:\s*"hidden"[\s\S]*?<BottomSheetScrollView/,
+    );
+  });
+});
+
