@@ -97,7 +97,7 @@ export const ptBR = {
   "terminal_detail.you_are_here": "você",
   "terminal_detail.return_here": "↺ volta aqui · fim",
   "terminal_detail.gap": "+ {{count}} paragens",
-  "terminal_detail.footnote": "Entre os pontos de controlo, horário interpolado.",
+  "terminal_detail.footnote": "Entre os pontos de controle, horário interpolado.",
   // Q-72 (provisórias, a aprovar): a 4.6 só tem a frase inteira "…volta ao Terminal às {{time}}", com o nome do ponto
   // de exemplo, e não cobre ponto que a viagem passa uma vez só, volta no meio da viagem, ponto de controle na leitura
   // do VoiceOver nem a dica da linha do Ponto.
