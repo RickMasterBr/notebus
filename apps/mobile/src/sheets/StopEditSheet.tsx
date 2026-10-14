@@ -50,7 +50,9 @@ import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CrossGlyph } from "../ui/Glyphs";
 import { Skeleton } from "../ui/Skeleton";
 import { SheetHandle } from "./SheetHandle";
+import { useSheets, useStopPick } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
+import { afterCreateActions } from "../data/stopCreateFlow";
 import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { useKeyboardHeight } from "./useKeyboardHeight";
@@ -68,11 +70,46 @@ function StopEditHandle({ onClose }: { onClose: () => void }) {
 
 const DETENTS: StackedDetents = { snapPoints: ["95%"], initialIndex: 0, Handle: StopEditHandle };
 
-export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
+export function StopEditSheet({
+  id,
+  stopId,
+  initialName: propInitialName,
+  afterSave: propAfterSave,
+}: {
+  id: number;
+  stopId: string;
+  initialName?: string;
+  afterSave?: "pick" | "open";
+}) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
-  const close = useCloseSheet();
+  const closeSheet = useCloseSheet();
+  const { state, dispatch } = useSheets();
+  const stopPick = useStopPick();
+  const entry = state.stack.find((e) => e.id === id);
+  const initialName = propInitialName ?? (entry && entry.kind === "stopEdit" ? entry.initialName : undefined);
+  const afterSave = propAfterSave ?? (entry && entry.kind === "stopEdit" ? entry.afterSave : undefined);
+  const createdStopRef = useRef<{ id: string; name: string } | null>(null);
+
+  const close = useCallback(() => {
+    const created = createdStopRef.current;
+    if (afterSave && created) {
+      const actions = afterCreateActions({
+        stack: state.stack,
+        newStop: created,
+        mode: afterSave,
+      });
+      for (const action of actions) {
+        dispatch(action);
+      }
+      if (afterSave === "pick") {
+        stopPick.resolve(created);
+      }
+    } else {
+      closeSheet();
+    }
+  }, [afterSave, closeSheet, dispatch, state.stack, stopPick]);
   const now = useNow();
   const toast = useToast();
   const reloadStopIndex = useReloadStopIndex();
@@ -82,6 +119,12 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
   const locations = useStopLocations();
   const db = getSharedDb();
   const isNew = stopId === NEW_STOP_ID;
+  const initialDraft = useMemo<StopEditDraft>(() => {
+    if (isNew && initialName) {
+      return { ...newStopDraft(), name: initialName };
+    }
+    return newStopDraft();
+  }, [isNew, initialName]);
   // O teclado cobria a Nota, o ID externo e o novo apelido: a rolagem ganha o espaço do teclado (E-08 bloco 5, item 2).
   const keyboard = useKeyboardHeight();
   const scrollRef = useRef<React.ElementRef<typeof BottomSheetScrollView>>(null);
@@ -105,8 +148,8 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
   const [loading, setLoading] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const [original, setOriginal] = useState<StopEditDraft>(newStopDraft);
-  const [draft, setDraft] = useState<StopEditDraft>(newStopDraft);
+  const [original, setOriginal] = useState<StopEditDraft>(initialDraft);
+  const [draft, setDraft] = useState<StopEditDraft>(initialDraft);
   const [others, setOthers] = useState<StopEditOther[]>([]);
   const [locationInfo, setLocationInfo] = useState<{
     lat: number | null;
@@ -183,7 +226,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
     [draft, others, original.externalId],
   );
 
-  const view = useMemo(
+  const baseView = useMemo(
     () =>
       stopEditView({
         original,
@@ -194,6 +237,14 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
         locationChanged: locationView.changed,
       }),
     [original, draft, validation, aliasError, newAliasText, locationView.changed],
+  );
+
+  const view = useMemo(
+    () => ({
+      ...baseView,
+      canSave: isNew && initialName ? validation.ok : baseView.canSave,
+    }),
+    [baseView, isNew, initialName, validation.ok],
   );
 
   const handleAddAlias = () => {
@@ -248,6 +299,9 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
             },
             nowMs,
           );
+      if ("id" in result && typeof result.id === "string") {
+        createdStopRef.current = { id: result.id, name: draft.name.trim() };
+      }
       if (result.ok) {
         await reloadStopIndex();
         await reloadSchedule();

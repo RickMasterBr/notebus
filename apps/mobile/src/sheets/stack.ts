@@ -61,7 +61,7 @@ export type SheetContent =
   /** E-08 Bloco 2: TL-07 Declarar horário */
   | { kind: "declare"; stopId: string }
   /** E-08 Bloco 3: Editar ponto */
-  | { kind: "stopEdit"; stopId: string };
+  | { kind: "stopEdit"; stopId: string; initialName?: string; afterSave?: "pick" | "open" };
 
 export type SheetKind = SheetContent["kind"];
 
