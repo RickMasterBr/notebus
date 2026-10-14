@@ -16,25 +16,47 @@ describe("SettingsSheet: quadro de rolagem e estrutura TL-12", () => {
 
   it("apresenta as seções na ordem do plano §3", () => {
     const src = read();
-    const posPlaces = src.indexOf('"places"');
-    const posGeneral = src.indexOf('"settings.section.general"');
-    const posDays = src.indexOf('"settings.section.days"');
-    const posHolidays = src.indexOf('"settings.section.holidays"');
-    const posAlerts = src.indexOf('"settings.section.alerts"');
-    const posMap = src.indexOf('"settings.section.map"');
-    const posData = src.indexOf('"settings.section.data"');
-    const posNetwork = src.indexOf('"settings.section.network"');
-    const posAbout = src.indexOf('"settings.section.about"');
+    const posGroupYou = src.indexOf('"settings.group.you"');
+    const posName = src.indexOf('"settings.name.title"');
+    const posPlaces = src.indexOf('"settings.places.row"');
 
-    expect(posPlaces).toBeGreaterThan(-1);
-    expect(posGeneral).toBeGreaterThan(posPlaces);
-    expect(posDays).toBeGreaterThan(posGeneral);
+    const posGroupSchedule = src.indexOf('"settings.group.schedule"');
+    const posMargin = src.indexOf('"settings.margin.title"');
+    const posDays = src.indexOf('"settings.days.row"');
+    const posHolidays = src.indexOf('"settings.holidays.row"');
+
+    const posGroupAlerts = src.indexOf('"settings.group.alerts"');
+    const posAlertsAllow = src.indexOf('"settings.alarms.allow"');
+    const posAlertsOn = src.indexOf('"settings.alarms.on_row"');
+
+    const posGroupNetwork = src.indexOf('"settings.group.network"');
+    const posNetwork = src.indexOf('"settings.network.row"');
+    const posMap = src.indexOf('"settings.offline_map.title"');
+
+    const posGroupData = src.indexOf('"settings.group.data"');
+    const posBackup = src.indexOf('"settings.data.backup_row"');
+    const posVersion = src.indexOf('"settings.version"');
+
+    expect(posGroupYou).toBeGreaterThan(-1);
+    expect(posName).toBeGreaterThan(posGroupYou);
+    expect(posPlaces).toBeGreaterThan(posName);
+
+    expect(posGroupSchedule).toBeGreaterThan(posPlaces);
+    expect(posMargin).toBeGreaterThan(posGroupSchedule);
+    expect(posDays).toBeGreaterThan(posMargin);
     expect(posHolidays).toBeGreaterThan(posDays);
-    expect(posAlerts).toBeGreaterThan(posHolidays);
-    expect(posMap).toBeGreaterThan(posAlerts);
-    expect(posData).toBeGreaterThan(posMap);
-    expect(posNetwork).toBeGreaterThan(posData);
-    expect(posAbout).toBeGreaterThan(posNetwork);
+
+    expect(posGroupAlerts).toBeGreaterThan(posHolidays);
+    expect(posAlertsAllow).toBeGreaterThan(posGroupAlerts);
+    expect(posAlertsOn).toBeGreaterThan(posAlertsAllow);
+
+    expect(posGroupNetwork).toBeGreaterThan(posAlertsOn);
+    expect(posNetwork).toBeGreaterThan(posGroupNetwork);
+    expect(posMap).toBeGreaterThan(posNetwork);
+
+    expect(posGroupData).toBeGreaterThan(posMap);
+    expect(posBackup).toBeGreaterThan(posGroupData);
+    expect(posVersion).toBeGreaterThan(posBackup);
   });
 });
 

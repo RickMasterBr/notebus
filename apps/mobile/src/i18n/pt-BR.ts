@@ -846,6 +846,52 @@ export const ptBR = {
   "alarms.empty.body": "O aviso diz a hora de sair para pegar o ônibus. Ele se liga numa opção de trajeto, em Ir para.", // provisório
   "alarms.empty.action_places": "Lugares e trajetos", // provisório
   "net.empty.lines_need_stops": "Nenhuma linha ainda. Uma linha precisa de pelo menos 2 pontos: cadastre os pontos primeiro.", // provisório
+  // E-08.5 Bloco 15: Ajustes como índice e saudação (D-203, D-204, D-206, D-207)
+  "settings.group.you": "Você", // provisório
+  "settings.group.schedule": "Horários", // provisório
+  "settings.group.alerts": "Avisos", // provisório
+  "settings.group.network": "Rede e mapa", // provisório
+  "settings.group.data": "Dados", // provisório
+  "settings.name.title": "Meu nome", // provisório
+  "settings.name.empty": "Opcional", // provisório
+  "settings.name.label": "Como devo te chamar?", // provisório
+  "settings.name.placeholder": "Seu nome ou apelido", // provisório
+  "settings.name.hint": "Aparece só nas frases do Início. Fica neste aparelho e não entra no backup.", // provisório
+  "settings.name.preview_title": "Como fica no Início", // provisório
+  "settings.name.preview_question": "Para onde vamos hoje?", // provisório
+  "settings.name.save": "Salvar", // provisório
+  "settings.name.clear": "Apagar nome", // provisório
+  "settings.places.row": "Lugares", // provisório
+  "settings.places.none": "Nenhum lugar ainda", // provisório
+  "settings.places.more": "e mais {{n}}", // provisório
+  "settings.days.row": "Tipos de dia", // provisório
+  "settings.days.value": "Hoje é {{type}} · {{exceptions}}", // provisório
+  "settings.days.today.weekday": "dia útil", // provisório
+  "settings.days.today.saturday": "sábado", // provisório
+  "settings.days.today.sunday_holiday": "domingo ou feriado", // provisório
+  "settings.days.exceptions.none": "sem exceções", // provisório
+  "settings.days.exceptions.one": "1 exceção", // provisório
+  "settings.days.exceptions.many": "{{n}} exceções", // provisório
+  "settings.days.mobilis": "Horários da MOBILIS", // provisório
+  "settings.days.exceptions": "Exceções", // provisório
+  "settings.days.exceptions_hint": "Uma exceção troca o tipo de um dia, como uma véspera de Natal com horário de sábado.", // provisório
+  "settings.holidays.row": "Feriados", // provisório
+  "settings.holidays.yours": "Seus feriados", // provisório
+  "settings.holidays.value_municipal": "Nacionais e de Leiria", // provisório
+  "settings.holidays.value_national": "Só os nacionais", // provisório
+  "settings.alarms.on_hint": "Tocam no horário que o app aprendeu", // provisório
+  "settings.alarms.on_row": "Avisos ligados", // provisório
+  "settings.map.ready_hint": "Leiria e arredores. O mapa abre mesmo sem internet; os horários já funcionam sem ela.", // provisório
+  "settings.data.backup_row": "Backup", // provisório
+  "settings.backup.hint": "Leva seus registros, lugares, avisos e ajustes. Guarde o arquivo onde quiser, como no iCloud Drive.", // provisório
+  "settings.backup.import_hint": "Importar troca tudo o que está neste aparelho pelo conteúdo do arquivo. O app mostra o resumo antes de confirmar.", // provisório
+  "settings.back": "Ajustes", // provisório
+  "settings.back.a11y": "Voltar para Ajustes", // provisório
+  "greeting.morning": "Bom dia", // provisório
+  "greeting.afternoon": "Boa tarde", // provisório
+  "greeting.night": "Boa noite", // provisório
+  "greeting.with_name": "{{greeting}}, {{name}}.", // provisório
+  "greeting.plain": "{{greeting}}.", // provisório
 } as const;
 
 

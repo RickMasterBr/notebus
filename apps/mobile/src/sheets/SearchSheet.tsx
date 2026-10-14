@@ -103,7 +103,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
   const empty = searchEmpty({
     term,
     pick,
-    stopTotal: index.status === "ready" ? index.stops.length : 0,
+    stopTotal: index.status === "ready" ? index.stops.length : null,
     recentCount: recents.length,
     showNoResults: view.showNoResults,
   });
@@ -268,7 +268,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
   }
 
 
-  const isCentered = (empty !== null && empty !== "no_results") || empty === "no_results" || panel === "prompt";
+  const isCentered = empty !== null || panel === "prompt";
 
   return (
     <StackedSheet id={id} tall>
