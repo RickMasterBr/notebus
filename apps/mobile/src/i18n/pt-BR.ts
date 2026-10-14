@@ -56,7 +56,7 @@ export const ptBR = {
   "search.group.stops": "Pontos",
   "search.group.lines": "Linhas", // provisório
   "search.group.recent": "Recentes",
-  "search.empty.prompt": "Pesquise um ponto de ônibus para começar",
+  "search.empty.prompt": "Busque um ponto pelo nome, apelido ou número, ou uma linha pelo número", // provisório
   "search.empty.no_results": "Nada encontrado para “{{term}}”",
   "search.clear.a11y": "Limpar busca",
   "search.result.stop.a11y": "{{name}}, linhas {{lines}}",
@@ -634,8 +634,8 @@ export const ptBR = {
   "net.stop.id": "ID {{id}}", // provisório
   "net.stop.aliases": "Também: {{list}}", // provisório
   "net.official": "MOBILIS", // provisório
-  "net.empty.lines": "Nenhuma linha na rede", // provisório
-  "net.empty.stops": "Nenhum ponto na rede", // provisório
+  "net.empty.lines": "Nenhuma linha ainda. Cadastre a linha que passa no seu ponto.", // provisório
+  "net.empty.stops": "Nenhum ponto ainda. Comece pelo ponto onde você pega o ônibus.", // provisório
   "net.stops.search_placeholder": "Buscar ponto", // provisório
   "net.stops.no_match": "Nenhum ponto encontrado", // provisório
   "net.stops.page_prev": "Anterior", // provisório
@@ -828,6 +828,25 @@ export const ptBR = {
   "home.guide.mobilis.title": "Ache o seu ponto", // provisório
   "home.guide.mobilis.body": "Busque o ponto onde você pega o ônibus. Os horários começam como “estimado” e se ajustam a cada embarque que você anota.", // provisório
   "home.guide.mobilis.action": "Buscar meu ponto", // provisório
+  // E-08.5 Bloco 14: Estados vazios (D-198, D-207, T-137)
+  "search.empty.no_stops.title": "Você ainda não tem pontos", // provisório
+  "search.empty.no_stops.body": "Cadastre o ponto onde você pega o ônibus para buscar por ele aqui.", // provisório
+  "search.empty.prompt_pick": "Busque o ponto pelo nome, apelido ou número", // provisório
+  "search.no_results.title": "Não achei “{{term}}”", // provisório
+  "search.no_results.body": "Confira a escrita ou cadastre este ponto. Ele fica só no seu caderno.", // provisório
+  "search.no_results.create": "Novo ponto “{{term}}”", // provisório
+  "search.no_results.clear": "Limpar busca", // provisório
+  "sheet_records.empty.headline": "Seu caderno está vazio", // provisório
+  "sheet_records.empty.body": "Cada embarque que você anota aparece aqui, por dia. É com eles que o app aprende o horário real de cada ponto.", // provisório
+  "sheet_records.empty.action_board": "Registrar embarque", // provisório
+  "places.empty.headline": "Nenhum lugar salvo ainda", // provisório
+  "places.empty.body": "Salve Casa, Facul ou outro lugar para ver com um toque qual ônibus pegar até lá.", // provisório
+  "places.empty.action": "Adicionar lugar", // provisório
+  "alarms.empty.title": "Nenhum aviso ligado", // provisório
+  "alarms.empty.body": "O aviso diz a hora de sair para pegar o ônibus. Ele se liga numa opção de trajeto, em Ir para.", // provisório
+  "alarms.empty.action_places": "Lugares e trajetos", // provisório
+  "net.empty.lines_need_stops": "Nenhuma linha ainda. Uma linha precisa de pelo menos 2 pontos: cadastre os pontos primeiro.", // provisório
 } as const;
+
 
 export type MessageKey = keyof typeof ptBR;

@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { describe, expect, it } from "vitest";
-import { dragTargetIndex, moveStopTo, stopActionTarget } from "./lineStopReorder";
+import { dragTargetIndex, moveStopTo, rowShift, stopActionTarget } from "./lineStopReorder";
 import { initialLineFormState, lineFormView, type LineFormStop } from "./lineForm";
 
 describe("lineStopReorder: moveStopTo", () => {
@@ -112,3 +112,38 @@ describe("lineFormView: stopRows.actions", () => {
     ]);
   });
 });
+
+describe("lineStopReorder: rowShift (Item 5, F1)", () => {
+  it("from === -1 devolve 0", () => {
+    expect(rowShift({ index: 0, from: -1, to: 2 })).toBe(0);
+    expect(rowShift({ index: 2, from: -1, to: 1 })).toBe(0);
+  });
+
+  it("linha de from devolve 0", () => {
+    expect(rowShift({ index: 1, from: 1, to: 3 })).toBe(0);
+    expect(rowShift({ index: 3, from: 3, to: 1 })).toBe(0);
+  });
+
+  it("to === from devolve 0", () => {
+    expect(rowShift({ index: 0, from: 2, to: 2 })).toBe(0);
+    expect(rowShift({ index: 1, from: 2, to: 2 })).toBe(0);
+    expect(rowShift({ index: 3, from: 2, to: 2 })).toBe(0);
+  });
+
+  it("arrastar de 1 para 3: linhas 2 e 3 sobem (-1), demais 0", () => {
+    expect(rowShift({ index: 0, from: 1, to: 3 })).toBe(0);
+    expect(rowShift({ index: 1, from: 1, to: 3 })).toBe(0);
+    expect(rowShift({ index: 2, from: 1, to: 3 })).toBe(-1);
+    expect(rowShift({ index: 3, from: 1, to: 3 })).toBe(-1);
+    expect(rowShift({ index: 4, from: 1, to: 3 })).toBe(0);
+  });
+
+  it("arrastar de 3 para 1: linhas 1 e 2 descem (+1), demais 0", () => {
+    expect(rowShift({ index: 0, from: 3, to: 1 })).toBe(0);
+    expect(rowShift({ index: 1, from: 3, to: 1 })).toBe(1);
+    expect(rowShift({ index: 2, from: 3, to: 1 })).toBe(1);
+    expect(rowShift({ index: 3, from: 3, to: 1 })).toBe(0);
+    expect(rowShift({ index: 4, from: 3, to: 1 })).toBe(0);
+  });
+});
+

@@ -304,3 +304,28 @@ describe("E-08.5 bloco 13: lineDetail com initialStop (Item 1)", () => {
     expect(kinds(s2)).toEqual(["home", "lineDetail", "lineDetail"]);
   });
 });
+
+describe("E-08.5 bloco 14: stopEdit com initialName e afterSave (Item 1)", () => {
+  it("Item 1: empilhar stopEdit com e sem initialName/afterSave é a mesma folha e os campos sobrevivem ao push", () => {
+    const s1 = run(
+      { type: "push", sheet: { kind: "stopEdit", stopId: "p1", initialName: "Ponto A", afterSave: "pick" } },
+      { type: "push", sheet: { kind: "stopEdit", stopId: "p1" } },
+    );
+    expect(kinds(s1)).toEqual(["home", "stopEdit"]);
+    const top = activeSheet(s1);
+    expect(top).toMatchObject({
+      kind: "stopEdit",
+      stopId: "p1",
+      initialName: "Ponto A",
+      afterSave: "pick",
+    });
+
+    const s2 = run(
+      { type: "push", sheet: { kind: "stopEdit", stopId: "p1", initialName: "Ponto A", afterSave: "pick" } },
+      { type: "push", sheet: { kind: "stopEdit", stopId: "p2" } },
+    );
+    expect(kinds(s2)).toEqual(["home", "stopEdit", "stopEdit"]);
+  });
+});
+
+
