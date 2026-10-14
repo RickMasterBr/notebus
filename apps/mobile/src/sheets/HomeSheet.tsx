@@ -27,6 +27,7 @@ import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View, useWi
 import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBackup } from "../data/BackupProvider";
+import { useNow } from "../data/NowProvider";
 import { useOfflineMap } from "../data/OfflineMapProvider";
 import { usePlaces } from "../data/PlacesProvider";
 import { useRecentStops } from "../data/RecentStopsProvider";
@@ -35,8 +36,12 @@ import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { homeCardsPlan } from "../data/homeCards";
+import { homeGuide } from "../data/homeGuide";
 import { homePendingInfo } from "../data/homePending";
 import { initialDetent } from "../data/homeStart";
+import { NEW_LINE_ID } from "../data/lineForm";
+import { dismissHomeGuide, isHomeGuideDismissed, readHomeGuideFacts, type HomeGuideFactsResult } from "../db/homeGuide";
+import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import { elevation, radius, space, type, useTheme } from "../theme";
 import { PlaceIconGlyph, PlusGlyph } from "../ui/Glyphs";
@@ -45,6 +50,7 @@ import { REGISTER_BUTTON_HEIGHT, RegisterButton } from "../ui/RegisterButton";
 import { SearchPill } from "../ui/SearchPill";
 import { BackupReminderCard, TripCard } from "../ui/TripCard";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
+import { HomeGuideCard } from "./HomeGuideCard";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
@@ -68,7 +74,8 @@ export function HomeSheet() {
       sheetRef.current?.snapToIndex(0);
     });
   }, [registerHomeCollapse]);
-  const stops = useStopIndex();
+  const stopIndex = useStopIndex();
+  const stops = stopIndex.status === "ready" ? stopIndex : { ...stopIndex, stops: [] };
   const schedule = useSchedule();
   const recent = useRecentStops();
   const places = usePlaces();
@@ -82,6 +89,45 @@ export function HomeSheet() {
       : t("home.backup_reminder.body", { days: backup.reminder.daysSince })
     : null;
   const offlineMap = useOfflineMap();
+  const now = useNow();
+  const db = getSharedDb();
+  const [guideFacts, setGuideFacts] = useState<HomeGuideFactsResult | null>(null);
+  const [guideDismissed, setGuideDismissed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!db) return;
+    let active = true;
+    Promise.all([readHomeGuideFacts(db), isHomeGuideDismissed(db)])
+      .then(([facts, dismissed]) => {
+        if (active) {
+          setGuideFacts(facts);
+          setGuideDismissed(dismissed);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setGuideFacts(null);
+          setGuideDismissed(null);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [stops.stops.length, schedule, observations.length]);
+
+  const guideCard = useMemo(() => {
+    if (!guideFacts || guideDismissed === null) return null;
+    const lineCount = schedule.status === "ready" ? schedule.data.lineInfo.size : 0;
+    if (schedule.status !== "ready") return null;
+    return homeGuide({
+      hasDataset: guideFacts.hasDataset,
+      stopCount: stops.stops.length,
+      lineCount,
+      recordCount: observations.length,
+      dismissed: guideDismissed,
+    });
+  }, [guideFacts, guideDismissed, stops.stops.length, schedule, observations.length]);
+
   const [handleHeight, setHandleHeight] = useState(0);
   const [pillHeight, setPillHeight] = useState(0);
   // Altura medida do cartão ("Em viagem", lembrete de backup ou mapa sem internet); 0 sem nenhum.
@@ -281,6 +327,49 @@ export function HomeSheet() {
                   </ScrollView>
                 </View>
               ) : null}
+              {guideCard ? (
+                <View style={styles.guideContainer}>
+                  <HomeGuideCard
+                    kind={guideCard.kind}
+                    dismissible={guideCard.dismissible}
+                    onAction={() => {
+                      if (guideCard.kind === "line") {
+                        dispatch({
+                          type: "push",
+                          sheet: {
+                            kind: "lineDetail",
+                            lineId: NEW_LINE_ID,
+                            ...(guideFacts?.lastStop ? { initialStop: guideFacts.lastStop } : {}),
+                          },
+                        });
+                      } else if (guideCard.kind === "register") {
+                        if (guideFacts?.lastLineFirstStop) {
+                          recent.remember(guideFacts.lastLineFirstStop.id);
+                          dispatch({
+                            type: "push",
+                            sheet: {
+                              kind: "stop",
+                              stopId: guideFacts.lastLineFirstStop.id,
+                              name: guideFacts.lastLineFirstStop.name,
+                            },
+                          });
+                        } else {
+                          dispatch({
+                            type: "push",
+                            sheet: { kind: "board", stopId: null },
+                          });
+                        }
+                      } else if (guideCard.kind === "mobilis") {
+                        dispatch({ type: "push", sheet: { kind: "search" } });
+                      }
+                    }}
+                    onDismiss={() => {
+                      setGuideDismissed(true);
+                      if (db) void dismissHomeGuide(db, now());
+                    }}
+                  />
+                </View>
+              ) : null}
               {state.detent >= 1 && pendingInfo ? (
                 <Pressable
                   accessibilityRole="button"
@@ -358,6 +447,9 @@ const styles = StyleSheet.create({
     marginTop: space.sm,
   },
   shortcutsContainer: {
+    marginBottom: space.sm,
+  },
+  guideContainer: {
     marginBottom: space.sm,
   },
   shortcutsStrip: {
