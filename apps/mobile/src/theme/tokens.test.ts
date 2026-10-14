@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { colors } from "./tokens";
+import { colors, type } from "./tokens";
 
 describe("tema", () => {
   it("claro e escuro têm exatamente as mesmas chaves", () => {
@@ -31,5 +31,9 @@ describe("tema", () => {
     expect([colors.dark.toast, colors.dark.toastBorder, colors.dark.toastAction]).toEqual(["#3A3B3F", "#4A4B50", "#C4BDFF"]);
     expect([colors.light.trip, colors.dark.trip]).toEqual(["#EEEBFB", "#2A2745"]);
     expect([colors.light.tripText2, colors.dark.tripText2, colors.light.tripAccent, colors.dark.tripAccent]).toEqual(["#4A4E55", "#B9B6CC", "#4A3BC4", "#C4BDFF"]);
+  });
+  it("tokens de tipografia da frase viva (Item 5, D-207): eyebrow e phrase", () => {
+    expect(type.eyebrow).toEqual({ fontSize: 14, fontWeight: "600" });
+    expect(type.phrase).toEqual({ fontSize: 26, fontWeight: "700", lineHeight: 31 });
   });
 });
