@@ -4,7 +4,7 @@
  * Moldura da RecordsSheet (D-150, altura fixa, sem BottomSheetView).
  */
 import { BottomSheetFlatList, BottomSheetTextInput } from "@gorhom/bottom-sheet";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import ReanimatedSwipeable, {
   type SwipeableMethods,
@@ -304,6 +304,9 @@ export function NetworkSheet({ id }: { id: number }) {
     [db, now, toast, reloadAll],
   );
 
+  const handleStopDelete = useCallback((stop: NetworkStopItem) => { void handleDelete(stop); }, [handleDelete]);
+  const handleLineDelete = useCallback((line: NetworkLineItem) => { void handleDeleteLine(line); }, [handleDeleteLine]);
+
   const handleWillOpen = useCallback((methods: SwipeableMethods) => {
     activeSwipeable.current = openSingleSwipeable(activeSwipeable.current, methods);
   }, []);
@@ -415,7 +418,7 @@ export function NetworkSheet({ id }: { id: number }) {
           <LineRow
             line={item.line}
             onPress={handleLinePress}
-            onDelete={(line) => void handleDeleteLine(line)}
+            onDelete={handleLineDelete}
             onWillOpen={handleWillOpen}
             onClose={handleSwipeClose}
           />
@@ -427,7 +430,7 @@ export function NetworkSheet({ id }: { id: number }) {
           <StopRow
             stop={item.stop}
             onPress={handleStopPress}
-            onDelete={(stop) => void handleDelete(stop)}
+            onDelete={handleStopDelete}
             onWillOpen={handleWillOpen}
             onClose={handleSwipeClose}
           />
@@ -436,7 +439,7 @@ export function NetworkSheet({ id }: { id: number }) {
 
       return null;
     },
-    [colors, term, stopsView, handleTermChange, handlePrev, handleNext, handleLinePress, handleStopPress, handleNewStopPress, handleDelete, handleDeleteLine, handleWillOpen, handleSwipeClose],
+    [colors, term, stopsView, handleTermChange, handlePrev, handleNext, handleLinePress, handleStopPress, handleNewStopPress, handleStopDelete, handleLineDelete, handleWillOpen, handleSwipeClose],
   );
 
   return (
@@ -497,7 +500,7 @@ export function NetworkSheet({ id }: { id: number }) {
   );
 }
 
-function StopRow({
+const StopRow = memo(function StopRow({
   stop,
   onPress,
   onDelete,
@@ -563,9 +566,9 @@ function StopRow({
       </Pressable>
     </ReanimatedSwipeable>
   );
-}
+});
 
-function LineRow({
+const LineRow = memo(function LineRow({
   line,
   onPress,
   onDelete,
@@ -642,7 +645,7 @@ function LineRow({
       </Pressable>
     </ReanimatedSwipeable>
   );
-}
+});
 
 function StopsPager({
   stopsView,

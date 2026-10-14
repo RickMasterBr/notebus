@@ -23,9 +23,9 @@ const stopEditSheet = squash(read("sheets/StopEditSheet.tsx"));
 
 describe("bloco11bWiring: guardas de ligação (Item 4)", () => {
   describe("NetworkSheet.tsx: apagar linha", () => {
-    it("LineRow recebe onDelete={(line) => void handleDeleteLine(line)}", () => {
+    it("LineRow recebe onDelete={handleLineDelete}", () => {
       expect(networkSheet).toContain(
-        "<LineRow line={item.line} onPress={handleLinePress} onDelete={(line) => void handleDeleteLine(line)}",
+        "<LineRow line={item.line} onPress={handleLinePress} onDelete={handleLineDelete}",
       );
     });
 
