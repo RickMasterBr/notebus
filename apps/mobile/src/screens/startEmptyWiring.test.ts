@@ -39,6 +39,22 @@ export function checkFirstRunStartError(firstRun: string): boolean {
   return failedBranch.includes('t("first_run.start_failed")');
 }
 
+export function checkEmptyHomeAction(emptyHome: string): { opensNewStop: boolean; noSearch: boolean } {
+  const action = between(emptyHome, 'accessibilityLabel={t("home.empty.action")}', "</Pressable>");
+  const onPress = between(action, "onPress=", "style=");
+  return {
+    opensNewStop: onPress.includes('kind: "stopEdit"') && onPress.includes("stopId: NEW_STOP_ID"),
+    noSearch: !emptyHome.includes('kind: "search"'),
+  };
+}
+
+export function checkRememberNewStop(sheet: string): boolean {
+  const branch = between(sheet, "if (result.ok) {", '} else if (result.reason === "no_network")');
+  const toastAt = branch.indexOf("toast.show(");
+  const rememberAt = branch.indexOf("remember(result.id)");
+  return toastAt !== -1 && rememberAt > toastAt && /isNew && [^;]*remember\(result\.id\)/.test(branch);
+}
+
 describe("startEmptyWiring (D-201)", () => {
   it("App.tsx: Começar do zero chama startEmpty antes de abrir a lista, e a abertura conserta a rede", () => {
     expect(checkAppStartEmptyWiring(read("..", "..", "App.tsx"))).toEqual({
@@ -66,5 +82,25 @@ describe("startEmptyWiring (D-201)", () => {
 
   it("FirstRun.tsx: sem o texto de erro no cartão, é reprovado", () => {
     expect(checkFirstRunStartError(normalized('<Pressable onPress={startEmpty}> <Text>{t("first_run.start_empty")}</Text> </Pressable>'))).toBe(false);
+  });
+
+  it("EmptyHome.tsx: Cadastrar meu ponto abre o Novo ponto, não a Busca", () => {
+    expect(checkEmptyHomeAction(read("EmptyHome.tsx"))).toEqual({ opensNewStop: true, noSearch: true });
+  });
+
+  it("EmptyHome.tsx: o código anterior (push search) é reprovado", () => {
+    const previous = normalized(`<Pressable accessibilityLabel={t("home.empty.action")} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} style={x}></Pressable>`);
+    expect(checkEmptyHomeAction(previous)).toEqual({ opensNewStop: false, noSearch: false });
+  });
+
+  it("StopEditSheet.tsx: remember(result.id) está no ramo isNew do sucesso, depois do toast do sucesso", () => {
+    expect(checkRememberNewStop(read("..", "sheets", "StopEditSheet.tsx"))).toBe(true);
+  });
+
+  it("StopEditSheet.tsx: remember fora do isNew ou sem remember é reprovado", () => {
+    const wide = normalized("if (result.ok) { toast.show({}); remember(result.id); } else if (result.reason === \"no_network\") {");
+    const none = normalized("if (result.ok) { toast.show({}); } else if (result.reason === \"no_network\") {");
+    expect(checkRememberNewStop(wide)).toBe(false);
+    expect(checkRememberNewStop(none)).toBe(false);
   });
 });

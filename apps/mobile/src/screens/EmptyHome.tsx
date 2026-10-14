@@ -4,6 +4,7 @@
  * e o cartão "Comece pelo ponto onde você pega o ônibus".
  */
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { NEW_STOP_ID } from "../data/stopEdit";
 import { useSheets } from "../sheets/SheetsContext";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
@@ -54,7 +55,7 @@ export function EmptyHome() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("home.empty.action")}
-            onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })}
+            onPress={() => dispatch({ type: "push", sheet: { kind: "stopEdit", stopId: NEW_STOP_ID } })}
             style={({ pressed }) => [styles.button, { backgroundColor: colors.accent }, pressed && { opacity: 0.6 }]}
           >
             <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("home.empty.action")}</Text>

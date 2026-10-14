@@ -17,6 +17,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNow } from "../data/NowProvider";
+import { useRecentStops } from "../data/RecentStopsProvider";
 import { useScheduleReload } from "../data/ScheduleProvider";
 import { useReloadStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
@@ -74,6 +75,7 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
   const now = useNow();
   const toast = useToast();
   const reloadStopIndex = useReloadStopIndex();
+  const { remember } = useRecentStops();
   // Os horários guardam o nome do ponto (`stopNames`): sem recarregar, as outras folhas mostram o nome antigo.
   const reloadSchedule = useScheduleReload();
   const db = getSharedDb();
@@ -264,6 +266,8 @@ export function StopEditSheet({ id, stopId }: { id: number; stopId: string }) {
             },
           },
         });
+        // Ponto novo vira recente: aparece em "Perto de você" no Início sem precisar de localização.
+        if (isNew && "id" in result && typeof result.id === "string") remember(result.id);
       } else if (result.reason === "no_network") {
         toast.show({ title: t("stop_new.error.no_network"), kind: "error", haptic: "error" });
       } else {
