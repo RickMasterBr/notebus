@@ -1,13 +1,15 @@
 /// <reference types="node" />
 // Dados inventados (D-091). Percurso de 3 paragens: Praça Inventada (1) → Rua Exemplo (2) → Largo Fictício (3).
 // Viagem de dia útil: 08:10 / 08:17 / 08:24 (490, 497, 504). Viagem de fim de semana: 09:00 (540…), sem julho e agosto.
-import { type SeedFile } from "@notebus/domain";
+import { type PassageRecord, type SeedFile } from "@notebus/domain";
 import { describe, expect, it } from "vitest";
 import { type ImportDb, importMobilis } from "../db/importMobilis";
 import { testDbWithSqlite } from "../db/testing/drizzleTestDb";
 import { exampleSeed } from "../db/testing/exampleSeed";
+import { boardChoices } from "./boardChoices";
+import { passageTarget } from "./records";
 import { type ScheduleSnapshot, loadSchedule } from "./schedule";
-import { buildStopCard, clockText, seasonMonths } from "./stopCard";
+import { type NextBus, buildStopCard, clockText, seasonMonths } from "./stopCard";
 
 async function load(seed: SeedFile): Promise<ScheduleSnapshot> {
   const { db, sqlite } = testDbWithSqlite();
@@ -184,5 +186,82 @@ describe("declaredPassageKeys (selo 'declarado', E-08)", () => {
       { id: "t2", patternId: "p", firstPosition: 1, lastPosition: 3, stopTimes: [{ position: 2, serviceMinute: 500, origin: "official" as const }] },
     ];
     expect([...declaredPassageKeys(trips)]).toEqual(["t1:2"]);
+  });
+});
+
+describe("buildStopCard: aprendizado (E-08.5 bloco 10, T-130)", () => {
+  it("sem registros: resultado idêntico à chamada sem o parâmetro", async () => {
+    const snapshot = await load(seedWith());
+    const id = snapshot.stopNames.keys().next().value!;
+    const instant = lisbon("2026-09-02", "08:00");
+    expect(buildStopCard(id, snapshot, instant, [])).toEqual(buildStopCard(id, snapshot, instant));
+  });
+
+  it("T-130: 4 registros auto de desvio +6 na viagem das 08:10 -> horário base + 6 (08:16) e igual ao de boardChoices", async () => {
+    const seed = seedWith({ only: "weekday" });
+    const snapshot = await load(seed);
+    const stopId = seed.stops.find((s) => s.key === PRACA)!.id;
+    const instant = lisbon("2026-09-02", "08:00");
+    const seedTrip = seed.trips.find((t) => t.key.includes("/trip/L1/0810"))!;
+    const trip = snapshot.trips.find((t) => t.id === seedTrip.id)!;
+    const target = passageTarget(snapshot, trip.id, 1, "2026-09-02", "weekday")!;
+    // 4 registros com desvio +6 (490 + 6 = 496, "08:16"):
+    const records: PassageRecord[] = [1, 2, 3, 4].map((d) => ({
+      deviation: 6,
+      observedAt: instant - d * 86_400_000,
+      serviceDate: "2026-09-02",
+      dayType: target.dayType,
+      tripId: target.tripId,
+      patternId: target.patternId,
+      position: target.position,
+      stopId: target.stopId,
+      matchStatus: "auto",
+      mode: "live",
+      kind: "boarded",
+    }));
+    const card = buildStopCard(stopId, snapshot, instant, records)!;
+    expect(card).not.toBeNull();
+    const state = card.lines[0]!.state as NextBus;
+    expect(state.status).toBe("next");
+    expect(state.time).toBe("08:16"); // 08:10 + 6 min
+    expect(state.confidence).toBe("medium");
+
+    // Compara com boardChoices chamado no mesmo teste:
+    const choices = boardChoices(stopId, snapshot, records, instant);
+    const choice = choices.find((c) => c.tripId === trip.id);
+    expect(choice).toBeDefined();
+    expect(state.time).toBe(choice!.time);
+  });
+
+  it("mudança do próximo: aprendizado empurra a passagem para depois de agora (às 08:12, base 08:10 já passou, mas aprendida 08:16 continua próxima)", async () => {
+    const seed = seedWith({ only: "weekday" });
+    const snapshot = await load(seed);
+    const stopId = seed.stops.find((s) => s.key === PRACA)!.id;
+    const at0812 = lisbon("2026-09-02", "08:12"); // minuto 492
+    const seedTrip = seed.trips.find((t) => t.key.includes("/trip/L1/0810"))!;
+    const trip = snapshot.trips.find((t) => t.id === seedTrip.id)!;
+    const target = passageTarget(snapshot, trip.id, 1, "2026-09-02", "weekday")!;
+
+    // Sem registros: 08:10 já passou (490 < 492), próximo dia útil
+    const unlearned = buildStopCard(stopId, snapshot, at0812, [])!;
+    expect(unlearned.lines[0]!.state.status).toBe("later");
+
+    // Com 4 registros de +6 (esperado 496, 08:16 >= 492): ainda é o próximo!
+    const records: PassageRecord[] = [1, 2, 3, 4].map((d) => ({
+      deviation: 6,
+      observedAt: at0812 - d * 86_400_000,
+      serviceDate: "2026-09-02",
+      dayType: target.dayType,
+      tripId: target.tripId,
+      patternId: target.patternId,
+      position: target.position,
+      stopId: target.stopId,
+      matchStatus: "auto",
+      mode: "live",
+      kind: "boarded",
+    }));
+    const learned = buildStopCard(stopId, snapshot, at0812, records)!;
+    expect(learned.lines[0]!.state.status).toBe("next");
+    expect((learned.lines[0]!.state as NextBus).time).toBe("08:16");
   });
 });

@@ -27,6 +27,7 @@ import * as Haptics from "expo-haptics";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, findNodeHandle, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { type StopCard, buildStopCard, declaredPassageKeys, passageKeyOf } from "../data/stopCard";
@@ -88,6 +89,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const schedule = useSchedule();
+  const registro = useRegistro();
   const instant = useNowTick();
   // O nome vem do índice da busca (recarregado a cada edição do ponto); `name` da pilha é só reserva (E-08 bloco 5, item 1).
   const stopIndex = useStopIndex();
@@ -138,10 +140,10 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   const { card, day } = useMemo((): { card: StopCard | null; day: StopDay | null } => {
     if (schedule.status !== "ready") return { card: null, day: null };
     return {
-      card: buildStopCard(stopId, schedule.data, instant),
-      day: buildStopDay(stopId, schedule.data, instant, dayType),
+      card: buildStopCard(stopId, schedule.data, instant, registro.records),
+      day: buildStopDay(stopId, schedule.data, instant, dayType, registro.records),
     };
-  }, [schedule, stopId, instant, dayType]);
+  }, [schedule, stopId, instant, dayType, registro.records]);
 
   // As passagens com horário declarado (E-08): ganham o selo "declarado" na lista.
   const declaredKeys = useMemo(() => (schedule.status === "ready" ? declaredPassageKeys(schedule.data.trips) : new Set<string>()), [schedule]);

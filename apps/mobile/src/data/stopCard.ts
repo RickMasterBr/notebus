@@ -23,11 +23,13 @@ import {
   type Confidence,
   type DayTypeCode,
   type ExpectedTime,
+  type PassageRecord,
   type PatternData,
   type ScheduleData,
   type StopPassage,
   type TripData,
 } from "@notebus/domain";
+import { learnedPassages } from "./learnedPassages";
 import type { ScheduleSnapshot } from "./schedule";
 
 /** Até onde procurar o próximo dia com serviço (como o domínio: cobre qualquer época anual). */
@@ -101,7 +103,12 @@ export function seasonMonths(startMd: string, endMd: string): number[] {
   return months;
 }
 
-export function buildStopCard(stopId: string, data: ScheduleSnapshot, instantMs: number): StopCard | null {
+export function buildStopCard(
+  stopId: string,
+  data: ScheduleSnapshot,
+  instantMs: number,
+  records: readonly PassageRecord[] = [],
+): StopCard | null {
   const name = data.stopNames.get(stopId);
   if (name === undefined) return null; // ponto apagado ou de outra importação
 
@@ -121,7 +128,7 @@ export function buildStopCard(stopId: string, data: ScheduleSnapshot, instantMs:
     .map(([code, { color, patterns }]) => {
       const patternIds = new Set(patterns.map((p) => p.id));
       const trips = data.trips.filter((t) => patternIds.has(t.patternId));
-      return { code, color, ...lineState(stopId, patterns, trips, data, instantMs) };
+      return { code, color, ...lineState(stopId, patterns, trips, data, instantMs, records) };
     });
 
   return { stopId, name, lines };
@@ -137,11 +144,16 @@ function boardablePassages(
   schedule: ScheduleData,
   includeEnds = false,
   marginMinutes?: number,
+  data?: ScheduleSnapshot,
+  records: readonly PassageRecord[] = [],
+  instantMs = 0,
 ): StopPassage[] {
   const running = new Set(tripsRunningOn(date, dayType, schedule).map((t) => t.id));
   const todays = trips.filter((t) => running.has(t.id));
   const lastOf = new Map(todays.map((t) => [t.id, t.lastPosition]));
-  return passagesAtStop(stopId, patterns, todays, { marginMinutes }).filter((p) => includeEnds || p.info.position !== lastOf.get(p.tripId));
+  const passages = passagesAtStop(stopId, patterns, todays, { marginMinutes }).filter((p) => includeEnds || p.info.position !== lastOf.get(p.tripId));
+  if (!data) return passages;
+  return learnedPassages(passages, data, { records, date, dayType, now: instantMs });
 }
 
 function lineState(
@@ -150,6 +162,7 @@ function lineState(
   trips: TripData[],
   data: ScheduleSnapshot,
   instantMs: number,
+  records: readonly PassageRecord[] = [],
 ): Pick<StopCardLine, "destination" | "state"> {
   const { calendar } = data;
   const lineSchedule = lineScheduleOf(trips, data);
@@ -158,7 +171,19 @@ function lineState(
   const { today, yesterday } = serviceDaysAt(instantMs, calendar);
   let best: { passage: StopPassage; wait: number; minute: number } | null = null;
   for (const day of [yesterday, today]) {
-    for (const passage of boardablePassages(stopId, day.date, day.dayType.dayType, patterns, trips, lineSchedule, false, data.margin)) {
+    for (const passage of boardablePassages(
+      stopId,
+      day.date,
+      day.dayType.dayType,
+      patterns,
+      trips,
+      lineSchedule,
+      false,
+      data.margin,
+      data,
+      records,
+      instantMs,
+    )) {
       const wait = passage.expected.center - day.minute;
       if (wait >= 0 && (best === null || wait < best.wait)) best = { passage, wait, minute: day.minute };
     }
@@ -184,7 +209,7 @@ function lineState(
   const clock = lisbonWallClock(instantMs);
   const service = lineServiceOn(clock.date, calendar, lineSchedule);
   const reason = service.status === "none" ? reasonOf(service.reason, clock.date, calendar, lineSchedule, false) : null;
-  return nextServiceState(stopId, patterns, trips, data, instantMs, lineSchedule, reason);
+  return nextServiceState(stopId, patterns, trips, data, instantMs, lineSchedule, reason, false, records);
 }
 
 /** O "esteja no ponto às" (arredondado como na tela, D-092) já ficou para trás no minuto de serviço dado? */
@@ -211,11 +236,24 @@ export function nextServiceState(
   lineSchedule: ScheduleData,
   reason: CardReason | null,
   includeEnds = false,
+  records: readonly PassageRecord[] = [],
 ): Pick<StopCardLine, "destination"> & { state: NextDay | NoBus } {
   const clock = lisbonWallClock(instantMs);
   for (let i = 1; i <= NEXT_SERVICE_HORIZON_DAYS; i++) {
     const date = addDays(clock.date, i);
-    const passages = boardablePassages(stopId, date, dayTypeOf(date, data.calendar).dayType, patterns, trips, lineSchedule, includeEnds);
+    const passages = boardablePassages(
+      stopId,
+      date,
+      dayTypeOf(date, data.calendar).dayType,
+      patterns,
+      trips,
+      lineSchedule,
+      includeEnds,
+      undefined,
+      data,
+      records,
+      instantMs,
+    );
     const first = passages[0];
     if (first) {
       return {

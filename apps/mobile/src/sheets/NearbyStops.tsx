@@ -52,11 +52,11 @@ export function NearbyStops() {
     () =>
       schedule.status === "ready"
         ? ids.flatMap((id): StopCard[] => {
-            const card = buildStopCard(id, schedule.data, instant);
+            const card = buildStopCard(id, schedule.data, instant, registro.records);
             return card ? [card] : [];
           })
         : [],
-    [schedule, ids, instant],
+    [schedule, ids, instant, registro.records],
   );
 
   if (loading || skeleton) return skeleton ? <Section><Skeleton variant="card" /></Section> : null;
