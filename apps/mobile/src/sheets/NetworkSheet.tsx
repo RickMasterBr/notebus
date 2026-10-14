@@ -19,7 +19,7 @@ import { NEW_LINE_ID } from "../data/lineForm";
 import { lineDeleteRefusalText } from "../data/lineManage";
 import { NEW_STOP_ID } from "../data/stopEdit";
 import { deleteRefusalText, isDeleteAction } from "../data/stopManage";
-import { stopsAnchorIndex, stopsPageView, type StopsPageView } from "../data/stopsPaging";
+import { isSearching, matchStops, sliceStopsPage, stopsAnchorIndex, type StopsPageView } from "../data/stopsPaging";
 import {
   type NetworkLineItem,
   type NetworkStopItem,
@@ -89,7 +89,12 @@ export function NetworkSheet({ id }: { id: number }) {
   const [term, setTerm] = useState("");
   const [page, setPage] = useState(0);
 
-  const stopsView = useMemo(() => stopsPageView({ stops, term, page }), [stops, term, page]);
+  const searching = useMemo(() => isSearching(term), [term]);
+  const matchedStops = useMemo(() => matchStops(stops, term), [stops, term]);
+  const stopsView = useMemo(
+    () => sliceStopsPage({ matched: matchedStops, page, searching }),
+    [matchedStops, page, searching],
+  );
 
   const loadData = useCallback(async () => {
     if (!db) return;
@@ -223,23 +228,23 @@ export function NetworkSheet({ id }: { id: number }) {
     activeSwipeable.current?.close();
     const newPage = stopsView.page - 1;
     setPage(stopsView.page - 1);
-    const nextView = stopsPageView({ stops, term, page: newPage });
+    const nextView = sliceStopsPage({ matched: matchedStops, page: newPage, searching });
     AccessibilityInfo.announceForAccessibility(
       t("net.stops.range", { from: nextView.from, to: nextView.to, total: nextView.total }),
     );
     listRef.current?.scrollToIndex({ index: stopsAnchorIndex(listItems), animated: false });
-  }, [stopsView.page, stops, term, listItems]);
+  }, [stopsView.page, matchedStops, searching, listItems]);
 
   const handleNext = useCallback(() => {
     activeSwipeable.current?.close();
     const newPage = stopsView.page + 1;
     setPage(stopsView.page + 1);
-    const nextView = stopsPageView({ stops, term, page: newPage });
+    const nextView = sliceStopsPage({ matched: matchedStops, page: newPage, searching });
     AccessibilityInfo.announceForAccessibility(
       t("net.stops.range", { from: nextView.from, to: nextView.to, total: nextView.total }),
     );
     listRef.current?.scrollToIndex({ index: stopsAnchorIndex(listItems), animated: false });
-  }, [stopsView.page, stops, term, listItems]);
+  }, [stopsView.page, matchedStops, searching, listItems]);
 
   // Depois de criar, apagar ou desfazer: a busca, os horários e esta lista leem o banco de novo (como o saveStopEdit).
   const reloadAll = useCallback(async () => {

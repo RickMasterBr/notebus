@@ -21,9 +21,12 @@ const squash = (text: string) => text.replace(/\s+/g, " ");
 const networkSheet = squash(read("sheets/NetworkSheet.tsx"));
 
 describe("E-08.5 bloco 5 guardas de ligação (NetworkSheet.tsx)", () => {
-  it("stopsView calculado com useMemo e stopsPageView contíguo", () => {
+  it("stopsView calculado com useMemo e sliceStopsPage contíguo", () => {
     expect(networkSheet).toContain(
-      "const stopsView = useMemo(() => stopsPageView({ stops, term, page }), [stops, term, page]);",
+      "const matchedStops = useMemo(() => matchStops(stops, term), [stops, term]);",
+    );
+    expect(networkSheet).toContain(
+      "const stopsView = useMemo( () => sliceStopsPage({ matched: matchedStops, page, searching }), [matchedStops, page, searching], );",
     );
   });
 
@@ -251,7 +254,7 @@ describe("E-08.5 bloco 6 guardas de ligação (NetworkSheet.tsx, lacunas A a P)"
 
   it("(L) handlePrev e handleNext anunciam a faixa da página nova, não a antiga", () => {
     const range = 't("net.stops.range", { from: nextView.from, to: nextView.to, total: nextView.total })';
-    const nextView = "const nextView = stopsPageView({ stops, term, page: newPage });";
+    const nextView = "const nextView = sliceStopsPage({ matched: matchedStops, page: newPage, searching });";
     const prev = handlerOf("handlePrev").body;
     const next = handlerOf("handleNext").body;
     expect(prev, "L: handlePrev não calcula nextView da página nova").toContain(nextView);
@@ -274,10 +277,10 @@ describe("E-08.5 bloco 6 guardas de ligação (NetworkSheet.tsx, lacunas A a P)"
     expect(inputEl, "O: campo com autoFocus").not.toContain("autoFocus");
   });
 
-  it("(P) handlePrev e handleNext dependem de stopsView.page, stops, term e listItems", () => {
+  it("(P) handlePrev e handleNext dependem de stopsView.page, matchedStops, searching e listItems", () => {
     for (const name of ["handlePrev", "handleNext"]) {
       const { deps } = handlerOf(name);
-      for (const dep of ["stopsView.page", "stops", "term", "listItems"]) {
+      for (const dep of ["stopsView.page", "matchedStops", "searching", "listItems"]) {
         expect(deps, `P: ${name} sem ${dep} nas dependências`).toContain(dep);
       }
     }

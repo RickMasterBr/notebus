@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { SearchableStop } from "@notebus/domain";
 import {
   STOPS_PAGE_SIZE,
+  isSearching,
+  matchStops,
+  sliceStopsPage,
   stopsAnchorIndex,
   stopsPageView,
 } from "./stopsPaging";
@@ -233,5 +236,31 @@ describe("stopsPaging", () => {
     ];
     expect(stopsAnchorIndex(items)).toBe(2);
     expect(stopsAnchorIndex([{ id: "header-lines" }])).toBe(-1);
+  });
+
+  describe("equivalência entre stopsPageView e matchStops + sliceStopsPage", () => {
+    it("saída idêntica página a página para sem termo, termo curto e termo raro", () => {
+      const stops: SearchableStop[] = Array.from({ length: 125 }, (_, i) => ({
+        id: `stop-${i + 1}`,
+        name: i % 2 === 0 ? `Rua Principal ${i + 1}` : `Avenida Central ${i + 1}`,
+        aliases: i % 5 === 0 ? [`Apelido ${i + 1}`] : [],
+        externalId: i % 3 === 0 ? `EXT-${i + 1}` : null,
+      }));
+
+      const terms = ["", "rua", "zzz"];
+
+      for (const term of terms) {
+        const searching = isSearching(term);
+        const matched = matchStops(stops, term);
+        const legacyP0 = stopsPageView({ stops, term, page: 0 });
+        const pageCount = legacyP0.pageCount;
+
+        for (let page = 0; page < pageCount; page++) {
+          const legacy = stopsPageView({ stops, term, page });
+          const decoupled = sliceStopsPage({ matched, page, searching });
+          expect(decoupled).toEqual(legacy);
+        }
+      }
+    });
   });
 });

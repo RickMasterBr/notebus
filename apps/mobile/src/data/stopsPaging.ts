@@ -20,17 +20,27 @@ export interface StopsPageView<T> {
   showNoMatch: boolean; // searching && total === 0
 }
 
-export function stopsPageView<T extends SearchableStop>(input: {
-  stops: readonly T[];
-  term: string;
+export function isSearching(term: string): boolean {
+  return normalizeSearch(term) !== "";
+}
+
+export function matchStops<T extends SearchableStop>(stops: readonly T[], term: string): readonly T[] {
+  const needle = normalizeSearch(term);
+  if (needle === "") {
+    return stops.slice();
+  }
+  return searchStops(stops, term);
+}
+
+export function sliceStopsPage<T>(input: {
+  matched: readonly T[];
   page: number;
+  searching: boolean;
 }): StopsPageView<T> {
-  const needle = normalizeSearch(input.term);
-  const searching = needle !== "";
-  const matched = searching ? searchStops(input.stops, input.term) : input.stops.slice();
+  const { matched, page: rawPage, searching } = input;
   const total = matched.length;
   const pageCount = Math.max(1, Math.ceil(total / STOPS_PAGE_SIZE));
-  const page = Math.max(0, Math.min(pageCount - 1, input.page));
+  const page = Math.max(0, Math.min(pageCount - 1, rawPage));
 
   const start = page * STOPS_PAGE_SIZE;
   const items = matched.slice(start, start + STOPS_PAGE_SIZE);
@@ -56,6 +66,17 @@ export function stopsPageView<T extends SearchableStop>(input: {
     showPager,
     showNoMatch,
   };
+}
+
+export function stopsPageView<T extends SearchableStop>(input: {
+  stops: readonly T[];
+  term: string;
+  page: number;
+}): StopsPageView<T> {
+  const needle = normalizeSearch(input.term);
+  const searching = needle !== "";
+  const matched = matchStops(input.stops, input.term);
+  return sliceStopsPage({ matched, page: input.page, searching });
 }
 
 /** Índice do item de id "header-stops"; -1 se não existir. */
