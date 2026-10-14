@@ -343,6 +343,19 @@ describe("E-08 bloco 11 Item 0: regras puras de lineForm", () => {
     });
   });
 
+  describe("initialLineFormState", () => {
+    it("sem argumento devolve stops vazio", () => {
+      const state = initialLineFormState();
+      expect(state.stops).toEqual([]);
+    });
+
+    it("com argumento devolve stops com uma paragem", () => {
+      const stop = { id: "p1", name: "Ponto Inicial" };
+      const state = initialLineFormState(stop);
+      expect(state.stops).toEqual([stop]);
+    });
+  });
+
   describe("applyPickedTime", () => {
     const baseState = initialLineFormState();
 

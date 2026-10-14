@@ -50,13 +50,13 @@ export interface LineFormState {
   };
 }
 
-export const initialLineFormState = (): LineFormState => ({
+export const initialLineFormState = (initialStop?: LineFormStop): LineFormState => ({
   code: "",
   name: "",
   color: LINE_COLORS[0],
   patternLabel: t("line_create.pattern_label.default"),
   isCircular: false,
-  stops: [],
+  stops: initialStop ? [initialStop] : [],
   durationText: "",
   dayTypeCodes: ["weekday"],
   mode: "departures",

@@ -42,6 +42,7 @@ import {
   toggleDayType,
   type LineFormMode,
   type LineFormState,
+  type LineFormStop,
   type LineFormStopRow,
 } from "../data/lineForm";
 import { dragTargetIndex, moveStopTo, stopActionTarget } from "../data/lineStopReorder";
@@ -195,7 +196,7 @@ function StopOrderRow({ row, total, onMove, onRemove }: StopOrderRowProps) {
   );
 }
 
-export function LineEditSheet({ id }: { id: number }) {
+export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: LineFormStop }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
@@ -210,7 +211,7 @@ export function LineEditSheet({ id }: { id: number }) {
   const keyboard = useKeyboardHeight();
 
   const [handleHeight, setHandleHeight] = useState(0);
-  const [state, setState] = useState<LineFormState>(initialLineFormState);
+  const [state, setState] = useState<LineFormState>(() => initialLineFormState(initialStop));
   const [saveError, setSaveError] = useState<string | null>(null);
   const [missingNoteHeight, setMissingNoteHeight] = useState(0);
 
