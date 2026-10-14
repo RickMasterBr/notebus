@@ -111,3 +111,32 @@ describe("stopEditView com o apelido pendente (D8)", () => {
     expect(view.canSave).toBe(false);
   });
 });
+
+describe("stopEditView com locationChanged (F3, D-190)", () => {
+  const original = { name, externalId: null, note: null, aliases: ["A"] };
+  const ok = validateStopEdit({ name, externalId: null, note: null, aliases: ["A"], others: [] });
+
+  it("só a localização mudou: canSave verdadeiro e isChanged verdadeiro", () => {
+    const view = stopEditView({ original, draft: original, validation: ok, locationChanged: true });
+    expect(view.isChanged).toBe(true);
+    expect(view.canSave).toBe(true);
+  });
+
+  it("nada mudou (locationChanged falso ou ausente): canSave falso", () => {
+    expect(stopEditView({ original, draft: original, validation: ok, locationChanged: false }).canSave).toBe(false);
+    expect(stopEditView({ original, draft: original, validation: ok }).canSave).toBe(false);
+  });
+
+  it("só a localização mudou mas o nome está inválido: canSave falso", () => {
+    const bad = validateStopEdit({ name: "", externalId: null, note: null, aliases: ["A"], others: [] });
+    const view = stopEditView({
+      original,
+      draft: { ...original, name: "" },
+      validation: bad,
+      locationChanged: true,
+    });
+    expect(view.isChanged).toBe(true);
+    expect(view.canSave).toBe(false);
+  });
+});
+

@@ -7,6 +7,8 @@ import type { StopPoint } from "../db/stopLocation";
 import type { MessageKey } from "../i18n/pt-BR";
 import { stopLocationStatusKey, type StopLocationKey } from "./stopEdit";
 
+import { stopLocationView } from "./stopLocationEdit";
+
 export interface NewStopDraftValues {
   name: string;
   externalId: string | null;
@@ -40,17 +42,10 @@ export interface NewStopLocationView {
  * com localização -> stop_edit.location.manual, canRemove: true
  */
 export function newStopLocationView(location: StopPoint | null): NewStopLocationView {
-  if (!location) {
-    return {
-      statusKey: stopLocationStatusKey(null, null, null),
-      openKey: "map_pick.open",
-      canRemove: false,
-    };
-  }
-
+  const view = stopLocationView({ lat: null, lon: null, locationSource: null }, location);
   return {
-    statusKey: stopLocationStatusKey(location.lat, location.lon, "manual"),
-    openKey: "map_pick.open",
-    canRemove: true,
+    statusKey: view.statusKey,
+    openKey: view.openKey,
+    canRemove: view.canRemove,
   };
 }

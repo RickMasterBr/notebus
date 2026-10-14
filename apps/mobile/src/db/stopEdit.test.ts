@@ -410,3 +410,344 @@ describe("stopEdit (bloco 4: lacunas da revisão do bloco 3)", () => {
     expect(row.aliases).toEqual([]);
   });
 });
+
+describe("stopEdit com localização (F3, D-190, E-08.5 bloco 8)", () => {
+  const empty = { aliases: [] as string[], externalId: null, note: null };
+  const read = async (db: Awaited<ReturnType<typeof setup>>["db"], id: string) =>
+    (await db.select().from(stop).where(eq(stop.id, id)))[0]!;
+
+  const insertUserStopWithLoc = async (
+    db: Awaited<ReturnType<typeof setup>>["db"],
+    id: string,
+    over: Partial<typeof stop.$inferInsert> = {},
+  ) =>
+    db.insert(stop).values({
+      id,
+      createdAt: 100,
+      updatedAt: 100,
+      deletedAt: null,
+      source: "user",
+      officialKey: null,
+      networkId: "net-1",
+      name: `Nome ${id}`,
+      aliases: [],
+      externalId: null,
+      note: null,
+      ...over,
+    });
+
+  it("(a) location ausente não muda lat, lon nem locationSource de um ponto que já tem localização", async () => {
+    const { db } = await setup();
+    await insertUserStopWithLoc(db, "u-loc-1", {
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "manual",
+    });
+    const res = await saveStopEdit(db, "u-loc-1", { ...empty, name: "Nome Atualizado" }, NOW);
+    expect(res.ok).toBe(true);
+    const row = await read(db, "u-loc-1");
+    expect(row.name).toBe("Nome Atualizado");
+    expect(row.lat).toBe(39.74);
+    expect(row.lon).toBe(-8.8);
+    expect(row.locationSource).toBe("manual");
+  });
+
+  it("(b) ponto novo na edição: grava e locationSource = 'manual'", async () => {
+    const { db } = await setup();
+    await insertUserStopWithLoc(db, "u-loc-2", {
+      lat: null,
+      lon: null,
+      locationSource: null,
+    });
+    const res = await saveStopEdit(
+      db,
+      "u-loc-2",
+      { ...empty, name: "Nome u-loc-2", location: { lat: 39.7436, lon: -8.8071 } },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    const row = await read(db, "u-loc-2");
+    expect(row.lat).toBe(39.7436);
+    expect(row.lon).toBe(-8.8071);
+    expect(row.locationSource).toBe("manual");
+  });
+
+  it("(c) mover: grava o novo", async () => {
+    const { db } = await setup();
+    await insertUserStopWithLoc(db, "u-loc-3", {
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "manual",
+    });
+    const res = await saveStopEdit(
+      db,
+      "u-loc-3",
+      { ...empty, name: "Nome u-loc-3", location: { lat: 39.75, lon: -8.81 } },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    const row = await read(db, "u-loc-3");
+    expect(row.lat).toBe(39.75);
+    expect(row.lon).toBe(-8.81);
+    expect(row.locationSource).toBe("manual");
+  });
+
+  it("(d) null apaga os três", async () => {
+    const { db } = await setup();
+    await insertUserStopWithLoc(db, "u-loc-4", {
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "manual",
+    });
+    const res = await saveStopEdit(
+      db,
+      "u-loc-4",
+      { ...empty, name: "Nome u-loc-4", location: null },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    const row = await read(db, "u-loc-4");
+    expect(row.lat).toBeNull();
+    expect(row.lon).toBeNull();
+    expect(row.locationSource).toBeNull();
+  });
+
+  it("(e) ponto official que ganha localização vira official_edited", async () => {
+    const { db } = await setup();
+    const id = stopId("A");
+    const original = await read(db, id);
+    expect(original.source).toBe("official");
+    expect(original.lat).toBeNull();
+
+    const res = await saveStopEdit(
+      db,
+      id,
+      { ...empty, name: original.name, location: { lat: 39.7436, lon: -8.8071 } },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    const row = await read(db, id);
+    expect(row.source).toBe("official_edited");
+    expect(row.lat).toBe(39.7436);
+    expect(row.lon).toBe(-8.8071);
+    expect(row.locationSource).toBe("manual");
+  });
+
+  it("(f) ponto official que só tem a localização apagada também vira official_edited", async () => {
+    const { db } = await setup();
+    const id = "off-loc-1";
+    await db.insert(stop).values({
+      id,
+      createdAt: 100,
+      updatedAt: 100,
+      deletedAt: null,
+      source: "official",
+      officialKey: "k1",
+      networkId: "net-1",
+      name: "Oficial Com Coordenada",
+      aliases: [],
+      externalId: null,
+      note: null,
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "suggested",
+    });
+
+    const res = await saveStopEdit(
+      db,
+      id,
+      { ...empty, name: "Oficial Com Coordenada", location: null },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    const row = await read(db, id);
+    expect(row.source).toBe("official_edited");
+    expect(row.lat).toBeNull();
+    expect(row.lon).toBeNull();
+    expect(row.locationSource).toBeNull();
+  });
+
+  it("(g) Desfazer restaura nome, apelidos, ID externo, nota e a localização anterior", async () => {
+    const { db } = await setup();
+
+    // Caso 1: com localização antes
+    await insertUserStopWithLoc(db, "u-undo-1", {
+      name: "Nome Antigo",
+      aliases: ["alias1"],
+      externalId: "EXT-1",
+      note: "nota antiga",
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "manual",
+    });
+    const res1 = await saveStopEdit(
+      db,
+      "u-undo-1",
+      {
+        name: "Nome Novo",
+        aliases: ["alias2"],
+        externalId: "EXT-2",
+        note: "nota nova",
+        location: { lat: 39.75, lon: -8.81 },
+      },
+      NOW,
+    );
+    expect(res1.ok).toBe(true);
+    if (!res1.ok) return;
+    const undoRes1 = await res1.undo(NOW + 5000);
+    expect(undoRes1).toEqual({ ok: true });
+    const row1 = await read(db, "u-undo-1");
+    expect(row1.name).toBe("Nome Antigo");
+    expect(row1.aliases).toEqual(["alias1"]);
+    expect(row1.externalId).toBe("EXT-1");
+    expect(row1.note).toBe("nota antiga");
+    expect(row1.lat).toBe(39.74);
+    expect(row1.lon).toBe(-8.8);
+    expect(row1.locationSource).toBe("manual");
+
+    // Caso 2: sem localização antes
+    await insertUserStopWithLoc(db, "u-undo-2", {
+      name: "Sem Loc",
+      lat: null,
+      lon: null,
+      locationSource: null,
+    });
+    const res2 = await saveStopEdit(
+      db,
+      "u-undo-2",
+      { ...empty, name: "Com Loc", location: { lat: 39.7436, lon: -8.8071 } },
+      NOW + 10,
+    );
+    expect(res2.ok).toBe(true);
+    if (!res2.ok) return;
+    const undoRes2 = await res2.undo(NOW + 5000);
+    expect(undoRes2).toEqual({ ok: true });
+    const row2 = await read(db, "u-undo-2");
+    expect(row2.name).toBe("Sem Loc");
+    expect(row2.lat).toBeNull();
+    expect(row2.lon).toBeNull();
+    expect(row2.locationSource).toBeNull();
+
+    // Caso 3: com location ausente (undefined)
+    await insertUserStopWithLoc(db, "u-undo-3", {
+      name: "Nome 3",
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "manual",
+    });
+    const res3 = await saveStopEdit(
+      db,
+      "u-undo-3",
+      { ...empty, name: "Nome 3 Editado" },
+      NOW + 20,
+    );
+    expect(res3.ok).toBe(true);
+    if (!res3.ok) return;
+    const undoRes3 = await res3.undo(NOW + 5000);
+    expect(undoRes3).toEqual({ ok: true });
+    const row3 = await read(db, "u-undo-3");
+    expect(row3.name).toBe("Nome 3");
+    expect(row3.lat).toBe(39.74);
+    expect(row3.lon).toBe(-8.8);
+    expect(row3.locationSource).toBe("manual");
+  });
+
+  it("(h) Desfazer com updatedAt mudado por outro lado devolve stale e não restaura a localização", async () => {
+    const { db } = await setup();
+    await insertUserStopWithLoc(db, "u-stale", {
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "manual",
+    });
+    const res = await saveStopEdit(
+      db,
+      "u-stale",
+      { ...empty, name: "Nome Modificado", location: { lat: 39.75, lon: -8.81 } },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    // Outro lado atualiza o ponto
+    await db.update(stop).set({ updatedAt: NOW + 1000 }).where(eq(stop.id, "u-stale"));
+
+    const undoRes = await res.undo(NOW + 5000);
+    expect(undoRes).toEqual({ ok: false, reason: "stale" });
+
+    const row = await read(db, "u-stale");
+    expect(row.lat).toBe(39.75);
+    expect(row.lon).toBe(-8.81);
+    expect(row.locationSource).toBe("manual");
+  });
+
+  it("(i) location fora da faixa (lat: 91) devolve invalid e nada foi gravado (nome nem localização)", async () => {
+    const { db } = await setup();
+    await insertUserStopWithLoc(db, "u-inv", {
+      name: "Original",
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "manual",
+    });
+    const res = await saveStopEdit(
+      db,
+      "u-inv",
+      { ...empty, name: "Novo Nome", location: { lat: 91, lon: 0 } },
+      NOW,
+    );
+    expect(res).toEqual({ ok: false, reason: "invalid" });
+
+    const row = await read(db, "u-inv");
+    expect(row.name).toBe("Original");
+    expect(row.lat).toBe(39.74);
+    expect(row.lon).toBe(-8.8);
+  });
+
+  it("(j) o backup de ida e volta de um ponto oficial com localização editada leva a coordenada", async () => {
+    const src = await setup();
+    const id = stopId("A");
+
+    const saveRes = await saveStopEdit(
+      src.db,
+      id,
+      {
+        name: "Arrabalde",
+        aliases: ["shopping"],
+        externalId: "3517",
+        note: "Nota com coordenada",
+        location: { lat: 39.7436, lon: -8.8071 },
+      },
+      NOW,
+    );
+    expect(saveRes.ok).toBe(true);
+
+    const editedRow = (await src.db.select().from(stop).where(eq(stop.id, id)))[0]!;
+    expect(editedRow.source).toBe("official_edited");
+    expect(editedRow.lat).toBe(39.7436);
+    expect(editedRow.lon).toBe(-8.8071);
+    expect(editedRow.locationSource).toBe("manual");
+
+    // Exporta backup
+    const exportText = await serializeBackup(
+      await readBackupInput(src.raw, { now: NOW, appVersion: "1.0.0" }),
+      sha256,
+    );
+
+    // Importa num banco limpo com a MOBILIS
+    const dst = await setup();
+    const beforeDst = (await dst.db.select().from(stop).where(eq(stop.id, id)))[0]!;
+    expect(beforeDst.source).toBe("official");
+    expect(beforeDst.lat).toBeNull();
+
+    const preview = await prepareImport(dst.raw, exportText, sha256);
+    if (!preview.ok) throw new Error(`${preview.problem}: ${preview.detail}`);
+    await importBackup(dst.raw, preview.file, { backups: noCopies, now: NOW + 60_000 });
+
+    const afterDst = (await dst.db.select().from(stop).where(eq(stop.id, id)))[0]!;
+    expect(afterDst.source).toBe("official_edited");
+    expect(afterDst.aliases).toEqual(["shopping"]);
+    expect(afterDst.lat).toBe(39.7436);
+    expect(afterDst.lon).toBe(-8.8071);
+    expect(afterDst.locationSource).toBe("manual");
+  });
+});
+
