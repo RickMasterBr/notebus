@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { departureData } from "../notifications/payload";
-import type { PresentedNotification, ScheduledRequest } from "../notifications/port";
+import type { NotificationData, PresentedNotification, ScheduledRequest } from "../notifications/port";
 import { departuresFromNotifications } from "./homeDepartures";
 
 describe("homeDepartures (Item 2, D-207, ideia 50)", () => {
@@ -17,7 +17,7 @@ describe("homeDepartures (Item 2, D-207, ideia 50)", () => {
       stopName?: string;
       placeId?: string;
       test?: boolean;
-      customData?: Record<string, unknown>;
+      customData?: NotificationData;
     } = {},
   ): ScheduledRequest {
     const {
@@ -69,7 +69,7 @@ describe("homeDepartures (Item 2, D-207, ideia 50)", () => {
       stopName?: string;
       placeId?: string;
       test?: boolean;
-      customData?: Record<string, unknown>;
+      customData?: NotificationData;
       deliveredAt?: number;
     } = {},
   ): PresentedNotification {
@@ -235,7 +235,7 @@ describe("homeDepartures (Item 2, D-207, ideia 50)", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.beAtStopAt).toBe(beAtStopAt);
     expect(result[0]?.busAt).toBe(expectedBusAt);
-    expect(result[0]?.busAt - result[0]!.beAtStopAt).toBe(15 * 60_000);
+    expect(result[0]!.busAt - result[0]!.beAtStopAt).toBe(15 * 60_000);
   });
 
   it("ônibus passado (busAt <= now) é descartado", () => {

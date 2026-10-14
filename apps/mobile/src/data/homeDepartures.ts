@@ -4,7 +4,7 @@
  */
 import { lisbonWallClock } from "@notebus/domain";
 import { readDeparture } from "../notifications/payload";
-import type { PresentedNotification, ScheduledRequest } from "../notifications/port";
+import type { NotificationData, PresentedNotification, ScheduledRequest } from "../notifications/port";
 import type { PhraseDeparture } from "./homePhrase";
 
 export interface DeparturesFromNotificationsInput {
@@ -27,7 +27,7 @@ export function departuresFromNotifications({
   now,
 }: DeparturesFromNotificationsInput): PhraseDeparture[] {
   // 1. Junte os dois conjuntos.
-  const allItems: Array<{ id: string; data: Record<string, unknown> | null | undefined }> = [
+  const allItems: Array<{ id: string; data: NotificationData | null | undefined }> = [
     ...scheduled.map((s) => ({ id: s.id, data: s.data })),
     ...presented.map((p) => ({ id: p.id, data: p.data })),
   ];
