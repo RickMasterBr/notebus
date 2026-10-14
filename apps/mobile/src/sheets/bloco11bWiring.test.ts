@@ -75,7 +75,7 @@ describe("bloco11bWiring: guardas de ligação (Item 4)", () => {
 
     it("newStopLocationView consome locationView.statusKey e locationView.canRemove ?", () => {
       expect(stopEditSheet).toContain(
-        "const locationView = newStopLocationView(location);",
+        "const locationView = stopLocationView(locationInfo, location);",
       );
       expect(stopEditSheet).toContain(
         "t(locationView.statusKey)",
