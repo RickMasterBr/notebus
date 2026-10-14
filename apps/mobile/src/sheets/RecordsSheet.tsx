@@ -1,13 +1,30 @@
 /**
- * TL-08 Registros (E-04 §4.2, UC-14, 4.1 §15a).
- * Lista virtualizada com histórico por dia e seção "Para conferir".
- * Quadro de rolagem da E-02 (altura fixa, sem BottomSheetView).
+ * TL-08 Registros (E-04 §4.2, UC-14, 4.1 §15a; E-08.5 Bloco 16, D-207).
+ * Lista de viagens com cartões, "Agora", "Para conferir", grupos por dia e página de viagem.
+ * Quadro de rolagem da E-02 (altura fixa, sem BottomSheetView, D-150).
  * Apagar por deslize à esquerda com Desfazer (D-098, D-052).
  */
-import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import { BottomSheetFlatList, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { lisbonWallClock } from "@notebus/domain";
-import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import {
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import Animated, { FadeIn, SlideInRight } from "react-native-reanimated";
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -16,28 +33,62 @@ import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useNowTick } from "../data/useNowTick";
 import {
-  buildRecordsList,
   type RecordListRow,
   rowTarget,
 } from "../data/recordsList";
+import {
+  buildTripsList,
+  type LineItemModel,
+  type TripCardModel,
+} from "../data/recordsTrips";
+import {
+  recordsHandle,
+  recordsNavReduce,
+  showHeaderClose,
+  type RecordsPage,
+} from "../data/recordsNav";
+import { tripPageModel } from "../data/recordsTripPage";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { EmptyState } from "../ui/EmptyState";
-import { AlightGlyph, BoardGlyph, CrossGlyph, InfoGlyph, PassGlyph, PlusGlyph } from "../ui/Glyphs";
+import {
+  AlightGlyph,
+  ChevronRightGlyph,
+  CrossGlyph,
+  InfoGlyph,
+  PassGlyph,
+} from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
+import { useReduceMotion } from "./useReduceMotion";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
+interface RecordsNavContextValue {
+  page: RecordsPage;
+  onBack: () => void;
+}
+
+const RecordsNavContext = createContext<RecordsNavContextValue>({
+  page: { kind: "list" },
+  onBack: () => {},
+});
+
 function RecordsHandle({ onClose }: { onClose: () => void }) {
   const setHandleHeight = useContext(HeightContext);
+  const { page, onBack } = useContext(RecordsNavContext);
+  const handleInfo = recordsHandle(page);
   return (
     <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
-      <SheetHandle kind="close" hideCloseButton onPress={onClose} />
+      <SheetHandle
+        kind="close"
+        hideCloseButton
+        onPress={handleInfo.press === "close" ? onClose : onBack}
+      />
     </View>
   );
 }
@@ -46,7 +97,10 @@ const DETENTS: StackedDetents = { snapPoints: ["95%"], initialIndex: 0, Handle: 
 
 type ListItem =
   | { type: "header"; id: string; title: string }
-  | { type: "row"; id: string; row: RecordListRow };
+  | { type: "trip"; id: string; card: TripCardModel; isNow?: boolean }
+  | { type: "pending"; id: string; row: RecordListRow }
+  | { type: "allChecked"; id: string }
+  | { type: "line"; id: string; item: LineItemModel };
 
 const RecordHeader = memo(function RecordHeader({ title }: { title: string }) {
   const { colors } = useTheme();
@@ -59,40 +113,42 @@ const RecordHeader = memo(function RecordHeader({ title }: { title: string }) {
   );
 });
 
-interface RecordRowProps {
-  row: RecordListRow;
-  onPress: (row: RecordListRow) => void;
-  onDelete: (id: string) => void;
+interface TripCardViewProps {
+  card: TripCardModel;
+  isNow?: boolean;
+  onPress: (card: TripCardModel) => void;
+  onDelete: (boardingId: string, alightingId: string | null) => void;
   onWillOpen: (methods: SwipeableMethods) => void;
   onClose: (methods: SwipeableMethods) => void;
 }
 
-const RecordRow = memo(function RecordRow({
-  row,
+const TripCardView = memo(function TripCardView({
+  card,
+  isNow = false,
   onPress,
   onDelete,
   onWillOpen,
   onClose,
-}: RecordRowProps) {
+}: TripCardViewProps) {
   const { colors } = useTheme();
   const swipeableRef = useRef<SwipeableMethods | null>(null);
 
-  const handleRowPress = useCallback(() => {
-    onPress(row);
-  }, [row, onPress]);
+  const handleCardPress = useCallback(() => {
+    onPress(card);
+  }, [card, onPress]);
 
   const handleDeleteAction = useCallback(
     (methods: SwipeableMethods) => {
       methods.close();
-      onDelete(row.id);
+      onDelete(card.boardingId, card.alightingId);
     },
-    [row.id, onDelete],
+    [card.boardingId, card.alightingId, onDelete],
   );
 
   const handleAccessibilityDelete = useCallback(() => {
     swipeableRef.current?.close();
-    onDelete(row.id);
-  }, [row.id, onDelete]);
+    onDelete(card.boardingId, card.alightingId);
+  }, [card.boardingId, card.alightingId, onDelete]);
 
   const handleWillOpen = useCallback(() => {
     if (swipeableRef.current) {
@@ -126,28 +182,235 @@ const RecordRow = memo(function RecordRow({
     [colors.danger, handleDeleteAction],
   );
 
-  const stateLabel =
-    row.verifyState === "pending"
-      ? t("sheet_records.row.state_pending")
-      : row.verifyState === "notVerified"
-        ? t("sheet_records.row.state_not_verified")
-        : "";
-  const kindLabel =
-    row.kind === "boarded"
-      ? t("common.kind.boarded.short")
-      : row.kind === "alighted"
-        ? t("common.kind.alighted.short")
-        : row.kind === "passed"
-          ? t("common.kind.passed.short")
-          : "";
+  const routeText =
+    card.toName != null
+      ? t("sheet_records.trip.route", { from: card.fromName, to: card.toName })
+      : t("sheet_records.trip.route_unknown", { from: card.fromName });
 
-  const a11yLabel = t("sheet_records.row.a11y", {
-    time: row.time,
-    line: row.line.code,
-    stop: row.stop.name,
-    kind: kindLabel,
-    state: stateLabel,
-  });
+  const cardContent = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityActions={!isNow ? [{ name: "delete", label: t("sheet_records.action.delete") }] : undefined}
+      onAccessibilityAction={(event) => {
+        if (!isNow && event.nativeEvent.actionName === "delete") {
+          handleAccessibilityDelete();
+        }
+      }}
+      accessibilityLabel={card.a11y}
+      onPress={handleCardPress}
+      style={({ pressed }) => [
+        styles.tripCardContainer,
+        {
+          backgroundColor: isNow ? colors.highlight : colors.surface,
+          borderColor: isNow ? colors.accent : colors.divider,
+          opacity: pressed ? 0.7 : 1,
+        },
+      ]}
+    >
+      <View style={styles.tripCardRow}>
+        <LineBadge code={card.line.code} color={card.line.color} />
+        <View style={styles.tripCardMain}>
+          <Text style={[type.bodyStrong, { color: colors.text }]} numberOfLines={1}>
+            {routeText}
+          </Text>
+          <Text style={[type.body, styles.timeText, { color: colors.text }]}>
+            {card.timeText}
+          </Text>
+          {card.deltaText != null && (
+            <Text style={[type.caption, { color: colors.textSecondary }]}>
+              {card.deltaText}
+            </Text>
+          )}
+          {card.noAlight && (
+            <Text style={[type.caption, { color: colors.textSecondary }]}>
+              {t("sheet_records.trip.no_alight")}
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.tripCardRight}>
+          {isNow ? (
+            <View style={[styles.chip, { backgroundColor: colors.highlight, borderColor: colors.accent }]}>
+              <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
+                {t("sheet_records.now.badge")}
+              </Text>
+            </View>
+          ) : card.verifyState === "pending" ? (
+            <View style={[styles.chip, { borderColor: colors.accent }]}>
+              <InfoGlyph color={colors.accent} />
+              <Text style={[type.caption, { color: colors.accent }]}>
+                {t("sheet_records.chip.pending")}
+              </Text>
+            </View>
+          ) : card.verifyState === "notVerified" ? (
+            <View style={[styles.chip, { borderColor: colors.textSecondary }]}>
+              <Text style={[type.caption, { color: colors.textSecondary }]}>
+                {t("sheet_records.chip.not_verified")}
+              </Text>
+            </View>
+          ) : (
+            <ChevronRightGlyph color={colors.textSecondary} />
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+
+  if (isNow) {
+    return cardContent;
+  }
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeableRef}
+      friction={2}
+      enableTrackpadTwoFingerGesture
+      rightThreshold={40}
+      renderRightActions={!isNow ? renderRightActions : undefined}
+      overshootRight={false}
+      onSwipeableWillOpen={handleWillOpen}
+      onSwipeableClose={handleSwipeClose}
+    >
+      {cardContent}
+    </ReanimatedSwipeable>
+  );
+});
+
+interface PendingCardViewProps {
+  row: RecordListRow;
+  onCheck: (row: RecordListRow) => void;
+  onDismiss: (row: RecordListRow) => void;
+}
+
+const PendingCardView = memo(function PendingCardView({
+  row,
+  onCheck,
+  onDismiss,
+}: PendingCardViewProps) {
+  const { colors } = useTheme();
+
+  return (
+    <View style={[styles.pendingCardContainer, { borderColor: colors.accent, backgroundColor: colors.highlight }]}>
+      <View style={styles.pendingCardHeader}>
+        <LineBadge code={row.line.code} color={row.line.color} />
+        <View style={styles.pendingCardInfo}>
+          <Text style={[type.bodyStrong, { color: colors.text }]} numberOfLines={1}>
+            {row.stop.name}
+          </Text>
+          <Text style={[type.caption, { color: colors.textSecondary }]}>
+            {row.time}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.pendingCardActions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onCheck(row)}
+          style={[styles.pendingButtonCheck, { backgroundColor: colors.accent }]}
+        >
+          <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
+            {t("sheet_records.pending.check")}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onDismiss(row)}
+          style={styles.pendingButtonUnsure}
+        >
+          <Text style={[type.bodyStrong, { color: colors.accent }]}>
+            {t("sheet_records.pending.unsure")}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+});
+
+const AllCheckedCardView = memo(function AllCheckedCardView() {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.allCheckedContainer, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+      <Text accessibilityRole="header" style={[type.bodyStrong, { color: colors.text }]}>
+        {t("sheet_records.allchecked.headline")}
+      </Text>
+      <Text style={[type.caption, { color: colors.textSecondary }]}>
+        {t("sheet_records.allchecked.body")}
+      </Text>
+    </View>
+  );
+});
+
+interface LineItemViewProps {
+  item: LineItemModel;
+  onPress: (row: RecordListRow) => void;
+  onDelete: (id: string) => void;
+  onWillOpen: (methods: SwipeableMethods) => void;
+  onClose: (methods: SwipeableMethods) => void;
+}
+
+const LineItemView = memo(function LineItemView({
+  item,
+  onPress,
+  onDelete,
+  onWillOpen,
+  onClose,
+}: LineItemViewProps) {
+  const { colors } = useTheme();
+  const swipeableRef = useRef<SwipeableMethods | null>(null);
+
+  const handleRowPress = useCallback(() => {
+    onPress(item.row);
+  }, [item.row, onPress]);
+
+  const handleDeleteAction = useCallback(
+    (methods: SwipeableMethods) => {
+      methods.close();
+      onDelete(item.id);
+    },
+    [item.id, onDelete],
+  );
+
+  const handleAccessibilityDelete = useCallback(() => {
+    swipeableRef.current?.close();
+    onDelete(item.id);
+  }, [item.id, onDelete]);
+
+  const handleWillOpen = useCallback(() => {
+    if (swipeableRef.current) {
+      onWillOpen(swipeableRef.current);
+    }
+  }, [onWillOpen]);
+
+  const handleSwipeClose = useCallback(() => {
+    if (swipeableRef.current) {
+      onClose(swipeableRef.current);
+    }
+  }, [onClose]);
+
+  const renderRightActions = useCallback(
+    (
+      _progress: unknown,
+      _translation: unknown,
+      swipeableMethods: SwipeableMethods,
+    ) => (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("sheet_records.action.delete")}
+        onPress={() => handleDeleteAction(swipeableMethods)}
+        style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+      >
+        <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
+          {t("sheet_records.action.delete")}
+        </Text>
+      </Pressable>
+    ),
+    [colors.danger, handleDeleteAction],
+  );
+
+  const text =
+    item.kind === "passed"
+      ? t("sheet_records.line.passed", { stop: item.row.stop.name })
+      : t("sheet_records.line.alighted", { stop: item.row.stop.name });
 
   return (
     <ReanimatedSwipeable
@@ -168,10 +431,10 @@ const RecordRow = memo(function RecordRow({
             handleAccessibilityDelete();
           }
         }}
-        accessibilityLabel={a11yLabel}
+        accessibilityLabel={`${text}, ${item.row.time}`}
         onPress={handleRowPress}
         style={({ pressed }) => [
-          styles.rowContainer,
+          styles.lineItemContainer,
           {
             backgroundColor: colors.surface,
             borderBottomColor: colors.divider,
@@ -179,36 +442,20 @@ const RecordRow = memo(function RecordRow({
           },
         ]}
       >
-        {/* Hora */}
-        <Text style={[type.bodyStrong, styles.timeText, { color: colors.text }]}>{row.time}</Text>
-
-        {/* Selo da Linha */}
-        <LineBadge code={row.line.code} color={row.line.color} />
-
-        {/* Glifo do tipo */}
         <View style={styles.glyphBox}>
-          {row.kind === "boarded" && <BoardGlyph color={colors.textSecondary} />}
-          {row.kind === "alighted" && <AlightGlyph color={colors.textSecondary} />}
-          {row.kind === "passed" && <PassGlyph color={colors.textSecondary} />}
+          {item.kind === "passed" ? (
+            <PassGlyph color={colors.textSecondary} />
+          ) : (
+            <AlightGlyph color={colors.textSecondary} />
+          )}
         </View>
-
-        {/* Nome do Ponto */}
-        <Text style={[type.body, styles.stopText, { color: colors.text }]} numberOfLines={1}>
-          {row.stop.name}
+        <LineBadge code={item.row.line.code} color={item.row.line.color} />
+        <Text style={[type.body, styles.lineItemText, { color: colors.text }]} numberOfLines={1}>
+          {text}
         </Text>
-
-        {/* Chip de estado */}
-        {row.verifyState === "pending" && (
-          <View style={[styles.chip, { borderColor: colors.accent }]}>
-            <InfoGlyph color={colors.accent} />
-            <Text style={[type.caption, { color: colors.accent }]}>{t("sheet_records.chip.pending")}</Text>
-          </View>
-        )}
-        {row.verifyState === "notVerified" && (
-          <View style={[styles.chip, { borderColor: colors.textSecondary }]}>
-            <Text style={[type.caption, { color: colors.textSecondary }]}>{t("sheet_records.chip.not_verified")}</Text>
-          </View>
-        )}
+        <Text style={[type.caption, { color: colors.textSecondary }]}>
+          {item.row.time}
+        </Text>
       </Pressable>
     </ReanimatedSwipeable>
   );
@@ -223,6 +470,10 @@ export function RecordsSheet({ id }: { id: number }) {
   const instant = useNowTick();
   const close = useCloseSheet();
   const { dispatch } = useSheets();
+  const reduceMotion = useReduceMotion();
+
+  const [page, dispatchNav] = useReducer(recordsNavReduce, { kind: "list" });
+  const handleBack = useCallback(() => dispatchNav({ type: "back" }), []);
 
   const [handleHeight, setHandleHeight] = useState(0);
   const [windowDays, setWindowDays] = useState(14);
@@ -265,11 +516,15 @@ export function RecordsSheet({ id }: { id: number }) {
     return registro.observations.filter((o) => !deletedIds.has(o.id));
   }, [registro.observations, deletedIds]);
 
-  const nowDay = useMemo(() => lisbonWallClock(instant).date, [instant]);
-
   const model = useMemo(() => {
-    return buildRecordsList(liveObservations, scheduleData, instant, windowDays);
-  }, [liveObservations, scheduleData, nowDay, windowDays]);
+    return buildTripsList({
+      observations: liveObservations,
+      rides: registro.rides,
+      snapshot: scheduleData,
+      now: instant,
+      windowDays,
+    });
+  }, [liveObservations, registro.rides, scheduleData, instant, windowDays]);
 
   const handleLoadMore = useCallback(() => {
     if (model.hasMore) {
@@ -279,6 +534,21 @@ export function RecordsSheet({ id }: { id: number }) {
 
   const listItems = useMemo<ListItem[]>(() => {
     const items: ListItem[] = [];
+
+    if (model.now) {
+      items.push({
+        type: "header",
+        id: "header-now",
+        title: t("sheet_records.section.now"),
+      });
+      items.push({
+        type: "trip",
+        id: `now-${model.now.boardingId}`,
+        card: model.now,
+        isNow: true,
+      });
+    }
+
     if (model.pending.length > 0) {
       items.push({
         type: "header",
@@ -287,11 +557,16 @@ export function RecordsSheet({ id }: { id: number }) {
       });
       for (const r of model.pending) {
         items.push({
-          type: "row",
+          type: "pending",
           id: `pending-${r.id}`,
           row: r,
         });
       }
+    } else if (model.allChecked) {
+      items.push({
+        type: "allChecked",
+        id: "all-checked",
+      });
     }
 
     for (const day of model.days) {
@@ -300,17 +575,25 @@ export function RecordsSheet({ id }: { id: number }) {
         id: `header-day-${day.serviceDate}`,
         title: day.label,
       });
-      for (const r of day.rows) {
-        items.push({
-          type: "row",
-          id: `day-${day.serviceDate}-${r.id}`,
-          row: r,
-        });
+      for (const item of day.items) {
+        if (item.kind === "trip") {
+          items.push({
+            type: "trip",
+            id: `trip-${item.boardingId}`,
+            card: item,
+          });
+        } else {
+          items.push({
+            type: "line",
+            id: `line-${item.id}`,
+            item,
+          });
+        }
       }
     }
 
     return items;
-  }, [model.pending, model.days]);
+  }, [model.now, model.pending, model.allChecked, model.days]);
 
   const scrollAreaHeight = Math.max(
     80,
@@ -320,15 +603,36 @@ export function RecordsSheet({ id }: { id: number }) {
     ),
   );
 
-  const handleRowPress = useCallback(
-    (row: RecordListRow) => {
-      const target = rowTarget(row);
-      dispatch({ type: "push", sheet: target });
+  const handleOpenTripPage = useCallback(
+    (card: TripCardModel) => {
+      dispatchNav({ type: "open", boardingId: card.boardingId });
     },
-    [dispatch],
+    [],
   );
 
-  const handleDelete = useCallback(
+  const handleDeleteTrip = useCallback(
+    async (boardingId: string, alightingId: string | null) => {
+      openSwipeableRef.current = null;
+      setDeletedIds((prev) => {
+        const next = new Set(prev).add(boardingId);
+        if (alightingId) next.add(alightingId);
+        return next;
+      });
+      try {
+        await registro.remove(boardingId);
+      } catch {
+        setDeletedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(boardingId);
+          if (alightingId) next.delete(alightingId);
+          return next;
+        });
+      }
+    },
+    [registro],
+  );
+
+  const handleDeleteSingle = useCallback(
     async (observationId: string) => {
       openSwipeableRef.current = null;
       setDeletedIds((prev) => new Set(prev).add(observationId));
@@ -343,6 +647,27 @@ export function RecordsSheet({ id }: { id: number }) {
       }
     },
     [registro],
+  );
+
+  const handleCheckPending = useCallback(
+    (row: RecordListRow) => {
+      dispatch({ type: "push", sheet: rowTarget(row) });
+    },
+    [dispatch],
+  );
+
+  const handleDismissPending = useCallback(
+    (row: RecordListRow) => {
+      void registro.dismissReview(row.id);
+    },
+    [registro],
+  );
+
+  const handleLinePress = useCallback(
+    (row: RecordListRow) => {
+      dispatch({ type: "push", sheet: rowTarget(row) });
+    },
+    [dispatch],
   );
 
   const handleOpenBoard = useCallback(() => {
@@ -364,79 +689,406 @@ export function RecordsSheet({ id }: { id: number }) {
       if (item.type === "header") {
         return <RecordHeader title={item.title} />;
       }
-
+      if (item.type === "trip") {
+        return (
+          <TripCardView
+            card={item.card}
+            isNow={item.isNow}
+            onPress={handleOpenTripPage}
+            onDelete={handleDeleteTrip}
+            onWillOpen={handleSwipeableWillOpen}
+            onClose={handleSwipeableClose}
+          />
+        );
+      }
+      if (item.type === "pending") {
+        return (
+          <PendingCardView
+            row={item.row}
+            onCheck={handleCheckPending}
+            onDismiss={handleDismissPending}
+          />
+        );
+      }
+      if (item.type === "allChecked") {
+        return <AllCheckedCardView />;
+      }
       return (
-        <RecordRow
-          row={item.row}
-          onPress={handleRowPress}
-          onDelete={handleDelete}
+        <LineItemView
+          item={item.item}
+          onPress={handleLinePress}
+          onDelete={handleDeleteSingle}
           onWillOpen={handleSwipeableWillOpen}
           onClose={handleSwipeableClose}
         />
       );
     },
-    [handleRowPress, handleDelete, handleSwipeableWillOpen, handleSwipeableClose],
+    [
+      handleOpenTripPage,
+      handleDeleteTrip,
+      handleCheckPending,
+      handleDismissPending,
+      handleLinePress,
+      handleDeleteSingle,
+      handleSwipeableWillOpen,
+      handleSwipeableClose,
+    ],
   );
+
+  // Modelo da página ativa
+  const tripBoardingId = page.kind === "trip" ? page.boardingId : null;
+  const tripModel = useMemo(() => {
+    if (tripBoardingId == null) return null;
+    return tripPageModel({
+      boardingId: tripBoardingId,
+      observations: liveObservations,
+      rides: registro.rides,
+      snapshot: scheduleData,
+      now: instant,
+    });
+  }, [tripBoardingId, liveObservations, registro.rides, scheduleData, instant]);
+
+  // Página sem modelo: volta para a lista se o registro sumir
+  useEffect(() => {
+    if (page.kind === "trip" && tripModel === null) {
+      dispatchNav({ type: "back" });
+    }
+  }, [page.kind, tripBoardingId, tripModel === null]);
+
+  const handleDeleteFromPage = useCallback(async () => {
+    if (!tripModel) return;
+    try {
+      await registro.remove(tripModel.boarding.id);
+      dispatchNav({ type: "back" });
+    } catch {
+      // Se falhar, fica na página
+    }
+  }, [registro, tripModel]);
+
+  const navContextValue = useMemo(() => ({ page, onBack: handleBack }), [page, handleBack]);
 
   return (
     <HeightContext.Provider value={setHandleHeight}>
-      <StackedSheet id={id} detents={DETENTS}>
-        <View collapsable={false} style={{ height: scrollAreaHeight, overflow: "hidden" }}>
-          {/* Cabeçalho */}
-          <View style={styles.header}>
-            <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
-              {t("sheet_records.title")}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("common.close")}
-              onPress={handleClose}
-              style={styles.closeHitTarget}
+      <RecordsNavContext.Provider value={navContextValue}>
+        <StackedSheet id={id} detents={DETENTS}>
+          <View collapsable={false} style={{ height: scrollAreaHeight, overflow: "hidden" }}>
+            {/* Cabeçalho */}
+            <View style={styles.header}>
+              <Text accessibilityRole="header" style={[type.title, { color: colors.text }]}>
+                {t("sheet_records.title")}
+              </Text>
+              {showHeaderClose(page) && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.close")}
+                  onPress={handleClose}
+                  style={styles.closeHitTarget}
+                >
+                  <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
+                    <CrossGlyph color={colors.textSecondary} />
+                  </View>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Lista principal */}
+            <View
+              style={styles.flexOne}
+              accessibilityElementsHidden={page.kind === "trip"}
+              importantForAccessibility={page.kind === "trip" ? "no-hide-descendants" : "auto"}
             >
-              <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
-                <CrossGlyph color={colors.textSecondary} />
-              </View>
-            </Pressable>
-          </View>
-
-          {/* Lista virtualizada */}
-          <BottomSheetFlatList
-            data={listItems}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            initialNumToRender={12}
-            windowSize={7}
-            maxToRenderPerBatch={10}
-            removeClippedSubviews={false}
-            onEndReached={handleLoadMore}
-            onEndReachedThreshold={0.5}
-            onScrollBeginDrag={() => {
-              openSwipeableRef.current = closeAndClearSwipeable(openSwipeableRef.current);
-            }}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: insets.bottom + space.lg },
-            ]}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <EmptyState
-                title={t("sheet_records.empty.headline")}
-                body={t("sheet_records.empty.body")}
-                action={{
-                  label: t("sheet_records.empty.action_board"),
-                  onPress: handleOpenBoard,
+              <BottomSheetFlatList
+                data={listItems}
+                keyExtractor={(item) => item.id}
+                renderItem={renderItem}
+                initialNumToRender={12}
+                windowSize={7}
+                maxToRenderPerBatch={10}
+                removeClippedSubviews={false}
+                onEndReached={handleLoadMore}
+                onEndReachedThreshold={0.5}
+                onScrollBeginDrag={() => {
+                  openSwipeableRef.current = closeAndClearSwipeable(openSwipeableRef.current);
                 }}
+                contentContainerStyle={[
+                  styles.listContent,
+                  { paddingBottom: insets.bottom + space.lg },
+                ]}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <EmptyState
+                    title={t("sheet_records.empty.headline")}
+                    body={t("sheet_records.empty.body")}
+                    action={{
+                      label: t("sheet_records.empty.action_board"),
+                      onPress: handleOpenBoard,
+                    }}
+                  />
+                }
               />
-            }
+            </View>
 
-          />
-        </View>
-      </StackedSheet>
+            {/* Página da viagem sobreposta */}
+            {page.kind === "trip" && (
+              <Animated.View
+                key={page.boardingId}
+                entering={reduceMotion ? FadeIn.duration(200) : SlideInRight.duration(280)}
+                style={[StyleSheet.absoluteFill, { backgroundColor: colors.surface }]}
+              >
+                {tripModel && (
+                  <View collapsable={false} style={{ height: scrollAreaHeight, overflow: "hidden" }}>
+                    <BottomSheetScrollView
+                      contentContainerStyle={[
+                        styles.pageScrollContent,
+                        { paddingBottom: insets.bottom + space.lg },
+                      ]}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {/* Botão ‹ Registros */}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t("sheet_records.back.a11y")}
+                        onPress={handleBack}
+                        style={styles.backButton}
+                      >
+                        <View style={{ transform: [{ rotate: "180deg" }] }}>
+                          <ChevronRightGlyph color={colors.accent} />
+                        </View>
+                        <Text style={[type.body, { color: colors.accent, fontWeight: "500" }]}>
+                          {t("sheet_records.back")}
+                        </Text>
+                      </Pressable>
+
+                      {/* Título: Linha + Trecho */}
+                      <View style={styles.pageTitleRow}>
+                        <LineBadge code={tripModel.line.code} color={tripModel.line.color} />
+                        <Text accessibilityRole="header" style={[type.title, { color: colors.text, flex: 1 }]}>
+                          {tripModel.toName != null
+                            ? t("sheet_records.trip.route", {
+                                from: tripModel.fromName,
+                                to: tripModel.toName,
+                              })
+                            : t("sheet_records.trip.route_unknown", {
+                                from: tripModel.fromName,
+                              })}
+                        </Text>
+                      </View>
+
+                      {/* Subtítulo: Data e Duração */}
+                      <Text style={[type.caption, { color: colors.textSecondary }]}>
+                        {tripModel.durationMin != null
+                          ? t("sheet_records.page.subtitle", {
+                              day: tripModel.dayLabel,
+                              duration: t("sheet_records.trip.duration", { n: tripModel.durationMin }),
+                            })
+                          : tripModel.dayLabel}
+                      </Text>
+
+                      {/* Bloco Embarque e Descida */}
+                      <View
+                        style={[
+                          styles.cardGroup,
+                          { borderColor: colors.divider, backgroundColor: colors.surface },
+                        ]}
+                      >
+                        {/* Embarque */}
+                        <View
+                          style={[
+                            styles.pagePointRow,
+                            {
+                              borderBottomWidth: StyleSheet.hairlineWidth,
+                              borderBottomColor: colors.divider,
+                            },
+                          ]}
+                        >
+                          <View style={[styles.pointDot, { backgroundColor: colors.accent }]} />
+                          <View style={styles.pointInfo}>
+                            <Text style={[type.caption, { color: colors.textSecondary }]}>
+                              {t("sheet_records.page.boarding")}
+                            </Text>
+                            <Text style={[type.bodyStrong, { color: colors.text }]}>
+                              {tripModel.boarding.time} · {tripModel.boarding.stopName}
+                            </Text>
+                            {tripModel.boarding.tableTime != null && (
+                              <Text style={[type.caption, { color: colors.textSecondary }]}>
+                                {tripModel.boarding.delta != null
+                                  ? t("sheet_records.page.table_line", {
+                                      time: tripModel.boarding.tableTime,
+                                      delta: t(tripModel.boarding.delta.key, {
+                                        minutes: tripModel.boarding.delta.n,
+                                      }),
+                                    })
+                                  : t("sheet_records.page.table_line_plain", {
+                                      time: tripModel.boarding.tableTime,
+                                    })}
+                              </Text>
+                            )}
+                          </View>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`${t("sheet_records.page.edit")} ${t("sheet_records.page.boarding")}`}
+                            onPress={() =>
+                              dispatch({
+                                type: "push",
+                                sheet: { kind: "record", observationId: tripModel.boarding.id },
+                              })
+                            }
+                            style={styles.editHitTarget}
+                          >
+                            <Text style={[type.bodyStrong, { color: colors.accent }]}>
+                              {t("sheet_records.page.edit")}
+                            </Text>
+                          </Pressable>
+                        </View>
+
+                        {/* Descida */}
+                        <View style={styles.pagePointRow}>
+                          <View style={[styles.pointDotRing, { borderColor: colors.accent }]} />
+                          <View style={styles.pointInfo}>
+                            <Text style={[type.caption, { color: colors.textSecondary }]}>
+                              {t("sheet_records.page.alighting")}
+                            </Text>
+                            {tripModel.alighting != null ? (
+                              <Text style={[type.bodyStrong, { color: colors.text }]}>
+                                {tripModel.alighting.time} · {tripModel.alighting.stopName}
+                              </Text>
+                            ) : (
+                              <Text style={[type.body, { color: colors.textSecondary }]}>
+                                {tripModel.ongoing
+                                  ? t("sheet_records.page.alight_open")
+                                  : t("sheet_records.page.alight_missing")}
+                              </Text>
+                            )}
+                          </View>
+                          {tripModel.alighting != null && (
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`${t("sheet_records.page.edit")} ${t("sheet_records.page.alighting")}`}
+                              onPress={() =>
+                                dispatch({
+                                  type: "push",
+                                  sheet: { kind: "record", observationId: tripModel.alighting!.id },
+                                })
+                              }
+                              style={styles.editHitTarget}
+                            >
+                              <Text style={[type.bodyStrong, { color: colors.accent }]}>
+                                {t("sheet_records.page.edit")}
+                              </Text>
+                            </Pressable>
+                          )}
+                        </View>
+                      </View>
+
+                      {/* Cartão de aprendizado */}
+                      <View style={[styles.learnCard, { backgroundColor: colors.highlight }]}>
+                        <Text style={[type.body, { color: colors.text }]}>
+                          {tripModel.learn === "learns"
+                            ? t("sheet_records.page.learns", {
+                                line: tripModel.line.code,
+                                stop: tripModel.fromName,
+                              })
+                            : t("sheet_records.page.unmatched")}
+                        </Text>
+                      </View>
+
+                      {/* Viagem da tabela e Nota */}
+                      {(tripModel.originTable != null || tripModel.note != null) && (
+                        <View
+                          style={[
+                            styles.cardGroup,
+                            { borderColor: colors.divider, backgroundColor: colors.surface },
+                          ]}
+                        >
+                          {tripModel.originTable != null && (
+                            <View
+                              style={[
+                                styles.tableTripRow,
+                                tripModel.note != null && {
+                                  borderBottomWidth: StyleSheet.hairlineWidth,
+                                  borderBottomColor: colors.divider,
+                                },
+                              ]}
+                            >
+                              <Text style={[type.body, { color: colors.text, fontWeight: "500" }]}>
+                                {t("sheet_records.page.table_trip")}
+                              </Text>
+                              <Text style={[type.body, { color: colors.textSecondary }]}>
+                                {t("sheet_records.page.table_trip_value", {
+                                  time: tripModel.originTable.time,
+                                  stop: tripModel.originTable.stopName,
+                                })}
+                              </Text>
+                            </View>
+                          )}
+                          {tripModel.note != null && (
+                            <View style={styles.tableTripRow}>
+                              <Text style={[type.body, { color: colors.text, fontWeight: "500" }]}>
+                                {t("sheet_records.page.note")}
+                              </Text>
+                              <Text style={[type.body, { color: colors.textSecondary }]}>
+                                {tripModel.note}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
+
+                      {/* Botão Conferir (se verifyId !== null) */}
+                      {tripModel.verifyId !== null && (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() =>
+                            dispatch({
+                              type: "push",
+                              sheet: { kind: "verify", observationId: tripModel.verifyId! },
+                            })
+                          }
+                          style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+                        >
+                          <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
+                            {t("sheet_records.pending.check")}
+                          </Text>
+                        </Pressable>
+                      )}
+
+                      {/* Botão Apagar viagem */}
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={handleDeleteFromPage}
+                        style={[styles.deleteTripButton, { backgroundColor: colors.fill }]}
+                      >
+                        <Text style={[type.bodyStrong, { color: colors.danger }]}>
+                          {t("sheet_records.page.delete")}
+                        </Text>
+                      </Pressable>
+                      <Text
+                        style={[
+                          type.caption,
+                          styles.deleteHintText,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        {tripModel.deleteKind === "pair"
+                          ? t("sheet_records.page.delete_hint")
+                          : t("sheet_records.page.delete_hint_single")}
+                      </Text>
+                    </BottomSheetScrollView>
+                  </View>
+                )}
+              </Animated.View>
+            )}
+          </View>
+        </StackedSheet>
+      </RecordsNavContext.Provider>
     </HeightContext.Provider>
   );
 }
 
 const styles = StyleSheet.create({
+  flexOne: {
+    flex: 1,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -459,30 +1111,37 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: space.md,
+    gap: space.sm,
+  },
+  pageScrollContent: {
+    paddingHorizontal: space.md,
+    gap: space.md,
   },
   sectionHeaderContainer: {
     paddingTop: space.md,
     paddingBottom: space.xs,
   },
-  rowContainer: {
+  tripCardContainer: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: space.md,
+    minHeight: minTouch,
+  },
+  tripCardRow: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 48,
-    paddingVertical: space.sm,
-    paddingHorizontal: space.xs,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     gap: space.sm,
   },
-  timeText: {
-    minWidth: 46,
+  tripCardMain: {
+    flex: 1,
+    gap: 2,
   },
-  glyphBox: {
-    width: 16,
-    alignItems: "center",
+  tripCardRight: {
+    alignItems: "flex-end",
     justifyContent: "center",
   },
-  stopText: {
-    flex: 1,
+  timeText: {
+    fontVariant: ["tabular-nums"],
   },
   chip: {
     flexDirection: "row",
@@ -500,19 +1159,134 @@ const styles = StyleSheet.create({
     minHeight: 48,
     paddingHorizontal: space.sm,
   },
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: space.xl * 2,
-    gap: space.md,
+  pendingCardContainer: {
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    padding: space.md,
+    gap: space.sm,
   },
-  emptyButton: {
+  pendingCardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.xs,
+    gap: space.sm,
+  },
+  pendingCardInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  pendingCardActions: {
+    flexDirection: "row",
+    gap: space.sm,
+    alignItems: "center",
+  },
+  pendingButtonCheck: {
+    flex: 1,
+    height: minTouch,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pendingButtonUnsure: {
+    height: minTouch,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  allCheckedContainer: {
     borderRadius: radius.md,
+    borderWidth: 1,
+    padding: space.md,
+    gap: space.xs,
+  },
+  lineItemContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: space.sm,
+  },
+  glyphBox: {
+    width: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lineItemText: {
+    flex: 1,
+  },
+  backButton: {
     minHeight: minTouch,
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingRight: space.sm,
+  },
+  pageTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+  },
+  cardGroup: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  pagePointRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: space.md,
+    minHeight: 64,
+    gap: space.sm,
+  },
+  pointDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  pointDotRing: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2.5,
+  },
+  pointInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  editHitTarget: {
+    minHeight: minTouch,
+    minWidth: minTouch,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  learnCard: {
+    borderRadius: radius.md,
+    padding: space.md,
+  },
+  tableTripRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: space.md,
+    minHeight: 52,
+  },
+  primaryButton: {
+    height: minTouch,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteTripButton: {
+    height: 48,
+    borderRadius: radius.full,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteHintText: {
+    textAlign: "center",
+    marginTop: -space.xs,
   },
 });
