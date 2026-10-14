@@ -66,6 +66,7 @@ export type {
   EstimateLevel,
   ExpectedTime,
   ExpectedTimeOptions,
+  LastRecord,
   PassageInfo,
   MatchStatus,
   PassageRecord,

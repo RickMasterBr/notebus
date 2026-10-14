@@ -151,6 +151,15 @@ export const DEFAULT_MARGIN_MINUTES = DOMAIN_CONFIG.marginMinutes;
 /** Nível de agregação usado para o centro (P-04 §3.1): (a) `trip`, (b) `stop`, (c) `pattern`, (d) `none`. */
 export type EstimateLevel = "trip" | "stop" | "pattern" | "none";
 
+/** O registro mais recente do nível usado (folha "Por que este horário", D-197). */
+export interface LastRecord {
+  observedAt: number;
+  deviation: number;
+  serviceDate: string;
+  tripId: string;
+  position: number;
+}
+
 /** O detalhe da conta, em desvios (minutos relativos à base). `expectedTime` só converte em horário. */
 export interface DeviationEstimate {
   level: EstimateLevel;
@@ -167,6 +176,8 @@ export interface DeviationEstimate {
   /** Mediana ponderada do nível usado e a do nível acima (0 no nível `none`). */
   localMedian: number;
   aboveMedian: number;
+  /** O registro aceito mais recente do nível usado; empate de instante: o último da lista. `null` no nível `none`. */
+  last: LastRecord | null;
 }
 
 interface Weighted {
@@ -215,7 +226,7 @@ export function estimateDeviation(
 
   const index = order.findIndex((l) => levels[l].length > 0);
   if (index === -1) {
-    return { level: "none", center: 0, rangeStart: -half, rangeEnd: half, confidence: "estimated", count: 0, recentCount: 0, weightSum: 0, localMedian: 0, aboveMedian: 0 };
+    return { level: "none", center: 0, rangeStart: -half, rangeEnd: half, confidence: "estimated", count: 0, recentCount: 0, weightSum: 0, localMedian: 0, aboveMedian: 0, last: null };
   }
   const level = order[index]!;
   const local = weigh(levels[level]);
@@ -245,7 +256,10 @@ export function estimateDeviation(
   else if (count < config.highFromRecords) confidence = "medium";
   else confidence = recentCount >= config.highFromRecords && rangeEnd - rangeStart <= config.highMaxRangeMinutes + EPS ? "high" : "medium";
 
-  return { level, center, rangeStart, rangeEnd, confidence, count, recentCount, weightSum: n, localMedian, aboveMedian };
+  const newest = levels[level].reduce((a, b) => (b.observedAt >= a.observedAt ? b : a));
+  const last: LastRecord = { observedAt: newest.observedAt, deviation: newest.deviation, serviceDate: newest.serviceDate, tripId: newest.tripId, position: newest.position };
+
+  return { level, center, rangeStart, rangeEnd, confidence, count, recentCount, weightSum: n, localMedian, aboveMedian, last };
 }
 
 /**
