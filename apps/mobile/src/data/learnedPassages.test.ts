@@ -294,8 +294,9 @@ describe("learnedPassage e learnedPassages (Item 1)", () => {
         rangeEnd: 512,
         beAtStop: 506,
         confidence: "medium",
+        baseKind: "official",
       },
-      info: { position: 1, number: null, origin: null, destination: null },
+      info: { position: 1, number: null, origin: null, destination: null, stopId: "s1", isFirst: true, isLast: false },
     };
     const p2: StopPassage = {
       tripId: "t2",
@@ -307,8 +308,9 @@ describe("learnedPassage e learnedPassages (Item 1)", () => {
         rangeEnd: 512,
         beAtStop: 506,
         confidence: "medium",
+        baseKind: "official",
       },
-      info: { position: 2, number: null, origin: null, destination: null },
+      info: { position: 2, number: null, origin: null, destination: null, stopId: "s1", isFirst: false, isLast: true },
     };
     const ctx = { records: [], date: THURSDAY, dayType: "weekday" as const, now: 0 };
     const ordered = learnedPassages([p1, p2], data, ctx);

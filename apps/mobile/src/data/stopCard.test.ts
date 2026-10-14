@@ -11,7 +11,6 @@ import { passageTarget } from "./records";
 import { type ScheduleSnapshot, loadSchedule } from "./schedule";
 import { type NextBus, type NextDay, buildStopCard, clockText, seasonMonths } from "./stopCard";
 import { learnedFixture, learnedStopId, learnedTripIdOf } from "./learnedFixture";
-import { lisbon } from "./registroFixture";
 
 async function load(seed: SeedFile): Promise<ScheduleSnapshot> {
   const { db, sqlite } = testDbWithSqlite();

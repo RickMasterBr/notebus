@@ -93,7 +93,7 @@ export function AheadSheet({
             },
           })
         : null,
-    [schedule, tripId, position, registro.records, instant, serviceDate, dayType],
+    [schedule, tripId, position, registro.records, instant],
   );
   const [handleHeight, setHandleHeight] = useState(0);
 

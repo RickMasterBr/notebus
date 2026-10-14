@@ -105,6 +105,20 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
   const [dayType, setDayType] = useState<DayTypeCode | undefined>(undefined);
   const [lineFilter, setLineFilter] = useState<string | null>(null);
 
+  const loading = schedule.status === "loading";
+  const skeleton = useSkeletonVisible(loading);
+
+  const { card, day } = useMemo((): { card: StopCard | null; day: StopDay | null } => {
+    if (schedule.status !== "ready") return { card: null, day: null };
+    return {
+      card: buildStopCard(stopId, schedule.data, instant, registro.records),
+      day: buildStopDay(stopId, schedule.data, instant, dayType, registro.records),
+    };
+  }, [schedule, stopId, instant, dayType, registro.records]);
+
+  // As passagens com horário declarado (E-08): ganham o selo "declarado" na lista.
+  const declaredKeys = useMemo(() => (schedule.status === "ready" ? declaredPassageKeys(schedule.data.trips) : new Set<string>()), [schedule]);
+
   // TL-05: tocar num horário a empilha; ao fechá-la, o foco do VoiceOver volta para a linha tocada (4.6 §5, bloco 5a).
   const { state, dispatch } = useSheets();
   const isTop = activeSheet(state).id === id;
@@ -144,20 +158,6 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
     if (node) rowRefs.current.set(key, node);
     else rowRefs.current.delete(key);
   }, []);
-
-  const loading = schedule.status === "loading";
-  const skeleton = useSkeletonVisible(loading);
-
-  const { card, day } = useMemo((): { card: StopCard | null; day: StopDay | null } => {
-    if (schedule.status !== "ready") return { card: null, day: null };
-    return {
-      card: buildStopCard(stopId, schedule.data, instant, registro.records),
-      day: buildStopDay(stopId, schedule.data, instant, dayType, registro.records),
-    };
-  }, [schedule, stopId, instant, dayType, registro.records]);
-
-  // As passagens com horário declarado (E-08): ganham o selo "declarado" na lista.
-  const declaredKeys = useMemo(() => (schedule.status === "ready" ? declaredPassageKeys(schedule.data.trips) : new Set<string>()), [schedule]);
 
   const lastIndex = useRef<number | null>(null);
 
