@@ -19,6 +19,7 @@ const read = (...path: string[]) =>
 const stopEditSheet = read("sheets", "StopEditSheet.tsx");
 const nearbyStopsSheet = read("sheets", "NearbyStops.tsx");
 const stopSheet = read("sheets", "StopSheet.tsx");
+const aheadSheet = read("sheets", "AheadSheet.tsx");
 const rideView = read("data", "rideView.ts");
 const tripSheet = read("sheets", "TripSheet.tsx");
 
@@ -78,6 +79,12 @@ describe("E-08.5 bloco 10 Item 4 (Guarda de ligação das folhas)", () => {
     expect(match, "array de dependências de { card, day } encontrado").not.toBeNull();
     const stopDeps = (match?.[1] ?? "").split(",").map((s) => s.trim());
     expect(stopDeps).toContain("registro.records");
+  });
+
+  it("AheadSheet.tsx: chama buildAhead com { learning: { records: registro.records, now: instant } }", () => {
+    expect(aheadSheet).toMatch(
+      /buildAhead\(\s*tripId,\s*position,\s*schedule\.data,\s*\{\s*learning:\s*\{\s*records:\s*registro\.records,\s*now:\s*instant,?\s*\},?\s*\}\s*\)/,
+    );
   });
 
   it("Regra 5: rideView.ts e TripSheet.tsx não contêm learning nem registro.records na chamada de buildStopCard/buildAhead", () => {

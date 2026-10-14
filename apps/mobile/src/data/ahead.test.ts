@@ -1,13 +1,17 @@
 /// <reference types="node" />
 // Dados inventados (D-091). Ver `db/testing/lineSeed.ts`. Horários de serviço: 08:10 = 490, 08:44 = 524, 09:00 = 540.
-import { type SeedFile } from "@notebus/domain";
+import { type PassageRecord, type SeedFile, baseTimeAt, displayCenter, expectedTime } from "@notebus/domain";
 import { describe, expect, it } from "vitest";
 import { type ImportDb, importMobilis } from "../db/importMobilis";
 import { testDbWithSqlite } from "../db/testing/drizzleTestDb";
 import { type LineSpec, lineSeed } from "../db/testing/lineSeed";
 import { type Ahead, buildAhead, timelineItems } from "./ahead";
 import { boldSegments, contextText, returnTag, stopA11y, stopTimeText, summaryPlain, summaryText } from "./aheadText";
+import { aheadServiceDay } from "./learnedPassages";
+import { passageTarget } from "./records";
 import { type ScheduleSnapshot, loadSchedule } from "./schedule";
+import { clockText } from "./stopCard";
+import { buildStopDay } from "./stopDay";
 
 async function load(seed: SeedFile): Promise<ScheduleSnapshot> {
   const { db, sqlite } = testDbWithSqlite();
@@ -260,5 +264,141 @@ describe("buildAhead: velocidade", () => {
     const elapsed = performance.now() - t0;
     expect(a!.stops).toHaveLength(stopCount - 3);
     expect(elapsed).toBeLessThan(50);
+  });
+});
+
+describe("buildAhead: aprendizado (E-08.5 bloco 10, T-132)", () => {
+  const lisbon = (date: string, hhmm: string) => Date.parse(`${date}T${hhmm}:00Z`) - 3_600_000;
+
+  it("sem learning e com learning: { records: [] }: toEqual ao resultado sem opções", async () => {
+    snapshot ??= await load(seed);
+    const tId = tripId("0810");
+    const baseline = buildAhead(tId, 1, snapshot)!;
+    const emptyLearning = buildAhead(tId, 1, snapshot, { learning: { records: [], now: lisbon("2026-09-02", "08:00") } })!;
+    expect(emptyLearning).toEqual(baseline);
+  });
+
+  it("T-132: 4 registros auto de +6 na posição tocada -> here.time é base + 6 (08:16) e igual ao de buildStopDay", async () => {
+    snapshot ??= await load(seed);
+    const tId = tripId("0810");
+    const instant = lisbon("2026-09-02", "08:00");
+    const serviceDay = aheadServiceDay(snapshot, tId, instant)!;
+    expect(serviceDay).toEqual({ date: "2026-09-02", dayType: "weekday" });
+
+    const target = passageTarget(snapshot, tId, 1, serviceDay.date, serviceDay.dayType)!;
+    const records: PassageRecord[] = [1, 2, 3, 4].map((d) => ({
+      deviation: 6,
+      observedAt: instant - d * 86_400_000,
+      serviceDate: serviceDay.date,
+      dayType: target.dayType,
+      tripId: target.tripId,
+      patternId: target.patternId,
+      position: target.position,
+      stopId: target.stopId,
+      matchStatus: "auto",
+      mode: "live",
+      kind: "boarded",
+    }));
+
+    const a = buildAhead(tId, 1, snapshot, { learning: { records, now: instant } })!;
+    expect(a).not.toBeNull();
+    // 08:10 + 6 min = 08:16
+    expect(a.here.time).toBe("08:16");
+    expect(a.here.confidence).toBe("medium");
+
+    // Compara com buildStopDay chamado no mesmo teste com o mesmo instant e dayType:
+    const estadioStopId = target.stopId;
+    const day = buildStopDay(estadioStopId, snapshot, instant, serviceDay.dayType, records)!;
+    const stopDayRow = day.lines.flatMap((l) => l.rows).find((r) => r.tripId === tId && r.position === 1)!;
+    expect(stopDayRow).toBeDefined();
+    expect(a.here.time).toBe(stopDayRow.time);
+  });
+
+  it("paragens seguintes: cada time bate com displayCenter(expectedTime) direto no teste, e a frase-resumo usa os mesmos horários", async () => {
+    snapshot ??= await load(seed);
+    const tId = tripId("0810");
+    const instant = lisbon("2026-09-02", "08:00");
+    const serviceDay = aheadServiceDay(snapshot, tId, instant)!;
+    const trip = snapshot.trips.find((t) => t.id === tId)!;
+
+    // Registros nas paragens 1 (+6) e 4 (+10)
+    const target1 = passageTarget(snapshot, tId, 1, serviceDay.date, serviceDay.dayType)!;
+    const target4 = passageTarget(snapshot, tId, 4, serviceDay.date, serviceDay.dayType)!;
+    const records: PassageRecord[] = [
+      ...[1, 2, 3, 4].map((d) => ({
+        deviation: 6,
+        observedAt: instant - d * 86_400_000,
+        serviceDate: serviceDay.date,
+        dayType: target1.dayType,
+        tripId: target1.tripId,
+        patternId: target1.patternId,
+        position: target1.position,
+        stopId: target1.stopId,
+        matchStatus: "auto" as const,
+        mode: "live" as const,
+        kind: "boarded" as const,
+      })),
+      ...[1, 2, 3, 4].map((d) => ({
+        deviation: 10,
+        observedAt: instant - d * 86_400_000,
+        serviceDate: serviceDay.date,
+        dayType: target4.dayType,
+        tripId: target4.tripId,
+        patternId: target4.patternId,
+        position: target4.position,
+        stopId: target4.stopId,
+        matchStatus: "auto" as const,
+        mode: "live" as const,
+        kind: "boarded" as const,
+      })),
+    ];
+
+    const a = buildAhead(tId, 1, snapshot, { learning: { records, now: instant } })!;
+
+    // Confere cada paragem seguinte contra expectedTime direto
+    for (const stop of a.stops) {
+      const target = passageTarget(snapshot, tId, stop.position, serviceDay.date, serviceDay.dayType)!;
+      const base = baseTimeAt(trip, stop.position)!;
+      const exp = expectedTime(base, records, { target, now: instant, marginMinutes: snapshot.margin });
+      expect(stop.time).toBe(clockText(displayCenter(exp.center)));
+      expect(stop.rangeStart).toBe(clockText(displayCenter(exp.rangeStart)));
+      expect(stop.rangeEnd).toBe(clockText(displayCenter(exp.rangeEnd)));
+      expect(stop.confidence).toBe(exp.confidence);
+    }
+
+    // nextTimepoints e firstReturn usam os mesmos horários das paragens da lista
+    for (const ntp of a.nextTimepoints) {
+      const match = a.stops.find((s) => s.isTimepoint && s.name === ntp.name && s.time === ntp.time);
+      expect(match).toBeDefined();
+    }
+    if (a.firstReturn) {
+      const match = a.stops.find((s) => s.returnsHere && s.name === a.firstReturn!.name && s.time === a.firstReturn!.time);
+      expect(match).toBeDefined();
+    }
+  });
+
+  it("viagem em curso (shiftMinutes: 5): learning é ignorado (D-070), idêntico a sem learning com shiftMinutes: 5", async () => {
+    snapshot ??= await load(seed);
+    const tId = tripId("0810");
+    const instant = lisbon("2026-09-02", "08:00");
+    const serviceDay = aheadServiceDay(snapshot, tId, instant)!;
+    const target = passageTarget(snapshot, tId, 1, serviceDay.date, serviceDay.dayType)!;
+    const records: PassageRecord[] = [1, 2, 3, 4].map((d) => ({
+      deviation: 6,
+      observedAt: instant - d * 86_400_000,
+      serviceDate: serviceDay.date,
+      dayType: target.dayType,
+      tripId: target.tripId,
+      patternId: target.patternId,
+      position: target.position,
+      stopId: target.stopId,
+      matchStatus: "auto",
+      mode: "live",
+      kind: "boarded",
+    }));
+
+    const withLearning = buildAhead(tId, 1, snapshot, { shiftMinutes: 5, learning: { records, now: instant } })!;
+    const withoutLearning = buildAhead(tId, 1, snapshot, { shiftMinutes: 5 })!;
+    expect(withLearning).toEqual(withoutLearning);
   });
 });
