@@ -19,6 +19,7 @@ export function ListRow({
   leading,
   onPress,
   accessibilityLabel,
+  accessibilityHint,
   ref,
 }: {
   title: string;
@@ -31,6 +32,7 @@ export function ListRow({
   onPress?: () => void;
   /** Leitura única da linha pelo VoiceOver, quando o título + valor secundário não bastam. */
   accessibilityLabel?: string;
+  accessibilityHint?: string;
   /** Aponta para a linha: o foco do VoiceOver volta para ela quando uma folha por cima fecha. */
   ref?: Ref<View>;
 }) {
@@ -41,6 +43,7 @@ export function ListRow({
       ref={ref}
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,

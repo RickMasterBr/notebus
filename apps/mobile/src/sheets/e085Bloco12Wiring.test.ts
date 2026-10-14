@@ -34,4 +34,28 @@ describe("E-08.5 bloco 12 guardas de ligação", () => {
       expect(stopSheet).toMatch(/dispatch\(\{\s*type:\s*"push",\s*sheet:\s*\{[^}]*kind:\s*"ahead"[^}]*dayType:/);
     });
   });
+
+  describe("Item 3: WhySheet e a entrada na AheadSheet", () => {
+    it("WhySheet consome buildWhy( com registro.records e serviceDay", () => {
+      const whySheet = squash(read("sheets/WhySheet.tsx"));
+      expect(whySheet).toMatch(/buildWhy\(\{[\s\S]*?records:\s*registro\.records[\s\S]*?serviceDay/);
+    });
+
+    it("a entrada empilha kind: 'why' com os quatro campos", () => {
+      const aheadSheet = squash(read("sheets/AheadSheet.tsx"));
+      expect(aheadSheet).toMatch(
+        /dispatch\(\{\s*type:\s*"push",\s*sheet:\s*\{[^}]*kind:\s*"why"[^}]*tripId[^}]*position[^}]*serviceDate[^}]*dayType/,
+      );
+    });
+
+    it("a entrada está dentro da condição de 'não termina aqui'", () => {
+      const aheadSheet = squash(read("sheets/AheadSheet.tsx"));
+      expect(aheadSheet).toMatch(/!ahead\.isLast[\s\S]*?<ListRow[^>]*why\.entry/);
+    });
+
+    it("SheetHost tem o case 'why'", () => {
+      const sheetHost = squash(read("sheets/SheetHost.tsx"));
+      expect(sheetHost).toMatch(/case\s+"why":\s*return\s*\(?\s*<WhySheet/);
+    });
+  });
 });

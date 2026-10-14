@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { type Ahead, type AheadStopRow, type TimelineItem, buildAhead, timelineItems } from "../data/ahead";
+import { aheadServiceDay } from "../data/learnedPassages";
 import { useNowTick } from "../data/useNowTick";
 import {
   AHEAD_TIME_WIDTH,
@@ -32,9 +33,11 @@ import {
 import { t } from "../i18n";
 import { type ColorTokens, radius, space, type, useTheme } from "../theme";
 import { LineBadge } from "../ui/LineBadge";
+import { ListRow } from "../ui/ListRow";
 import { Skeleton } from "../ui/Skeleton";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
 import { SheetHandle } from "./SheetHandle";
+import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 
@@ -85,17 +88,31 @@ export function AheadSheet({
   const ahead = useMemo(
     () =>
       schedule.status === "ready"
-        ? buildAhead(tripId, position, schedule.data, {
-            learning: {
-              records: registro.records,
-              now: instant,
-              ...(serviceDate && dayType ? { serviceDay: { date: serviceDate, dayType } } : {}),
-            },
-          })
+        ? serviceDate && dayType
+          ? buildAhead(tripId, position, schedule.data, {
+              learning: {
+                records: registro.records,
+                now: instant,
+                serviceDay: { date: serviceDate, dayType },
+              },
+            })
+          : buildAhead(tripId, position, schedule.data, {
+              learning: {
+                records: registro.records,
+                now: instant,
+              },
+            })
         : null,
     [schedule, tripId, position, registro.records, instant],
   );
+  const { dispatch } = useSheets();
   const [handleHeight, setHandleHeight] = useState(0);
+
+  const usedDay = useMemo(() => {
+    if (serviceDate && dayType) return { date: serviceDate, dayType };
+    if (schedule.status === "ready") return aheadServiceDay(schedule.data, tripId, instant);
+    return null;
+  }, [serviceDate, dayType, schedule, tripId, instant]);
 
   // Receita da D-150 (a mesma do Ponto e do Início, `scrollInset.ts`): lista numa `View` de altura FIXA, a da folha aberta
   // menos o handle, com `overflow: hidden`. Não há cabeçalho fixo: o título e a frase-resumo rolam com a lista.
@@ -117,6 +134,25 @@ export function AheadSheet({
             ) : (
               <>
                 <Header ahead={ahead} />
+                {ahead && !ahead.isLast && usedDay ? (
+                  <ListRow
+                    title={t("why.entry", { time: stopTimeText(ahead.here) })}
+                    accessibilityLabel={t("why.entry.a11y", { time: stopTimeText(ahead.here) })}
+                    accessibilityHint={t("why.entry.hint")}
+                    onPress={() => {
+                      dispatch({
+                        type: "push",
+                        sheet: {
+                          kind: "why",
+                          tripId,
+                          position,
+                          serviceDate: usedDay.date,
+                          dayType: usedDay.dayType,
+                        },
+                      });
+                    }}
+                  />
+                ) : null}
                 {ahead ? <Body ahead={ahead} /> : null}
               </>
             )}
