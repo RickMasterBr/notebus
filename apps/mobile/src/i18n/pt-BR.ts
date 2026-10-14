@@ -52,6 +52,7 @@ export const ptBR = {
   "first_run.importing": "Importando {{count}} linhas…",
   "first_run.import_invalid": "Não foi possível importar. O arquivo não está no formato esperado.",
   "first_run.import_failed": "Não foi possível importar. Nada foi alterado. Tente de novo.",
+  "first_run.start_failed": "Não foi possível começar. Nada foi alterado. Tente de novo.", // provisório
   "search.group.stops": "Pontos",
   "search.group.lines": "Linhas", // provisório
   "search.group.recent": "Recentes",

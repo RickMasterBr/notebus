@@ -21,6 +21,7 @@ import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
 import { pickAndImport } from "./src/db/importFromFile";
 import { expoBackupStore, expoImportDb, openNotebusDb } from "./src/db/open";
 import { setSharedDb } from "./src/db/sharedDb";
+import { ensureUserNetwork, startEmpty } from "./src/db/startEmpty";
 import { useAlarmLifecycle } from "./src/notifications/useAlarmLifecycle";
 import appJson from "./app.json";
 import { FirstRun } from "./src/screens/FirstRun";
@@ -48,7 +49,10 @@ export default function App() {
         // Instalação nova (versão 0): o banco voltou vazio, sem tabelas para ler. Só o aviso.
         if (migration.error.fromVersion === 0) return setPhase("read_only_empty");
       }
-      setPhase((await needsFirstRun(opened)) ? "first_run" : "list");
+      if (await needsFirstRun(opened)) return setPhase("first_run");
+      // Quem passou pelo "Começar do zero" quebrado fica sem rede: conserta aqui. Falhar não pode impedir de abrir.
+      await ensureUserNetwork(opened).catch((error) => console.warn("ensureUserNetwork falhou", error));
+      setPhase("list");
     });
   }, []);
 
@@ -75,8 +79,13 @@ export default function App() {
               return result.status;
             }}
             onStartEmpty={async () => {
-              await markFirstRunDone(db);
+              try {
+                await startEmpty(db);
+              } catch {
+                return "failed";
+              }
               setPhase("list");
+              return "done";
             }}
           />
         ) : (

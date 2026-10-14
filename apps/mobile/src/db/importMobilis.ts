@@ -50,7 +50,7 @@ export interface ImportOptions {
 }
 
 /** Tipos de dia (E-01 §4.4): nome e ordem nas telas. */
-const DAY_TYPES: Record<DayTypeCode, { name: string; sort: number }> = {
+export const DAY_TYPES: Record<DayTypeCode, { name: string; sort: number }> = {
   weekday: { name: "Dia útil", sort: 1 },
   saturday: { name: "Sábado", sort: 2 },
   sunday_holiday: { name: "Domingo e feriado", sort: 3 },
