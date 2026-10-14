@@ -14,6 +14,7 @@ import {
   learnedPassage,
   learnedPassages,
 } from "./learnedPassages";
+import { passageTarget } from "./records";
 import {
   THURSDAY,
   fixture,
@@ -280,6 +281,40 @@ describe("learnedPassage e learnedPassages (Item 1)", () => {
     expect(ordered[0]!.expected.center).toBe(500);
     expect(ordered[1]!.expected.center).toBe(507);
   });
+
+  it("L17: desempate por base.minute quando expected.center é igual", async () => {
+    const { data } = await fixture();
+    const p1: StopPassage = {
+      tripId: "t1",
+      patternId: "p1",
+      base: { minute: 500, kind: "official", position: 1 },
+      expected: {
+        center: 510,
+        rangeStart: 508,
+        rangeEnd: 512,
+        beAtStop: 506,
+        confidence: "medium",
+      },
+      info: { position: 1, number: null, origin: null, destination: null },
+    };
+    const p2: StopPassage = {
+      tripId: "t2",
+      patternId: "p1",
+      base: { minute: 490, kind: "official", position: 2 },
+      expected: {
+        center: 510,
+        rangeStart: 508,
+        rangeEnd: 512,
+        beAtStop: 506,
+        confidence: "medium",
+      },
+      info: { position: 2, number: null, origin: null, destination: null },
+    };
+    const ctx = { records: [], date: THURSDAY, dayType: "weekday" as const, now: 0 };
+    const ordered = learnedPassages([p1, p2], data, ctx);
+    expect(ordered[0]!.base.minute).toBe(490);
+    expect(ordered[1]!.base.minute).toBe(500);
+  });
 });
 
 describe("aheadServiceDay (Item 3.1)", () => {
@@ -329,5 +364,13 @@ describe("aheadServiceDay (Item 3.1)", () => {
     const { data } = await fixture();
     const now = lisbon(THURSDAY, "10:00");
     expect(aheadServiceDay(data, "trip_inexistente", now)).toBeNull();
+  });
+});
+
+describe("passageTarget (L22)", () => {
+  it("passageTarget(data, trip, pos, '') devolve null", async () => {
+    const { data } = await fixture();
+    const trip = tripIdOf("1", "0810");
+    expect(passageTarget(data, trip, 1, "")).toBeNull();
   });
 });

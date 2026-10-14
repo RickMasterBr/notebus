@@ -12,6 +12,8 @@ import { passageTarget } from "./records";
 import { type ScheduleSnapshot, loadSchedule } from "./schedule";
 import { clockText } from "./stopCard";
 import { buildStopDay } from "./stopDay";
+import { learnedFixture, learnedTripIdOf } from "./learnedFixture";
+import { lisbon } from "./registroFixture";
 
 async function load(seed: SeedFile): Promise<ScheduleSnapshot> {
   const { db, sqlite } = testDbWithSqlite();
@@ -400,5 +402,38 @@ describe("buildAhead: aprendizado (E-08.5 bloco 10, T-132)", () => {
     const withLearning = buildAhead(tId, 1, snapshot, { shiftMinutes: 5, learning: { records, now: instant } })!;
     const withoutLearning = buildAhead(tId, 1, snapshot, { shiftMinutes: 5 })!;
     expect(withLearning).toEqual(withoutLearning);
+  });
+
+  it("L20: viagem de sábado aberta numa quarta aprende (+6) com registros de sábado", async () => {
+    const { data } = await learnedFixture();
+    // Quarta-feira 07/10/2026 (dia útil) às 10:00
+    const wednesdayNow = lisbon("2026-10-07", "10:00");
+    const satTripId = learnedTripIdOf("1", "0810_sat");
+    const serviceDay = aheadServiceDay(data, satTripId, wednesdayNow)!;
+    expect(serviceDay).toEqual({ date: "2026-10-07", dayType: "saturday" });
+
+    const target = passageTarget(data, satTripId, 1, serviceDay.date, serviceDay.dayType)!;
+    expect(target.dayType).toBe("saturday");
+
+    // 4 registros auto de sábado de +6 na posição 1: base 490 (08:10) + 6 = 496 ("08:16")
+    const records: PassageRecord[] = [1, 2, 3, 4].map((d) => ({
+      deviation: 6,
+      observedAt: wednesdayNow - d * 86_400_000,
+      serviceDate: `2026-10-0${d}`,
+      dayType: "saturday",
+      tripId: target.tripId,
+      patternId: target.patternId,
+      position: target.position,
+      stopId: target.stopId,
+      matchStatus: "auto",
+      mode: "live",
+      kind: "boarded",
+    }));
+
+    const a = buildAhead(satTripId, 1, data, { learning: { records, now: wednesdayNow } })!;
+    expect(a).not.toBeNull();
+    // Aprende +6: 08:16. Com mutação (sem serviceDay.dayType passado a passageTarget):
+    // o alvo vira weekday e não aprende registros de saturday, dando 08:10.
+    expect(a.here.time).toBe("08:16");
   });
 });
