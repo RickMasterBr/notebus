@@ -6,6 +6,7 @@
  * gravados não há o que somar. "Vi passar" e descida contam como o embarque (D-073, Q-81 aberta: a descida entra).
  */
 import {
+  type DayTypeCode,
   type MatchNetwork,
   type PassageRecord,
   type PassageTarget,
@@ -59,12 +60,20 @@ export function passageRecords(observations: readonly ObservationRow[], data: Sc
 }
 
 /** A passagem cujo horário esperado se quer: viagem, posição, ponto, tipo do dia e início da vigência da tabela. */
-export function passageTarget(data: ScheduleSnapshot, tripId: string, position: number, serviceDate: string): PassageTarget | null {
+export function passageTarget(
+  data: ScheduleSnapshot,
+  tripId: string,
+  position: number,
+  serviceDate: string,
+  dayType?: DayTypeCode,
+): PassageTarget | null {
+  if (!serviceDate) return null;
   const trip = data.trips.find((t) => t.id === tripId);
   const pattern = trip ? data.patterns.find((p) => p.id === trip.patternId) : undefined;
   const stopId = pattern?.stops.find((s) => s.position === position)?.stopId;
   if (!trip || !pattern || stopId === undefined) return null;
   const timetableId = data.schedule.trips.find((t) => t.id === tripId)?.timetableId;
   const validFrom = data.schedule.timetables.find((t) => t.id === timetableId)?.validFrom ?? null;
-  return { tripId, patternId: pattern.id, position, stopId, dayType: dayTypeOf(serviceDate, data.calendar).dayType, validFrom };
+  const resolvedDayType = dayType ?? dayTypeOf(serviceDate, data.calendar).dayType;
+  return { tripId, patternId: pattern.id, position, stopId, dayType: resolvedDayType, validFrom };
 }
