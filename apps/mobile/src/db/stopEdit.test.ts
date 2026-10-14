@@ -749,5 +749,101 @@ describe("stopEdit com localização (F3, D-190, E-08.5 bloco 8)", () => {
     expect(afterDst.lon).toBe(-8.8071);
     expect(afterDst.locationSource).toBe("manual");
   });
+
+  it("(k) L11: Desfazer sem location não toca em lat, lon nem locationSource mesmo se alterados diretamente no banco", async () => {
+    const { db } = await setup();
+    await insertUserStopWithLoc(db, "u-l11", {
+      name: "Nome Antes",
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "manual",
+    });
+    const res = await saveStopEdit(
+      db,
+      "u-l11",
+      { ...empty, name: "Nome Depois" },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    await db.update(stop).set({
+      lat: 39.75,
+      lon: -8.81,
+      locationSource: "suggested",
+    }).where(eq(stop.id, "u-l11"));
+
+    const undoRes = await res.undo(NOW + 5000);
+    expect(undoRes).toEqual({ ok: true });
+
+    const afterUndo = await read(db, "u-l11");
+    expect(afterUndo.name).toBe("Nome Antes");
+    expect(afterUndo.lat).toBe(39.75);
+    expect(afterUndo.lon).toBe(-8.81);
+    expect(afterUndo.locationSource).toBe("suggested");
+  });
+
+  it("(l) L13: Desfazer depois de remover a localização restaura lat, lon e locationSource", async () => {
+    const { db } = await setup();
+    await insertUserStopWithLoc(db, "u-l13", {
+      name: "Com Localização",
+      lat: 39.7436,
+      lon: -8.8071,
+      locationSource: "manual",
+    });
+
+    const res = await saveStopEdit(
+      db,
+      "u-l13",
+      { ...empty, name: "Sem Localização", location: null },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    const afterRemove = await read(db, "u-l13");
+    expect(afterRemove.lat).toBeNull();
+    expect(afterRemove.lon).toBeNull();
+    expect(afterRemove.locationSource).toBeNull();
+
+    const undoRes = await res.undo(NOW + 5000);
+    expect(undoRes).toEqual({ ok: true });
+
+    const afterUndo = await read(db, "u-l13");
+    expect(afterUndo.name).toBe("Com Localização");
+    expect(afterUndo.lat).toBe(39.7436);
+    expect(afterUndo.lon).toBe(-8.8071);
+    expect(afterUndo.locationSource).toBe("manual");
+  });
+
+  it("(m) L14: Desfazer de ponto com locationSource suggested restaura suggested", async () => {
+    const { db } = await setup();
+    await insertUserStopWithLoc(db, "u-l14", {
+      name: "Ponto Sugerido",
+      lat: 39.74,
+      lon: -8.8,
+      locationSource: "suggested",
+    });
+
+    const res = await saveStopEdit(
+      db,
+      "u-l14",
+      { ...empty, name: "Ponto Modificado", location: { lat: 39.76, lon: -8.82 } },
+      NOW,
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    const afterSave = await read(db, "u-l14");
+    expect(afterSave.locationSource).toBe("manual");
+
+    const undoRes = await res.undo(NOW + 5000);
+    expect(undoRes).toEqual({ ok: true });
+
+    const afterUndo = await read(db, "u-l14");
+    expect(afterUndo.locationSource).toBe("suggested");
+    expect(afterUndo.lat).toBe(39.74);
+    expect(afterUndo.lon).toBe(-8.8);
+  });
 });
 

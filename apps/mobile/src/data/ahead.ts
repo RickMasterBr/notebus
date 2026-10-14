@@ -15,6 +15,8 @@
 import {
   type BaseKind,
   type Confidence,
+  type ExpectedTime,
+  type PassageRecord,
   aheadFrom,
   baseTimeAt,
   displayCenter,
@@ -22,6 +24,8 @@ import {
   passageInfo,
   timepointPositions,
 } from "@notebus/domain";
+import { aheadServiceDay } from "./learnedPassages";
+import { passageTarget } from "./records";
 import type { ScheduleSnapshot } from "./schedule";
 import { clockText } from "./stopCard";
 
@@ -69,6 +73,7 @@ export interface Ahead {
 export interface AheadOptions {
   /** D-070, E-03. Padrão 0. */
   shiftMinutes?: number;
+  learning?: { records: readonly PassageRecord[]; now: number };
 }
 
 /** `null` se a viagem, a posição ou o percurso não existem nos dados (viagem apagada, importação trocada). */
@@ -78,6 +83,8 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
   const pattern = data.patterns.find((p) => p.id === trip.patternId);
   if (!pattern || !pattern.stops.some((s) => s.position === position)) return null;
   const shiftMinutes = options.shiftMinutes ?? 0;
+  const shouldLearn = Boolean(options.learning && shiftMinutes === 0);
+  const serviceDay = shouldLearn ? aheadServiceDay(data, tripId, options.learning!.now) : null;
 
   const timepoints = timepointPositions(
     pattern,
@@ -89,33 +96,63 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
   const rawHere = baseTimeAt(trip, position);
   if (!startBase || !rawHere) return null; // a viagem não passa na posição (fora do trecho da viagem parcial)
 
+  const computeExpected = (pos: number, base: { minute: number; kind: BaseKind }): ExpectedTime => {
+    const baseTime = { position: pos, ...base };
+    if (shouldLearn && serviceDay) {
+      const target = passageTarget(data, trip.id, pos, serviceDay.date, serviceDay.dayType);
+      if (target) {
+        return expectedTime(baseTime, options.learning!.records, {
+          target,
+          now: options.learning!.now,
+          marginMinutes: data.margin,
+        });
+      }
+    }
+    return expectedTime(baseTime, []);
+  };
+
+  const learnedByPos = new Map<number, ExpectedTime>();
+
   const row = (
     pos: number,
     base: { minute: number; kind: BaseKind },
-    expected: { rangeStart: number; rangeEnd: number; confidence: Confidence },
+    expected: ExpectedTime,
     extra: Pick<AheadStopRow, "isTimepoint" | "number" | "returnsHere">,
-  ): AheadStopRow => ({
-    position: pos,
-    name: nameAt.get(pos) ?? "",
-    time: clockText(displayCenter(base.minute)),
-    rangeStart: clockText(displayCenter(expected.rangeStart)),
-    rangeEnd: clockText(displayCenter(expected.rangeEnd)),
-    kind: base.kind,
-    confidence: expected.confidence,
-    isLast: pos === trip.lastPosition,
-    ...extra,
-  });
-  const place = (s: { info: { position: number }; base: { minute: number } }): AheadPlace => ({
-    name: nameAt.get(s.info.position) ?? "",
-    time: clockText(displayCenter(s.base.minute)),
-  });
+  ): AheadStopRow => {
+    learnedByPos.set(pos, expected);
+    return {
+      position: pos,
+      name: nameAt.get(pos) ?? "",
+      time: clockText(displayCenter(shouldLearn ? expected.center : base.minute)),
+      rangeStart: clockText(displayCenter(expected.rangeStart)),
+      rangeEnd: clockText(displayCenter(expected.rangeEnd)),
+      kind: base.kind,
+      confidence: expected.confidence,
+      isLast: pos === trip.lastPosition,
+      ...extra,
+    };
+  };
+
+  const place = (s: { info: { position: number }; base: { minute: number } }): AheadPlace => {
+    const pos = s.info.position;
+    const exp = learnedByPos.get(pos);
+    const minute = shouldLearn && exp ? exp.center : s.base.minute;
+    return {
+      name: nameAt.get(pos) ?? "",
+      time: clockText(displayCenter(minute)),
+    };
+  };
 
   const stops = result.stops.map((s) =>
-    row(s.info.position, s.base, s.expected, { isTimepoint: s.isTimepoint, number: s.info.number, returnsHere: s.returnsHere }),
+    row(s.info.position, s.base, computeExpected(s.info.position, s.base), {
+      isTimepoint: s.isTimepoint,
+      number: s.info.number,
+      returnsHere: s.returnsHere,
+    }),
   );
   // A passagem tocada: o horário dela vem do mesmo cálculo (o domínio devolve só as paragens depois dela).
   const hereBase = { position, minute: rawHere.minute + shiftMinutes, kind: rawHere.kind };
-  const here = row(position, hereBase, expectedTime(hereBase, []), {
+  const here = row(position, hereBase, computeExpected(position, hereBase), {
     isTimepoint: timepoints.has(position),
     number: passageInfo(pattern, timepoints, position).number,
     returnsHere: false,

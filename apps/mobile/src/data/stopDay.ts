@@ -17,6 +17,7 @@ import {
   type CalendarData,
   type Confidence,
   type DayTypeCode,
+  type PassageRecord,
   type PatternData,
   type StopPassage,
   type TripData,
@@ -30,6 +31,7 @@ import {
   serviceDaysAt,
   tripsRunningOn,
 } from "@notebus/domain";
+import { learnedPassages } from "./learnedPassages";
 import type { ScheduleSnapshot } from "./schedule";
 import {
   type CardReason,
@@ -105,7 +107,13 @@ interface Candidate {
   trip: TripData;
 }
 
-export function buildStopDay(stopId: string, data: ScheduleSnapshot, instantMs: number, dayType?: DayTypeCode): StopDay | null {
+export function buildStopDay(
+  stopId: string,
+  data: ScheduleSnapshot,
+  instantMs: number,
+  dayType?: DayTypeCode,
+  records: readonly PassageRecord[] = [],
+): StopDay | null {
   const name = data.stopNames.get(stopId);
   if (name === undefined) return null; // ponto apagado ou de outra importação
 
@@ -128,7 +136,7 @@ export function buildStopDay(stopId: string, data: ScheduleSnapshot, instantMs: 
     .map(([code, { color, patterns }]) => {
       const patternIds = new Set(patterns.map((p) => p.id));
       const trips = data.trips.filter((t) => patternIds.has(t.patternId));
-      return { code, color, ...lineDay(stopId, patterns, trips, data, instantMs, shown, shown === todayType) };
+      return { code, color, ...lineDay(stopId, patterns, trips, data, instantMs, shown, shown === todayType, records) };
     });
 
   return { stopId, name, dayType: shown, todayType, lines };
@@ -142,6 +150,7 @@ function lineDay(
   instantMs: number,
   dayType: DayTypeCode,
   isToday: boolean,
+  records: readonly PassageRecord[] = [],
 ): Omit<DayLine, "code" | "color"> {
   const lineSchedule = lineScheduleOf(trips, data);
   const clock = lisbonWallClock(instantMs);
@@ -155,7 +164,9 @@ function lineDay(
     const running = new Set(tripsRunningOn(date, type, lineSchedule).map((t) => t.id));
     const todays = trips.filter((t) => running.has(t.id));
     const tripById = new Map(todays.map((t) => [t.id, t]));
-    return passagesAtStop(stopId, patterns, todays, { marginMinutes: data.margin }).map((passage) => ({ date, now, passage, trip: tripById.get(passage.tripId)! }));
+    const rawPassages = passagesAtStop(stopId, patterns, todays, { marginMinutes: data.margin });
+    const passages = learnedPassages(rawPassages, data, { records, date, dayType: type, now: instantMs });
+    return passages.map((passage) => ({ date, now, passage, trip: tripById.get(passage.tripId)! }));
   };
 
   let list: Candidate[];
@@ -222,7 +233,7 @@ function lineDay(
     : { ...data.calendar, overrides: [{ date: clock.date, dayType }, ...data.calendar.overrides.filter((o) => o.date !== clock.date)] };
   const service = lineServiceOn(clock.date, calendar, lineSchedule);
   const reason = service.status === "none" ? reasonOf(service.reason, clock.date, calendar, lineSchedule, true) : null;
-  const later = nextServiceState(stopId, patterns, trips, data, instantMs, lineSchedule, reason, true);
+  const later = nextServiceState(stopId, patterns, trips, data, instantMs, lineSchedule, reason, true, records);
   return {
     destination: later.destination,
     endsHere,

@@ -71,6 +71,22 @@ describe("stopLocationEdit", () => {
       expect(locationChange(officialOriginal, { lat: 39.7436, lon: -8.8071 })).toBe("unchanged");
       expect(locationEdit(officialOriginal, { lat: 39.7436, lon: -8.8071 })).toBeUndefined();
     });
+
+    it("mesma latitude e longitude diferente: set e o novo ponto", () => {
+      expect(locationChange(officialOriginal, { lat: 39.7436, lon: -8.82 })).toBe("set");
+      expect(locationEdit(officialOriginal, { lat: 39.7436, lon: -8.82 })).toEqual({
+        lat: 39.7436,
+        lon: -8.82,
+      });
+    });
+
+    it("longitude igual e latitude diferente: set e o novo ponto", () => {
+      expect(locationChange(officialOriginal, { lat: 39.75, lon: -8.8071 })).toBe("set");
+      expect(locationEdit(officialOriginal, { lat: 39.75, lon: -8.8071 })).toEqual({
+        lat: 39.75,
+        lon: -8.8071,
+      });
+    });
   });
 
   describe("stopLocationView", () => {
@@ -143,6 +159,24 @@ describe("stopLocationEdit", () => {
         openKey: "map_pick.open",
         canRemove: true,
         changed: false,
+      });
+    });
+
+    it("mesma latitude e longitude diferente: manual, canRemove verdadeiro, changed verdadeiro", () => {
+      expect(stopLocationView(officialOriginal, { lat: 39.7436, lon: -8.82 })).toEqual({
+        statusKey: "stop_edit.location.manual",
+        openKey: "map_pick.open",
+        canRemove: true,
+        changed: true,
+      });
+    });
+
+    it("longitude igual e latitude diferente: manual, canRemove verdadeiro, changed verdadeiro", () => {
+      expect(stopLocationView(officialOriginal, { lat: 39.75, lon: -8.8071 })).toEqual({
+        statusKey: "stop_edit.location.manual",
+        openKey: "map_pick.open",
+        canRemove: true,
+        changed: true,
       });
     });
   });

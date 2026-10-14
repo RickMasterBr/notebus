@@ -1,10 +1,12 @@
 /// <reference types="node" />
 // Dados inventados (D-091). Ver `db/testing/lineSeed.ts`. Horários de serviço: 08:10 = 490, 10:00 = 600, 24:00 = 1440.
-import { type SeedFile } from "@notebus/domain";
+import { type PassageRecord, type SeedFile } from "@notebus/domain";
 import { describe, expect, it } from "vitest";
 import { type ImportDb, importMobilis } from "../db/importMobilis";
 import { testDbWithSqlite } from "../db/testing/drizzleTestDb";
 import { type LineSpec, lineSeed } from "../db/testing/lineSeed";
+import { boardChoices } from "./boardChoices";
+import { passageTarget } from "./records";
 import { type ScheduleSnapshot, loadSchedule } from "./schedule";
 import { buildStopCard } from "./stopCard";
 import { buildStopDay } from "./stopDay";
@@ -383,5 +385,87 @@ describe("buildStopDay e buildStopCard: velocidade (plano E-02 §5, limite de 50
     expect(card!.lines).toHaveLength(6);
     expect(day!.lines.reduce((n, l) => n + l.rows.length, 0)).toBeGreaterThan(300);
     expect(elapsed).toBeLessThan(50);
+  });
+});
+
+describe("buildStopDay: aprendizado (E-08.5 bloco 10, T-130, T-131)", () => {
+  it("sem registros: resultado idêntico à chamada sem o parâmetro", async () => {
+    snapshot ??= await load(seed);
+    const instant = lisbon("2026-09-03", "08:00");
+    const withoutParam = buildStopDay(idOf("rua"), snapshot, instant);
+    const withEmpty = buildStopDay(idOf("rua"), snapshot, instant, undefined, []);
+    expect(withEmpty).toEqual(withoutParam);
+  });
+
+  it("T-130: 4 registros auto de desvio +6 na viagem das 08:10 -> lista do Ponto mostra horário base + 6 (08:16) e igual ao de boardChoices", async () => {
+    snapshot ??= await load(seed);
+    const stopId = idOf("praca");
+    const instant = lisbon("2026-09-03", "08:00");
+    const seedTrip = seed.trips.find((t) => t.key.includes("0810"))!;
+    const trip = snapshot.trips.find((t) => t.id === seedTrip.id)!;
+    const target = passageTarget(snapshot, trip.id, 1, "2026-09-03", "weekday")!;
+    const records: PassageRecord[] = [1, 2, 3, 4].map((d) => ({
+      deviation: 6,
+      observedAt: instant - d * 86_400_000,
+      serviceDate: "2026-09-03",
+      dayType: target.dayType,
+      tripId: target.tripId,
+      patternId: target.patternId,
+      position: target.position,
+      stopId: target.stopId,
+      matchStatus: "auto",
+      mode: "live",
+      kind: "boarded",
+    }));
+
+    const result = buildStopDay(stopId, snapshot, instant, undefined, records)!;
+    expect(result).not.toBeNull();
+    const line1 = lineOf(result, "1");
+    const row = line1.rows.find((r) => r.tripId === trip.id)!;
+    expect(row).toBeDefined();
+    expect(row.time).toBe("08:16"); // 08:10 + 6
+    expect(row.confidence).toBe("medium");
+
+    // Compara com boardChoices chamado no mesmo teste:
+    const choices = boardChoices(stopId, snapshot, records, instant);
+    const choice = choices.find((c) => c.tripId === trip.id);
+    expect(choice).toBeDefined();
+    expect(row.time).toBe(choice!.time);
+  });
+
+  it("T-131: chip 'sábado' no Ponto com registros de dia útil -> linhas de sábado ficam iguais a records: []; chip de dia útil aprende", async () => {
+    snapshot ??= await load(seed);
+    const stopId = idOf("terminal");
+    const instant = lisbon("2026-09-03", "07:30"); // quinta-feira (dia útil)
+    // Linha 2 tem viagem 0800 que circula em weekday e saturday
+    const seedTrip = seed.trips.find((t) => t.key.includes("L2") && t.key.includes("0800"))!;
+    const trip = snapshot.trips.find((t) => t.id === seedTrip.id)!;
+    const target = passageTarget(snapshot, trip.id, 1, "2026-09-03", "weekday")!;
+    const records: PassageRecord[] = [1, 2, 3, 4].map((d) => ({
+      deviation: 6,
+      observedAt: instant - d * 86_400_000,
+      serviceDate: "2026-09-03",
+      dayType: target.dayType, // weekday
+      tripId: target.tripId,
+      patternId: target.patternId,
+      position: target.position,
+      stopId: target.stopId,
+      matchStatus: "auto",
+      mode: "live",
+      kind: "boarded",
+    }));
+
+    // Chip de sábado: registros de dia útil NÃO afetam sábado (A5)
+    const satLearned = buildStopDay(stopId, snapshot, instant, "saturday", records)!;
+    const satUnlearned = buildStopDay(stopId, snapshot, instant, "saturday", [])!;
+    expect(satLearned.lines).toEqual(satUnlearned.lines);
+    const satRow = lineOf(satLearned, "2").rows.find((r) => r.tripId === trip.id)!;
+    expect(satRow.time).toBe("08:00"); // horário base sem aprendizado
+
+    // Chip de dia útil: aprende!
+    const weekdayLearned = buildStopDay(stopId, snapshot, instant, "weekday", records)!;
+    const weekdayRow = lineOf(weekdayLearned, "2").rows.find((r) => r.tripId === trip.id)!;
+    expect(weekdayRow.time).toBe("08:06"); // 08:00 + 6 min
+    expect(weekdayRow.confidence).toBe("medium");
   });
 });

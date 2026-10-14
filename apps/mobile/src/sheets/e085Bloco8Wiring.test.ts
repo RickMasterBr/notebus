@@ -68,12 +68,12 @@ describe("E-08.5 bloco 8 guardas de ligação (StopEditSheet.tsx)", () => {
     const pickIdx = sheet.indexOf('accessibilityLabel={t("map_pick.open.stop.a11y")}');
     expect(pickIdx, "G3: accessibilityLabel map_pick.open.stop.a11y não achado").toBeGreaterThan(-1);
     const pickEl = sheet.substring(sheet.lastIndexOf("<Pressable", pickIdx), sheet.indexOf("</Pressable>", pickIdx));
-    expect(pickEl, "G3: botão Marcar usa styles.locationButton no mesmo elemento").toContain("styles.locationButton");
+    expect(pickEl, "G3: botão Marcar usa styles.locationButton no mesmo elemento").toMatch(/styles\.locationButton\b/);
 
     const removeIdx = sheet.indexOf('accessibilityLabel={t("stop_new.location.remove")}');
     expect(removeIdx, "G3: accessibilityLabel stop_new.location.remove não achado").toBeGreaterThan(-1);
     const removeEl = sheet.substring(sheet.lastIndexOf("<Pressable", removeIdx), sheet.indexOf("</Pressable>", removeIdx));
-    expect(removeEl, "G3: botão Remover usa styles.locationButton no mesmo elemento").toContain("styles.locationButton");
+    expect(removeEl, "G3: botão Remover usa styles.locationButton no mesmo elemento").toMatch(/styles\.locationButton\b/);
   });
 
   it("G4: o Remover só aparece com {locationView.canRemove ? ( <Pressable e tem onPress={() => setLocation(null)} no mesmo elemento; setLocation(null) aparece uma vez só", () => {

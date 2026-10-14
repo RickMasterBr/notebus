@@ -13,8 +13,10 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { createContext, useContext, useState } from "react";
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { type Ahead, type AheadStopRow, type TimelineItem, buildAhead, timelineItems } from "../data/ahead";
+import { useNowTick } from "../data/useNowTick";
 import {
   AHEAD_TIME_WIDTH,
   boldSegments,
@@ -63,9 +65,14 @@ export function AheadSheet({ id, tripId, position }: { id: number; tripId: strin
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const schedule = useSchedule();
+  const registro = useRegistro();
+  const instant = useNowTick();
   const loading = schedule.status === "loading";
   const skeleton = useSkeletonVisible(loading);
-  const ahead = schedule.status === "ready" ? buildAhead(tripId, position, schedule.data) : null;
+  const ahead =
+    schedule.status === "ready"
+      ? buildAhead(tripId, position, schedule.data, { learning: { records: registro.records, now: instant } })
+      : null;
   const [handleHeight, setHandleHeight] = useState(0);
 
   // Receita da D-150 (a mesma do Ponto e do Início, `scrollInset.ts`): lista numa `View` de altura FIXA, a da folha aberta
