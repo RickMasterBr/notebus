@@ -26,6 +26,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePlaces } from "../data/PlacesProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useToast } from "../data/ToastProvider";
+import { alarmsEmpty } from "../data/emptyStates";
+import { EmptyState } from "../ui/EmptyState";
 import {
   alarmFromRow,
   alarmLine,
@@ -244,9 +246,22 @@ export function AlarmsSheet({ id }: { id: number }) {
               </Text>
 
               {sortedAlarms.length === 0 ? (
-                <Text style={[type.body, { color: colors.textSecondary }]}>
-                  {t("alarms.empty")}
-                </Text>
+                <EmptyState
+                  centered={false}
+                  title={t("alarms.empty.title")}
+                  body={t("alarms.empty.body")}
+                  action={
+                    alarmsEmpty({ placeCount: places.places.length }) === "places"
+                      ? {
+                          label: t("alarms.empty.action_places"),
+                          onPress: () => dispatch({ type: "push", sheet: { kind: "places" } }),
+                        }
+                      : {
+                          label: t("places.new"),
+                          onPress: () => dispatch({ type: "push", sheet: { kind: "place" } }),
+                        }
+                  }
+                />
               ) : (
                 <View style={styles.groupedList}>
                   {sortedAlarms.map((item) => (

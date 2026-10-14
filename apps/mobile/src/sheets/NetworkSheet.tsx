@@ -15,6 +15,7 @@ import { useSchedule, useScheduleReload } from "../data/ScheduleProvider";
 import { useReloadStopIndex } from "../data/StopIndexProvider";
 import { useToast } from "../data/ToastProvider";
 import { officialTag, stopSecondary } from "../data/networkView";
+import { networkEmpty } from "../data/emptyStates";
 import { NEW_LINE_ID } from "../data/lineForm";
 import { lineDeleteRefusalText } from "../data/lineManage";
 import { NEW_STOP_ID } from "../data/stopEdit";
@@ -116,6 +117,7 @@ export function NetworkSheet({ id }: { id: number }) {
 
   const listItems = useMemo((): NetworkListItem[] => {
     const items: NetworkListItem[] = [];
+    const empty = networkEmpty({ stopCount: stops.length, lineCount: lines.length });
 
     // Seção Linhas
     items.push({
@@ -126,11 +128,11 @@ export function NetworkSheet({ id }: { id: number }) {
 
     items.push({ type: "newLine", id: "new-line" });
 
-    if (lines.length === 0) {
+    if (empty.lines) {
       items.push({
         type: "empty",
         id: "empty-lines",
-        message: t("net.empty.lines"),
+        message: t(empty.lines),
       });
     } else {
       for (const line of lines) {
@@ -159,11 +161,11 @@ export function NetworkSheet({ id }: { id: number }) {
       items.push({ type: "stopPager", id: "stop-pager-top" });
     }
 
-    if (stops.length === 0) {
+    if (empty.stops) {
       items.push({
         type: "empty",
         id: "empty-stops",
-        message: t("net.empty.stops"),
+        message: t(empty.stops),
       });
     } else if (stopsView.showNoMatch) {
       items.push({
@@ -172,6 +174,7 @@ export function NetworkSheet({ id }: { id: number }) {
         message: t("net.stops.no_match"),
       });
     } else {
+
       for (const stop of stopsView.items) {
         items.push({
           type: "stop",

@@ -13,6 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useToast } from "../data/ToastProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
+import { NEW_STOP_ID } from "../data/stopEdit";
+import { searchEmpty } from "../data/emptyStates";
 import { matchedAlias } from "../data/matchedAlias";
 import { searchPanel } from "../data/searchPanel";
 import { searchView } from "../data/searchResults";
@@ -22,6 +24,7 @@ import { type NetworkLineItem, listLines } from "../db/networkList";
 import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import { minTouch, opacity, space, type, useTheme } from "../theme";
+import { EmptyState } from "../ui/EmptyState";
 import { CrossGlyph, SearchGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { ListRow } from "../ui/ListRow";
@@ -97,14 +100,21 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
     lineCount: lineResults.length,
     linesReady,
   });
+  const empty = searchEmpty({
+    term,
+    pick,
+    stopTotal: index.status === "ready" ? index.stops.length : 0,
+    recentCount: recents.length,
+    showNoResults: view.showNoResults,
+  });
 
   // A mensagem do vazio não é decorativa: o VoiceOver a lê uma vez, quando ela aparece.
   const announced = useRef(false);
   useEffect(() => {
-    if (loading || panel !== "prompt" || announced.current) return;
+    if (loading || (empty !== "prompt" && empty !== "prompt_pick" && panel !== "prompt") || announced.current) return;
     announced.current = true;
     AccessibilityInfo.announceForAccessibility(t("search.empty.prompt"));
-  }, [loading, panel]);
+  }, [loading, panel, empty]);
 
   const stopRow = (stop: StopEntry) => {
     // Só nos resultados da busca (não nos recentes) e só quando o termo casou com um apelido, não com o nome nem com o ID.
@@ -184,27 +194,81 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
   );
 
   let body: ReactNode = null;
-  if (loading || skeleton) body = skeleton ? <Skeleton /> : null;
-  else if (panel === "recents") body = group(t("search.group.recent"), recents, true);
-  else if (panel === "prompt")
+  if (loading || skeleton) {
+    body = skeleton ? <Skeleton /> : null;
+  } else if (panel === "recents") {
+    body = group(t("search.group.recent"), recents, true);
+  } else if (empty === "no_stops") {
+    body = (
+      <EmptyState
+        icon={<SearchGlyph color={colors.accent} />}
+        title={t("search.empty.no_stops.title")}
+        body={t("search.empty.no_stops.body")}
+        action={{
+          label: t("stop_new.title"),
+          onPress: () =>
+            dispatch({
+              type: "push",
+              sheet: {
+                kind: "stopEdit",
+                stopId: NEW_STOP_ID,
+                afterSave: pick ? "pick" : "open",
+              },
+            }),
+        }}
+      />
+    );
+  } else if (empty === "prompt") {
     body = (
       <Text accessible style={[type.body, styles.prompt, { color: colors.textSecondary, opacity: opacity.muted }]}>
         {t("search.empty.prompt")}
       </Text>
     );
-  else if (view.showStops || view.showLines)
+  } else if (empty === "prompt_pick") {
+    body = (
+      <Text accessible style={[type.body, styles.prompt, { color: colors.textSecondary, opacity: opacity.muted }]}>
+        {t("search.empty.prompt_pick")}
+      </Text>
+    );
+  } else if (view.showStops || view.showLines) {
     body = (
       <View>
         {view.showStops ? group(t("search.group.stops"), results) : null}
         {view.showLines ? lineGroup(t("search.group.lines"), lineResults) : null}
       </View>
     );
-  else if (view.showNoResults && index.status === "ready")
+  } else if (view.showNoResults && index.status === "ready") {
     body = (
-      <Text style={[type.body, styles.empty, { color: colors.textSecondary }]}>
-        {t("search.empty.no_results", { term: term.trim() })}
-      </Text>
+      <EmptyState
+        icon={<SearchGlyph color={colors.accent} />}
+        title={t("search.no_results.title", { term: term.trim() })}
+        body={t("search.no_results.body")}
+        action={{
+          label: t("search.no_results.create", { term: term.trim() }),
+          onPress: () =>
+            dispatch({
+              type: "push",
+              sheet: {
+                kind: "stopEdit",
+                stopId: NEW_STOP_ID,
+                initialName: term.trim(),
+                afterSave: pick ? "pick" : "open",
+              },
+            }),
+        }}
+        secondary={{
+          label: t("search.no_results.clear"),
+          onPress: () => {
+            setTerm("");
+            input.current?.focus();
+          },
+        }}
+      />
     );
+  }
+
+
+  const isCentered = (empty !== null && empty !== "no_results") || empty === "no_results" || panel === "prompt";
 
   return (
     <StackedSheet id={id} tall>
@@ -245,7 +309,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             { paddingBottom: Math.max(keyboard, insets.bottom) + space.md },
-            panel === "prompt" && !loading ? styles.centered : null,
+            isCentered && !loading ? styles.centered : null,
           ]}
         >
           {body}
@@ -253,6 +317,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
       </View>
     </StackedSheet>
   );
+
 }
 
 const styles = StyleSheet.create({

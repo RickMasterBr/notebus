@@ -21,6 +21,7 @@ import { usePlaces } from "../data/PlacesProvider";
 import { type PlaceRow, reorder } from "../db/places";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
+import { EmptyState } from "../ui/EmptyState";
 import { ChevronRightGlyph, CrossGlyph, DragHandleGlyph, PlaceIconGlyph, PlusGlyph } from "../ui/Glyphs";
 import { useReorderTransition } from "../ui/useReorderTransition";
 import { SheetHandle } from "./SheetHandle";
@@ -257,46 +258,55 @@ export function PlacesSheet({ id }: { id: number }) {
 
             {/* Lista de Atalhos */}
             {places.places.length === 0 ? (
-              <Text style={[type.body, { color: colors.textSecondary, paddingVertical: space.md }]}>
-                {t("places.empty")}
-              </Text>
+              <EmptyState
+                icon={<PlaceIconGlyph color={colors.accent} size={28} />}
+                title={t("places.empty.headline")}
+                body={t("places.empty.body")}
+                action={{
+                  label: t("places.empty.action"),
+                  onPress: () => dispatch({ type: "push", sheet: { kind: "place" } }),
+                }}
+              />
             ) : (
-              <View style={styles.list}>
-                {shortcuts.map((p, idx) => {
-                  const routesCount = places.routes.filter(
-                    (r) =>
-                      r.destinationPlaceId === p.id &&
-                      r.deletedAt === null &&
-                      places.options.some((o) => o.routeId === r.id && o.deletedAt === null),
-                  ).length;
-                  return (
-                    <ShortcutCardItem
-                      key={p.id}
-                      place={p}
-                      index={idx}
-                      total={shortcuts.length}
-                      routesCount={routesCount}
-                      onReorder={handleReorder}
-                      onPress={() => dispatch({ type: "push", sheet: { kind: "place", placeId: p.id } })}
-                    />
-                  );
-                })}
-                {nonShortcuts.map((p) => renderNonShortcutCard(p))}
-              </View>
+              <>
+                <View style={styles.list}>
+                  {shortcuts.map((p, idx) => {
+                    const routesCount = places.routes.filter(
+                      (r) =>
+                        r.destinationPlaceId === p.id &&
+                        r.deletedAt === null &&
+                        places.options.some((o) => o.routeId === r.id && o.deletedAt === null),
+                    ).length;
+                    return (
+                      <ShortcutCardItem
+                        key={p.id}
+                        place={p}
+                        index={idx}
+                        total={shortcuts.length}
+                        routesCount={routesCount}
+                        onReorder={handleReorder}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "place", placeId: p.id } })}
+                      />
+                    );
+                  })}
+                  {nonShortcuts.map((p) => renderNonShortcutCard(p))}
+                </View>
+
+                {/* Botão Novo lugar */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("places.new")}
+                  onPress={() => dispatch({ type: "push", sheet: { kind: "place" } })}
+                  style={[styles.newButton, { backgroundColor: colors.fill }]}
+                >
+                  <PlusGlyph color={colors.text} />
+                  <Text style={[type.bodyStrong, { color: colors.text }]}>
+                    {t("places.new")}
+                  </Text>
+                </Pressable>
+              </>
             )}
 
-            {/* Botão Novo lugar */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("places.new")}
-              onPress={() => dispatch({ type: "push", sheet: { kind: "place" } })}
-              style={[styles.newButton, { backgroundColor: colors.fill }]}
-            >
-              <PlusGlyph color={colors.text} />
-              <Text style={[type.bodyStrong, { color: colors.text }]}>
-                {t("places.new")}
-              </Text>
-            </Pressable>
           </BottomSheetScrollView>
         </View>
       </StackedSheet>

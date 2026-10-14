@@ -22,6 +22,7 @@ import {
 } from "../data/recordsList";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
+import { EmptyState } from "../ui/EmptyState";
 import { AlightGlyph, BoardGlyph, CrossGlyph, InfoGlyph, PassGlyph, PlusGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { SheetHandle } from "./SheetHandle";
@@ -418,22 +419,16 @@ export function RecordsSheet({ id }: { id: number }) {
             ]}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={[type.body, { color: colors.textSecondary }]}>
-                  {t("sheet_records.empty.title")}
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={handleOpenBoard}
-                  style={[styles.emptyButton, { backgroundColor: colors.fill }]}
-                >
-                  <PlusGlyph color={colors.text} />
-                  <Text style={[type.bodyStrong, { color: colors.text }]}>
-                    {t("sheet_records.empty.action")}
-                  </Text>
-                </Pressable>
-              </View>
+              <EmptyState
+                title={t("sheet_records.empty.headline")}
+                body={t("sheet_records.empty.body")}
+                action={{
+                  label: t("sheet_records.empty.action_board"),
+                  onPress: handleOpenBoard,
+                }}
+              />
             }
+
           />
         </View>
       </StackedSheet>
