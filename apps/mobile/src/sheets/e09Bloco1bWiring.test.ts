@@ -74,3 +74,38 @@ describe("E-09 bloco 1b: SettingsSheet", () => {
     );
   });
 });
+
+describe("E-09 bloco 1b: HomeSheet (guia do Início)", () => {
+  const home = squash(read("sheets/HomeSheet.tsx"));
+
+  it("H9/H10/H11: homeGuide recebe dispensado, registros e pontos dos campos certos", () => {
+    expect(home).toMatch(
+      /return homeGuide\(\{ hasDataset: guideFacts\.hasDataset, stopCount: stops\.stops\.length, lineCount, recordCount: observations\.length, dismissed: guideDismissed, \}\);/,
+    );
+    expect(home).toMatch(/const lineCount = schedule\.status === "ready" \? schedule\.data\.lineInfo\.size : 0;/);
+  });
+
+  it("H9: dispensado vem de isHomeGuideDismissed(db) e vai para guideDismissed", () => {
+    expect(home).toMatch(
+      /Promise\.all\(\[readHomeGuideFacts\(db\), isHomeGuideDismissed\(db\)\]\) \.then\(\(\[facts, dismissed\]\) => \{ if \(active\) \{ setGuideFacts\(facts\); setGuideDismissed\(dismissed\);/,
+    );
+  });
+
+  it("H3/H4: Ver os horários lembra o ponto e abre o ponto; sem ponto abre o Quadro", () => {
+    expect(home).toMatch(
+      /\} else if \(guideCard\.kind === "register"\) \{ if \(guideFacts\?\.lastLineFirstStop\) \{ recent\.remember\(guideFacts\.lastLineFirstStop\.id\); dispatch\(\{ type: "push", sheet: \{ kind: "stop", stopId: guideFacts\.lastLineFirstStop\.id, name: guideFacts\.lastLineFirstStop\.name, \}, \}\); \} else \{ dispatch\(\{ type: "push", sheet: \{ kind: "board", stopId: null \}, \}\); \}/,
+    );
+  });
+
+  it("H5: Buscar meu ponto (mobilis) abre a Busca", () => {
+    expect(home).toMatch(
+      /\} else if \(guideCard\.kind === "mobilis"\) \{ dispatch\(\{ type: "push", sheet: \{ kind: "search" \} \}\); \}/,
+    );
+  });
+
+  it("H6: o × esconde na hora (setGuideDismissed(true)) e grava a dispensa com a hora atual", () => {
+    expect(home).toMatch(
+      /onDismiss=\{\(\) => \{ setGuideDismissed\(true\); if \(db\) void dismissHomeGuide\(db, now\(\)\); \}\}/,
+    );
+  });
+});
