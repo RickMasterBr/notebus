@@ -42,4 +42,32 @@ describe("E-09 Bloco 5b guardas de ligação (e09Bloco5bWiring)", () => {
       expect(edit).toMatch(/<Switch accessibilityLabel=\{t\("line_create\.circular"\)\} style=\{\{ alignSelf: "center" \}\}/);
     });
   });
+
+  describe("Item 2 · FN-15 a Início encolhe sem vazio e sem salto", () => {
+    const home = squash(read("sheets/HomeSheet.tsx"));
+
+    it("a altura animada vem do progresso da opacidade e da altura medida do conteúdo", () => {
+      expect(home).toContain(
+        "height: homeFadeHeight(homeFadeProgress(sheetTop.value, topAtSmall, topAtMedium), phraseHeight)",
+      );
+      expect(home).toContain(
+        "height: homeFadeHeight(homeFadeProgress(sheetTop.value, topAtSmall, topAtMedium), pendingHeight)",
+      );
+    });
+
+    it("a medida vem do conteúdo interno, dentro do contêiner que encolhe", () => {
+      expect(home).toMatch(/<Animated\.View .*?phraseClipStyle.*?> <View collapsable=\{false\} onLayout=\{\(e\) => setPhraseHeight\(e\.nativeEvent\.layout\.height\)\}> <HomePhrase/);
+      expect(home).toMatch(/pendingClipStyle.*?> <View collapsable=\{false\} onLayout=\{\(e\) => setPendingHeight\(e\.nativeEvent\.layout\.height\)\}> <Pressable/);
+    });
+
+    it("os dois contêineres cortam o excesso e mantêm toque e leitura fora quando invisíveis", () => {
+      expect(home).toMatch(/clip: \{ overflow: "hidden" \}/);
+      expect(home).toMatch(/style=\{\[styles\.clip, fadeStyle, phraseHeight > 0 \? phraseClipStyle : null\]\}/);
+      expect(home).toMatch(/style=\{\[styles\.clip, fadeStyle, pendingHeight > 0 \? pendingClipStyle : null\]\} pointerEvents=\{state\.detent === 0 \? "none" : "auto"\} accessibilityElementsHidden=\{state\.detent === 0\}/);
+    });
+
+    it("a lista não muda de conta: scrollAreaHeight subtrai a altura medida da frase", () => {
+      expect(home).toMatch(/cards\.effectiveHeight - phraseHeight - space\.md/);
+    });
+  });
 });
