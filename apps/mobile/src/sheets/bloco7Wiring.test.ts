@@ -68,9 +68,9 @@ describe("item 3: Novo ponto", () => {
     );
   });
 
-  it("a linha nova entra na lista logo sob o cabeçalho Pontos", () => {
+  it("a linha nova entra na lista na seção Pontos após a busca", () => {
     expect(networkSheet).toContain(
-      'title: t("net.section.stops"), }); items.push({ type: "newStop", id: "new-stop" });',
+      'title: t("net.section.stops"), }); if (stops.length > 0) { items.push({ type: "stopSearch", id: "stop-search" }); } items.push({ type: "newStop", id: "new-stop" });',
     );
   });
 

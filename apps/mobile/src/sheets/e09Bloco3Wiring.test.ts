@@ -33,7 +33,6 @@ describe("E-09 Bloco 3 guardas de ligação (e09Bloco3Wiring)", () => {
     });
   });
 
-  /*
   describe("Item 2: NetworkSheet.tsx ordem da seção Pontos", () => {
     const networkSheet = squash(read("sheets/NetworkSheet.tsx"));
 
@@ -49,5 +48,4 @@ describe("E-09 Bloco 3 guardas de ligação (e09Bloco3Wiring)", () => {
       expect(stopPagerTopIdx).toBeGreaterThan(newStopIdx);
     });
   });
-  */
 });
