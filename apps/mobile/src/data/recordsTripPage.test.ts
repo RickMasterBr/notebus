@@ -412,4 +412,65 @@ describe("recordsTripPage", () => {
     });
     expect(pageGood!.note).toBe("Muito cheio");
   });
+
+  it("FN-2: tableTime com baseTimeAt interpolado arredonda para baixo (HH:MM sem fração)", () => {
+    // 14:00 (840) na pos. 0 e 14:08 (848) na pos. 3 -> pos. 1 tem minuto fracionário 842.6666...
+    const interpTrip: TripData = {
+      id: "trip-interp",
+      patternId: "pattern-interp",
+      firstPosition: 0,
+      lastPosition: 3,
+      stopTimes: [
+        { position: 0, serviceMinute: 840, origin: "official" },
+        { position: 3, serviceMinute: 848, origin: "official" },
+      ],
+    };
+    const snap: ScheduleSnapshot = {
+      ...snapshot,
+      trips: [interpTrip],
+      patterns: [
+        {
+          id: "pattern-interp",
+          stops: [
+            { position: 0, stopId: "stop-1", isTimepoint: true },
+            { position: 1, stopId: "stop-2", isTimepoint: false },
+            { position: 2, stopId: "stop-3", isTimepoint: false },
+            { position: 3, stopId: "stop-4", isTimepoint: true },
+          ],
+        },
+      ],
+      patternStopIds: new Map([
+        ["pattern-interp:0", "psi-0"],
+        ["pattern-interp:1", "psi-1"],
+        ["pattern-interp:2", "psi-2"],
+        ["pattern-interp:3", "psi-3"],
+      ]),
+      patternStopById: new Map([
+        ["psi-0", { patternId: "pattern-interp", position: 0, stopId: "stop-1" }],
+        ["psi-1", { patternId: "pattern-interp", position: 1, stopId: "stop-2" }],
+        ["psi-2", { patternId: "pattern-interp", position: 2, stopId: "stop-3" }],
+        ["psi-3", { patternId: "pattern-interp", position: 3, stopId: "stop-4" }],
+      ]),
+    };
+
+    const board = makeRow({
+      id: "board-interp",
+      observedAt: lisbonMs(TODAY, "14:05"),
+      tripId: "trip-interp",
+      patternStopId: "psi-1",
+    });
+
+    const page = tripPageModel({
+      boardingId: "board-interp",
+      observations: [board],
+      rides: [],
+      snapshot: snap,
+      now: NOW,
+    });
+
+    expect(page).not.toBeNull();
+    expect(page!.boarding.tableTime).toBe("14:02");
+    expect(page!.boarding.tableTime).toMatch(/^\d{2}:\d{2}$/);
+    expect(page!.boarding.tableTime).not.toMatch(/[.,]/);
+  });
 });

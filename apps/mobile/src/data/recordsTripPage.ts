@@ -130,7 +130,7 @@ export function tripPageModel(input: {
         try {
           const bt = baseTimeAt(trip, ps.position);
           if (bt != null) {
-            tableTime = clockText(bt.minute);
+            tableTime = clockText(Math.floor(bt.minute));
           }
         } catch {
           tableTime = null;
