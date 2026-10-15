@@ -55,8 +55,10 @@ describe("item 0: lacunas do bloco 7", () => {
 });
 
 describe("item 1.5: guardas do diagnóstico", () => {
-  it("diagScroll.tsx exporta DIAG_SCROLL = false", () => {
-    expect(diagScroll).toContain("export const DIAG_SCROLL = false;");
+  it("diagScroll.tsx exporta DIAG_SCROLL = isDiagEnabled(process.env.EXPO_PUBLIC_NOTEBUS_DIAG)", () => {
+    expect(diagScroll).toMatch(
+      /export\s+const\s+DIAG_SCROLL\s*=\s*isDiagEnabled\(\s*process\.env\.EXPO_PUBLIC_NOTEBUS_DIAG\s*\);/,
+    );
   });
 
   it("SheetsContext.tsx registra fechamento ignorado e troca antes de rawDispatch", () => {
