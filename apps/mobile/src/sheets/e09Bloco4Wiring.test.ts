@@ -78,4 +78,21 @@ describe("E-09 Bloco 4 guardas de ligação (e09Bloco4Wiring)", () => {
       expect(createPackIdx).toBeGreaterThan(decisionIdx);
     });
   });
+
+  describe("Item 2: Remontagem por fontScale (FN-3)", () => {
+    const appSource = read("../App.tsx");
+    const appSquashed = squash(appSource);
+
+    it("App.tsx usa key derivada de nextFontScaleKey no elemento Home dentro de OfflineMapProvider (regex ancorada)", () => {
+      expect(appSource).toMatch(
+        /import\s*\{\s*nextFontScaleKey\s*\}\s*from\s*["']\.\/src\/data\/fontScaleRemount["']/,
+      );
+      expect(appSquashed).toMatch(
+        /nextFontScaleKey\(\s*\w+\.scale,\s*fontScale,\s*\w+\.key\s*\)/,
+      );
+      expect(appSquashed).toMatch(
+        /<OfflineMapProvider\s+db=\{db\}>\s*<Home\s+key=\{\w+\.key\}\s*\/>\s*<\/OfflineMapProvider>/,
+      );
+    });
+  });
 });

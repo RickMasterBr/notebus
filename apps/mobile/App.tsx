@@ -1,7 +1,9 @@
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useWindowDimensions } from "react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { nextFontScaleKey } from "./src/data/fontScaleRemount";
 import { createTestClock } from "./src/data/clock";
 import { TestClockProvider } from "./src/data/TestClockProvider";
 import { RecentStopsProvider } from "./src/data/RecentStopsProvider";
@@ -40,6 +42,12 @@ export default function App() {
   const [db, setDb] = useState<Db | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
   const [migrationFailed, setMigrationFailed] = useState(false);
+  const { fontScale } = useWindowDimensions();
+  const [fontScaleState, setFontScaleState] = useState({ scale: fontScale, key: 0 });
+  if (fontScaleState.scale !== fontScale) {
+    const nextKey = nextFontScaleKey(fontScaleState.scale, fontScale, fontScaleState.key);
+    setFontScaleState({ scale: fontScale, key: nextKey });
+  }
 
   useEffect(() => {
     openNotebusDb().then(async ({ db: opened, migration }) => {
@@ -105,7 +113,7 @@ export default function App() {
                                   <PlacesProvider db={db}>
                                     <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
                                       <OfflineMapProvider db={db}>
-                                        <Home />
+                                        <Home key={fontScaleState.key} />
                                       </OfflineMapProvider>
                                     </BackupProvider>
                                   </PlacesProvider>
