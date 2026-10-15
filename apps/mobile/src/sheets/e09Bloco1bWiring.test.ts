@@ -139,3 +139,72 @@ describe("E-09 bloco 1b: SearchSheet (SE5)", () => {
     );
   });
 });
+
+describe("E-09 bloco 1b: Por que (AheadSheet, SheetHost, StopSheet, WhySheet)", () => {
+  const ahead = squash(read("sheets/AheadSheet.tsx"));
+  const host = squash(read("sheets/SheetHost.tsx"));
+  const stop = squash(read("sheets/StopSheet.tsx"));
+  const why = squash(read("sheets/WhySheet.tsx"));
+
+  it("A0: o Ponto empilha o Adiante com a viagem, a posição, a data da linha e o tipo de dia do chip", () => {
+    expect(stop).toMatch(/const serviceDate = row\.key\.split\("\/"\)\[0\]!;/);
+    expect(stop).toMatch(/const currentDayType = day\?\.dayType \?\? dayType \?\? "weekday";/);
+    expect(stop).toMatch(
+      /kind: "ahead", tripId: row\.tripId, position: row\.position, serviceDate, dayType: currentDayType, \}, \}\);/,
+    );
+  });
+
+  it("A1: o Adiante aprende no dia recebido (serviceDay: { date: serviceDate, dayType })", () => {
+    expect(ahead).toMatch(
+      /serviceDate && dayType \? buildAhead\(tripId, position, schedule\.data, \{ learning: \{ records: registro\.records, now: instant, serviceDay: \{ date: serviceDate, dayType \}, \}, \}\)/,
+    );
+  });
+
+  it("A2: o dia usado é o recebido; sem ele, o do horário", () => {
+    expect(ahead).toMatch(
+      /if \(serviceDate && dayType\) return \{ date: serviceDate, dayType \}; if \(schedule\.status === "ready"\) return aheadServiceDay\(schedule\.data, tripId, instant\);/,
+    );
+  });
+
+  it("A4: a entrada do Por que empilha viagem, posição, data e tipo de dia do dia usado", () => {
+    expect(ahead).toMatch(
+      /sheet: \{ kind: "why", tripId, position, serviceDate: usedDay\.date, dayType: usedDay\.dayType, \}, \}\);/,
+    );
+  });
+
+  it("SH1: o SheetHost repassa viagem, posição, data e tipo de dia, campo a campo, ao Adiante e ao Por que", () => {
+    for (const [kind, component] of [
+      ["ahead", "AheadSheet"],
+      ["why", "WhySheet"],
+    ] as const) {
+      expect(host).toMatch(
+        new RegExp(
+          `case "${kind}": return \\( <${component} id=\\{entry\\.id\\} tripId=\\{entry\\.tripId\\} position=\\{entry\\.position\\} serviceDate=\\{entry\\.serviceDate\\} dayType=\\{entry\\.dayType\\} />`,
+        ),
+      );
+    }
+  });
+
+  it("W1: o Por que recalcula com os dados, os registros, a hora e o dia recebidos", () => {
+    expect(why).toMatch(
+      /return buildWhy\(\{ tripId, position, data: schedule\.data, records: registro\.records, now: instant, serviceDay: \{ date: serviceDate, dayType \}, \}\);/,
+    );
+    expect(why).toMatch(/\}, \[schedule, registro, instant, tripId, position, serviceDate, dayType\]\);/);
+    expect(why).toMatch(/const instant = useNowTick\(\);/);
+  });
+
+  it("W2: a linha Última só aparece com why.last, é a última da lista e as Anotações deixam de ser a última", () => {
+    expect(why).toMatch(/<WhyCountRow count=\{why\.count\} isLast=\{why\.last === null\} \/>/);
+    expect(why).toMatch(/\{why\.last \? <WhySimpleRow row=\{why\.last\} isLast=\{true\} \/> : null\}/);
+  });
+
+  it("W3/W4: o contexto e o rodapé mostram why.context e why.footnote", () => {
+    expect(why).toMatch(/<Text style=\{\[type\.caption, styles\.context, \{ color: colors\.textSecondary \}\]\}> \{why\.context\} <\/Text>/);
+    expect(why).toMatch(/<Text style=\{\[type\.caption, styles\.footnote, \{ color: colors\.textSecondary \}\]\}> \{why\.footnote\} <\/Text>/);
+  });
+
+  it("W2: a folha com Última é mais alta (64%) que sem (54%)", () => {
+    expect(why).toMatch(/snapPoints: \[why\?\.last \? "64%" : "54%"\],/);
+    expect(why).toMatch(/\[why\?\.last\],/);
+  });
+});
