@@ -24,7 +24,7 @@ import BottomSheet, {
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBackup } from "../data/BackupProvider";
 import { useNow } from "../data/NowProvider";
@@ -38,6 +38,7 @@ import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { homeCardsPlan } from "../data/homeCards";
 import { homeGuide } from "../data/homeGuide";
 import { homePendingInfo } from "../data/homePending";
+import { homeFadeOpacity } from "../data/homeFade";
 import { phraseVisible } from "../data/homePhraseVisible";
 import { initialDetent } from "../data/homeStart";
 import { useHomePhrase } from "../data/useHomePhrase";
@@ -57,8 +58,9 @@ import { HomeGuideCard } from "./HomeGuideCard";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
-import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { containerHeightOf, detentMetrics, snapHeight } from "./scrollInset";
 import { detentFromIndex } from "./stack";
+import { useReduceMotion } from "./useReduceMotion";
 
 const LAST_INDEX = 2;
 /** Altura do detent pequeno até a primeira medida (handle + pílula + margem de baixo). */
@@ -136,6 +138,7 @@ export function HomeSheet() {
   // Altura medida do cartão ("Em viagem", lembrete de backup ou mapa sem internet); 0 sem nenhum.
   const [cardHeight, setCardHeight] = useState(0);
   const [phraseHeight, setPhraseHeight] = useState(0);
+  const reduceMotion = useReduceMotion();
   const { phrase, lineColor } = useHomePhrase();
   const showPhrase = phraseVisible({
     phrase,
@@ -163,6 +166,10 @@ export function HomeSheet() {
   const sheetTop = useSharedValue(window.height + 200);
   const fabStyle = useAnimatedStyle(() => ({ transform: [{ translateY: sheetTop.value - REGISTER_BUTTON_HEIGHT - space.md }] }));
   const snapPoints = useMemo(() => [small, "50%", "90%"], [small]);
+  // FN-8: a frase e "Registros a conferir" aparecem e somem junto com o arrasto, do pequeno ao médio.
+  const topAtSmall = window.height - small;
+  const topAtMedium = window.height - snapHeight("50%", containerHeightOf(window.height, insets.top));
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: homeFadeOpacity(sheetTop.value, topAtSmall, topAtMedium) }));
   // Com folha empilhada por cima, a de baixo sai da leitura do VoiceOver.
   const covered = state.stack.length > 1;
   const pill = useRef<View>(null);
@@ -284,7 +291,9 @@ export function HomeSheet() {
           ) : null}
           {showPhrase && phrase ? (
             <View collapsable={false} onLayout={(e) => setPhraseHeight(e.nativeEvent.layout.height)}>
-              <HomePhrase phrase={phrase} lineColor={lineColor} />
+              <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(200)} style={fadeStyle}>
+                <HomePhrase phrase={phrase} lineColor={lineColor} />
+              </Animated.View>
             </View>
           ) : null}
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
@@ -393,7 +402,12 @@ export function HomeSheet() {
                   />
                 </View>
               ) : null}
-              {state.detent >= 1 && pendingInfo ? (
+              {pendingInfo ? (
+                <Animated.View
+                  style={fadeStyle}
+                  pointerEvents={state.detent === 0 ? "none" : "auto"}
+                  accessibilityElementsHidden={state.detent === 0}
+                >
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={pendingInfo.text}
@@ -411,6 +425,7 @@ export function HomeSheet() {
                   <Text style={[type.body, { color: colors.textSecondary }]}>{pendingInfo.text}</Text>
                   <Text style={{ color: colors.textSecondary, fontSize: 16 }}>→</Text>
                 </Pressable>
+                </Animated.View>
               ) : null}
               <NearbyStops />
               {state.detent === 2 ? (
