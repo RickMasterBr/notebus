@@ -17,6 +17,7 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { activeSheet } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
+import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 
 const OPEN_MS = motion.normal; // 250
 const CLOSE_MS = 180;
@@ -104,6 +105,7 @@ export function StackedSheet({
     // Fechar por gesto, handle ou toque no fundo chega aqui; a pilha ignora avisos repetidos (fecha pelo id).
     if (!isTopRef.current) {
       closedWhileCovered.current = true;
+      if (DIAG_SCROLL) recordDiagEvent(`coberta fechou #${id}`);
       return;
     }
     dispatch({ type: "close", id });
@@ -112,6 +114,7 @@ export function StackedSheet({
   useEffect(() => {
     if (isTop && closedWhileCovered.current) {
       closedWhileCovered.current = false;
+      if (DIAG_SCROLL) recordDiagEvent(`reabrir #${id}`);
       ref.current?.snapToIndex(detents?.initialIndex ?? 0, openConfig);
     }
   }, [isTop, detents?.initialIndex]);
