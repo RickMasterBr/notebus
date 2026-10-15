@@ -15,6 +15,22 @@ export type OfflineMapStatus =
   | { kind: "ready"; bytes: number }
   | { kind: "error" };
 
+export type NetworkCheckOutcome = "ok" | "failed" | "timeout";
+
+/**
+ * Função pura que recebe o resultado da checagem curta de conexão e devolve a decisão/status.
+ * - Falha ('failed') ou tempo estourado ('timeout'): status vai direto a { kind: 'error' }.
+ * - Sucesso ('ok'): devolve 'proceed' autorizando o prosseguimento para o download.
+ */
+export function statusFromNetworkCheck(
+  outcome: NetworkCheckOutcome,
+): OfflineMapStatus | "proceed" {
+  if (outcome === "ok") {
+    return "proceed";
+  }
+  return { kind: "error" };
+}
+
 /**
  * Decide se a oferta de download do mapa offline deve ser exibida.
  * Regras: só true com mapVisible, status 'none' ou 'error', e sem soneca vigente.

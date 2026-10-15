@@ -518,6 +518,7 @@ export const ptBR = {
   "settings.offline_map.alert.download": "Baixar", // provisório
   "settings.offline_map.alert.download_again": "Baixar de novo", // provisório
   "settings.offline_map.alert.delete": "Apagar", // provisório
+  "settings.offline_map.alert.cancel_download": "Cancelar download", // provisório
   "settings.offline_map.a11y": "Mapa sem internet. {{estado}}", // provisório
   // E-07 Bloco 7b: Marcar no mapa
   "map_pick.open": "Marcar no mapa", // provisório

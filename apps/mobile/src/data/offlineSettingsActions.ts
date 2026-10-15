@@ -1,7 +1,12 @@
 import type { MessageKey } from "../i18n";
 import type { OfflineMapStatus } from "./mapOfflineState";
 
-export type OfflineSettingsAction = "download" | "download_again" | "delete" | "cancel";
+export type OfflineSettingsAction =
+  | "download"
+  | "download_again"
+  | "delete"
+  | "cancel"
+  | "cancel_download";
 
 export interface OfflineSettingsButton {
   action: OfflineSettingsAction;
@@ -12,7 +17,13 @@ export interface OfflineSettingsButton {
 export function offlineSettingsButtons(status: OfflineMapStatus): OfflineSettingsButton[] {
   switch (status.kind) {
     case "downloading":
-      return [];
+      return [
+        {
+          action: "cancel_download",
+          labelKey: "settings.offline_map.alert.cancel_download",
+          style: "destructive",
+        },
+      ];
     case "ready":
       return [
         {
@@ -60,7 +71,7 @@ export function runOfflineSettingsAction(
 ): void {
   if (action === "download" || action === "download_again") {
     handlers.startDownload();
-  } else if (action === "delete") {
+  } else if (action === "delete" || action === "cancel_download") {
     handlers.deleteMap();
   } else if (action === "cancel") {
     handlers.goBack();

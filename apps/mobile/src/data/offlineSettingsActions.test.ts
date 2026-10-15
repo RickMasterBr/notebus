@@ -7,9 +7,17 @@ import {
 
 describe("offlineSettingsActions (Item 0.4 puro)", () => {
   describe("offlineSettingsButtons", () => {
-    it("downloading → lista vazia", () => {
-      expect(offlineSettingsButtons({ kind: "downloading", percent: 50 })).toEqual([]);
-      expect(offlineSettingsButtons({ kind: "downloading", percent: 0 })).toEqual([]);
+    it("downloading → cancel_download (botão para sair do estado preso, FN-12)", () => {
+      expect(offlineSettingsButtons({ kind: "downloading", percent: 50 })).toEqual([
+        {
+          action: "cancel_download",
+          labelKey: "settings.offline_map.alert.cancel_download",
+          style: "destructive",
+        },
+      ]);
+      expect(offlineSettingsButtons({ kind: "downloading", percent: 10 })).toContainEqual(
+        expect.objectContaining({ action: "cancel_download" }),
+      );
     });
 
     it("ready → download_again, delete, cancel (ação, chave, estilo, ordem)", () => {
@@ -120,6 +128,16 @@ describe("offlineSettingsActions (Item 0.4 puro)", () => {
       expect(goBack).toHaveBeenCalledTimes(1);
       expect(startDownload).not.toHaveBeenCalled();
       expect(deleteMap).not.toHaveBeenCalled();
+    });
+
+    it("cancel_download chama deleteMap uma vez e nada mais (FN-12)", () => {
+      const startDownload = vi.fn();
+      const deleteMap = vi.fn();
+      const goBack = vi.fn();
+      runOfflineSettingsAction("cancel_download", { startDownload, deleteMap, goBack });
+      expect(deleteMap).toHaveBeenCalledTimes(1);
+      expect(startDownload).not.toHaveBeenCalled();
+      expect(goBack).not.toHaveBeenCalled();
     });
   });
 });
