@@ -69,4 +69,28 @@ describe("E-09 Bloco 5 guardas de ligação (e09Bloco5Wiring)", () => {
       );
     });
   });
+
+  describe("Item 2: Animação ao voltar de página nos Ajustes (FN-16)", () => {
+    it("SettingsSheet.tsx usa animação ao voltar com FadeOut / SlideOutRight pelo mesmo caminho que o cabeçalho usa", () => {
+      const settingsSource = squash(read("sheets/SettingsSheet.tsx"));
+      expect(settingsSource).toMatch(
+        /import\s+Animated,\s*\{[^}]*FadeOut[^}]*SlideOutRight[^}]*\}\s+from\s+["']react-native-reanimated["']/,
+      );
+      expect(settingsSource).toMatch(
+        /exiting=\{reduceMotion\s*\?\s*FadeOut\.duration\(200\)\s*:\s*SlideOutRight\.duration\(280\)\}/,
+      );
+    });
+
+    it("SettingsSheet.tsx passa handleBack tanto para o cabeçalho quanto para o Cancelar", () => {
+      const settingsSource = squash(read("sheets/SettingsSheet.tsx"));
+      // Cabeçalho de voltar
+      expect(settingsSource).toMatch(
+        /accessibilityLabel=\{t\("settings\.back\.a11y"\)\}\s*onPress=\{handleBack\}/,
+      );
+      // Cancelar em Mapa sem internet
+      expect(settingsSource).toMatch(
+        /runOfflineSettingsAction\(\s*b\.action,\s*\{\s*startDownload:\s*offlineMap\.startDownload,\s*deleteMap:\s*offlineMap\.deleteMap,\s*goBack:\s*handleBack,?\s*\}\s*\)/,
+      );
+    });
+  });
 });
