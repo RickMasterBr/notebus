@@ -24,12 +24,63 @@ export function isSearching(term: string): boolean {
   return normalizeSearch(term) !== "";
 }
 
+interface CachedStop<T> {
+  stop: T;
+  normName: string;
+  fields: readonly string[];
+}
+
+const stopsCache = new WeakMap<readonly SearchableStop[], readonly CachedStop<any>[]>();
+
+function getCachedStops<T extends SearchableStop>(stops: readonly T[]): readonly CachedStop<T>[] {
+  const existing = stopsCache.get(stops);
+  if (existing) return existing as readonly CachedStop<T>[];
+
+  const built: CachedStop<T>[] = stops.map((stop) => ({
+    stop,
+    normName: normalizeSearch(stop.name),
+    fields: [stop.name, ...stop.aliases, ...(stop.externalId ? [stop.externalId] : [])].map(normalizeSearch),
+  }));
+  stopsCache.set(stops, built);
+  return built;
+}
+
 export function matchStops<T extends SearchableStop>(stops: readonly T[], term: string): readonly T[] {
   const needle = normalizeSearch(term);
   if (needle === "") {
     return stops.slice();
   }
-  return searchStops(stops, term);
+
+  const cached = getCachedStops(stops);
+  const hits: { stop: T; normName: string; startsWith: boolean }[] = [];
+
+  for (let i = 0; i < cached.length; i++) {
+    const item = cached[i]!;
+    const fields = item.fields;
+    let includes = false;
+    let startsWith = false;
+    for (let j = 0; j < fields.length; j++) {
+      const f = fields[j]!;
+      if (f.includes(needle)) {
+        includes = true;
+        if (f.startsWith(needle)) {
+          startsWith = true;
+          break;
+        }
+      }
+    }
+    if (includes) {
+      hits.push({ stop: item.stop, normName: item.normName, startsWith });
+    }
+  }
+
+  return hits
+    .sort(
+      (a, b) =>
+        Number(b.startsWith) - Number(a.startsWith) ||
+        a.normName.localeCompare(b.normName, "pt"),
+    )
+    .map((h) => h.stop);
 }
 
 export function sliceStopsPage<T>(input: {
