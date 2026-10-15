@@ -119,7 +119,7 @@ export function homePhrase(input: HomePhraseInput): HomePhrase | null {
     }
   }
 
-  const chosenInvite = selectInvite(pool, null, input.pick);
+  const chosenInvite = selectInvite(pool, input.pick);
 
   return {
     id: `invite_${chosenInvite}`,
@@ -129,19 +129,11 @@ export function homePhrase(input: HomePhraseInput): HomePhrase | null {
   };
 }
 
-export function selectInvite(
+function selectInvite(
   pool: readonly InvitePhraseId[],
-  lastPhraseId: HomePhraseId | null,
   pick: number,
 ): InvitePhraseId {
-  let effectivePool = pool;
-  if (lastPhraseId) {
-    const filtered = pool.filter((id) => `invite_${id}` !== lastPhraseId);
-    if (filtered.length >= 1) {
-      effectivePool = filtered;
-    }
-  }
-  const index = Math.min(Math.floor(pick * effectivePool.length), effectivePool.length - 1);
-  return effectivePool[index]!;
+  const index = Math.min(Math.floor(pick * pool.length), pool.length - 1);
+  return pool[index]!;
 }
 

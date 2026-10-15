@@ -532,4 +532,119 @@ describe("recordsTrips", () => {
     expect(model.windowDays).toBe(7);
     expect(model.hasMore).toBe(true);
   });
+
+  it("2a, dia vazio descartado com outro dia presente", () => {
+    const YESTERDAY = "2026-10-13";
+
+    // Dia mais novo (TODAY): única linha é descida cujo ride existe mas cujo embarque está apagado
+    const deletedBoardToday = makeRow({
+      id: "board-today-del",
+      observedAt: lisbonMs(TODAY, "08:00"),
+      serviceDate: TODAY,
+      deletedAt: NOW,
+      rideId: "ride-today",
+    });
+    const alightToday = makeRow({
+      id: "alight-today",
+      kind: "alighted",
+      observedAt: lisbonMs(TODAY, "08:30"),
+      serviceDate: TODAY,
+      rideId: "ride-today",
+    });
+    const rideToday = makeRide({
+      id: "ride-today",
+      boardingObservationId: "board-today-del",
+      alightingObservationId: "alight-today",
+      status: "closed",
+    });
+
+    // Dia mais antigo (YESTERDAY): viagem normal
+    const boardYesterday = makeRow({
+      id: "board-yest",
+      observedAt: lisbonMs(YESTERDAY, "10:00"),
+      serviceDate: YESTERDAY,
+      rideId: "ride-yest",
+    });
+    const alightYesterday = makeRow({
+      id: "alight-yest",
+      kind: "alighted",
+      observedAt: lisbonMs(YESTERDAY, "10:30"),
+      serviceDate: YESTERDAY,
+      rideId: "ride-yest",
+    });
+    const rideYesterday = makeRide({
+      id: "ride-yest",
+      boardingObservationId: "board-yest",
+      alightingObservationId: "alight-yest",
+      status: "closed",
+    });
+
+    const model = buildTripsList({
+      observations: [deletedBoardToday, alightToday, boardYesterday, alightYesterday],
+      rides: [rideToday, rideYesterday],
+      snapshot,
+      now: NOW,
+    });
+
+    expect(model.days).toHaveLength(1);
+    expect(model.days[0]!.serviceDate).toBe(YESTERDAY);
+    expect(model.days[0]!.items).toHaveLength(1);
+    expect((model.days[0]!.items[0] as TripCardModel).boardingId).toBe("board-yest");
+  });
+
+  it("2b, ride sem embarque vivo não gera cartão", () => {
+    // No mesmo dia: um ride closed cujo embarque sumiu de observations + viagem normal
+    const missingBoardId = "board-missing-from-obs";
+    const alightOrphan = makeRow({
+      id: "alight-orphan-ride",
+      kind: "alighted",
+      observedAt: lisbonMs(TODAY, "08:30"),
+      serviceDate: TODAY,
+      rideId: "ride-missing-board",
+    });
+    const rideWithMissingBoard = makeRide({
+      id: "ride-missing-board",
+      boardingObservationId: missingBoardId,
+      alightingObservationId: "alight-orphan-ride",
+      status: "closed",
+    });
+
+    // Viagem normal no mesmo dia
+    const normalBoard = makeRow({
+      id: "board-normal-day",
+      observedAt: lisbonMs(TODAY, "14:00"),
+      serviceDate: TODAY,
+      rideId: "ride-normal-day",
+    });
+    const normalAlight = makeRow({
+      id: "alight-normal-day",
+      kind: "alighted",
+      observedAt: lisbonMs(TODAY, "14:30"),
+      serviceDate: TODAY,
+      rideId: "ride-normal-day",
+    });
+    const normalRide = makeRide({
+      id: "ride-normal-day",
+      boardingObservationId: "board-normal-day",
+      alightingObservationId: "alight-normal-day",
+      status: "closed",
+    });
+
+    const model = buildTripsList({
+      observations: [alightOrphan, normalBoard, normalAlight],
+      rides: [rideWithMissingBoard, normalRide],
+      snapshot,
+      now: NOW,
+    });
+
+    expect(model.days).toHaveLength(1);
+    const cards = model.days[0]!.items.filter((i): i is TripCardModel => i.kind === "trip");
+    expect(cards.find((c) => c.boardingId === missingBoardId)).toBeUndefined();
+    const alightedAlone = model.days[0]!.items.filter(
+      (i): i is LineItemModel => i.kind === "alighted_alone",
+    );
+    expect(alightedAlone.find((l) => l.id === "alight-orphan-ride")).toBeUndefined();
+    expect(model.days[0]!.items).toHaveLength(1);
+    expect((model.days[0]!.items[0] as TripCardModel).boardingId).toBe("board-normal-day");
+  });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { type SheetAction, type SheetStackState, activeSheet, initialSheetState, sheetReducer } from "../sheets/stack";
-import { afterCreateActions } from "./stopCreateFlow";
+import { afterCreateActions, showUndoAfterSave } from "./stopCreateFlow";
 
 const step = (s: SheetStackState, a: SheetAction): SheetStackState => sheetReducer(s, a);
 const runActions = (init: SheetStackState, actions: SheetAction[]): SheetStackState =>
@@ -113,5 +113,19 @@ describe("stopCreateFlow: afterCreateActions (Item 1, T-137)", () => {
     const searchId = s.stack[1]!.id;
     expect(actions[0]).toEqual({ type: "close", id: stopEditId });
     expect(actions[1]).toEqual({ type: "close", id: searchId });
+  });
+});
+
+describe("showUndoAfterSave (Item 4, decisão 2)", () => {
+  it("pick -> false (Novo ponto pela Nova linha, aviso sem Desfazer)", () => {
+    expect(showUndoAfterSave("pick")).toBe(false);
+  });
+
+  it("open -> true (Novo ponto pela Busca geral)", () => {
+    expect(showUndoAfterSave("open")).toBe(true);
+  });
+
+  it("undefined -> true (Novo ponto aberto por Ajustes, Linhas e pontos)", () => {
+    expect(showUndoAfterSave(undefined)).toBe(true);
   });
 });

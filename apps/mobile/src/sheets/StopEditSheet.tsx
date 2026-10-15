@@ -52,7 +52,7 @@ import { Skeleton } from "../ui/Skeleton";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets, useStopPick } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
-import { afterCreateActions } from "../data/stopCreateFlow";
+import { afterCreateActions, showUndoAfterSave } from "../data/stopCreateFlow";
 import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { useKeyboardHeight } from "./useKeyboardHeight";
@@ -310,22 +310,24 @@ export function StopEditSheet({
         toast.show({
           title: isNew ? t("stop_new.saved") : t("stop_edit.toast.saved"),
           haptic: "success",
-          action: {
-            label: t("toast.action.undo"),
-            run: async () => {
-              const undone = await result.undo(now());
-              await reloadStopIndex();
-              await reloadSchedule();
-              await locations.reload();
-              if (!undone.ok) {
-                toast.show({
-                  title: t("stop_edit.error.stale"),
-                  kind: "error",
-                  haptic: "error",
-                });
+          action: showUndoAfterSave(afterSave)
+            ? {
+                label: t("toast.action.undo"),
+                run: async () => {
+                  const undone = await result.undo(now());
+                  await reloadStopIndex();
+                  await reloadSchedule();
+                  await locations.reload();
+                  if (!undone.ok) {
+                    toast.show({
+                      title: t("stop_edit.error.stale"),
+                      kind: "error",
+                      haptic: "error",
+                    });
+                  }
+                },
               }
-            },
-          },
+            : undefined,
         });
         // Ponto novo vira recente: aparece em "Perto de você" no Início sem precisar de localização.
         if (isNew && "id" in result && typeof result.id === "string") remember(result.id);

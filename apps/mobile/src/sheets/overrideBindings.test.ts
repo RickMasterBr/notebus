@@ -40,12 +40,24 @@ describe("PastOverridesSheet: lista de passadas e apagar (Item 4.4)", () => {
   });
 });
 
+const stripComments = (text: string) =>
+  text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[\s;{(,])\/\/.*$/gm, "$1");
+
 describe("SettingsSheet: ligações de exceções (Item 4)", () => {
   it("deslizar para apagar chama deleteOverride com undo e abre pastOverrides", () => {
-    const src = readFileSync(join(__dirname, "SettingsSheet.tsx"), "utf8");
-    expect(src).toMatch(/deleteOverride\(/);
-    expect(src).toMatch(/override\.deleted/);
-    expect(src).toMatch(/toast\.action\.undo/);
+    const src = stripComments(
+      readFileSync(join(__dirname, "SettingsSheet.tsx"), "utf8").replace(/\r\n/g, "\n"),
+    );
+    const actionsSrc = stripComments(
+      readFileSync(join(__dirname, "../data/settingsActions.ts"), "utf8").replace(/\r\n/g, "\n"),
+    );
+    expect(src).toMatch(
+      /deleteOverrideWithUndo\(\{[\s\S]*?deleteOverride:\s*\(id,\s*at\)\s*=>\s*calendarEdits\.deleteOverride\(id,\s*at\)/,
+    );
+    expect(actionsSrc).toMatch(/override\.deleted/);
+    expect(actionsSrc).toMatch(/toast\.action\.undo/);
     expect(src).toMatch(/settings\.override\.past/);
     expect(src).toMatch(/kind:\s*"pastOverrides"/);
   });

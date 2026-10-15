@@ -15,6 +15,7 @@ import { useRegistro } from "./RegistroProvider";
 import { useSchedule } from "./ScheduleProvider";
 import { useUserName } from "./UserNameProvider";
 import { departuresFromNotifications } from "./homeDepartures";
+import { homePhraseReady } from "./homePhraseReady";
 import { homePhrase, type HomePhrase } from "./homePhrase";
 
 export function useHomePhrase(): { phrase: HomePhrase | null; lineColor: string } {
@@ -58,12 +59,13 @@ export function useHomePhrase(): { phrase: HomePhrase | null; lineColor: string 
     });
   }, []);
 
-  const ready =
-    userName.loaded &&
-    places.status === "ready" &&
-    registro.status === "ready" &&
-    schedule.status === "ready" &&
-    asyncRead.done;
+  const ready = homePhraseReady({
+    nameLoaded: userName.loaded,
+    placesReady: places.status === "ready",
+    registroReady: registro.status === "ready",
+    scheduleReady: schedule.status === "ready",
+    asyncDone: asyncRead.done,
+  });
 
   const frozenRef = useRef(false);
   const [phrase, setPhrase] = useState<HomePhrase | null>(null);

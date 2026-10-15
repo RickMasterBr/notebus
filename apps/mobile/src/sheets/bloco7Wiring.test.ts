@@ -86,7 +86,7 @@ describe("item 3: Novo ponto", () => {
 
   it("depois de criar, a busca e os horários recarregam e o toast traz o Desfazer", () => {
     expect(stopEditSheet).toContain(
-      'if (result.ok) { await reloadStopIndex(); await reloadSchedule(); await locations.reload(); close(); toast.show({ title: isNew ? t("stop_new.saved") : t("stop_edit.toast.saved"), haptic: "success", action: { label: t("toast.action.undo"),',
+      'if (result.ok) { await reloadStopIndex(); await reloadSchedule(); await locations.reload(); close(); toast.show({ title: isNew ? t("stop_new.saved") : t("stop_edit.toast.saved"), haptic: "success", action: showUndoAfterSave(afterSave) ? { label: t("toast.action.undo"),',
     );
   });
 
