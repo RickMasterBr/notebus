@@ -90,10 +90,7 @@ export async function checkNetworkConnectivity(
   }, timeoutMs);
 
   try {
-    const res = await fetch(url, { method: "HEAD", signal: controller.signal });
-    if (!res.ok) {
-      return "failed";
-    }
+    await fetch(url, { method: "HEAD", signal: controller.signal });
     return "ok";
   } catch (err: unknown) {
     if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {

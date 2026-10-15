@@ -143,7 +143,7 @@ describe("SheetHost, App", () => {
     expect(at("<ScheduleProvider")).toBeLessThan(open);
     expect(at("<RegistroProvider db={db}>")).toBeLessThan(open);
     expect(at("<CalendarEditsProvider db={db}>")).toBeLessThan(open);
-    const homeMatch = app.match(/<OfflineMapProvider[^>]*>\s*<Home key=\{[^}]+\} \/>\s*<\/OfflineMapProvider>/);
+    const homeMatch = app.match(/<OfflineMapProvider[^>]*>\s*<Home key=\{fontScaleState\.key\} \/>\s*<\/OfflineMapProvider>/);
     expect(homeMatch).not.toBeNull();
     const homeIndex = homeMatch!.index!;
     expect(homeIndex).toBeGreaterThan(open);
