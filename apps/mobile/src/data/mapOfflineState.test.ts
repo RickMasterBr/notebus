@@ -10,6 +10,7 @@ import {
   percentOf,
   shouldOfferOfflineMap,
   snoozedUntil,
+  statusFromNetworkCheck,
   statusFromPacks,
   type OfflineMapStatus,
 } from "./mapOfflineState";
@@ -263,6 +264,20 @@ describe("mapOfflineState (Item 2 & 3)", () => {
       expect(combineProgress([100, 0])).toBe(50);
       expect(combineProgress([80, 20])).toBe(50);
       expect(combineProgress([{ done: 10, total: 20 }, { done: 20, total: 20 }])).toBe(75);
+    });
+  });
+
+  describe("statusFromNetworkCheck (Item 1 puro)", () => {
+    it("falha devolve { kind: 'error' }", () => {
+      expect(statusFromNetworkCheck("failed")).toEqual({ kind: "error" });
+    });
+
+    it("tempo estourado (timeout) devolve { kind: 'error' }", () => {
+      expect(statusFromNetworkCheck("timeout")).toEqual({ kind: "error" });
+    });
+
+    it("sucesso (ok) devolve 'proceed' para autorizar o download", () => {
+      expect(statusFromNetworkCheck("ok")).toBe("proceed");
     });
   });
 });

@@ -9,7 +9,9 @@ import {
   combineProgress,
   OFFLINE_PACK_DARK,
   OFFLINE_PACK_LIGHT,
+  statusFromNetworkCheck,
   statusFromPacks,
+  type NetworkCheckOutcome,
   type OfflineMapStatus,
   type OfflinePackSnapshot,
 } from "./mapOfflineState";
@@ -76,9 +78,37 @@ export async function deleteOfflineMap(): Promise<void> {
   }
 }
 
+export const OFFLINE_CHECK_TIMEOUT_MS = 5000;
+
+export async function checkNetworkConnectivity(
+  url: string = MAP_STYLE_LIGHT,
+  timeoutMs: number = OFFLINE_CHECK_TIMEOUT_MS,
+): Promise<NetworkCheckOutcome> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    const res = await fetch(url, { method: "HEAD", signal: controller.signal });
+    if (!res.ok) {
+      return "failed";
+    }
+    return "ok";
+  } catch (err: unknown) {
+    if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+      return "timeout";
+    }
+    return "failed";
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Inicia o download dos pacotes offline de Leiria para os estilos claro e escuro.
  * Regras:
+ * - Checa conectividade curta antes de criar pacotes;
  * - Define limite de tiles com folga sobre a região antes de baixar;
  * - Apaga pacote anterior com o mesmo id antes de baixar de novo;
  * - Cria um pacote para leiria-light e um para leiria-dark;
@@ -88,7 +118,15 @@ export async function deleteOfflineMap(): Promise<void> {
 export async function startOfflineMapDownload(
   region: OfflineRegion,
   onProgress?: OfflineProgressCallback,
+  checkConnectivity: () => Promise<NetworkCheckOutcome> = checkNetworkConnectivity,
 ): Promise<void> {
+  const checkOutcome = await checkConnectivity();
+  const checkDecision = statusFromNetworkCheck(checkOutcome);
+  if (checkDecision !== "proceed") {
+    onProgress?.(checkDecision);
+    throw new Error("offline_map_network_check_failed");
+  }
+
   // Define o limite de tiles com folga sobre o tileCount estimado da região
   const tileLimit = Math.max(1000, region.tileCount * 3);
   OfflineManager.setTileCountLimit(tileLimit);

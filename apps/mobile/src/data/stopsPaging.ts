@@ -24,19 +24,19 @@ export function isSearching(term: string): boolean {
   return normalizeSearch(term) !== "";
 }
 
-interface CachedStop<T> {
-  stop: T;
-  normName: string;
-  fields: readonly string[];
+interface CachedStop<T = SearchableStop> {
+  readonly stop: T;
+  readonly normName: string;
+  readonly fields: readonly string[];
 }
 
-const stopsCache = new WeakMap<readonly SearchableStop[], readonly CachedStop<any>[]>();
+const stopsCache = new WeakMap<readonly SearchableStop[], readonly CachedStop<SearchableStop>[]>();
 
-function getCachedStops<T extends SearchableStop>(stops: readonly T[]): readonly CachedStop<T>[] {
+function getCachedStops(stops: readonly SearchableStop[]): readonly CachedStop<SearchableStop>[] {
   const existing = stopsCache.get(stops);
-  if (existing) return existing as readonly CachedStop<T>[];
+  if (existing) return existing;
 
-  const built: CachedStop<T>[] = stops.map((stop) => ({
+  const built: CachedStop<SearchableStop>[] = stops.map((stop) => ({
     stop,
     normName: normalizeSearch(stop.name),
     fields: [stop.name, ...stop.aliases, ...(stop.externalId ? [stop.externalId] : [])].map(normalizeSearch),
@@ -70,7 +70,7 @@ export function matchStops<T extends SearchableStop>(stops: readonly T[], term: 
       }
     }
     if (includes) {
-      hits.push({ stop: item.stop, normName: item.normName, startsWith });
+      hits.push({ stop: stops[i]!, normName: item.normName, startsWith });
     }
   }
 

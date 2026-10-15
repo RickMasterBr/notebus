@@ -307,6 +307,39 @@ describe("stopsPaging", () => {
       expect(res1.map((s) => s.id)).toEqual(["s1"]);
       expect(res2.map((s) => s.id)).toEqual(["s2"]);
     });
+
+    it("ordena quem começa antes de quem contém e desempata por nome normalizado (acentos e maiúsculas misturadas)", () => {
+      const stops: SearchableStop[] = [
+        { id: "s-contains-a", name: "Antigo Centro", aliases: [], externalId: null },
+        { id: "s-starts-b", name: "Centro Histórico", aliases: [], externalId: null },
+        { id: "s-starts-a", name: "Centro Comercial", aliases: [], externalId: null },
+        { id: "s-contains-b", name: "Beta Centro", aliases: [], externalId: null },
+        { id: "s-norm-upper", name: "ESTAÇÃO CENTRAL", aliases: [], externalId: null },
+        { id: "s-norm-title", name: "Estação Central", aliases: [], externalId: null },
+        { id: "s-norm-lower", name: "estacao central", aliases: [], externalId: null },
+      ];
+
+      // (b) "centro": startsWith antes de contains (apesar de "Antigo" vir antes de "Centro" alfabeticamente)
+      const matchedCentro = matchStops(stops, "centro");
+      const expectedCentro = searchStops(stops, "centro");
+      expect(matchedCentro.map((s) => s.id)).toEqual(expectedCentro.map((s) => s.id));
+      expect(matchedCentro.map((s) => s.id)).toEqual([
+        "s-starts-a",
+        "s-starts-b",
+        "s-contains-a",
+        "s-contains-b",
+      ]);
+
+      // (a) "estacao": nomes com acento e caixa variada têm mesmo normName; desempate preserva equivalência com searchStops
+      const matchedEstacao = matchStops(stops, "estacao");
+      const expectedEstacao = searchStops(stops, "estacao");
+      expect(matchedEstacao.map((s) => s.id)).toEqual(expectedEstacao.map((s) => s.id));
+      expect(matchedEstacao.map((s) => s.id)).toEqual([
+        "s-norm-upper",
+        "s-norm-title",
+        "s-norm-lower",
+      ]);
+    });
   });
 });
 
