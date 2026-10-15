@@ -1,29 +1,326 @@
-import type { BackupTables } from "@notebus/domain/src/backup.ts";
-import type { ReplayResult } from "./types.ts";
+import {
+  baseTimeAt,
+  displayBeAtStop,
+  expectedTime,
+  type BaseTime,
+  type MatchStatus,
+  type PassageRecord,
+  type PassageTarget,
+  type TripData,
+} from "@notebus/domain/src/passages.ts";
+import { formatServiceMinute } from "@notebus/domain/src/serviceMinute.ts";
+import { clampMargin } from "@notebus/domain/src/margin.ts";
+import {
+  dayTypeOf,
+  lisbonWallClock,
+  type CalendarData,
+} from "@notebus/domain/src/calendar.ts";
+import type { DayTypeCode } from "@notebus/domain/src/seedFormat.ts";
+import type { BackupRow, BackupTables } from "@notebus/domain/src/backup.ts";
+import type {
+  ReplayBoarding,
+  ReplayExclusions,
+  ReplayResult,
+  ReplaySummary,
+} from "./types.ts";
 
 export interface ReplayOptions {
   from?: string;
   to?: string;
 }
 
+function mergeRows(tables: BackupTables, table: string): BackupRow[] {
+  const userRows = (tables as Record<string, BackupRow[]>)[table] ?? [];
+  const editRows = tables.official_edits?.[table as keyof typeof tables.official_edits] ?? [];
+  return [...userRows, ...editRows];
+}
+
+function getMarginMinutes(tables: BackupTables): number {
+  const row = tables.setting?.find((s) => s.key === "margin_minutes");
+  if (!row || row.value === null || row.value === undefined) return 2;
+  const num = typeof row.value === "string" ? Number(row.value) : row.value;
+  return clampMargin(num);
+}
+
+/**
+ * Executa o replay do critério 4:
+ * Para cada embarque ao vivo, recalcula a estimativa do domínio usando apenas
+ * os registros com observedAt estritamente anterior ao dele, e verifica se o
+ * embarque ocorreu em horário >= ao 'esteja no ponto às'.
+ */
 export function replay(tables: BackupTables, options: ReplayOptions = {}): ReplayResult {
+  const marginMinutes = getMarginMinutes(tables);
+
+  const linesById = new Map<string, { id: string; code: string; name: string }>();
+  for (const r of mergeRows(tables, "line")) {
+    if (r.id) linesById.set(String(r.id), { id: String(r.id), code: String(r.code ?? ""), name: String(r.name ?? "") });
+  }
+
+  const stopsById = new Map<string, { id: string; name: string }>();
+  for (const r of mergeRows(tables, "stop")) {
+    if (r.id) stopsById.set(String(r.id), { id: String(r.id), name: String(r.name ?? "") });
+  }
+
+  const patternStopsById = new Map<string, { id: string; patternId: string; stopId: string; position: number }>();
+  for (const r of mergeRows(tables, "pattern_stop")) {
+    if (r.id && r.pattern_id && r.stop_id && r.position !== null && r.position !== undefined) {
+      patternStopsById.set(String(r.id), {
+        id: String(r.id),
+        patternId: String(r.pattern_id),
+        stopId: String(r.stop_id),
+        position: Number(r.position),
+      });
+    }
+  }
+
+  const tripsById = new Map<string, { id: string; timetableId: string; firstPosition: number; lastPosition: number }>();
+  for (const r of mergeRows(tables, "trip")) {
+    if (r.id) {
+      tripsById.set(String(r.id), {
+        id: String(r.id),
+        timetableId: String(r.timetable_id ?? ""),
+        firstPosition: Number(r.first_position ?? 1),
+        lastPosition: Number(r.last_position ?? 999),
+      });
+    }
+  }
+
+  const stopTimesByTrip = new Map<string, Array<{ position: number; serviceMinute: number; origin: "official" | "declared" }>>();
+  for (const r of mergeRows(tables, "stop_time")) {
+    if (r.trip_id && r.pattern_stop_id && r.service_minute !== null && r.service_minute !== undefined) {
+      const ps = patternStopsById.get(String(r.pattern_stop_id));
+      if (ps) {
+        const list = stopTimesByTrip.get(String(r.trip_id)) ?? [];
+        list.push({
+          position: ps.position,
+          serviceMinute: Number(r.service_minute),
+          origin: r.origin === "declared" ? "declared" : "official",
+        });
+        stopTimesByTrip.set(String(r.trip_id), list);
+      }
+    }
+  }
+
+  const timetablesById = new Map<string, { id: string; validFrom: string | null }>();
+  for (const r of mergeRows(tables, "timetable")) {
+    if (r.id) {
+      timetablesById.set(String(r.id), {
+        id: String(r.id),
+        validFrom: r.valid_from ? String(r.valid_from) : null,
+      });
+    }
+  }
+
+  const calendar: CalendarData = {
+    overrides: mergeRows(tables, "date_override")
+      .filter((r) => r.date && r.day_type_id)
+      .map((r) => ({
+        date: String(r.date),
+        dayType: String(r.day_type_id) as DayTypeCode,
+      })),
+    holidays: mergeRows(tables, "holiday")
+      .filter((r) => r.date && r.name)
+      .map((r) => ({
+        date: String(r.date),
+        name: String(r.name),
+        scope: (r.scope as "municipal" | "manual") ?? undefined,
+        recurring: r.recurring === 1 || r.recurring === "1",
+      })),
+  };
+
+  const allPassageRecords: PassageRecord[] = [];
+  for (const obs of tables.observation ?? []) {
+    if (obs.deleted_at !== null) continue;
+    if (obs.match_status !== "auto" && obs.match_status !== "manual") continue;
+    if (
+      !obs.trip_id ||
+      !obs.pattern_stop_id ||
+      obs.deviation_min === null ||
+      obs.deviation_min === undefined ||
+      !obs.service_date ||
+      obs.observed_at === null ||
+      obs.observed_at === undefined
+    ) {
+      continue;
+    }
+
+    const ps = patternStopsById.get(String(obs.pattern_stop_id));
+    if (!ps) continue;
+
+    const dayType = dayTypeOf(String(obs.service_date), calendar).dayType;
+    allPassageRecords.push({
+      deviation: Number(obs.deviation_min),
+      observedAt: Number(obs.observed_at),
+      serviceDate: String(obs.service_date),
+      dayType,
+      tripId: String(obs.trip_id),
+      patternId: ps.patternId,
+      position: ps.position,
+      stopId: ps.stopId,
+      matchStatus: obs.match_status as MatchStatus,
+      mode: (obs.mode as "live" | "later" | "memory") ?? "live",
+      kind: (obs.kind as "boarded" | "passed" | "alighted") ?? "boarded",
+    });
+  }
+
+  const exclusions: ReplayExclusions = {
+    total: 0,
+    memory: 0,
+    later: 0,
+    notBoarded: 0,
+    unmatched: 0,
+    missingSchedule: 0,
+  };
+
+  const candidates: BackupRow[] = [];
+
+  for (const obs of tables.observation ?? []) {
+    if (obs.deleted_at !== null) continue;
+
+    if (typeof obs.observed_at === "number") {
+      const localDate = lisbonWallClock(obs.observed_at).date;
+      if (options.from && localDate < options.from) continue;
+      if (options.to && localDate > options.to) continue;
+    }
+
+    if (obs.mode !== "live") {
+      exclusions.total++;
+      if (obs.mode === "memory") exclusions.memory++;
+      else if (obs.mode === "later") exclusions.later++;
+      else exclusions.memory++;
+      continue;
+    }
+
+    if (obs.kind !== "boarded") {
+      exclusions.total++;
+      exclusions.notBoarded++;
+      continue;
+    }
+
+    const hasMatch =
+      (obs.match_status === "auto" || obs.match_status === "manual") &&
+      Boolean(obs.trip_id) &&
+      Boolean(obs.pattern_stop_id) &&
+      obs.deviation_min !== null &&
+      obs.deviation_min !== undefined;
+
+    if (!hasMatch) {
+      exclusions.total++;
+      exclusions.unmatched++;
+      continue;
+    }
+
+    const line = obs.line_id ? linesById.get(String(obs.line_id)) : undefined;
+    const stop = obs.stop_id ? stopsById.get(String(obs.stop_id)) : undefined;
+    const ps = obs.pattern_stop_id ? patternStopsById.get(String(obs.pattern_stop_id)) : undefined;
+
+    if (!line || !stop || !ps) {
+      exclusions.total++;
+      exclusions.missingSchedule++;
+      continue;
+    }
+
+    candidates.push(obs);
+  }
+
+  candidates.sort((a, b) => Number(a.observed_at) - Number(b.observed_at));
+
+  const boardings: ReplayBoarding[] = [];
+
+  for (const obs of candidates) {
+    const obsAt = Number(obs.observed_at);
+    // Estimativa usa estritamente os registros anteriores àquele
+    const priorRecords = allPassageRecords.filter((r) => r.observedAt < obsAt);
+
+    const ps = patternStopsById.get(String(obs.pattern_stop_id))!;
+    const line = linesById.get(String(obs.line_id))!;
+    const stop = stopsById.get(String(obs.stop_id))!;
+    const tripId = String(obs.trip_id);
+    const trip = tripsById.get(tripId);
+    const timetable = trip ? timetablesById.get(trip.timetableId) : undefined;
+    const validFrom = timetable?.validFrom ?? null;
+    const dayType = dayTypeOf(String(obs.service_date), calendar).dayType;
+
+    const target: PassageTarget = {
+      tripId,
+      patternId: ps.patternId,
+      position: ps.position,
+      stopId: ps.stopId,
+      dayType,
+      validFrom,
+    };
+
+    let base: BaseTime | null = null;
+    if (trip && stopTimesByTrip.has(trip.id)) {
+      const tripData: TripData = {
+        id: trip.id,
+        patternId: ps.patternId,
+        firstPosition: trip.firstPosition,
+        lastPosition: trip.lastPosition,
+        stopTimes: stopTimesByTrip.get(trip.id) ?? [],
+      };
+      try {
+        base = baseTimeAt(tripData, ps.position);
+      } catch {
+        base = null;
+      }
+    }
+
+    if (!base) {
+      const baseMinute = Number(obs.service_minute) - Number(obs.deviation_min);
+      base = { position: ps.position, minute: baseMinute, kind: "interpolated" };
+    }
+
+    const exp = expectedTime(base, priorRecords, {
+      target,
+      now: obsAt,
+      marginMinutes,
+    });
+
+    const shouldBeAtMinute = displayBeAtStop(exp.beAtStop);
+    const shouldBeAt = formatServiceMinute(shouldBeAtMinute);
+
+    const boardedMinute = Math.floor(Number(obs.service_minute));
+    const passed = boardedMinute >= shouldBeAtMinute;
+
+    boardings.push({
+      observationId: String(obs.id),
+      observedAt: obsAt,
+      shouldBeAt,
+      passed,
+      deviationMinutes: Number(obs.deviation_min),
+      lineCode: line.code,
+      stopName: stop.name,
+    });
+  }
+
+  const total = boardings.length;
+  const passedCount = boardings.filter((b) => b.passed).length;
+  const failedCount = total - passedCount;
+  const ratio = total > 0 ? passedCount / total : 0;
+  const failures = boardings.filter((b) => !b.passed);
+
+  let verdict: string;
+  if (total < 10) {
+    verdict = `amostra pequena: ${total} embarques`;
+  } else if (ratio >= 0.9) {
+    verdict = "passou";
+  } else {
+    verdict = "não passou";
+  }
+
+  const resumo: ReplaySummary = {
+    total,
+    passed: passedCount,
+    failed: failedCount,
+    ratio,
+    verdict,
+  };
+
   return {
-    boardings: [],
-    resumo: {
-      total: 0,
-      passed: 0,
-      failed: 0,
-      ratio: 0,
-      verdict: "amostra pequena: 0 embarques",
-    },
-    failures: [],
-    exclusions: {
-      total: 0,
-      memory: 0,
-      later: 0,
-      notBoarded: 0,
-      unmatched: 0,
-      missingSchedule: 0,
-    },
+    boardings,
+    resumo,
+    failures,
+    exclusions,
   };
 }
