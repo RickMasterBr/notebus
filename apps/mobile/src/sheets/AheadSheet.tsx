@@ -37,6 +37,7 @@ import { ListRow } from "../ui/ListRow";
 import { Skeleton } from "../ui/Skeleton";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
 import { SheetHandle } from "./SheetHandle";
+import { STACK_FONT_SCALE } from "../ui/stackFontScale";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
@@ -46,8 +47,6 @@ const TIME_WIDTH = AHEAD_TIME_WIDTH;
 const DOT_COLUMN = 20;
 const GAP = 12;
 const RAIL = 4;
-/** Acima de `.xxLarge` (≈ 1,24× o texto) a hora e o nome não cabem lado a lado (4.6 §6). */
-const STACK_FONT_SCALE = 1.25;
 
 /** A altura medida do handle (`StopSheet` faz igual): a lista tem a altura da folha aberta menos o handle. */
 const AheadSheetContext = createContext<(height: number) => void>(() => {});

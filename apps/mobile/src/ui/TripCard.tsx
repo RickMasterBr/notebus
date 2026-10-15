@@ -8,13 +8,14 @@
  * da descida sairia vazia); "Não embarquei" e "Dispensar" continuam.
  * Desce 12 px e aparece em 250 ms; com "Reduzir movimento", só esmaece (4.5 §2.5).
  */
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Animated, { Easing, FadeIn, withTiming } from "react-native-reanimated";
 import type { TripCardModel } from "../data/rideView";
 import { t } from "../i18n";
 import { motion, radius, space, type, useTheme } from "../theme";
 import { useReduceMotion } from "../sheets/useReduceMotion";
 import { LineBadge } from "./LineBadge";
+import { shouldStackTripButtons } from "./stackFontScale";
 
 const DROP = 12;
 
@@ -43,6 +44,7 @@ export function TripCard({
 }) {
   const { colors } = useTheme();
   const reduceMotion = useReduceMotion();
+  const stacked = shouldStackTripButtons(useWindowDimensions().fontScale);
   const canList = !card.unmatched && card.ahead !== null;
 
   const title = card.unmatched
@@ -78,12 +80,12 @@ export function TripCard({
         </View>
         {eta ? <Text style={[styles.eta, { color: colors.text }]}>{eta}</Text> : null}
       </Pressable>
-      <View style={styles.actions}>
+      <View style={[styles.actions, stacked && styles.actionsStacked]}>
         {card.trip && !card.unmatched ? (
           <Pressable
             accessibilityRole="button"
             onPress={onAlight}
-            style={({ pressed }) => [styles.alight, { backgroundColor: colors.accent }, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.alight, stacked && styles.alightStacked, { backgroundColor: colors.accent }, pressed && styles.pressed]}
           >
             <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("home.trip.alight_button")}</Text>
           </Pressable>
@@ -133,7 +135,9 @@ const styles = StyleSheet.create({
   eta: { fontSize: 20, fontWeight: "700", fontVariant: ["tabular-nums"] },
   num: { fontVariant: ["tabular-nums"] },
   actions: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  alight: { flex: 1, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  alight: { flex: 1, minHeight: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  actionsStacked: { flexDirection: "column", alignItems: "stretch" },
+  alightStacked: { flex: 0 },
   spacer: { flex: 1 },
   textAction: { minHeight: 44, paddingHorizontal: 10, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   pressed: { opacity: 0.6 },
