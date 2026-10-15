@@ -46,6 +46,7 @@ import {
   type LineFormStop,
   type LineFormStopRow,
 } from "../data/lineForm";
+import { DROP_SPRING, releaseStart } from "../data/dropRelease";
 import { dragTargetIndex, moveStopTo, rowShift, stopActionTarget } from "../data/lineStopReorder";
 import { LINE_LIMITS } from "../data/lineDraft";
 import { createSubmitGuard } from "../data/submitGuard";
@@ -117,6 +118,8 @@ function StopOrderRow({ row, total, dragFrom, dragTo, onMove, onRemove }: StopOr
     const target = dragTargetIndex({ index: row.index, translationY, rowHeight, total });
     if (target !== row.index) {
       onMove(row.index, target);
+      translateY.value = releaseStart(translationY, row.index, target, rowHeight);
+      translateY.value = reduceMotion ? 0 : withSpring(0, DROP_SPRING);
     }
   };
 
@@ -140,7 +143,7 @@ function StopOrderRow({ row, total, dragFrom, dragTo, onMove, onRemove }: StopOr
       runOnJS(onDrop)(event.translationY, itemHeight.value);
     })
     .onFinalize(() => {
-      translateY.value = withSpring(0);
+      translateY.value = reduceMotion ? 0 : withSpring(0, DROP_SPRING);
       isDragging.value = false;
       dragFrom.value = -1;
       dragTo.value = -1;
@@ -168,11 +171,11 @@ function StopOrderRow({ row, total, dragFrom, dragTo, onMove, onRemove }: StopOr
       to: dragTo.value,
     });
     const targetY = shift * itemHeight.value;
-    const animatedY = reduceMotion ? 0 : withSpring(targetY, { damping: 20, stiffness: 200 });
+    const animatedY = reduceMotion ? 0 : withSpring(targetY, DROP_SPRING);
 
     return {
       transform: [
-        { translateY: animatedY },
+        { translateY: translateY.value + animatedY },
         { scale: 1 },
       ],
       zIndex: 1,

@@ -96,14 +96,16 @@ describe("SettingsSheet: interruptores (Mutação 2)", () => {
   it("interruptor municipal tem onValueChange ligado a setIncludeMunicipalHolidays", () => {
     const src = read();
     expect(src).toMatch(/setIncludeMunicipalHolidays/);
-    expect(src).toMatch(/onValueChange=\{[^}]*setIncludeMunicipalHolidays/);
+    expect(src).toMatch(/useOptimisticSwitch\(prefs\.includeMunicipalHolidays,\s*prefs\.setIncludeMunicipalHolidays\)/);
+    expect(src).toMatch(/onValueChange=\{municipalSwitch\.onValueChange\}/);
   });
 
   it("interruptor de avisos tem onValueChange e exibe off_hint quando desligado", () => {
     const src = stripComments(read());
     expect(src).toMatch(/settings\.alarms\.allow/);
+    expect(src).toMatch(/useOptimisticSwitch\(prefs\.alarmsAllowed,\s*handleToggleAlarms\)/);
     expect(src).toMatch(
-      /t\("settings\.alarms\.allow"\)[\s\S]{1,200}?\{view\.alertsHint\}[\s\S]{1,200}?<Switch\b[^>]*onValueChange=\{handleToggleAlarms\}/,
+      /t\("settings\.alarms\.allow"\)[\s\S]{1,200}?\{view\.alertsHint\}[\s\S]{1,200}?<Switch\b[^>]*onValueChange=\{alarmsSwitch\.onValueChange\}/,
     );
   });
 

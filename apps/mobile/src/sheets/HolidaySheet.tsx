@@ -186,7 +186,7 @@ export function HolidaySheet({ id }: { id: number }) {
 
             {/* 3. Repete todo ano */}
             <View style={styles.section}>
-              <View style={[styles.switchRow, { borderBottomColor: colors.divider, backgroundColor: colors.bg }]}>
+              <View style={[styles.switchRow, { backgroundColor: colors.fill, borderColor: colors.divider }]}>
                 <Text style={[type.body, { color: colors.text, flex: 1 }]}>
                   {t("holiday.every_year")}
                 </Text>
@@ -308,9 +308,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingVertical: space.sm,
-    paddingHorizontal: space.xs,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: space.md,
     gap: space.sm,
   },
   buttonWrapper: {
