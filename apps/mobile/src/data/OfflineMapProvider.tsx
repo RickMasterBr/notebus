@@ -152,8 +152,6 @@ export function OfflineMapProvider({
           dispatch({ type: "download_progress", percent: downloadStatus.percent });
         } else if (downloadStatus.kind === "ready") {
           dispatch({ type: "download_completed", bytes: downloadStatus.bytes });
-        } else if (downloadStatus.kind === "error") {
-          dispatch({ type: "download_failed" });
         }
       });
       const refreshed = await getOfflineMapStatus();

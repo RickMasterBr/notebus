@@ -36,6 +36,7 @@ import { useOfflineMap } from "../data/OfflineMapProvider";
 import { megabytesText } from "../data/mapOfflineState";
 import {
   offlineSettingsButtons,
+  offlineSettingsHint,
   runOfflineSettingsAction,
 } from "../data/offlineSettingsActions";
 import { MarginStepper } from "./MarginStepper";
@@ -750,11 +751,15 @@ export function SettingsSheet({ id }: { id: number }) {
                         <Text style={[type.title, { color: colors.text, fontSize: 20 }]}>
                           {offlineDetail}
                         </Text>
-                        {offlineMap.status.kind === "ready" && (
-                          <Text style={[type.caption, { color: colors.textSecondary }]}>
-                            {t("settings.map.ready_hint")}
-                          </Text>
-                        )}
+                        {(() => {
+                          const hintKey = offlineSettingsHint(offlineMap.status);
+                          if (!hintKey) return null;
+                          return (
+                            <Text style={[type.caption, { color: colors.textSecondary }]}>
+                              {t(hintKey)}
+                            </Text>
+                          );
+                        })()}
                       </View>
 
                       {(() => {
@@ -767,7 +772,13 @@ export function SettingsSheet({ id }: { id: number }) {
                                 key={b.action}
                                 accessibilityRole="button"
                                 accessibilityLabel={t(b.labelKey)}
-                                onPress={() => runOfflineSettingsAction(b.action, offlineMap)}
+                                onPress={() =>
+                                  runOfflineSettingsAction(b.action, {
+                                    startDownload: offlineMap.startDownload,
+                                    deleteMap: offlineMap.deleteMap,
+                                    goBack: handleBack,
+                                  })
+                                }
                                 style={[
                                   styles.actionButton,
                                   b.style === "destructive"

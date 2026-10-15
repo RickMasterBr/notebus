@@ -189,7 +189,7 @@ export function tripPageModel(input: {
         const bt = baseTimeAt(trip, trip.firstPosition);
         if (bt != null) {
           originTable = {
-            time: clockText(bt.minute),
+            time: clockText(Math.floor(bt.minute)),
             stopName: firstStopName,
           };
         }

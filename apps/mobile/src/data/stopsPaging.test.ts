@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SearchableStop } from "@notebus/domain";
+import { type SearchableStop, searchStops } from "@notebus/domain";
 import {
   STOPS_PAGE_SIZE,
   isSearching,
@@ -268,4 +268,45 @@ describe("stopsPaging", () => {
     expect(isSearching("   ")).toBe(false);
     expect(isSearching(" a ")).toBe(true);
   });
+
+  describe("equivalência estrita entre matchStops otimizado e searchStops do domínio (FN-11)", () => {
+    it("devolve exatamente os mesmos resultados e na mesma ordem que searchStops para lista de 1.500 pontos", () => {
+      const stops: SearchableStop[] = Array.from({ length: 1500 }, (_, i) => ({
+        id: `stop-${i + 1}`,
+        name: i % 3 === 0 ? `Estação Central ${i + 1}` : i % 2 === 0 ? `Avenida São Bento ${i + 1}` : `Rua Santo André ${i + 1}`,
+        aliases: i % 5 === 0 ? [`Terminal de Ônibus ${i + 1}`] : [],
+        externalId: i % 4 === 0 ? `EXT-${i + 1}` : null,
+      }));
+
+      const terms = [
+        "s",
+        "santo",
+        "central",
+        "estação",
+        "ESTAÇÃO",
+        "são bento",
+        "terminal",
+        "35",
+        "inexistente",
+      ];
+
+      for (const term of terms) {
+        const expected = searchStops(stops, term);
+        const actual = matchStops(stops, term);
+        expect(actual).toEqual(expected);
+      }
+    });
+
+    it("mantém cache por referência do array de pontos", () => {
+      const stops: SearchableStop[] = [
+        { id: "s1", name: "Ponto A", aliases: [], externalId: null },
+        { id: "s2", name: "Ponto B", aliases: [], externalId: null },
+      ];
+      const res1 = matchStops(stops, "a");
+      const res2 = matchStops(stops, "b");
+      expect(res1.map((s) => s.id)).toEqual(["s1"]);
+      expect(res2.map((s) => s.id)).toEqual(["s2"]);
+    });
+  });
 });
+

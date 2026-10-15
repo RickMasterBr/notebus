@@ -38,10 +38,10 @@ export function unhide(prev: ReadonlySet<string>, ids: readonly string[]): Set<s
  * mantendo os que continuam apagados (R9).
  */
 export function pruneRevived(
-  prev: ReadonlySet<string>,
+  prev: Set<string>,
   observations: readonly Pick<ObservationRow, "id" | "deletedAt">[],
 ): Set<string> {
-  if (prev.size === 0) return prev as Set<string>;
+  if (prev.size === 0) return prev;
   let changed = false;
   const next = new Set(prev);
   for (const obsId of prev) {
@@ -51,15 +51,15 @@ export function pruneRevived(
       changed = true;
     }
   }
-  return changed ? next : (prev as Set<string>);
+  return changed ? next : prev;
 }
 
 /** Filtra observações excluindo as que estão em hidden (não perde nenhum item de Para conferir). */
 export function visibleObservations<T extends { id: string }>(
   observations: readonly T[],
   hidden: ReadonlySet<string>,
-): T[] {
-  if (hidden.size === 0) return observations as T[];
+): readonly T[] {
+  if (hidden.size === 0) return observations;
   return observations.filter((o) => !hidden.has(o.id));
 }
 

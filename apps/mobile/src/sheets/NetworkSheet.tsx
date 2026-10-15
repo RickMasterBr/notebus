@@ -151,11 +151,11 @@ export function NetworkSheet({ id }: { id: number }) {
       title: t("net.section.stops"),
     });
 
-    items.push({ type: "newStop", id: "new-stop" });
-
     if (stops.length > 0) {
       items.push({ type: "stopSearch", id: "stop-search" });
     }
+
+    items.push({ type: "newStop", id: "new-stop" });
 
     if (stopsView.showPager) {
       items.push({ type: "stopPager", id: "stop-pager-top" });

@@ -35,13 +35,14 @@ describe("E-08.5 bloco 5 guardas de ligação (NetworkSheet.tsx)", () => {
     expect(networkSheet.includes("for (const stop of stops) {")).toBe(false);
   });
 
-  it("linha pinada de cabeçalho e newStop preservada, e stop-search empurrado depois", () => {
-    const pinned = 'title: t("net.section.stops"), }); items.push({ type: "newStop", id: "new-stop" });';
-    expect(networkSheet).toContain(pinned);
-
-    const pinnedIdx = networkSheet.indexOf(pinned);
+  it("cabeçalho Pontos vem antes de stop-search, e stop-search vem antes de newStop", () => {
+    const headerIdx = networkSheet.indexOf('title: t("net.section.stops")');
     const searchIdx = networkSheet.indexOf('items.push({ type: "stopSearch", id: "stop-search" });');
-    expect(searchIdx).toBeGreaterThan(pinnedIdx);
+    const newStopIdx = networkSheet.indexOf('items.push({ type: "newStop", id: "new-stop" });');
+
+    expect(headerIdx).toBeGreaterThan(-1);
+    expect(searchIdx).toBeGreaterThan(headerIdx);
+    expect(newStopIdx).toBeGreaterThan(searchIdx);
   });
 
   it("handleTermChange fecha swipeable, atualiza termo e reseta página", () => {

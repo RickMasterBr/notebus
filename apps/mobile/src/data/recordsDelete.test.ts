@@ -238,5 +238,53 @@ describe("recordsDelete (Item 1 e lacunas R1 a R9)", () => {
       // Não cai: na camada de dados o pendente permanece
       expect(queueAfter.length).toBe(1);
     });
+
+    it("(c) hipótese do settle no RegistroProvider: remove() seguido de refreshDeductions() não altera a fila de Para conferir", async () => {
+      const f = await fixture();
+
+      // 1. Registro pendente (orphan)
+      await f.registro.board({
+        stopId: stopId("A"),
+        lineId: lineId("1"),
+        at: lisbon(THURSDAY, "09:30"),
+      });
+      await f.registro.refreshDeductions(Date.now());
+
+      // 2. Registro conferido (manual) com descida
+      const manual = await f.registro.board({
+        stopId: stopId("A"),
+        lineId: lineId("1"),
+        at: lisbon(THURSDAY, "08:12", "30"),
+      });
+      await f.registro.chooseManual(
+        manual.observationId,
+        { tripId: tripIdOf("1", "0810"), position: 2, serviceDate: THURSDAY },
+        lisbon(THURSDAY, "08:13"),
+      );
+      await f.registro.alight({
+        rideId: manual.rideId,
+        stopId: stopId("K"),
+        patternId: f.data.trips.find((t) => t.id === tripIdOf("1", "0810"))!.patternId,
+        position: 5,
+        at: lisbon(THURSDAY, "08:40"),
+      });
+
+      // Antes
+      let loaded = await f.registro.load();
+      const queueBefore = reviewQueue(loaded.observations);
+      expect(queueBefore.length).toBe(1);
+
+      // Simula exatamente o que o settle() do RegistroProvider executa após o remove:
+      // remove() seguido de refreshDeductions()
+      await f.registro.remove(manual.observationId, lisbon(THURSDAY, "10:00"));
+      await f.registro.refreshDeductions(lisbon(THURSDAY, "10:00"));
+
+      // Depois
+      loaded = await f.registro.load();
+      const queueAfter = reviewQueue(loaded.observations);
+
+      // Descarta a hipótese: o contador da fila de conferência não cai
+      expect(queueAfter.length).toBe(1);
+    });
   });
 });

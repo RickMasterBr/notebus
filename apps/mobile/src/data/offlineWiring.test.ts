@@ -106,7 +106,9 @@ export function checkSettingsSheetWiring(source: string): SettingsSheetWiringChe
     callsOfflineSettingsButtonsStrict: norm.includes("const buttons = offlineSettingsButtons(offlineMap.status);"),
     guardsEmptyButtons: norm.includes("if (buttons.length === 0) return"),
     mapsButtons: norm.includes("buttons.map("),
-    callsRunOfflineSettingsActionStrict: norm.includes("runOfflineSettingsAction(b.action, offlineMap)"),
+    callsRunOfflineSettingsActionStrict: norm.includes(
+      "runOfflineSettingsAction(b.action, { startDownload: offlineMap.startDownload, deleteMap: offlineMap.deleteMap, goBack: handleBack, })",
+    ),
   };
 }
 
@@ -158,7 +160,10 @@ describe("guarda estático de ligação de componentes offline (Item 0.6)", () =
     expect(res.callsOfflineSettingsButtonsStrict, "SettingsSheet.tsx deve conter const buttons = offlineSettingsButtons(offlineMap.status)").toBe(true);
     expect(res.guardsEmptyButtons, "SettingsSheet.tsx deve conter if (buttons.length === 0) return").toBe(true);
     expect(res.mapsButtons, "SettingsSheet.tsx deve conter buttons.map(").toBe(true);
-    expect(res.callsRunOfflineSettingsActionStrict, "SettingsSheet.tsx deve conter runOfflineSettingsAction(b.action, offlineMap)").toBe(true);
+    expect(
+      res.callsRunOfflineSettingsActionStrict,
+      "SettingsSheet.tsx deve conter runOfflineSettingsAction(b.action, { startDownload: offlineMap.startDownload, deleteMap: offlineMap.deleteMap, goBack: handleBack, })",
+    ).toBe(true);
   });
 });
 
