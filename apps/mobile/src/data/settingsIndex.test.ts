@@ -53,7 +53,7 @@ describe("settingsIndex (Item 1, D-206, D-207)", () => {
     });
 
     it("numa página não mostra fechar e chama back", () => {
-      const pages: SettingsPage[] = ["name", "margin", "days", "holidays", "map", "backup"];
+      const pages: SettingsPage[] = ["name", "margin", "days", "holidays", "map", "backup", "about"];
       for (const p of pages) {
         expect(settingsHandle(p)).toEqual({ showClose: false, press: "back" });
       }
@@ -69,6 +69,7 @@ describe("settingsIndex (Item 1, D-206, D-207)", () => {
       expect(settingsPageTitle("holidays")).toBe("settings.holidays.row");
       expect(settingsPageTitle("map")).toBe("settings.offline_map.title");
       expect(settingsPageTitle("backup")).toBe("settings.data.backup_row");
+      expect(settingsPageTitle("about")).toBe("settings.about.title");
     });
   });
 

@@ -944,6 +944,22 @@ export const ptBR = {
   "home.greeting.invite.first_bus": "Primeiro ônibus do dia?", // provisório
   "home.greeting.invite.going_home": "Voltando para casa?", // provisório
   "home.greeting.invite.note_next": "Anote o próximo ônibus que você pegar.", // provisório
+  "settings.about.title": "Sobre", // provisório
+  "settings.about.versions": "Versões", // provisório
+  "settings.about.app_version": "Versão do app", // provisório
+  "settings.about.schema_version": "Versão do banco de dados", // provisório
+  "settings.about.data_version": "Horários da MOBILIS", // provisório
+  "settings.about.data_none": "Nenhum horário instalado", // provisório
+  "settings.about.credits": "Créditos", // provisório
+  "settings.about.credit.holidays": "Feriados: date-holidays (CC BY-SA 3.0)", // provisório
+  "settings.about.credit.map": "Mapa: OpenFreeMap © OpenMapTiles, dados de © OpenStreetMap contributors", // provisório
+  "settings.about.licenses": "Licenças de código aberto", // provisório
+  "settings.about.repo": "Código do app no GitHub", // provisório
+  "settings.about.repo.hint": "Abre no navegador", // provisório
+  "settings.about.notice.not_mobilis": "O NoteBus não é um app da MOBILIS.", // provisório
+  "settings.about.notice.times": "Os horários vêm de um arquivo importado e podem estar errados ou mudar.", // provisório
+  "settings.about.notice.brand": "A logo e o ícone são provisórios e vão mudar.", // provisório
+  "terminal_detail.gap.a11y": "mostrar mais {{count}} paragens", // provisório
 } as const;
 
 

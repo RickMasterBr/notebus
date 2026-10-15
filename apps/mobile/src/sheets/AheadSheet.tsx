@@ -12,11 +12,12 @@
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import type { DayTypeCode } from "@notebus/domain";
 import { createContext, useContext, useMemo, useState } from "react";
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
-import { type Ahead, type AheadStopRow, type TimelineItem, buildAhead, timelineItems } from "../data/ahead";
+import { type Ahead, type AheadStopRow, buildAhead } from "../data/ahead";
+import { shownTimeline, toggleGap } from "../data/aheadExpand";
 import { aheadServiceDay } from "../data/learnedPassages";
 import { useNowTick } from "../data/useNowTick";
 import {
@@ -31,7 +32,8 @@ import {
   summaryText,
 } from "../data/aheadText";
 import { t } from "../i18n";
-import { type ColorTokens, radius, space, type, useTheme } from "../theme";
+import { type ColorTokens, minTouch, radius, space, type, useTheme } from "../theme";
+import { ChevronRightGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { ListRow } from "../ui/ListRow";
 import { Skeleton } from "../ui/Skeleton";
@@ -223,14 +225,21 @@ export function Body({ ahead }: { ahead: Ahead }) {
 export function Timeline({ ahead, lineColor }: { ahead: Ahead; lineColor: string }) {
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale >= STACK_FONT_SCALE;
-  const items: TimelineItem[] = [{ kind: "stop", row: ahead.here }, ...timelineItems(ahead.stops)];
+  const [openGaps, setOpenGaps] = useState<ReadonlySet<number>>(new Set());
+  const items = shownTimeline(ahead.here, ahead.stops, openGaps);
   const railLeft = (stacked ? 0 : TIME_WIDTH + GAP) + (DOT_COLUMN - RAIL) / 2;
   return (
     <View style={styles.timeline}>
       <View style={[styles.rail, { left: railLeft, backgroundColor: lineColor }]} />
-      {items.map((item, i) =>
+      {items.map((item) =>
         item.kind === "gap" ? (
-          <GapRow key={`gap-${i}`} count={item.count} stacked={stacked} />
+          <GapRow
+            key={`gap-${item.id}`}
+            count={item.count}
+            open={item.open}
+            stacked={stacked}
+            onPress={() => setOpenGaps((open) => toggleGap(open, item.id))}
+          />
         ) : (
           <StopRow key={item.row.position} row={item.row} isHere={item.row === ahead.here} lineColor={lineColor} stacked={stacked} />
         ),
@@ -298,14 +307,24 @@ function Tag({ text, isHere, colors }: { text: string; isHere: boolean; colors: 
   );
 }
 
-function GapRow({ count, stacked }: { count: number; stacked: boolean }) {
+/** Q-101: "+ N paragens" é um botão; tocar mostra as escondidas no lugar e tocar de novo recolhe. */
+function GapRow({ count, open, stacked, onPress }: { count: number; open: boolean; stacked: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return (
-    <View accessible accessibilityLabel={gapText(count)} style={styles.row}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t("terminal_detail.gap.a11y", { count })}
+      accessibilityState={{ expanded: open }}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, styles.gapRow, pressed && styles.pressed]}
+    >
       {stacked ? null : <View style={{ width: TIME_WIDTH }} />}
       <View style={styles.dotColumn} />
-      <Text style={[styles.name, { color: colors.textSecondary }]}>{gapText(count)}</Text>
-    </View>
+      <Text style={[styles.name, { color: colors.accent }]}>{gapText(count)}</Text>
+      <View style={{ transform: [{ rotate: open ? "-90deg" : "90deg" }] }}>
+        <ChevronRightGlyph color={colors.accent} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -322,6 +341,9 @@ const styles = StyleSheet.create({
   timeline: { position: "relative" },
   rail: { position: "absolute", top: 18, bottom: 18, width: RAIL, borderRadius: 2 },
   row: { flexDirection: "row", alignItems: "center", gap: GAP, minHeight: 38 },
+  gapRow: { minHeight: minTouch },
+  // Retorno de toque da linha de lista (4.4 §5.12, `nb-row`: opacidade), o mesmo do `ListRow`.
+  pressed: { opacity: 0.6 },
   time: { width: TIME_WIDTH },
   dotColumn: { width: DOT_COLUMN, alignItems: "center" },
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3 },

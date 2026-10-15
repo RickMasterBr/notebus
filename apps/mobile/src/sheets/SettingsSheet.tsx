@@ -84,6 +84,7 @@ import { expoPort } from "../notifications/expoPort";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { ChevronRightGlyph } from "../ui/Glyphs";
 import { ListRow } from "../ui/ListRow";
+import { AboutPage } from "./AboutPage";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
@@ -491,6 +492,10 @@ export function SettingsSheet({ id }: { id: number }) {
                         value={view.backupValue}
                         onPress={() => dispatchNav({ type: "open", page: "backup" })}
                       />
+                      <SettingsIndexRow
+                        title={t("settings.about.title")}
+                        onPress={() => dispatchNav({ type: "open", page: "about" })}
+                      />
                       <Pressable
                         ref={row}
                         accessible
@@ -852,6 +857,9 @@ export function SettingsSheet({ id }: { id: number }) {
                       </Text>
                     </View>
                   )}
+
+                  {/* Página Sobre */}
+                  {page === "about" && <AboutPage />}
                 </Animated.View>
               )}
             </BottomSheetScrollView>
