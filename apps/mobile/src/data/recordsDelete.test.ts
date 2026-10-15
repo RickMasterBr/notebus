@@ -96,6 +96,18 @@ describe("recordsDelete (Item 1 e lacunas R1 a R9)", () => {
     expect(pruneRevived(empty, [{ id: "x", deletedAt: null }])).toBe(empty);
   });
 
+  it("pruneRevived: devolve nova instância sem os revividos e não prev quando há alteração", () => {
+    const prev = new Set(["id-revivido", "id-permanece"]);
+    const observations = [
+      { id: "id-revivido", deletedAt: null },
+      { id: "id-permanece", deletedAt: 12345678 },
+    ];
+    const next = pruneRevived(prev, observations);
+    expect(next).not.toBe(prev);
+    expect(next.has("id-revivido")).toBe(false);
+    expect(next.has("id-permanece")).toBe(true);
+  });
+
   it("visibleObservations: não perde nenhum registro da fila 'Para conferir'", () => {
     const boardingConferred = makeRow({
       id: "board-conferred",
