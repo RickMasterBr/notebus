@@ -4,6 +4,10 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const read = () => readFileSync(join(__dirname, "SettingsSheet.tsx"), "utf8").replace(/\r\n/g, "\n");
+const stripComments = (text: string) =>
+  text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[\s;{(,])\/\/.*$/gm, "$1");
 
 describe("SettingsSheet: quadro de rolagem e estrutura TL-12", () => {
   it("usa BottomSheetScrollView com HeightContext e DETENTS a 82%", () => {
@@ -96,9 +100,11 @@ describe("SettingsSheet: interruptores (Mutação 2)", () => {
   });
 
   it("interruptor de avisos tem onValueChange e exibe off_hint quando desligado", () => {
-    const src = read();
+    const src = stripComments(read());
     expect(src).toMatch(/settings\.alarms\.allow/);
-    expect(src).toMatch(/settings\.alarms\.off_hint/);
+    expect(src).toMatch(
+      /t\("settings\.alarms\.allow"\)[\s\S]{1,200}?\{view\.alertsHint\}[\s\S]{1,200}?<Switch\b[^>]*onValueChange=\{handleToggleAlarms\}/,
+    );
   });
 
   it("interruptor de avisos segue o fluxo de dois passos (alarmsSwitchDecision, motivo e denied)", () => {

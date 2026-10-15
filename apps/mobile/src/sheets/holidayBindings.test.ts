@@ -25,12 +25,22 @@ describe("HolidaySheet: ligações e regras (Item 5)", () => {
   });
 });
 
+const stripComments = (text: string) =>
+  text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[\s;{(,])\/\/.*$/gm, "$1");
+
 describe("SettingsSheet: ligações de feriados (Item 5)", () => {
   it("lê feriados com listHolidays e só permite apagar feriados manuais", () => {
-    const src = readSettings();
+    const src = stripComments(readSettings());
+    const actionsSrc = stripComments(
+      readFileSync(join(__dirname, "../data/settingsActions.ts"), "utf8").replace(/\r\n/g, "\n"),
+    );
     expect(src).toMatch(/listHolidays\(/);
-    expect(src).toMatch(/deleteHoliday\(/);
-    expect(src).toMatch(/holiday\.deleted/);
+    expect(src).toMatch(
+      /deleteHolidayWithUndo\(\{[\s\S]*?deleteHoliday:\s*\(id,\s*at\)\s*=>\s*calendarEdits\.deleteHoliday\(id,\s*at\)/,
+    );
+    expect(actionsSrc).toMatch(/holiday\.deleted/);
     expect(src).toMatch(/settings\.holiday\.official_note/);
     // Gesto de apagar condicionado ao escopo manual
     expect(src).toMatch(/item\.scope === "manual"/);

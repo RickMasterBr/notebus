@@ -230,7 +230,6 @@ export function SettingsSheet({ id }: { id: number }) {
   );
 
   const handleDeleteOverride = async (item: CalendarOverrideItem) => {
-    // deleteOverride( com toast override.deleted e toast.action.undo
     await deleteOverrideWithUndo({
       id: item.id,
       deleteOverride: (id, at) => calendarEdits.deleteOverride(id, at),
@@ -259,7 +258,6 @@ export function SettingsSheet({ id }: { id: number }) {
   }, [isTop, schedule, loadHolidays]);
 
   const handleDeleteHoliday = async (item: CalendarHolidayItem) => {
-    // deleteHoliday( com toast holiday.deleted
     await deleteHolidayWithUndo({
       id: item.id,
       deleteHoliday: (id, at) => calendarEdits.deleteHoliday(id, at),
@@ -431,9 +429,6 @@ export function SettingsSheet({ id }: { id: number }) {
                           <Text style={[type.caption, { color: colors.textSecondary }]}>
                             {view.alertsHint}
                           </Text>
-                          {!prefs.alarmsAllowed && (
-                            <Text style={{ display: "none" }}>{t("settings.alarms.off_hint")}</Text>
-                          )}
                         </View>
                         <Switch
                           accessibilityLabel={t("settings.alarms.allow")}
