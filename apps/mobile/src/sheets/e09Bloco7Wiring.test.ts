@@ -68,4 +68,24 @@ describe("E-09 Bloco 7 guardas de ligação (e09Bloco7Wiring)", () => {
       expect(about).toMatch(/link: \{ minHeight: minTouch,/);
     });
   });
+
+  describe("Item 3 · '+ N paragens' que expande (Q-101)", () => {
+    const ahead = squash(read("sheets/AheadSheet.tsx"));
+
+    it("a linha vira botão com rótulo, estado expandido e onPress que alterna a lacuna", () => {
+      expect(ahead).toContain(
+        '<Pressable accessibilityRole="button" accessibilityLabel={t("terminal_detail.gap.a11y", { count })} accessibilityState={{ expanded: open }} onPress={onPress}',
+      );
+      expect(ahead).toContain("onPress={() => setOpenGaps((open) => toggleGap(open, item.id))}");
+    });
+
+    it("a linha do tempo vem de shownTimeline com o estado das lacunas abertas", () => {
+      expect(ahead).toContain("const items = shownTimeline(ahead.here, ahead.stops, openGaps);");
+    });
+
+    it("a lacuna recebe aberta/fechada do item e tem alvo mínimo", () => {
+      expect(ahead).toContain("<GapRow key={`gap-${item.id}`} count={item.count} open={item.open}");
+      expect(ahead).toContain("gapRow: { minHeight: minTouch }");
+    });
+  });
 });
