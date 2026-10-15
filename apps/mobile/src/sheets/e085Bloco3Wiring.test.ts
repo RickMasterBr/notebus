@@ -42,7 +42,7 @@ describe("E-08.5 bloco 3 Item 5: guardas de ligação", () => {
       expect(lineEditSheet).toContain(".activeOffsetY([-6, 6])");
       expect(lineEditSheet).toContain("runOnJS(onDrop)(event.translationY, itemHeight.value)");
       expect(lineEditSheet).toContain("dragTargetIndex({ index: row.index, translationY, rowHeight, total })");
-      expect(lineEditSheet).toContain("if (target !== row.index) { onMove(row.index, target); }");
+      expect(lineEditSheet).toContain("if (target !== row.index) { onMove(row.index, target); translateY.value = releaseStart(translationY, row.index, target, rowHeight);");
     });
 
     it("4. accessibilityActions consumindo a.name e t(a.labelKey), stopActionTarget e onMove se não for null", () => {
