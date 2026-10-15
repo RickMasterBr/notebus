@@ -5,7 +5,7 @@
 import type { DayTypeCode } from "@notebus/domain";
 import { t, type MessageKey } from "../i18n";
 
-export type SettingsPage = "root" | "name" | "margin" | "days" | "holidays" | "map" | "backup";
+export type SettingsPage = "root" | "name" | "margin" | "days" | "holidays" | "map" | "backup" | "about";
 
 export type SettingsNavAction =
   | { type: "open"; page: SettingsPage }
@@ -43,6 +43,8 @@ export function settingsPageTitle(page: SettingsPage): MessageKey {
       return "settings.offline_map.title";
     case "backup":
       return "settings.data.backup_row";
+    case "about":
+      return "settings.about.title";
     case "root":
     default:
       return "settings.title";
