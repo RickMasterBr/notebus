@@ -43,4 +43,30 @@ describe("E-09 Bloco 5 guardas de ligação (e09Bloco5Wiring)", () => {
       );
     });
   });
+
+  describe("Item 1: Guarda de fiação da falha ao baixar de novo (FN-17)", () => {
+    it("OfflineMapProvider.tsx recarrega status nativo e chama resolveDownloadFailure com o status recarregado", () => {
+      const providerSource = squash(read("data/OfflineMapProvider.tsx"));
+      expect(providerSource).toMatch(
+        /const\s+refreshed\s*=\s*await\s+getOfflineMapStatus\(\);/,
+      );
+      expect(providerSource).toMatch(
+        /const\s+failureResult\s*=\s*resolveDownloadFailure\(\s*refreshed\s*\);/,
+      );
+    });
+
+    it("OfflineMapProvider.tsx consome status por campo e despacha status_loaded quando pronto", () => {
+      const providerSource = squash(read("data/OfflineMapProvider.tsx"));
+      expect(providerSource).toMatch(
+        /if\s*\(\s*failureResult\.status\.kind\s*===\s*"ready"\s*\)\s*\{\s*dispatch\(\s*\{\s*type:\s*"status_loaded",\s*status:\s*failureResult\.status\s*\}\s*\);/m,
+      );
+    });
+
+    it("OfflineMapProvider.tsx consome showFailureNotice por campo para exibir o toast com texto offline_map.error", () => {
+      const providerSource = squash(read("data/OfflineMapProvider.tsx"));
+      expect(providerSource).toMatch(
+        /if\s*\(\s*failureResult\.showFailureNotice\s*\)\s*\{\s*toast\.show\(\s*\{\s*title:\s*t\("offline_map\.error"\)\s*\}\s*\);/m,
+      );
+    });
+  });
 });
