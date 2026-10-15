@@ -1,0 +1,14 @@
+{
+  "name": "@notebus/mvp-report",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-strip-types src/index.ts",
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@notebus/domain": "*"
+  }
+}
