@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { searchEmpty } from "../data/emptyStates";
 import { createTapCounter } from "../data/testClockPicker";
 
 const root = process.env.NB_WIRING_ROOT ?? join(__dirname, "..");
@@ -106,6 +107,35 @@ describe("E-09 bloco 1b: HomeSheet (guia do Início)", () => {
   it("H6: o × esconde na hora (setGuideDismissed(true)) e grava a dispensa com a hora atual", () => {
     expect(home).toMatch(
       /onDismiss=\{\(\) => \{ setGuideDismissed\(true\); if \(db\) void dismissHomeGuide\(db, now\(\)\); \}\}/,
+    );
+  });
+});
+
+describe("E-09 bloco 1b: SearchSheet (SE5)", () => {
+  const search = squash(read("sheets/SearchSheet.tsx"));
+  const noStopsBranch = search.match(/\} else if \(empty === "no_stops"\) \{ body = \( (<EmptyState[\s\S]*?\/>) \); \} else if/);
+
+  it("SE5: o vazio sem pontos (sem termo) vem de empty === 'no_stops' e devolve ao fluxo pick", () => {
+    expect(noStopsBranch, "ramo empty === 'no_stops' não encontrado").not.toBeNull();
+    expect(noStopsBranch![1]).toMatch(
+      /onPress: \(\) => dispatch\(\{ type: "push", sheet: \{ kind: "stopEdit", stopId: NEW_STOP_ID, afterSave: pick \? "pick" : "open", \}, \}\),/,
+    );
+    expect(noStopsBranch![1]).toMatch(/label: t\("stop_new\.title"\)/);
+  });
+
+  it("SE5: searchEmpty recebe pick, o termo e o total de pontos", () => {
+    expect(search).toMatch(/const empty = searchEmpty\(\{ term, pick, stopTotal: index\.status === "ready" \? index\.stops\.length : null,/);
+  });
+
+  it("SE5: sem termo e sem pontos o vazio é no_stops, com ou sem pick", () => {
+    for (const pick of [false, true]) {
+      expect(searchEmpty({ term: "", pick, stopTotal: 0, recentCount: 0, showNoResults: false })).toBe("no_stops");
+    }
+  });
+
+  it("SE5: o vazio com termo também devolve ao fluxo pick (e leva o nome)", () => {
+    expect(search).toMatch(
+      /kind: "stopEdit", stopId: NEW_STOP_ID, initialName: term\.trim\(\), afterSave: pick \? "pick" : "open",/,
     );
   });
 });
