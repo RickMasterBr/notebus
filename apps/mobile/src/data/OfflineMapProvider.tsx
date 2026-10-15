@@ -22,6 +22,7 @@ import { useStopLocations } from "./StopLocationsProvider";
 import { useToast } from "./ToastProvider";
 import {
   estimateMegabytes,
+  resolveDownloadFailure,
   shouldOfferOfflineMap,
   type OfflineMapStatus,
 } from "./mapOfflineState";
@@ -158,7 +159,16 @@ export function OfflineMapProvider({
       dispatch({ type: "status_loaded", status: refreshed });
       if (shouldShowReadyToast(refreshed)) toast.show({ title: t("offline_map.ready_toast") });
     } catch {
-      dispatch({ type: "download_failed" });
+      const refreshed = await getOfflineMapStatus();
+      const failureResult = resolveDownloadFailure(refreshed);
+      if (failureResult.status.kind === "ready") {
+        dispatch({ type: "status_loaded", status: failureResult.status });
+      } else {
+        dispatch({ type: "download_failed" });
+      }
+      if (failureResult.showFailureNotice) {
+        toast.show({ title: t("offline_map.error") });
+      }
     }
   }, [state.status.kind, region, toast]);
 

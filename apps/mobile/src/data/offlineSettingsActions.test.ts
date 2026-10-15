@@ -41,6 +41,17 @@ describe("offlineSettingsActions (Item 0.4 puro)", () => {
       ]);
     });
 
+    it("com o status ainda ready após falha de download, os botões permanecem os de pronto (Baixar de novo, Apagar, Cancelar, FN-17)", () => {
+      const preservedReadyStatus = { kind: "ready" as const, bytes: 14_000_000 };
+      const buttons = offlineSettingsButtons(preservedReadyStatus);
+      expect(buttons.map((b) => b.action)).toEqual(["download_again", "delete", "cancel"]);
+      expect(buttons.map((b) => b.labelKey)).toEqual([
+        "settings.offline_map.alert.download_again",
+        "settings.offline_map.alert.delete",
+        "common.cancel",
+      ]);
+    });
+
     it("none → download, cancel", () => {
       const buttons = offlineSettingsButtons({ kind: "none" });
       expect(buttons).toEqual([

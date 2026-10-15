@@ -31,6 +31,29 @@ export function statusFromNetworkCheck(
   return { kind: "error" };
 }
 
+export interface DownloadFailureOutcome {
+  status: OfflineMapStatus;
+  showFailureNotice: boolean;
+}
+
+/**
+ * Decide o status e se deve exibir aviso quando o download falha (FN-17).
+ * Se os pacotes recarregados ainda estão prontos (ready), preserva o status ready e aciona o aviso.
+ * Caso contrário, o status passa a error sem aviso adicional.
+ */
+export function resolveDownloadFailure(refreshed: OfflineMapStatus): DownloadFailureOutcome {
+  if (refreshed.kind === "ready") {
+    return {
+      status: refreshed,
+      showFailureNotice: true,
+    };
+  }
+  return {
+    status: { kind: "error" },
+    showFailureNotice: false,
+  };
+}
+
 /**
  * Decide se a oferta de download do mapa offline deve ser exibida.
  * Regras: só true com mapVisible, status 'none' ou 'error', e sem soneca vigente.

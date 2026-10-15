@@ -21,7 +21,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import Animated, { FadeIn, SlideInRight } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from "react-native-reanimated";
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -517,6 +517,7 @@ export function SettingsSheet({ id }: { id: number }) {
                 <Animated.View
                   key={page}
                   entering={reduceMotion ? FadeIn.duration(200) : SlideInRight.duration(280)}
+                  exiting={reduceMotion ? FadeOut.duration(200) : SlideOutRight.duration(280)}
                   style={styles.pageContainer}
                 >
                   {/* Botão ‹ Ajustes */}

@@ -8,6 +8,7 @@ import {
   OFFLINE_SNOOZE_MS,
   OFFLINE_SNOOZED_UNTIL,
   percentOf,
+  resolveDownloadFailure,
   shouldOfferOfflineMap,
   snoozedUntil,
   statusFromNetworkCheck,
@@ -280,4 +281,43 @@ describe("mapOfflineState (Item 2 & 3)", () => {
       expect(statusFromNetworkCheck("ok")).toBe("proceed");
     });
   });
+
+  describe("resolveDownloadFailure (Item 1 puro, FN-17)", () => {
+    it("pronto: status continua pronto com bytes preservados e showFailureNotice = true", () => {
+      const readyStatus: OfflineMapStatus = { kind: "ready", bytes: 14_800_000 };
+      const result = resolveDownloadFailure(readyStatus);
+      expect(result).toEqual({
+        status: { kind: "ready", bytes: 14_800_000 },
+        showFailureNotice: true,
+      });
+    });
+
+    it("nenhum: devolve status error e showFailureNotice = false", () => {
+      const noneStatus: OfflineMapStatus = { kind: "none" };
+      const result = resolveDownloadFailure(noneStatus);
+      expect(result).toEqual({
+        status: { kind: "error" },
+        showFailureNotice: false,
+      });
+    });
+
+    it("baixando: devolve status error e showFailureNotice = false", () => {
+      const downloadingStatus: OfflineMapStatus = { kind: "downloading", percent: 45 };
+      const result = resolveDownloadFailure(downloadingStatus);
+      expect(result).toEqual({
+        status: { kind: "error" },
+        showFailureNotice: false,
+      });
+    });
+
+    it("erro: devolve status error e showFailureNotice = false", () => {
+      const errorStatus: OfflineMapStatus = { kind: "error" };
+      const result = resolveDownloadFailure(errorStatus);
+      expect(result).toEqual({
+        status: { kind: "error" },
+        showFailureNotice: false,
+      });
+    });
+  });
 });
+
