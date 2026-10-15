@@ -192,6 +192,7 @@ export function HolidaySheet({ id }: { id: number }) {
                 </Text>
                 <Switch
                   accessibilityLabel={t("holiday.every_year")}
+                  style={{ alignSelf: "center" }}
                   value={recurring}
                   onValueChange={setRecurring}
                   trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
@@ -311,6 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: space.md,
+    paddingVertical: space.sm,
     gap: space.sm,
   },
   buttonWrapper: {

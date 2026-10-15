@@ -27,4 +27,19 @@ describe("E-09 Bloco 5b guardas de ligação (e09Bloco5bWiring)", () => {
       );
     });
   });
+
+  describe("Item 1 · FN-13 interruptores com espaço vertical e centrados", () => {
+    const holiday = squash(read("sheets/HolidaySheet.tsx"));
+    const edit = squash(read("sheets/LineEditSheet.tsx"));
+
+    it("Repete todo ano: switchRow com paddingVertical e o <Switch> centrado", () => {
+      expect(holiday).toMatch(/switchRow: \{[^}]*minHeight: minTouch,[^}]*paddingVertical: space\.sm,[^}]*\}/);
+      expect(holiday).toMatch(/<Switch accessibilityLabel=\{t\("holiday\.every_year"\)\} style=\{\{ alignSelf: "center" \}\}/);
+    });
+
+    it("Circular: switchRow com paddingVertical e o <Switch> centrado", () => {
+      expect(edit).toMatch(/switchRow: \{[^}]*minHeight: minTouch, paddingVertical: space\.sm,[^}]*\}/);
+      expect(edit).toMatch(/<Switch accessibilityLabel=\{t\("line_create\.circular"\)\} style=\{\{ alignSelf: "center" \}\}/);
+    });
+  });
 });
