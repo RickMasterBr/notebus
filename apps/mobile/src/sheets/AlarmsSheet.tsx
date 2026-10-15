@@ -327,6 +327,9 @@ export function AlarmsSheet({ id }: { id: number }) {
                       key={u.id}
                       style={[styles.upcomingRow, { borderBottomColor: colors.divider }]}
                     >
+                      <Text style={[type.caption, { color: colors.textSecondary }]}>
+                        {u.dateText}
+                      </Text>
                       <Text style={[type.bodyStrong, { color: colors.text }]}>{u.time}</Text>
                       <Text style={[type.body, { color: colors.textSecondary, flex: 1 }]}>
                         {u.text}

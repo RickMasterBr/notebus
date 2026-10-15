@@ -206,8 +206,39 @@ describe("Item 1: alarmsUi - Camada de dados das telas fora do React", () => {
       expect(list).toHaveLength(2);
       expect(list[0]!.id).toBe("alarm-2:2026-10-08");
       expect(list[0]!.text).toBe("L2 · Praça");
+      expect(list[0]!.dateText).toBeDefined();
       expect(list[1]!.id).toBe("alarm-1:2026-10-08");
       expect(list[1]!.text).toBe("L1 · Arrabalde");
+      expect(list[1]!.dateText).toBeDefined();
+    });
+
+    it("FN-4: três agendamentos do mesmo horário em dias seguidos dão três dateText diferentes e ordenados", () => {
+      const t1 = Date.parse("2026-10-14T19:51:00Z");
+      const t2 = Date.parse("2026-10-15T19:51:00Z");
+      const t3 = Date.parse("2026-10-16T19:51:00Z");
+
+      const scheduled: ScheduledRequest[] = [
+        { id: "a3", at: t3, title: "A", body: "B", categoryId: "departure", data: { kind: "departure", lineCode: "1", stopName: "Ponto" } },
+        { id: "a1", at: t1, title: "A", body: "B", categoryId: "departure", data: { kind: "departure", lineCode: "1", stopName: "Ponto" } },
+        { id: "a2", at: t2, title: "A", body: "B", categoryId: "departure", data: { kind: "departure", lineCode: "1", stopName: "Ponto" } },
+      ];
+
+      const list = upcomingList(scheduled);
+      expect(list).toHaveLength(3);
+      expect(list.map((u) => u.time)).toEqual(["20:51", "20:51", "20:51"]);
+      expect(list.map((u) => u.dateText)).toEqual(["14/10", "15/10", "16/10"]);
+    });
+
+    it("FN-4: um agendamento de meia-noite local (Europe/Lisbon) cai no dia certo", () => {
+      // Meia-noite local de 10/08/2026 em Lisboa (UTC+1) = 2026-08-09T23:00:00Z
+      const midnightLocal = Date.parse("2026-08-09T23:00:00Z");
+      const scheduled: ScheduledRequest[] = [
+        { id: "mid", at: midnightLocal, title: "A", body: "B", categoryId: "departure", data: { kind: "departure", lineCode: "1", stopName: "Ponto" } },
+      ];
+      const list = upcomingList(scheduled);
+      expect(list).toHaveLength(1);
+      expect(list[0]!.time).toBe("00:00");
+      expect(list[0]!.dateText).toBe("10/08");
     });
   });
 

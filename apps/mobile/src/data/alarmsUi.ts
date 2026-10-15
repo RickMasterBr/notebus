@@ -225,6 +225,7 @@ export interface UpcomingItem {
   id: string;
   at: number;
   time: string;
+  dateText: string;
   text: string;
 }
 
@@ -245,11 +246,13 @@ export function upcomingList(scheduled: readonly ScheduledRequest[]): UpcomingIt
       const dep = r.data ? readDeparture(r.data) : null;
       const lineCode = dep?.lineCode ?? (typeof r.data?.lineCode === "string" ? r.data.lineCode : "");
       const stopName = dep?.stopName ?? (typeof r.data?.stopName === "string" ? r.data.stopName : "");
-      const min = lisbonWallClock(r.at).minute;
+      const wall = lisbonWallClock(r.at);
+      const min = wall.minute;
       return {
         id: r.id,
         at: r.at,
         time: formatServiceMinute(min),
+        dateText: shortDateText(wall.date),
         text: `${lineCode} · ${stopName}`,
       };
     });
