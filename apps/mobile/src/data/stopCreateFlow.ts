@@ -44,3 +44,12 @@ export function afterCreateActions({ stack, newStop, mode }: AfterCreateInput): 
     },
   ];
 }
+
+/**
+ * Decide se o aviso após salvar o ponto deve exibir a ação Desfazer (E-08.5 Fechamento, Item 4).
+ * Com "pick" (Nova linha): o ponto entra na linha; Desfazer o ponto deixaria a paragem órfã,
+ * portanto o aviso é exibido sem o botão Desfazer.
+ */
+export function showUndoAfterSave(afterSave: "pick" | "open" | undefined): boolean {
+  return afterSave !== "pick";
+}

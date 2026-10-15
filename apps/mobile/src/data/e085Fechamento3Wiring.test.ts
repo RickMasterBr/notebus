@@ -47,3 +47,13 @@ describe("e085Fechamento3Wiring (Item 3: Frase viva, pronto testável e tokens)"
     expect(src).not.toMatch(/marginTop:\s*2/);
   });
 });
+
+describe("e085Fechamento4Wiring (Item 4: Desfazer do Novo ponto na Nova linha)", () => {
+  it("4i: showUndoAfterSave(afterSave) decide o action no toast.show do StopEditSheet", () => {
+    const src = squash(readSource("../sheets/StopEditSheet.tsx"));
+    expect(src).toMatch(/toast\.show\(\{/);
+    expect(src).toMatch(
+      /action:\s*showUndoAfterSave\(afterSave\)\s*\?\s*\{[\s\S]*?label:\s*t\("toast\.action\.undo"\)[\s\S]*?\}\s*:\s*undefined/,
+    );
+  });
+});
