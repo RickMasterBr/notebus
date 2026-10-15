@@ -21,10 +21,15 @@ const squash = (text: string) => text.replace(/\s+/g, " ");
 const recordsSheet = squash(read("sheets/RecordsSheet.tsx"));
 
 describe("e085Bloco16Wiring (Item 3: A lista na RecordsSheet)", () => {
-  it("3a: a folha chama buildTripsList com observations, rides, snapshot, now e windowDays", () => {
+  it("3a: a folha chama buildTripsList com observations, rides, snapshot, now e windowDays, e handleLoadMore usa nextWindowDays (R1, R7, R8)", () => {
     expect(recordsSheet).toMatch(
       /buildTripsList\(\{\s*observations:\s*liveObservations,\s*rides:\s*registro\.rides,\s*snapshot:\s*scheduleData,\s*now:\s*instant,\s*windowDays,?\s*\}\)/,
     );
+    expect(recordsSheet).toMatch(/useState\(DEFAULT_WINDOW_DAYS\)|useState\(14\)/);
+    expect(recordsSheet).toMatch(
+      /handleLoadMore\s*=\s*useCallback\([\s\S]*?setWindowDays\(\(curr\)\s*=>\s*nextWindowDays\(model\.hasMore,\s*curr\)\)/,
+    );
+    expect(recordsSheet).toMatch(/onEndReached=\{handleLoadMore\}/);
   });
 
   it("3b: model.now alimenta o cartão 'Agora'", () => {
@@ -50,20 +55,35 @@ describe("e085Bloco16Wiring (Item 3: A lista na RecordsSheet)", () => {
     expect(recordsSheet).toMatch(/t\("sheet_records\.allchecked\.headline"\)/);
   });
 
-  it("3f: o deslizar do cartão de viagem chama registro.remove(card.boardingId)", () => {
+  it("3f: o deslizar do cartão de viagem chama registro.remove(card.boardingId) e tem rollback com unhide (R2)", () => {
     expect(recordsSheet).toMatch(/onDelete=\{handleDeleteTrip\}/);
-    expect(recordsSheet).toMatch(/handleDeleteTrip\s*=\s*useCallback\([\s\S]*?registro\.remove\(boardingId\)/);
-  });
-
-  it("3g: o deletedIds recebe boardingId e alightingId", () => {
     expect(recordsSheet).toMatch(
-      /idsToHide\(boardingId,\s*alightingId\)[\s\S]*?setDeletedIds\(\(prev\)\s*=>\s*hide\(prev,\s*ids\)\)/,
+      /handleDeleteTrip\s*=\s*useCallback\(\s*async\s*\([^)]*\)\s*=>\s*\{[\s\S]*?try\s*\{[^}]*?registro\.remove\(boardingId\)[^}]*?\}\s*catch\s*\{[^}]*?unhide\(prev,\s*ids\)[^}]*?\}[\s\S]*?\[registro\]/,
     );
   });
 
-  it("3h: o 'Agora' não tem renderRightActions (cartão sem deslizar)", () => {
+  it("3g: o deletedIds recebe boardingId e alightingId e handleDeleteSingle apaga o ID certo com rollback (R3)", () => {
+    expect(recordsSheet).toMatch(
+      /idsToHide\(boardingId,\s*alightingId\)[\s\S]*?setDeletedIds\(\(prev\)\s*=>\s*hide\(prev,\s*ids\)\)/,
+    );
+    expect(recordsSheet).toMatch(
+      /handleDeleteSingle\s*=\s*useCallback\(\s*async\s*\(\s*observationId:\s*string\s*\)\s*=>\s*\{[\s\S]*?idsToHide\(observationId\)[\s\S]*?try\s*\{[^}]*?registro\.remove\(observationId\)[^}]*?\}\s*catch\s*\{[^}]*?unhide\(prev,\s*ids\)[^}]*?\}[\s\S]*?\[registro\]/,
+    );
+    expect(recordsSheet).toMatch(/onDelete=\{handleDeleteSingle\}/);
+  });
+
+  it("3h: o 'Agora' não tem renderRightActions nem ação de acessibilidade Apagar (R5/R6)", () => {
     expect(recordsSheet).toMatch(
       /renderRightActions=\{!isNow\s*\?\s*renderRightActions\s*:\s*undefined\}|!isNow\s*\?\s*\(\s*<ReanimatedSwipeable[\s\S]*?renderRightActions=\{renderRightActions\}/,
+    );
+    expect(recordsSheet).toMatch(
+      /accessibilityActions=\{!isNow\s*\?\s*\[\{\s*name:\s*"delete"/,
+    );
+  });
+
+  it("3i: pruneRevived limpa os IDs vivos no useEffect (R9)", () => {
+    expect(recordsSheet).toMatch(
+      /useEffect\(\(\)\s*=>\s*\{\s*setDeletedIds\(\(prev\)\s*=>\s*pruneRevived\(prev,\s*registro\.observations\)\);\s*\},?\s*\[registro\.observations\]\)/,
     );
   });
 });
