@@ -48,13 +48,21 @@ export function offlineSettingsButtons(status: OfflineMapStatus): OfflineSetting
   }
 }
 
+export function offlineSettingsHint(status: OfflineMapStatus): MessageKey | null {
+  if (status.kind === "ready") return "settings.map.ready_hint";
+  if (status.kind === "error") return "offline_map.error";
+  return null;
+}
+
 export function runOfflineSettingsAction(
   action: OfflineSettingsAction,
-  handlers: { startDownload: () => void; deleteMap: () => void },
+  handlers: { startDownload: () => void; deleteMap: () => void; goBack: () => void },
 ): void {
   if (action === "download" || action === "download_again") {
     handlers.startDownload();
   } else if (action === "delete") {
     handlers.deleteMap();
+  } else if (action === "cancel") {
+    handlers.goBack();
   }
 }
