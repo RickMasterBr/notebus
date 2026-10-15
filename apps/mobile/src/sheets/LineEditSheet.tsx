@@ -520,6 +520,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                   </Text>
                   <Switch
                     accessibilityLabel={t("line_create.circular")}
+                    style={{ alignSelf: "center" }}
                     value={state.isCircular}
                     onValueChange={(val) => setState((prev) => ({ ...prev, isCircular: val }))}
                     trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
@@ -877,6 +878,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     minHeight: minTouch,
+    paddingVertical: space.sm,
   },
   stopsHeaderRow: {
     flexDirection: "row",

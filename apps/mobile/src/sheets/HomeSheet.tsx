@@ -38,7 +38,7 @@ import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { homeCardsPlan } from "../data/homeCards";
 import { homeGuide } from "../data/homeGuide";
 import { homePendingInfo } from "../data/homePending";
-import { homeFadeOpacity } from "../data/homeFade";
+import { homeFadeHeight, homeFadeOpacity, homeFadeProgress } from "../data/homeFade";
 import { phraseVisible } from "../data/homePhraseVisible";
 import { initialDetent } from "../data/homeStart";
 import { useHomePhrase } from "../data/useHomePhrase";
@@ -138,6 +138,8 @@ export function HomeSheet() {
   // Altura medida do cartão ("Em viagem", lembrete de backup ou mapa sem internet); 0 sem nenhum.
   const [cardHeight, setCardHeight] = useState(0);
   const [phraseHeight, setPhraseHeight] = useState(0);
+  // Altura medida do conteúdo de "Registros a conferir" (o interno, nunca o contêiner que encolhe).
+  const [pendingHeight, setPendingHeight] = useState(0);
   const reduceMotion = useReduceMotion();
   const { phrase, lineColor } = useHomePhrase();
   const showPhrase = phraseVisible({
@@ -170,6 +172,13 @@ export function HomeSheet() {
   const topAtSmall = window.height - small;
   const topAtMedium = window.height - snapHeight("50%", containerHeightOf(window.height, insets.top));
   const fadeStyle = useAnimatedStyle(() => ({ opacity: homeFadeOpacity(sheetTop.value, topAtSmall, topAtMedium) }));
+  // FN-15: a altura encolhe pelo mesmo progresso da opacidade; no pequeno chega a zero antes do desmonte.
+  const phraseClipStyle = useAnimatedStyle(() => ({
+    height: homeFadeHeight(homeFadeProgress(sheetTop.value, topAtSmall, topAtMedium), phraseHeight),
+  }));
+  const pendingClipStyle = useAnimatedStyle(() => ({
+    height: homeFadeHeight(homeFadeProgress(sheetTop.value, topAtSmall, topAtMedium), pendingHeight),
+  }));
   // Com folha empilhada por cima, a de baixo sai da leitura do VoiceOver.
   const covered = state.stack.length > 1;
   const pill = useRef<View>(null);
@@ -290,11 +299,14 @@ export function HomeSheet() {
             </View>
           ) : null}
           {showPhrase && phrase ? (
-            <View collapsable={false} onLayout={(e) => setPhraseHeight(e.nativeEvent.layout.height)}>
-              <Animated.View entering={reduceMotion ? undefined : FadeIn.duration(200)} style={fadeStyle}>
+            <Animated.View
+              entering={reduceMotion ? undefined : FadeIn.duration(200)}
+              style={[styles.clip, fadeStyle, phraseHeight > 0 ? phraseClipStyle : null]}
+            >
+              <View collapsable={false} onLayout={(e) => setPhraseHeight(e.nativeEvent.layout.height)}>
                 <HomePhrase phrase={phrase} lineColor={lineColor} />
-              </Animated.View>
-            </View>
+              </View>
+            </Animated.View>
           ) : null}
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
             <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
@@ -404,10 +416,11 @@ export function HomeSheet() {
               ) : null}
               {pendingInfo ? (
                 <Animated.View
-                  style={fadeStyle}
+                  style={[styles.clip, fadeStyle, pendingHeight > 0 ? pendingClipStyle : null]}
                   pointerEvents={state.detent === 0 ? "none" : "auto"}
                   accessibilityElementsHidden={state.detent === 0}
                 >
+                <View collapsable={false} onLayout={(e) => setPendingHeight(e.nativeEvent.layout.height)}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={pendingInfo.text}
@@ -425,6 +438,7 @@ export function HomeSheet() {
                   <Text style={[type.body, { color: colors.textSecondary }]}>{pendingInfo.text}</Text>
                   <Text style={{ color: colors.textSecondary, fontSize: 16 }}>→</Text>
                 </Pressable>
+                </View>
                 </Animated.View>
               ) : null}
               <NearbyStops />
@@ -467,6 +481,7 @@ export function HomeSheet() {
 const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: space.md },
   card: { paddingBottom: space.md, gap: space.sm },
+  clip: { overflow: "hidden" },
   fab: { position: "absolute", top: 0, right: space.md },
   pendingRow: {
     minHeight: 44,

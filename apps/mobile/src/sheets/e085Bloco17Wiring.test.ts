@@ -27,7 +27,7 @@ describe("e085Bloco17Wiring (Item 4: O hook e a ligação na HomeSheet)", () => 
       /showPhrase\s*=\s*phraseVisible\(\{\s*phrase,\s*inTrip:\s*Boolean\(tripCard\),\s*detent:\s*state\.detent,?\s*\}\)/,
     );
     expect(homeSheet).toMatch(
-      /showPhrase\s*&&\s*phrase\s*\?\s*\(\s*<View\b[^>]*?onLayout=\{[^\n}]*?setPhraseHeight/,
+      /showPhrase\s*&&\s*phrase\s*\?\s*\(\s*<Animated\.View\b[\s\S]*?phraseClipStyle[\s\S]*?>\s*<View\b[^>]*?onLayout=\{[^\n}]*?setPhraseHeight/,
     );
   });
 

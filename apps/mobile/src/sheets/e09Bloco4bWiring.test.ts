@@ -59,8 +59,8 @@ describe("E-09 Bloco 4b guardas de ligação (e09Bloco4bWiring)", () => {
 
     it("a opacidade vem de homeFadeOpacity e vai à frase e a Registros a conferir", () => {
       expect(home).toContain("opacity: homeFadeOpacity(sheetTop.value, topAtSmall, topAtMedium)");
-      expect(home).toMatch(/<Animated\.View entering=\{[^}]*\} style=\{fadeStyle\}> <HomePhrase/);
-      expect(home).toMatch(/\{pendingInfo \? \( <Animated\.View style=\{fadeStyle\}/);
+      expect(home).toMatch(/<Animated\.View entering=\{[^}]*\} style=\{\[styles\.clip, fadeStyle, phraseHeight > 0 \? phraseClipStyle : null\]\} > <View .*?> <HomePhrase/);
+      expect(home).toMatch(/\{pendingInfo \? \( <Animated\.View style=\{\[styles\.clip, fadeStyle, pendingHeight > 0 \? pendingClipStyle : null\]\}/);
     });
 
     it("o bloco invisível sai do toque e da leitura", () => {
