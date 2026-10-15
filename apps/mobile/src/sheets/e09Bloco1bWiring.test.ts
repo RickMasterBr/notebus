@@ -40,8 +40,9 @@ describe("E-09 bloco 1b: SettingsSheet", () => {
 
   it("S9: o interruptor de feriados municipais mostra e grava includeMunicipalHolidays sem inverter", () => {
     expect(settings).toMatch(
-      /<Switch accessibilityLabel=\{t\("settings\.holiday\.municipal"\)\} value=\{prefs\.includeMunicipalHolidays\} onValueChange=\{\(val\) => void prefs\.setIncludeMunicipalHolidays\(val\)\}/,
+      /<Switch accessibilityLabel=\{t\("settings\.holiday\.municipal"\)\} value=\{municipalSwitch\.value\} onValueChange=\{municipalSwitch\.onValueChange\}/,
     );
+    expect(settings).toContain("useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays)");
     expect(settings).toMatch(/includeMunicipal: prefs\.includeMunicipalHolidays,/);
   });
 

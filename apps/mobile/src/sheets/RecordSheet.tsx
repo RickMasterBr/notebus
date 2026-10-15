@@ -46,6 +46,7 @@ import { useNowTick } from "../data/useNowTick";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CheckGlyph, CrossGlyph, InfoGlyph } from "../ui/Glyphs";
+import { AnimatedSwitchVisual } from "../ui/AnimatedSwitchVisual";
 import { LineBadge } from "../ui/LineBadge";
 import { PickerModal } from "../ui/PickerModal";
 import { SheetHandle } from "./SheetHandle";
@@ -596,22 +597,7 @@ function RecordSheetLoaded({
                 {t("sheet_record.memory.detail")}
               </Text>
             </View>
-            <View
-              style={[
-                styles.switchTrack,
-                { backgroundColor: draft.memory ? colors.accent : colors.divider },
-              ]}
-            >
-              <View
-                style={[
-                  styles.switchThumb,
-                  {
-                    backgroundColor: colors.surface,
-                    transform: [{ translateX: draft.memory ? 20 : 0 }],
-                  },
-                ]}
-              />
-            </View>
+            <AnimatedSwitchVisual on={draft.memory} />
           </Pressable>
 
           {/* Campo de Nota */}
@@ -835,18 +821,6 @@ const styles = StyleSheet.create({
   switchLabels: {
     flex: 1,
     gap: 2,
-  },
-  switchTrack: {
-    width: 51,
-    height: 31,
-    borderRadius: 16,
-    padding: 2,
-    justifyContent: "center",
-  },
-  switchThumb: {
-    width: 27,
-    height: 27,
-    borderRadius: 14,
   },
   noteSection: {
     gap: 6,

@@ -91,6 +91,7 @@ import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { activeSheet } from "./stack";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
 import { useKeyboardHeight } from "./useKeyboardHeight";
+import { useOptimisticSwitch } from "../ui/useOptimisticSwitch";
 import { useReduceMotion } from "./useReduceMotion";
 
 const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D"})`;
@@ -297,7 +298,7 @@ export function SettingsSheet({ id }: { id: number }) {
   const netLine = networkLine(networkInfoData.dataset, networkInfoData.network);
 
   const handleToggleAlarms = (val: boolean) => {
-    void toggleAlarms({
+    return toggleAlarms({
       next: val,
       decide: async (target) => alarmsSwitchDecision(await expoPort.getPermission(), target),
       setAlarmsAllowed: async (allowed) => {
@@ -320,6 +321,9 @@ export function SettingsSheet({ id }: { id: number }) {
       },
     });
   };
+
+  const alarmsSwitch = useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms);
+  const municipalSwitch = useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays);
 
   const view = settingsIndexView({
     userName: currentUserName,
@@ -433,8 +437,8 @@ export function SettingsSheet({ id }: { id: number }) {
                         </View>
                         <Switch
                           accessibilityLabel={t("settings.alarms.allow")}
-                          value={prefs.alarmsAllowed}
-                          onValueChange={handleToggleAlarms}
+                          value={alarmsSwitch.value}
+                          onValueChange={alarmsSwitch.onValueChange}
                           trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
                           thumbColor={colors.surface}
                         />
@@ -697,8 +701,8 @@ export function SettingsSheet({ id }: { id: number }) {
                           </Text>
                           <Switch
                             accessibilityLabel={t("settings.holiday.municipal")}
-                            value={prefs.includeMunicipalHolidays}
-                            onValueChange={(val) => void prefs.setIncludeMunicipalHolidays(val)}
+                            value={municipalSwitch.value}
+                            onValueChange={municipalSwitch.onValueChange}
                             trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
                             thumbColor={colors.surface}
                           />
