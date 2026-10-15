@@ -63,7 +63,7 @@ export function HomePhrase({
             <LineBadge code={phrase.arriving.lineCode} color={lineColor} />
             <Text
               numberOfLines={1}
-              style={[type.subtitle, { color: colors.textSecondary, fontSize: 14 }]}
+              style={[type.eyebrow, { color: colors.textSecondary }]}
             >
               {arrivingText}
             </Text>
@@ -80,12 +80,11 @@ const styles = StyleSheet.create({
     paddingBottom: space.sm,
   },
   inner: {
-    gap: 6,
+    gap: space.xs,
   },
   arrivingRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
-    marginTop: 2,
   },
 });

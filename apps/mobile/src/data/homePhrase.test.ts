@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   homePhrase,
-  selectInvite,
   type HomePhraseId,
   type InvitePhraseId,
   type PhraseDeparture,
@@ -453,12 +452,35 @@ describe("homePhrase (Item 1, D-207, ideia 50)", () => {
 
     it("lastPhraseId único elegível fica na lista", () => {
       // Quando só há um elegível e ele coincide com lastPhraseId, ele é mantido para evitar lista vazia
-      expect(selectInvite(["where"], "invite_where", 0)).toBe("where");
+      const res = homePhrase({
+        inTrip: false,
+        now: BASE_NOW,
+        hour: 14,
+        name: null,
+        departures: [],
+        placeCount: 0,
+        hasHomePlace: false,
+        recordCount: 1,
+        lastPhraseId: "invite_where",
+        pick: 0,
+      });
+      expect(res?.id).toBe("invite_line");
     });
 
     it("índice usa Math.min para não estourar lista de 1 item com pick no limite", () => {
-      expect(selectInvite(["where"], null, 0.999)).toBe("where");
-      expect(selectInvite(["where"], null, 1)).toBe("where");
+      const input = {
+        inTrip: false,
+        now: BASE_NOW,
+        hour: 14,
+        name: null,
+        departures: [],
+        placeCount: 0,
+        hasHomePlace: false,
+        recordCount: 1,
+        lastPhraseId: "invite_where" as const,
+      };
+      expect(homePhrase({ ...input, pick: 0 })?.id).toBe("invite_line");
+      expect(homePhrase({ ...input, pick: 0.999 })?.id).toBe("invite_line");
     });
 
     it("regra de produto: frase de ônibus pode repetir se de novo há ônibus chegando", () => {
