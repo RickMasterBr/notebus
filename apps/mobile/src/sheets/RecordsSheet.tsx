@@ -48,6 +48,15 @@ import {
   type RecordsPage,
 } from "../data/recordsNav";
 import { tripPageModel } from "../data/recordsTripPage";
+import {
+  DEFAULT_WINDOW_DAYS,
+  hide,
+  idsToHide,
+  nextWindowDays,
+  pruneRevived,
+  unhide,
+  visibleObservations,
+} from "../data/recordsDelete";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { EmptyState } from "../ui/EmptyState";
@@ -476,7 +485,7 @@ export function RecordsSheet({ id }: { id: number }) {
   const handleBack = useCallback(() => dispatchNav({ type: "back" }), []);
 
   const [handleHeight, setHandleHeight] = useState(0);
-  const [windowDays, setWindowDays] = useState(14);
+  const [windowDays, setWindowDays] = useState(DEFAULT_WINDOW_DAYS);
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
   const openSwipeableRef = useRef<SwipeableMethods | null>(null);
 
@@ -494,26 +503,13 @@ export function RecordsSheet({ id }: { id: number }) {
 
   // Limpa IDs de deletedIds quando eles reaparecem vivos (ex.: Desfazer)
   useEffect(() => {
-    setDeletedIds((prev) => {
-      if (prev.size === 0) return prev;
-      let changed = false;
-      const next = new Set(prev);
-      for (const obsId of prev) {
-        const obs = registro.observations.find((o) => o.id === obsId);
-        if (obs && obs.deletedAt == null) {
-          next.delete(obsId);
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
+    setDeletedIds((prev) => pruneRevived(prev, registro.observations));
   }, [registro.observations]);
 
   const scheduleData = schedule.status === "ready" ? schedule.data : null;
 
   const liveObservations = useMemo(() => {
-    if (deletedIds.size === 0) return registro.observations;
-    return registro.observations.filter((o) => !deletedIds.has(o.id));
+    return visibleObservations(registro.observations, deletedIds);
   }, [registro.observations, deletedIds]);
 
   const model = useMemo(() => {
@@ -527,9 +523,7 @@ export function RecordsSheet({ id }: { id: number }) {
   }, [liveObservations, registro.rides, scheduleData, instant, windowDays]);
 
   const handleLoadMore = useCallback(() => {
-    if (model.hasMore) {
-      setWindowDays((curr) => curr + 14);
-    }
+    setWindowDays((curr) => nextWindowDays(model.hasMore, curr));
   }, [model.hasMore]);
 
   const listItems = useMemo<ListItem[]>(() => {
@@ -613,20 +607,12 @@ export function RecordsSheet({ id }: { id: number }) {
   const handleDeleteTrip = useCallback(
     async (boardingId: string, alightingId: string | null) => {
       openSwipeableRef.current = null;
-      setDeletedIds((prev) => {
-        const next = new Set(prev).add(boardingId);
-        if (alightingId) next.add(alightingId);
-        return next;
-      });
+      const ids = idsToHide(boardingId, alightingId);
+      setDeletedIds((prev) => hide(prev, ids));
       try {
         await registro.remove(boardingId);
       } catch {
-        setDeletedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(boardingId);
-          if (alightingId) next.delete(alightingId);
-          return next;
-        });
+        setDeletedIds((prev) => unhide(prev, ids));
       }
     },
     [registro],
@@ -635,15 +621,12 @@ export function RecordsSheet({ id }: { id: number }) {
   const handleDeleteSingle = useCallback(
     async (observationId: string) => {
       openSwipeableRef.current = null;
-      setDeletedIds((prev) => new Set(prev).add(observationId));
+      const ids = idsToHide(observationId);
+      setDeletedIds((prev) => hide(prev, ids));
       try {
         await registro.remove(observationId);
       } catch {
-        setDeletedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(observationId);
-          return next;
-        });
+        setDeletedIds((prev) => unhide(prev, ids));
       }
     },
     [registro],

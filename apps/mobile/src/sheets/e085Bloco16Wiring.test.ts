@@ -57,7 +57,7 @@ describe("e085Bloco16Wiring (Item 3: A lista na RecordsSheet)", () => {
 
   it("3g: o deletedIds recebe boardingId e alightingId", () => {
     expect(recordsSheet).toMatch(
-      /setDeletedIds\([\s\S]*?add\(boardingId\)[\s\S]*?if\s*\(\s*alightingId\s*\)\s*next\.add\(alightingId\)/,
+      /idsToHide\(boardingId,\s*alightingId\)[\s\S]*?setDeletedIds\(\(prev\)\s*=>\s*hide\(prev,\s*ids\)\)/,
     );
   });
 
