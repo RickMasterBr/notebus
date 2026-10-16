@@ -59,6 +59,7 @@ export function TripCard({
 
   return (
     <Animated.View
+      accessibilityLiveRegion="polite"
       entering={reduceMotion ? FadeIn.duration(motion.normal) : dropIn}
       style={[styles.card, { backgroundColor: colors.trip }]}
     >
@@ -121,7 +122,12 @@ export function BackupReminderCard({ text, onExport, onSnooze }: { text: string;
 
 function TextAction({ label, color, onPress }: { label: string; color: string; onPress: () => void }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}
+    >
       <Text style={[type.subtitle, { color }]}>{label}</Text>
     </Pressable>
   );
