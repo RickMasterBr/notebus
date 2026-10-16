@@ -1,0 +1,23 @@
+appId: com.rickmasterbr.notebus
+---
+# M-2 (T-93): Atalho "Facul" sem rede
+# O atalho "Facul" abre a TL-04 (Ir para), com a opção da Linha 1 e o "sair às" visíveis.
+
+- launchApp:
+    clearState: true
+
+# Toca no atalho Facul
+- tapOn:
+    text: "Facul"
+
+# TL-04 aberta com título e opção da linha visível
+- assertVisible:
+    text: ".*Ir para Facul.*"
+
+# Opção da Linha 1 visível
+- assertVisible:
+    text: ".*Linha 1.*"
+
+# "sair às" visível por inteiro
+- assertVisible:
+    text: ".*sair às.*"

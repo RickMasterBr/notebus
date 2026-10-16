@@ -34,6 +34,6 @@ export function TestClockBanner() {
 
 const styles = StyleSheet.create({
   // `zIndex` e `elevation` altos: por cima das folhas e do fundo escurecido, que são irmãos absolutos desta vista.
-  band: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10_000, elevation: 10_000, justifyContent: "center" },
+  band: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 10_000, elevation: 10_000, justifyContent: "center", minHeight: 44 },
   text: { textAlign: "center", paddingHorizontal: 12, paddingVertical: 6 },
 });

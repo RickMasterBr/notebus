@@ -1,0 +1,30 @@
+appId: com.rickmasterbr.notebus
+---
+# M-3 (T-94): "Está indo ou voltando?" sem rede
+# Do ponto, tocar na viagem abre a TL-05 (Daqui para a frente) e a lista mostra as paragens que faltam.
+
+- launchApp:
+    clearState: true
+
+# Abre o ponto Arrabalde a partir dos recentes
+- tapOn:
+    text: "Arrabalde"
+
+# Confere a tela do ponto aberta
+- assertVisible:
+    text: "Arrabalde"
+
+# Toca na viagem da Linha 1 no ponto
+- tapOn:
+    text: ".*Linha 1.*"
+
+# Confere a TL-05 aberta
+- assertVisible:
+    text: "Daqui para a frente"
+
+# Confere que a lista mostra as paragens que faltam
+- assertVisible:
+    text: "Facul"
+
+- assertVisible:
+    text: "Casa"

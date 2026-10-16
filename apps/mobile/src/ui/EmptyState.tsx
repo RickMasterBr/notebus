@@ -54,6 +54,7 @@ export function EmptyState({
       {action ? (
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={action.label}
           onPress={action.onPress}
           style={({ pressed }) => [
             styles.actionButton,
@@ -72,6 +73,7 @@ export function EmptyState({
       {secondary ? (
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={secondary.label}
           onPress={secondary.onPress}
           style={({ pressed }) => [
             styles.secondaryButton,

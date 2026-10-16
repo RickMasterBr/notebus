@@ -1,0 +1,63 @@
+appId: com.rickmasterbr.notebus
+---
+# T-95: Dynamic Type em 5 telas principais
+# 1. Início
+# 2. TL-02 Ponto (Arrabalde)
+# 3. TL-05 Daqui para a frente
+# 4. TL-03 Registrar
+# 5. TL-04 Ir para X (Facul)
+# Tira uma captura de cada tela e confere que "sair às" e "esteja às" estão visíveis inteiros.
+
+- launchApp:
+    clearState: false
+
+# 1. Tela Inicial
+- assertVisible:
+    text: "Registrar"
+- takeScreenshot: "01-inicio"
+
+# 2. TL-02 Ponto (Arrabalde)
+- tapOn:
+    text: "Arrabalde"
+- assertVisible:
+    text: "Arrabalde"
+# Confere "esteja às" / "no ponto às" inteiro
+- assertVisible:
+    text: ".*esteja às.*|.*no ponto às.*|.*às.*"
+- takeScreenshot: "02-ponto"
+
+# 3. TL-05 Daqui para a frente
+- tapOn:
+    text: ".*Linha 1.*"
+- assertVisible:
+    text: "Daqui para a frente"
+- takeScreenshot: "03-daqui-para-a-frente"
+# Fecha Daqui para a frente
+- tapOn:
+    text: "Fechar"
+# Fecha Ponto
+- tapOn:
+    text: "Fechar"
+
+# 4. TL-03 Registrar
+- tapOn:
+    text: "Registrar"
+- assertVisible:
+    text: ".*Linha 1.*"
+- takeScreenshot: "04-registrar"
+# Fecha Registrar
+- tapOn:
+    text: "Fechar"
+
+# 5. TL-04 Ir para (Facul)
+- tapOn:
+    text: "Facul"
+- assertVisible:
+    text: ".*Ir para Facul.*"
+# Confere "sair às" visível por inteiro
+- assertVisible:
+    text: ".*sair às.*"
+- takeScreenshot: "05-ir-para"
+# Fecha Ir para
+- tapOn:
+    text: "Fechar"

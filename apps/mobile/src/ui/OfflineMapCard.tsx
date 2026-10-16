@@ -86,7 +86,7 @@ function TextAction({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={a11yLabel}
+      accessibilityLabel={a11yLabel ?? label}
       onPress={onPress}
       style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}
     >

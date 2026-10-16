@@ -11,7 +11,7 @@ import { cardLabel } from "../data/cardLabel";
 import type { NextBus, StopCard, StopCardLine } from "../data/stopCard";
 import { busEtaText, cardA11y, directionText, mayPassNowText, nextDayText, reasonText } from "../data/stopCardText";
 import { t } from "../i18n";
-import { radius, space, type, useTheme } from "../theme";
+import { minTouch, radius, space, type, useTheme } from "../theme";
 import { ConfidenceSeal } from "./ConfidenceSeal";
 import { LineBadge } from "./LineBadge";
 
@@ -111,7 +111,7 @@ const timeStyle = (confidence: NextBus["confidence"]) =>
 
 const styles = StyleSheet.create({
   // Canvas: borda `divider` de 1 px, raio 14, padding 12 × 14, 10 de intervalo entre as partes.
-  card: { borderWidth: 1, borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
+  card: { minHeight: minTouch, borderWidth: 1, borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
   line: { gap: 10 },
   separator: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 12 },
