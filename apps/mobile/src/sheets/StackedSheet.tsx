@@ -8,8 +8,8 @@
  */
 import BottomSheet, { BottomSheetBackdrop, type BottomSheetBackdropProps, BottomSheetView } from "@gorhom/bottom-sheet";
 import { type ComponentType, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
-import { StyleSheet, View } from "react-native";
-import Animated, { Easing, FadeIn, FadeOut } from "react-native-reanimated";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
+import Animated, { Easing, FadeIn, FadeOut, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t } from "../i18n";
 import { elevation, motion, radius, space, useTheme } from "../theme";
@@ -18,11 +18,13 @@ import { useSheets } from "./SheetsContext";
 import { activeSheet } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
+import { isGhostSuspect } from "./ghostRepair";
 import { realNow } from "../data/clock";
 
 const OPEN_MS = motion.normal; // 250
 const CLOSE_MS = 180;
 const FADE_MS = motion.fast; // 150
+const REVEAL_CHECK_MS = 350;
 const openConfig = { duration: OPEN_MS, easing: Easing.out(Easing.ease) };
 const closeConfig = { duration: CLOSE_MS, easing: Easing.in(Easing.ease) };
 
@@ -142,6 +144,28 @@ export function StackedSheet({
     }
   }, [isTop, detents?.initialIndex, id]);
 
+  // Folha fantasma (FN-14): depois de coberta, quando volta a ser a do topo, confere se a biblioteca a desenhou na tela.
+  // A posição e o índice só são lidos (`.value`) dentro do `setTimeout`, nunca no render.
+  const animatedPosition = useSharedValue(0);
+  const animatedIndex = useSharedValue(-1);
+  const { height: screenHeight } = useWindowDimensions();
+  const hasBeenCoveredRef = useRef(false);
+  const expectedIndex = detents?.initialIndex ?? 0;
+  useEffect(() => {
+    if (!isTop) {
+      hasBeenCoveredRef.current = true;
+      return;
+    }
+    if (!hasBeenCoveredRef.current) return;
+    const timer = setTimeout(() => {
+      const position = animatedPosition.value;
+      const index = animatedIndex.value;
+      const suspect = isGhostSuspect({ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex });
+      if (DIAG_SCROLL) recordDiagEvent(`revela #${id} pos=${Math.round(position)} idx=${index} tela=${Math.round(screenHeight)} suspeita=${suspect ? "sim" : "nao"}`);
+    }, REVEAL_CHECK_MS);
+    return () => clearTimeout(timer);
+  }, [isTop, id, screenHeight, expectedIndex, animatedPosition, animatedIndex]);
+
   const closeFromHandle = useCallback(() => {
     // Sem movimento: sai direto e o `FadeOut` do invólucro faz o esmaecer. Com movimento: a folha desce e o `onClose` tira da pilha.
     if (reduceMotion) pop();
@@ -211,6 +235,8 @@ export function StackedSheet({
     >
       <BottomSheet
         ref={ref}
+        animatedPosition={animatedPosition}
+        animatedIndex={animatedIndex}
         accessible={false}
         accessibilityRole={null}
         accessibilityLabel={null}
