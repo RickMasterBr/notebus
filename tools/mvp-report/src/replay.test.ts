@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { BACKUP_TABLES, officialId, type BackupRow, type BackupTables } from "@notebus/domain";
 import { MIN_EVALUATED_BOARDINGS, replay } from "./replay.ts";
 import { formatReportText } from "./report.ts";
-import { calculateUsage } from "./usage.ts";
+import { seedToBackupTables } from "./seedTables.ts";
 import { buildSyntheticTables } from "./testing/syntheticBackup.ts";
-import type { BackupRow } from "@notebus/domain/src/backup.ts";
+import { createMinimalSeed } from "./testing/syntheticSeed.ts";
 import type { MvpReportResult } from "./types.ts";
+import { calculateUsage } from "./usage.ts";
 
 // Base da viagem de teste: partida 08:10, Arrabalde (pos. 2) base 08:12 (minuto 492).
 // Com margem padrão 2 e incerteza ±4 (interpolado), sem registros:
@@ -397,6 +399,199 @@ describe("Replay do Critério 4 (src/replay.ts)", () => {
       expect(text).toContain("3 dias com pelo menos 1 registro, de 2026-10-10 a 2026-10-12, 3 registros ao todo");
       expect(text).toContain("registros datados depois da exportação (relógio de teste): 2");
       expect(text).toContain("Total de embarques avaliados: 3");
+    });
+  });
+
+  describe("Item 1: Avaliação de linhas oficiais com --seed (bloco 12)", () => {
+    it("backup no formato real de exportação (sem tabelas oficiais): sem seed falha com missingSchedule e aviso; com seed avalia 10 embarques", () => {
+      const seed = createMinimalSeed();
+      const seedTables = seedToBackupTables(seed);
+
+      // Backup no formato real de exportação: APENAS observações do usuário e preferências (sem tabelas oficiais!)
+      // As observações apontam para IDs oficiais gerados pelo seed (UUIDv5)
+      const lineId = officialId("mobilis/line/1");
+      const stopId = officialId("mobilis/stop/S2"); // Arrabalde
+      const psId = officialId("mobilis/2026-09-01/pattern/L1/pos/2");
+      const tripId = officialId("mobilis/2026-09-01/trip/L1/util/0810");
+
+      // 10 embarques ao vivo em 10 dias úteis (outubro de 2026)
+      // No seed: minuto 500 (08:20). Base 500, incerteza [-2, +2], margem 2 -> esteja às 08:16 (minuto 496).
+      // Embarques às 08:22 (minuto 502, desvio +2) >= 496 -> todos passam!
+      const observations: BackupRow[] = Array.from({ length: 10 }, (_, i) => ({
+        id: `obs-real-${i}`,
+        created_at: BASE_TIME + i * DAY_MS,
+        updated_at: BASE_TIME + i * DAY_MS,
+        deleted_at: null,
+        source: "user",
+        stop_id: stopId,
+        line_id: lineId,
+        pattern_stop_id: psId,
+        trip_id: tripId,
+        observed_at: BASE_TIME + i * DAY_MS + (502 - 420) * 60_000,
+        observed_end_at: null,
+        service_date: `2026-10-${String(i + 1).padStart(2, "0")}`,
+        service_minute: 502,
+        deviation_min: 2,
+        match_status: "auto",
+        mode: "live",
+        kind: "boarded",
+        recorded_at: BASE_TIME + i * DAY_MS,
+      }));
+
+      // Formato real do backup: tabelas oficiais NÃO vão no backup
+      const realBackupTables = {} as BackupTables;
+      for (const t of BACKUP_TABLES) {
+        realBackupTables[t] = [];
+      }
+      realBackupTables.setting = [
+        { id: "s-margin", key: "margin_minutes", value: "2", source: "user", created_at: 1, updated_at: 1, deleted_at: null },
+      ];
+      realBackupTables.observation = observations;
+      realBackupTables.official_edits = {};
+
+      // 1. Sem seed: todos os 10 caem em missingSchedule e o aviso do item 4 aparece
+      const semSeed = replay(realBackupTables);
+      expect(semSeed.resumo.total).toBe(0);
+      expect(semSeed.exclusions.missingSchedule).toBe(10);
+      expect(semSeed.exclusions.officialWithoutSeed).toBe(10);
+
+      const reportSemSeed = formatReportText({
+        file: "backup-rick.json",
+        exportedAt: "2026-10-16T12:00:00Z",
+        criterio2: { daysWithRecord: 10, firstDay: "2026-10-01", lastDay: "2026-10-10", totalRecords: 10, perDay: {} },
+        criterio4: semSeed,
+      });
+      expect(reportSemSeed).toContain("10 registros em linhas oficiais não podem ser avaliados sem o seed: use --seed <arquivo>");
+
+      // 2. Com seed: todos os 10 embarques são avaliados e passam (10 de 10)
+      const comSeed = replay(realBackupTables, { seedTables });
+      expect(comSeed.resumo.total).toBe(10);
+      expect(comSeed.resumo.passed).toBe(10);
+      expect(comSeed.resumo.failed).toBe(0);
+      expect(comSeed.resumo.verdict).toBe("passou");
+      expect(comSeed.exclusions.missingSchedule).toBe(0);
+      expect(comSeed.exclusions.officialWithoutSeed).toBe(0);
+      expect(comSeed.boardings[0]!.shouldBeAt).toBe("08:16");
+      expect(comSeed.boardings[0]!.passed).toBe(true);
+
+      const reportComSeed = formatReportText({
+        file: "backup-rick.json",
+        seedFile: "mobilis-2026-09-01.json",
+        exportedAt: "2026-10-16T12:00:00Z",
+        criterio2: { daysWithRecord: 10, firstDay: "2026-10-01", lastDay: "2026-10-10", totalRecords: 10, perDay: {} },
+        criterio4: comSeed,
+      });
+      expect(reportComSeed).toContain("Seed: mobilis-2026-09-01.json");
+      expect(reportComSeed).not.toContain("não podem ser avaliados sem o seed");
+    });
+
+    it("registro do Rick editando uma linha oficial (official_edits) vence o seed: horário do backup é o usado", () => {
+      // Seed original: horário 500 (08:20)
+      const seed = createMinimalSeed({ stopTimeMinute: 500 });
+      const seedTables = seedToBackupTables(seed);
+
+      const lineId = officialId("mobilis/line/1");
+      const stopId = officialId("mobilis/stop/S2");
+      const psId = officialId("mobilis/2026-09-01/pattern/L1/pos/2");
+      const tripId = officialId("mobilis/2026-09-01/trip/L1/util/0810");
+      const stId = officialId("mobilis/2026-09-01/trip/L1/util/0810/pos/2");
+
+      // Rick editou o horário da linha oficial no app para 520 (08:40)
+      const realBackupTables = {} as BackupTables;
+      for (const t of BACKUP_TABLES) {
+        realBackupTables[t] = [];
+      }
+      realBackupTables.setting = [
+        { id: "s-margin", key: "margin_minutes", value: "2", source: "user", created_at: 1, updated_at: 1, deleted_at: null },
+      ];
+      realBackupTables.official_edits = {
+        stop_time: [
+          {
+            id: stId,
+            created_at: 1,
+            updated_at: 2,
+            deleted_at: null,
+            source: "official_edited",
+            official_key: "mobilis/2026-09-01/trip/L1/util/0810/pos/2",
+            trip_id: tripId,
+            pattern_stop_id: psId,
+            service_minute: 520, // 08:40 em vez de 08:20
+            origin: "official",
+          },
+        ],
+      };
+      realBackupTables.observation = [
+        {
+          id: "obs-edited-trip",
+          created_at: BASE_TIME,
+          updated_at: BASE_TIME,
+          deleted_at: null,
+          source: "user",
+          stop_id: stopId,
+          line_id: lineId,
+          pattern_stop_id: psId,
+          trip_id: tripId,
+          observed_at: BASE_TIME + (522 - 420) * 60_000,
+          observed_end_at: null,
+          service_date: "2026-10-01",
+          service_minute: 522,
+          deviation_min: 2,
+          match_status: "auto",
+          mode: "live",
+          kind: "boarded",
+          recorded_at: BASE_TIME,
+        },
+      ];
+
+      const result = replay(realBackupTables, { seedTables });
+      // Com minuto 520 (08:40), incerteza [-2, +2], margem 2:
+      // esteja às = 520 - 2 - 2 = 516 (08:36)!
+      // Se o seed tivesse vencido o backup (mutação M1), seria 500 - 4 = 496 (08:16).
+      expect(result.resumo.total).toBe(1);
+      expect(result.boardings[0]!.shouldBeAt).toBe("08:36");
+      expect(result.boardings[0]!.passed).toBe(true);
+    });
+
+    it("com --seed, se ainda restar registro com ID inexistente, --detalhe diz qual ID falhou", () => {
+      const seed = createMinimalSeed();
+      const seedTables = seedToBackupTables(seed);
+
+      const lineId = officialId("mobilis/line/1");
+      const stopId = officialId("mobilis/stop/S2");
+      const tripId = officialId("mobilis/2026-09-01/trip/L1/util/0810");
+
+      const realBackupTables = {} as BackupTables;
+      for (const t of BACKUP_TABLES) {
+        realBackupTables[t] = [];
+      }
+      realBackupTables.observation = [
+        {
+          id: "obs-residual-missing",
+          created_at: BASE_TIME,
+          updated_at: BASE_TIME,
+          deleted_at: null,
+          source: "user",
+          stop_id: stopId,
+          line_id: lineId,
+          pattern_stop_id: "ps-inexistente-mesmo-com-seed",
+          trip_id: tripId,
+          observed_at: BASE_TIME,
+          observed_end_at: null,
+          service_date: "2026-10-01",
+          service_minute: 500,
+          deviation_min: 0,
+          match_status: "auto",
+          mode: "live",
+          kind: "boarded",
+          recorded_at: BASE_TIME,
+        },
+      ];
+
+      const result = replay(realBackupTables, { seedTables, detail: true });
+      expect(result.resumo.total).toBe(0);
+      expect(result.exclusions.missingSchedule).toBe(1);
+      expect(result.exclusions.details?.missingSchedule[0]!.qual).toBe("pattern_stop_id");
+      expect(result.exclusions.details?.missingSchedule[0]!.detail).toContain("pattern_stop_id");
     });
   });
 });

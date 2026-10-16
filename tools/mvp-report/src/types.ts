@@ -44,6 +44,7 @@ export interface ReplayExclusions {
   notBoarded: number;
   unmatched: number;
   missingSchedule: number;
+  officialWithoutSeed?: number;
   details?: Record<ExclusionReason, ExclusionDetail[]>;
 }
 
@@ -65,6 +66,7 @@ export interface UsageSummary {
 
 export interface MvpReportResult {
   file: string;
+  seedFile?: string | null;
   exportedAt: string | null;
   from?: string;
   to?: string;
@@ -73,3 +75,4 @@ export interface MvpReportResult {
   futureRecords?: number;
   detail?: boolean;
 }
+
