@@ -446,13 +446,16 @@ export function SettingsSheet({ id }: { id: number }) {
                             {view.alertsHint}
                           </Text>
                         </View>
-                        <Switch
-                          accessibilityLabel={t("settings.alarms.allow")}
-                          value={alarmsSwitch.value}
-                          onValueChange={alarmsSwitch.onValueChange}
-                          trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                          thumbColor={colors.surface}
-                        />
+                        <View style={styles.switchWrapper}>
+                          <Switch
+                            accessibilityLabel={t("settings.alarms.allow")}
+                            value={alarmsSwitch.value}
+                            onValueChange={alarmsSwitch.onValueChange}
+                            style={{ alignSelf: "center" }}
+                            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+                            thumbColor={colors.surface}
+                          />
+                        </View>
                       </View>
                       <SettingsIndexRow
                         title={t("settings.alarms.on_row")}
@@ -715,13 +718,16 @@ export function SettingsSheet({ id }: { id: number }) {
                           <Text style={[type.body, { color: colors.text, flex: 1 }]}>
                             {t("settings.holiday.municipal")}
                           </Text>
-                          <Switch
-                            accessibilityLabel={t("settings.holiday.municipal")}
-                            value={municipalSwitch.value}
-                            onValueChange={municipalSwitch.onValueChange}
-                            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                            thumbColor={colors.surface}
-                          />
+                          <View style={styles.switchWrapper}>
+                            <Switch
+                              accessibilityLabel={t("settings.holiday.municipal")}
+                              value={municipalSwitch.value}
+                              onValueChange={municipalSwitch.onValueChange}
+                              style={{ alignSelf: "center" }}
+                              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+                              thumbColor={colors.surface}
+                            />
+                          </View>
                         </View>
                       </View>
 
@@ -1134,6 +1140,11 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
     paddingHorizontal: space.sm,
     gap: space.sm,
+  },
+  switchWrapper: {
+    height: 56 - 2 * space.xs,
+    justifyContent: "center",
+    alignItems: "center",
   },
   switchRowContent: {
     flex: 1,

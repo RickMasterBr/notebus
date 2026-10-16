@@ -41,6 +41,20 @@ describe("E-09 Bloco 5b guardas de ligação (e09Bloco5bWiring)", () => {
       expect(edit).toMatch(/switchRow: \{[^}]*minHeight: minTouch, paddingVertical: space\.sm,[^}]*\}/);
       expect(edit).toMatch(/<Switch accessibilityLabel=\{t\("line_create\.circular"\)\} style=\{\{ alignSelf: "center" \}\}/);
     });
+
+    it("Avisos em Ajustes: switchRow com o <Switch> com alignSelf: \"center\"", () => {
+      const settings = squash(read("sheets/SettingsSheet.tsx"));
+      expect(settings).toMatch(
+        /styles\.switchRow[\s\S]*?<Switch\b[^>]*accessibilityLabel=\{t\("settings\.alarms\.allow"\)\}[^>]*style=\{\{\s*alignSelf:\s*"center"\s*\}\}/,
+      );
+    });
+
+    it("Feriados municipais em Ajustes: switchRow com o <Switch> com alignSelf: \"center\"", () => {
+      const settings = squash(read("sheets/SettingsSheet.tsx"));
+      expect(settings).toMatch(
+        /styles\.switchRow[\s\S]*?<Switch\b[^>]*accessibilityLabel=\{t\("settings\.holiday\.municipal"\)\}[^>]*style=\{\{\s*alignSelf:\s*"center"\s*\}\}/,
+      );
+    });
   });
 
   describe("Item 2 · FN-15 a Início encolhe sem vazio e sem salto", () => {
