@@ -39,7 +39,7 @@ import { homeCardsPlan } from "../data/homeCards";
 import { homeGuide } from "../data/homeGuide";
 import { homePendingInfo } from "../data/homePending";
 import { homeFadeHeight, homeFadeOpacity, homeFadeProgress } from "../data/homeFade";
-import { phraseVisible } from "../data/homePhraseVisible";
+import { nextPhraseHeight, phraseMounted, phraseVisible } from "../data/homePhraseVisible";
 import { initialDetent } from "../data/homeStart";
 import { useHomePhrase } from "../data/useHomePhrase";
 import { NEW_LINE_ID } from "../data/lineForm";
@@ -148,12 +148,16 @@ export function HomeSheet() {
     inTrip: Boolean(tripCard),
     detent: state.detent,
   });
+  const isPhraseMounted = phraseMounted({
+    phrase,
+    inTrip: Boolean(tripCard),
+  });
 
   useEffect(() => {
-    if (!showPhrase) {
+    if (!isPhraseMounted) {
       setPhraseHeight(0);
     }
-  }, [showPhrase]);
+  }, [isPhraseMounted]);
 
   useEffect(() => {
     if (DIAG_SCROLL) recordDiagEvent(`home frase ${showPhrase ? "mostrar" : "ocultar"}`);
@@ -331,15 +335,27 @@ export function HomeSheet() {
               {cards.showOffline ? <OfflineMapCard /> : null}
             </View>
           ) : null}
-          {showPhrase && phrase ? (
-            <Animated.View
-              entering={reduceMotion ? undefined : FadeIn.duration(200)}
-              style={[styles.clip, fadeStyle, phraseHeight > 0 ? phraseClipStyle : null]}
-            >
-              <View collapsable={false} onLayout={(e) => setPhraseHeight(e.nativeEvent.layout.height)}>
+          {isPhraseMounted && phrase ? (
+            <>
+              <View
+                collapsable={false}
+                pointerEvents="none"
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={styles.phraseMeasure}
+                onLayout={(e) => setPhraseHeight((prev) => nextPhraseHeight(prev, e.nativeEvent.layout.height))}
+              >
                 <HomePhrase phrase={phrase} lineColor={lineColor} />
               </View>
-            </Animated.View>
+              <Animated.View
+                entering={reduceMotion ? undefined : FadeIn.duration(200)}
+                accessibilityElementsHidden={!showPhrase}
+                importantForAccessibility={showPhrase ? "auto" : "no-hide-descendants"}
+                style={[styles.clip, fadeStyle, phraseHeight > 0 ? phraseClipStyle : null]}
+              >
+                <HomePhrase phrase={phrase} lineColor={lineColor} />
+              </Animated.View>
+            </>
           ) : null}
           <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
             <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
@@ -515,6 +531,12 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: space.md },
   card: { paddingBottom: space.md, gap: space.sm },
   clip: { overflow: "hidden" },
+  phraseMeasure: {
+    position: "absolute",
+    left: space.md,
+    right: space.md,
+    opacity: 0,
+  },
   fab: { position: "absolute", top: 0, right: space.md },
   pendingRow: {
     minHeight: 44,
