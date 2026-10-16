@@ -545,6 +545,12 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
                 }
               })(),
           },
+          secondaryAction: {
+            label: t("toast.action.adjust"),
+            run: () => {
+              openRecordSheet(token.observationId);
+            },
+          },
         });
         void settle();
         return true;
