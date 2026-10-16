@@ -288,7 +288,7 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
     ).toBe(true);
     // Invólucro de onChange registra indice #id N e chama handleChange se detents
     expect(
-      /const\s+handleSheetChange\s*=\s*useCallback\(\(index:\s*number\)\s*=>\s*\{\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`indice #\$\{id\} \$\{index\}`\);\s*if\s*\(\s*detents\s*\)\s*handleChange\(index\);\s*\},\s*\[id,\s*detents,\s*handleChange\]\)/.test(norm),
+      /const\s+handleSheetChange\s*=\s*useCallback\(\(index:\s*number\)\s*=>\s*\{\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`indice #\$\{id\} \$\{index\}`\);\s*if\s*\(\s*detents\s*\)\s*handleChange\(index\);\s*(?:if\s*\(\s*DIAG_SCROLL\s*&&\s*index\s*>=\s*0\s*\)\s*openedRef\.current\s*=\s*true;\s*)?\},\s*\[id,\s*detents,\s*handleChange\]\)/.test(norm),
     ).toBe(true);
     expect(/<BottomSheet\b[^>]*onChange=\{DIAG_SCROLL \? handleSheetChange : detents \? handleChange : undefined\}/.test(norm)).toBe(true);
     // reabrir e coberta fechou continuam
