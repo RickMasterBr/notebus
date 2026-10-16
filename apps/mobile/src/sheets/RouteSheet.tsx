@@ -176,7 +176,7 @@ const OptionRowItem = memo(function OptionRowItem({
                 {t("common.walking")}
               </Text>
               <Text style={[type.caption, styles.num, { color: colors.textSecondary }]}>
-                {`${option.walkMinutes ?? 0}\u00A0min`}
+                {t("common.min", { min: option.walkMinutes ?? 0 })}
               </Text>
             </View>
             {card ? (

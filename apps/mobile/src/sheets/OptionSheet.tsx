@@ -662,7 +662,9 @@ export function OptionSheet({
                       <MinusGlyph color={colors.text} />
                     </Pressable>
                     <Text style={[type.bodyStrong, styles.num, { color: colors.text }]}>
-                      {walkToMax !== null ? `${walkToMin}–${walkToMax}\u00A0min` : `${walkToMin}\u00A0min`}
+                      {walkToMax !== null
+                        ? t("common.min_range", { min: walkToMin, max: walkToMax })
+                        : t("common.min", { min: walkToMin })}
                     </Text>
                     <Pressable
                       accessibilityRole="button"
@@ -760,8 +762,8 @@ export function OptionSheet({
                     </Pressable>
                     <Text style={[type.bodyStrong, styles.num, { color: colors.text }]}>
                       {walkFromMax !== null
-                        ? `${walkFromMin}–${walkFromMax}\u00A0min`
-                        : `${walkFromMin}\u00A0min`}
+                        ? t("common.min_range", { min: walkFromMin, max: walkFromMax })
+                        : t("common.min", { min: walkFromMin })}
                     </Text>
                     <Pressable
                       accessibilityRole="button"
@@ -840,7 +842,7 @@ export function OptionSheet({
                     <MinusGlyph color={colors.text} />
                   </Pressable>
                   <Text style={[type.bodyStrong, styles.num, { color: colors.text }]}>
-                    {`${walkMinutes}\u00A0min`}
+                    {t("common.min", { min: walkMinutes })}
                   </Text>
                   <Pressable
                     accessibilityRole="button"

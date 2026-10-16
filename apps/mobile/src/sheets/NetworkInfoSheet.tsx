@@ -67,7 +67,7 @@ export function NetworkInfoSheet({ id }: { id: number }) {
     checksum: string;
     validFrom: string;
   }>({
-    networkName: "MOBILIS Leiria",
+    networkName: t("net.default_name"),
     fileName: unknown,
     version: unknown,
     importedAt: unknown,
@@ -88,7 +88,7 @@ export function NetworkInfoSheet({ id }: { id: number }) {
       const validFromStr = currentValidFrom(timetables, todayLisbon);
 
       setInfo({
-        networkName: currentNetwork?.name ?? "MOBILIS Leiria",
+        networkName: currentNetwork?.name ?? t("net.default_name"),
         fileName: latestDataset?.name ?? unknown,
         version: latestDataset?.version ?? unknown,
         importedAt: latestDataset?.importedAt ? lisbonDateText(latestDataset.importedAt) : unknown,

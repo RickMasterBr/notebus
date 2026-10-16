@@ -179,6 +179,8 @@ export const ptBR = {
   // textos abaixo. Nenhum altera copy aprovada.
   "common.relative.in": "daqui a {{minutes}} min",
   "common.relative.ago": "há {{minutes}} min",
+  "common.min": "{{min}}\u00A0min", // provisório
+  "common.min_range": "{{min}}–{{max}}\u00A0min", // provisório
   "sheet_board.pick_stop": "Escolher o ponto",
   "sheet_board.pick_stop_hint": "Escolha o ponto onde você está",
   "sheet_board.no_lines": "Nenhuma linha para embarcar neste ponto",
@@ -254,10 +256,12 @@ export const ptBR = {
   "sheet_record.day.today": "Hoje · {{weekday}} {{date}}",
   "sheet_record.kind.boarded": "Embarquei",
   "sheet_record.kind.passed": "Só vi passar",
+  "sheet_record.kind.a11y": "O que aconteceu", // provisório
   "common.kind.boarded.short": "embarquei",
   "sheet_record.time": "Hora",
   "sheet_record.time.exact": "Exata",
   "sheet_record.time.range": "Mais ou menos",
+  "sheet_record.precision.a11y": "Precisão da hora", // provisório
   "sheet_record.time.aria": "Hora {{time}}, tocar para escolher",
   "sheet_record.time.yesterday_at": "ontem às {{time}}",
   "sheet_record.adjust.before.aria": "{{count}} minuto(s) antes",
@@ -635,6 +639,7 @@ export const ptBR = {
   "net.stop.id": "ID {{id}}", // provisório
   "net.stop.aliases": "Também: {{list}}", // provisório
   "net.official": "MOBILIS", // provisório
+  "net.default_name": "MOBILIS Leiria", // provisório
   "net.empty.lines": "Nenhuma linha ainda. Cadastre a linha que passa no seu ponto.", // provisório
   "net.empty.stops": "Nenhum ponto ainda. Comece pelo ponto onde você pega o ônibus.", // provisório
   "net.stops.search_placeholder": "Buscar ponto", // provisório
@@ -957,6 +962,7 @@ export const ptBR = {
   "settings.about.notice.not_mobilis": "O NoteBus não é um app da MOBILIS.", // provisório
   "settings.about.notice.times": "Os horários vêm de um arquivo importado e podem estar errados ou mudar.", // provisório
   "settings.about.notice.brand": "A logo e o ícone são provisórios e vão mudar.", // provisório
+  "settings.about.build_unknown": "N/D", // provisório
   "terminal_detail.gap.a11y": "mostrar mais {{count}} paragens", // provisório
 } as const;
 

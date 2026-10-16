@@ -97,7 +97,7 @@ import { useOptimisticSwitch } from "../ui/useOptimisticSwitch";
 import { useReduceMotion } from "./useReduceMotion";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 
-const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D"})`;
+const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? t("settings.about.build_unknown")})`;
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
