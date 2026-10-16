@@ -6,7 +6,7 @@
 // Sempre overlay absoluto com `pointerEvents` "box-none"/"none", fora do layout das folhas (D-150). Valores lidos de
 // verdade ou "N/D".
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SCROLLABLE_STATUS, useBottomSheet, useBottomSheetInternal } from "@gorhom/bottom-sheet";
 import { runOnJS, useAnimatedReaction } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -68,6 +68,7 @@ export function StackDiagStrip() {
 function StackDiagStripBody() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const window = useWindowDimensions();
   const { state } = useSheets();
   const snapshot = useSyncExternalStore(diagStore.subscribe, diagStore.getSnapshot);
   const [, setTick] = useState(0);
@@ -86,6 +87,7 @@ function StackDiagStripBody() {
     stack: state.stack,
     events: snapshot.events,
     now: realNow(),
+    windowHeight: window.height,
   });
 
   return (
@@ -97,6 +99,8 @@ function StackDiagStripBody() {
         styles.strip,
         {
           top: insets.top,
+          maxHeight: Math.floor(window.height * 0.45),
+          overflow: "hidden",
           backgroundColor: colors.surface,
           borderColor: colors.divider,
         },

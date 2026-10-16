@@ -58,6 +58,7 @@ import { HomeGuideCard } from "./HomeGuideCard";
 import { NearbyStops } from "./NearbyStops";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
+import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 import { containerHeightOf, detentMetrics, snapHeight } from "./scrollInset";
 import { detentFromIndex } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
@@ -154,6 +155,28 @@ export function HomeSheet() {
     }
   }, [showPhrase]);
 
+  useEffect(() => {
+    if (DIAG_SCROLL) recordDiagEvent(`home frase ${showPhrase ? "mostrar" : "ocultar"}`);
+  }, [showPhrase]);
+
+  const prevPhraseHeightRef = useRef(phraseHeight);
+  useEffect(() => {
+    const prev = prevPhraseHeightRef.current;
+    if (prev !== phraseHeight) {
+      prevPhraseHeightRef.current = phraseHeight;
+      if (DIAG_SCROLL) recordDiagEvent(`home phraseHeight ${prev}→${phraseHeight}`);
+    }
+  }, [phraseHeight]);
+
+  const prevDetentRef = useRef(state.detent);
+  useEffect(() => {
+    const prev = prevDetentRef.current;
+    if (prev !== state.detent) {
+      prevDetentRef.current = state.detent;
+      if (DIAG_SCROLL) recordDiagEvent(`home detent ${prev}→${state.detent}`);
+    }
+  }, [state.detent]);
+
   const cards = homeCardsPlan({
     hasTripCard: Boolean(tripCard),
     hasBackupReminder: Boolean(reminder),
@@ -162,6 +185,11 @@ export function HomeSheet() {
     measuredHeight: cardHeight,
   });
   const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + cards.effectiveHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
+
+  useEffect(() => {
+    if (DIAG_SCROLL) recordDiagEvent(`home small=${small}`);
+  }, [small]);
+
   // Topo da folha, medido pela biblioteca (já com a área segura de cima): o botão "Registrar" sobe e desce com ele.
   // Começa fora da tela até a primeira medida.
   const window = useWindowDimensions();
@@ -214,6 +242,10 @@ export function HomeSheet() {
     },
     [dispatch],
   );
+
+  const onAnimate = useCallback((fromIndex: number, toIndex: number) => {
+    if (DIAG_SCROLL) recordDiagEvent(`home anim ${fromIndex}→${toIndex}`);
+  }, []);
 
   // Identidade estável: um `handleComponent` novo a cada troca de detent remonta o handle no fim do gesto.
   const Handle = useCallback(() => <HomeHandle onHeight={setHandleHeight} />, []);
@@ -277,6 +309,7 @@ export function HomeSheet() {
         enablePanDownToClose={false}
         topInset={insets.top}
         onChange={onChange}
+        onAnimate={onAnimate}
         handleComponent={Handle}
         style={elevation.sheet}
         backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}

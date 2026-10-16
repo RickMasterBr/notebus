@@ -108,6 +108,10 @@ export function StackedSheet({
     };
   }, []);
 
+  useEffect(() => {
+    if (DIAG_SCROLL) recordDiagEvent(`topo #${id} ${isTop ? "sim" : "nao"}`);
+  }, [isTop, id]);
+
   const pop = useCallback(() => {
     if (DIAG_SCROLL) recordDiagEvent(`fechou #${id}`);
     // Fechar por gesto, handle ou toque no fundo chega aqui; a pilha ignora avisos repetidos (fecha pelo id).
@@ -149,6 +153,10 @@ export function StackedSheet({
   const handleChange = useCallback((index: number) => {
     if (index >= 0) onChange?.(index);
   }, [onChange]);
+  const handleSheetChange = useCallback((index: number) => {
+    if (DIAG_SCROLL) recordDiagEvent(`indice #${id} ${index}`);
+    if (detents) handleChange(index);
+  }, [id, detents, handleChange]);
   const handleAnimate = useCallback(
     (fromIndex: number, toIndex: number) => {
       if (DIAG_SCROLL) recordDiagEvent(`anim #${id} ${fromIndex}→${toIndex}`);
@@ -191,7 +199,7 @@ export function StackedSheet({
         animationConfigs={openConfig}
         snapPoints={detents ? detents.snapPoints : tall ? TALL_SNAP_POINTS : undefined}
         enableDynamicSizing={!fill}
-        onChange={detents ? handleChange : undefined}
+        onChange={DIAG_SCROLL ? handleSheetChange : detents ? handleChange : undefined}
         onAnimate={handleAnimate}
         keyboardBehavior={tall ? "extend" : undefined}
         enablePanDownToClose
