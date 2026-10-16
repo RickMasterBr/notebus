@@ -34,6 +34,15 @@ export interface ReplayOptions {
   to?: string;
   exportedAt?: number | string | null;
   detail?: boolean;
+  seedTables?: BackupTables;
+}
+
+export function isOfficialId(id: unknown): boolean {
+  if (typeof id !== "string" || !id) return false;
+  return (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ||
+    id.includes("official")
+  );
 }
 
 export function parseExportedAtMs(exportedAt: unknown): number | null {
@@ -53,10 +62,29 @@ export function isObservationAfterExport(obs: BackupRow, exportedAtMs: number | 
   return obsDate > exportDate;
 }
 
-function mergeRows(tables: BackupTables, table: string): BackupRow[] {
-  const userRows = (tables as Record<string, BackupRow[]>)[table] ?? [];
-  const editRows = tables.official_edits?.[table as keyof typeof tables.official_edits] ?? [];
-  return [...userRows, ...editRows];
+function mergeRows(backupTables: BackupTables, table: string, seedTables?: BackupTables): BackupRow[] {
+  const map = new Map<string, BackupRow>();
+  if (seedTables) {
+    const seedRows = (seedTables as Record<string, BackupRow[]>)[table] ?? [];
+    for (const r of seedRows) {
+      if (r.id !== null && r.id !== undefined && r.id !== "") {
+        map.set(String(r.id), r);
+      }
+    }
+  }
+  const userRows = (backupTables as Record<string, BackupRow[]>)[table] ?? [];
+  for (const r of userRows) {
+    if (r.id !== null && r.id !== undefined && r.id !== "") {
+      map.set(String(r.id), r);
+    }
+  }
+  const editRows = backupTables.official_edits?.[table as keyof typeof backupTables.official_edits] ?? [];
+  for (const r of editRows) {
+    if (r.id !== null && r.id !== undefined && r.id !== "") {
+      map.set(String(r.id), r);
+    }
+  }
+  return [...map.values()];
 }
 
 function getMarginMinutes(tables: BackupTables): number {
@@ -77,21 +105,21 @@ export function replay(tables: BackupTables, options: ReplayOptions = {}): Repla
   const exportedAtMs = parseExportedAtMs(options.exportedAt);
 
   const linesById = new Map<string, { id: string; code: string; name: string }>();
-  for (const r of mergeRows(tables, "line")) {
+  for (const r of mergeRows(tables, "line", options.seedTables)) {
     if (r.id !== null && r.id !== undefined && r.id !== "") {
       linesById.set(String(r.id), { id: String(r.id), code: String(r.code ?? ""), name: String(r.name ?? "") });
     }
   }
 
   const stopsById = new Map<string, { id: string; name: string }>();
-  for (const r of mergeRows(tables, "stop")) {
+  for (const r of mergeRows(tables, "stop", options.seedTables)) {
     if (r.id !== null && r.id !== undefined && r.id !== "") {
       stopsById.set(String(r.id), { id: String(r.id), name: String(r.name ?? "") });
     }
   }
 
   const patternStopsById = new Map<string, { id: string; patternId: string; stopId: string; position: number }>();
-  for (const r of mergeRows(tables, "pattern_stop")) {
+  for (const r of mergeRows(tables, "pattern_stop", options.seedTables)) {
     if (
       r.id !== null &&
       r.id !== undefined &&
@@ -111,7 +139,7 @@ export function replay(tables: BackupTables, options: ReplayOptions = {}): Repla
   }
 
   const tripsById = new Map<string, { id: string; timetableId: string; firstPosition: number; lastPosition: number }>();
-  for (const r of mergeRows(tables, "trip")) {
+  for (const r of mergeRows(tables, "trip", options.seedTables)) {
     if (r.id !== null && r.id !== undefined && r.id !== "") {
       tripsById.set(String(r.id), {
         id: String(r.id),
@@ -123,7 +151,7 @@ export function replay(tables: BackupTables, options: ReplayOptions = {}): Repla
   }
 
   const stopTimesByTrip = new Map<string, Array<{ position: number; serviceMinute: number; origin: "official" | "declared" }>>();
-  for (const r of mergeRows(tables, "stop_time")) {
+  for (const r of mergeRows(tables, "stop_time", options.seedTables)) {
     if (r.trip_id && r.pattern_stop_id && r.service_minute !== null && r.service_minute !== undefined) {
       const ps = patternStopsById.get(String(r.pattern_stop_id));
       if (ps) {
@@ -139,7 +167,7 @@ export function replay(tables: BackupTables, options: ReplayOptions = {}): Repla
   }
 
   const timetablesById = new Map<string, { id: string; validFrom: string | null }>();
-  for (const r of mergeRows(tables, "timetable")) {
+  for (const r of mergeRows(tables, "timetable", options.seedTables)) {
     if (r.id !== null && r.id !== undefined && r.id !== "") {
       timetablesById.set(String(r.id), {
         id: String(r.id),
@@ -149,13 +177,13 @@ export function replay(tables: BackupTables, options: ReplayOptions = {}): Repla
   }
 
   const calendar: CalendarData = {
-    overrides: mergeRows(tables, "date_override")
+    overrides: mergeRows(tables, "date_override", options.seedTables)
       .filter((r) => r.date && r.day_type_id)
       .map((r) => ({
         date: String(r.date),
         dayType: String(r.day_type_id) as DayTypeCode,
       })),
-    holidays: mergeRows(tables, "holiday")
+    holidays: mergeRows(tables, "holiday", options.seedTables)
       .filter((r) => r.date && r.name)
       .map((r) => ({
         date: String(r.date),
@@ -208,6 +236,7 @@ export function replay(tables: BackupTables, options: ReplayOptions = {}): Repla
     notBoarded: 0,
     unmatched: 0,
     missingSchedule: 0,
+    officialWithoutSeed: 0,
   };
 
   const exclusionDetails: Record<ExclusionReason, ExclusionDetail[]> = {
@@ -306,6 +335,11 @@ export function replay(tables: BackupTables, options: ReplayOptions = {}): Repla
     if (!line || !stop || !ps) {
       exclusions.total++;
       exclusions.missingSchedule++;
+      const isOfficial =
+        isOfficialId(lineIdVal) || isOfficialId(stopIdVal) || isOfficialId(psIdVal);
+      if (isOfficial && !options.seedTables) {
+        exclusions.officialWithoutSeed = (exclusions.officialWithoutSeed ?? 0) + 1;
+      }
       const failedQual: string[] = [];
       const failedValues: string[] = [];
       if (!line) {

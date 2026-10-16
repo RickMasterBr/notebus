@@ -1,8 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { officialId, serializeBackup, type BackupInput } from "@notebus/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { main } from "./cli.ts";
 import { createSyntheticBackupText } from "./testing/syntheticBackup.ts";
+import { createMinimalSeed } from "./testing/syntheticSeed.ts";
+import { sha256Node } from "./validate.ts";
 
 describe("CLI mvp-report: fiação, argumentos e validação (Item 1)", () => {
   const tempDir = join(import.meta.dirname, "__test_tmp__");
@@ -199,5 +202,126 @@ describe("CLI mvp-report: fiação, argumentos e validação (Item 1)", () => {
     expect(reportText).toContain("1 dias com pelo menos 1 registro, de 2026-10-10 a 2026-10-10, 1 registros ao todo");
     expect(reportText).toContain("registros datados depois da exportação (relógio de teste): 1");
     expect(reportText).toContain("Total de embarques avaliados: 1");
+  });
+
+  describe("CLI mvp-report: opção --seed (bloco 12)", () => {
+    it("texto de ajuda inclui a opção --seed", async () => {
+      const errs: string[] = [];
+      const code = await main(["--help"], () => {}, (s) => errs.push(s));
+      expect(code).toBe(1);
+      expect(errs.join(" ")).toContain("[--seed <arquivo-do-seed.json>]");
+    });
+
+    it("seed inexistente: erro claro em português e saída 1 sem relatório parcial", async () => {
+      const text = await createSyntheticBackupText();
+      const backupPath = join(tempDir, "valid-backup.json");
+      writeFileSync(backupPath, text, "utf8");
+
+      const logs: string[] = [];
+      const errs: string[] = [];
+      const code = await main([backupPath, "--seed", "arquivo-inexistente.json"], (s) => logs.push(s), (s) => errs.push(s));
+
+      expect(code).toBe(1);
+      expect(logs).toHaveLength(0);
+      expect(errs.join(" ")).toContain("Arquivo de seed não encontrado: arquivo-inexistente.json");
+    });
+
+    it("seed ilegível ou JSON inválido: erro claro em português e saída 1", async () => {
+      const text = await createSyntheticBackupText();
+      const backupPath = join(tempDir, "valid-backup.json");
+      const seedPath = join(tempDir, "invalid-seed.json");
+      writeFileSync(backupPath, text, "utf8");
+      writeFileSync(seedPath, "isto não é um json", "utf8");
+
+      const logs: string[] = [];
+      const errs: string[] = [];
+      const code = await main([backupPath, "--seed", seedPath], (s) => logs.push(s), (s) => errs.push(s));
+
+      expect(code).toBe(1);
+      expect(logs).toHaveLength(0);
+      expect(errs.join(" ")).toContain("Arquivo de seed não é um JSON válido");
+    });
+
+    it("seed com formato inválido (parseSeedFile falha): erro claro em português e saída 1", async () => {
+      const text = await createSyntheticBackupText();
+      const backupPath = join(tempDir, "valid-backup.json");
+      const seedPath = join(tempDir, "wrong-format-seed.json");
+      writeFileSync(backupPath, text, "utf8");
+      writeFileSync(seedPath, JSON.stringify({ format: "not-a-valid-format" }), "utf8");
+
+      const logs: string[] = [];
+      const errs: string[] = [];
+      const code = await main([backupPath, "--seed", seedPath], (s) => logs.push(s), (s) => errs.push(s));
+
+      expect(code).toBe(1);
+      expect(logs).toHaveLength(0);
+      expect(errs.join(" ")).toContain("Formato do arquivo de seed inválido:");
+    });
+
+    it("CLI com seed válido: carrega dados oficiais, avalia embarques e exibe Seed no relatório", async () => {
+      const seed = createMinimalSeed();
+      const lineId = officialId("mobilis/line/1");
+      const stopId = officialId("mobilis/stop/S2");
+      const psId = officialId("mobilis/2026-09-01/pattern/L1/pos/2");
+      const tripId = officialId("mobilis/2026-09-01/trip/L1/util/0810");
+      const now = Date.UTC(2026, 9, 10, 8, 22, 0);
+
+      const backupInput: BackupInput = {
+        schemaVersion: 5,
+        appVersion: "0.9.0",
+        exportedAt: Date.UTC(2026, 9, 20, 12, 0, 0),
+        network: { name: "MOBILIS Leiria", timezone: "Europe/Lisbon" },
+        datasets: [{ name: "mobilis", version: "2026-09-01" }],
+        tables: {
+          setting: [{ id: "s-margin", key: "margin_minutes", value: "2", source: "user", created_at: 1, updated_at: 1, deleted_at: null }],
+          observation: [
+            {
+              id: "obs-cli-seed-1",
+              created_at: now,
+              updated_at: now,
+              deleted_at: null,
+              source: "user",
+              stop_id: stopId,
+              line_id: lineId,
+              pattern_stop_id: psId,
+              trip_id: tripId,
+              observed_at: now,
+              observed_end_at: null,
+              service_date: "2026-10-10",
+              service_minute: 502,
+              deviation_min: 2,
+              match_status: "auto",
+              mode: "live",
+              kind: "boarded",
+              recorded_at: now,
+            },
+          ],
+        },
+        officialEdits: {},
+      };
+
+      const backupText = await serializeBackup(backupInput, sha256Node);
+      const backupPath = join(tempDir, "real-official-backup.json");
+      const seedPath = join(tempDir, "real-seed.json");
+      writeFileSync(backupPath, backupText, "utf8");
+      writeFileSync(seedPath, JSON.stringify(seed, null, 2), "utf8");
+
+      // 1. Sem --seed: exibe aviso do item 4 e 0 avaliados
+      const logsSemSeed: string[] = [];
+      const codeSemSeed = await main([backupPath], (s) => logsSemSeed.push(s), () => {});
+      expect(codeSemSeed).toBe(0);
+      const reportSemSeed = logsSemSeed.join("\n");
+      expect(reportSemSeed).toContain("1 registros em linhas oficiais não podem ser avaliados sem o seed: use --seed <arquivo>");
+      expect(reportSemSeed).toContain("Total de embarques avaliados: 0");
+
+      // 2. Com --seed: avalia 1 embarque e mostra o Seed no cabeçalho
+      const logsComSeed: string[] = [];
+      const codeComSeed = await main([backupPath, "--seed", seedPath], (s) => logsComSeed.push(s), () => {});
+      expect(codeComSeed).toBe(0);
+      const reportComSeed = logsComSeed.join("\n");
+      expect(reportComSeed).toContain(`Seed: ${seedPath}`);
+      expect(reportComSeed).toContain("Total de embarques avaliados: 1");
+      expect(reportComSeed).not.toContain("não podem ser avaliados sem o seed");
+    });
   });
 });

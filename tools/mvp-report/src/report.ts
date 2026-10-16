@@ -6,6 +6,9 @@ export function formatReportText(report: MvpReportResult): string {
   const lines: string[] = [];
   lines.push("=== Relatório do MVP NoteBus ===");
   lines.push(`Arquivo: ${report.file}`);
+  if (report.seedFile) {
+    lines.push(`Seed: ${report.seedFile}`); // provisório
+  }
   if (report.exportedAt) {
     lines.push(`Exportado em: ${report.exportedAt}`);
   }
@@ -60,6 +63,11 @@ export function formatReportText(report: MvpReportResult): string {
   lines.push(
     `Exclusões: ${ex.total} excluídos (${ex.memory} de memória, ${ex.later} ajustados, ${ex.notBoarded} não embarque, ${ex.unmatched} sem viagem casada, ${ex.missingSchedule} sem linha ou ponto no dataset)`
   );
+  if (ex.officialWithoutSeed && ex.officialWithoutSeed > 0) {
+    lines.push(
+      `${ex.officialWithoutSeed} registros em linhas oficiais não podem ser avaliados sem o seed: use --seed <arquivo>` // provisório
+    );
+  }
   if (report.detail) {
     const details = ex.details;
     if (details) {
