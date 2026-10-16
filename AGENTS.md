@@ -35,6 +35,13 @@ Antes de planejar ou executar qualquer etapa ou bloco, leia `docs/banco-de-ideia
 - Constante de produto (zoom, raio, KB por tile) tem teste que a fixa.
 - No relatório, a contagem de testes fecha por arquivo: linha de base mais testes novos por arquivo igual ao total. Se não fechar, diga a diferença e de onde vem.
 
+## Renderização (lição do crash de 16/10: `Cannot read property 'layout' of null`)
+
+- Nunca leia um objeto de evento (`e.nativeEvent`, `e.target`) dentro de uma função passada a `set...(` ou a qualquer callback adiado: ele já foi reciclado quando a função roda, na renderização. Leia o valor antes e passe o número: `const measured = e.nativeEvent.layout.height; setX((prev) => next(prev, measured));`.
+- Mudança na estrutura de renderização da Início, da `HomeSheet` ou da pilha de folhas: no relatório, "o app abre sem erro" é `[hipótese, só o aparelho decide]`. Typecheck, testes e `expo export` não abrem o app.
+- Guarda novo: rode antes do conserto e cole a primeira linha da falha. Se achar outro handler com leitura tardia de evento fora do pedido, **liste no relatório e não conserte**.
+- A captura de erro (`DiagErrorBoundary`, `diagScroll`) existe só com `DIAG_SCROLL`. Não a ligue em build normal e não a use como painel novo.
+
 ## Verificação
 
 Rode no fim: `npm ci && npm run typecheck && npm test` e `npx expo export --platform ios`. Tudo tem de passar, sem `skip`.
