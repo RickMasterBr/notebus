@@ -27,6 +27,7 @@ import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View, useWi
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBackup } from "../data/BackupProvider";
+import { realNow } from "../data/clock";
 import { useNow } from "../data/NowProvider";
 import { useOfflineMap } from "../data/OfflineMapProvider";
 import { usePlaces } from "../data/PlacesProvider";
@@ -40,6 +41,7 @@ import { homeGuide } from "../data/homeGuide";
 import { homePendingInfo } from "../data/homePending";
 import { homeFadeHeight, homeFadeOpacity, homeFadeProgress } from "../data/homeFade";
 import { nextPhraseHeight, phraseMounted, phraseVisible } from "../data/homePhraseVisible";
+import { homeSmallDetent, nextSnapSmall } from "../data/homeSmallDetent";
 import { initialDetent } from "../data/homeStart";
 import { useHomePhrase } from "../data/useHomePhrase";
 import { NEW_LINE_ID } from "../data/lineForm";
@@ -188,21 +190,54 @@ export function HomeSheet() {
     offlineStatus: offlineMap.status.kind,
     measuredHeight: cardHeight,
   });
-  const small = handleHeight > 0 && pillHeight > 0 ? handleHeight + cards.effectiveHeight + pillHeight + insets.bottom + space.md : SMALL_FALLBACK;
+  const small = homeSmallDetent({
+    handleHeight,
+    cardHeight: cards.effectiveHeight,
+    pillHeight,
+    insetBottom: insets.bottom,
+    margin: space.md,
+    fallback: SMALL_FALLBACK,
+  });
 
   useEffect(() => {
     if (DIAG_SCROLL) recordDiagEvent(`home small=${small}`);
   }, [small]);
+
+  // Item 0 (bloco 20b): as alturas que entram em `small`, no máximo 1 registro por 100 ms.
+  const lastMeasuresAt = useRef(0);
+  useEffect(() => {
+    if (!DIAG_SCROLL) return;
+    const at = realNow();
+    if (at - lastMeasuresAt.current < 100) return;
+    lastMeasuresAt.current = at;
+    if (DIAG_SCROLL) recordDiagEvent(
+      `home medidas handle=${handleHeight.toFixed(2)} pill=${pillHeight.toFixed(2)} card=${cardHeight.toFixed(2)} pend=${pendingHeight.toFixed(2)} inset=${insets.bottom.toFixed(2)} small=${small.toFixed(2)}`,
+    );
+  }, [handleHeight, pillHeight, cardHeight, pendingHeight, insets.bottom, small]);
 
   // Topo da folha, medido pela biblioteca (já com a área segura de cima): o botão "Registrar" sobe e desce com ele.
   // Começa fora da tela até a primeira medida.
   const window = useWindowDimensions();
   const sheetTop = useSharedValue(window.height + 200);
   const fabStyle = useAnimatedStyle(() => ({ transform: [{ translateY: sheetTop.value - REGISTER_BUTTON_HEIGHT - space.md }] }));
-  const snapPoints = useMemo(() => [small, "50%", "90%"], [small]);
+  // `snapPoints` só troca de identidade com a gaveta parada: o `small` novo espera o fim do arrasto (E-09 Bloco 20b).
+  const [snapSmall, setSnapSmall] = useState(small);
+  const containerHeight = containerHeightOf(window.height, insets.top);
+  const topAtMedium = window.height - snapHeight("50%", containerHeight);
+  const topAtLarge = window.height - snapHeight("90%", containerHeight);
+  useEffect(() => {
+    const top = sheetTop.value;
+    setSnapSmall((prev) => nextSnapSmall(prev, small, top, window.height, [topAtMedium, topAtLarge]));
+  }, [small, state.detent, window.height, topAtMedium, topAtLarge, sheetTop]);
+  const snapPoints = useMemo(() => [snapSmall, "50%", "90%"], [snapSmall]);
+  const lastSnapPoints = useRef(snapPoints);
+  useEffect(() => {
+    if (lastSnapPoints.current === snapPoints) return;
+    lastSnapPoints.current = snapPoints;
+    if (DIAG_SCROLL) recordDiagEvent(`home snapPoints novo small=${snapSmall.toFixed(2)} sheetTop=${sheetTop.value.toFixed(2)}`);
+  }, [snapPoints, snapSmall, sheetTop]);
   // FN-8: a frase e "Registros a conferir" aparecem e somem junto com o arrasto, do pequeno ao médio.
-  const topAtSmall = window.height - small;
-  const topAtMedium = window.height - snapHeight("50%", containerHeightOf(window.height, insets.top));
+  const topAtSmall = window.height - snapSmall;
   const fadeStyle = useAnimatedStyle(() => ({ opacity: homeFadeOpacity(sheetTop.value, topAtSmall, topAtMedium) }));
   // FN-15: a altura encolhe pelo mesmo progresso da opacidade; no pequeno chega a zero antes do desmonte.
   const phraseClipStyle = useAnimatedStyle(() => ({
@@ -252,7 +287,8 @@ export function HomeSheet() {
   }, []);
 
   // Identidade estável: um `handleComponent` novo a cada troca de detent remonta o handle no fim do gesto.
-  const Handle = useCallback(() => <HomeHandle onHeight={setHandleHeight} />, []);
+  const onHandleHeight = useCallback((measured: number) => setHandleHeight((prev) => nextPhraseHeight(prev, measured)), []);
+  const Handle = useCallback(() => <HomeHandle onHeight={onHandleHeight} />, [onHandleHeight]);
 
   // D-145, D-180: fundo transparente que só captura toque com a folha no grande (índice 2). No médio (1) e no pequeno (0),
   // o fundo desaparece (pointerEvents="none"), deixando o mapa livre para arrastar, zoom e giro (D-180).
@@ -321,7 +357,10 @@ export function HomeSheet() {
         {/* `View` comum, não `BottomSheetView`: ver `StackedSheet` (a lista perde a rolagem e o tamanho). */}
         <View style={styles.content} collapsable={false}>
           {cards.showAny ? (
-            <View collapsable={false} onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)} style={styles.card}>
+            <View collapsable={false} onLayout={(e) => {
+                const measured = e.nativeEvent.layout.height;
+                setCardHeight((prev) => nextPhraseHeight(prev, measured));
+              }} style={styles.card}>
               {tripCard ? (
                 <TripCard
                   card={tripCard}
@@ -360,7 +399,10 @@ export function HomeSheet() {
               </Animated.View>
             </>
           ) : null}
-          <View collapsable={false} onLayout={(e) => setPillHeight(e.nativeEvent.layout.height)}>
+          <View collapsable={false} onLayout={(e) => {
+              const measured = e.nativeEvent.layout.height;
+              setPillHeight((prev) => nextPhraseHeight(prev, measured));
+            }}>
             <SearchPill ref={pill} onPress={() => dispatch({ type: "push", sheet: { kind: "search" } })} />
           </View>
           {/* Lista com altura fixa (a da folha aberta); ver o registro E-02. No detent pequeno esta parte fica abaixo da
