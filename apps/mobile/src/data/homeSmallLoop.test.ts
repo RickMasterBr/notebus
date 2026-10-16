@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { containerHeightOf, snapHeight } from "../sheets/scrollInset";
 import { homeFadeHeight, homeFadeProgress } from "./homeFade";
-import { homeSmallDetent, nextSnapSmall } from "./homeSmallDetent";
+import { homeSmallDetent, homeSmallPlan, nextSnapSmall } from "./homeSmallDetent";
 
 const SCALE = 3; // iPhone: 3 pixels por ponto
 const WINDOW = 852;
@@ -92,6 +92,13 @@ describe("detent pequeno da Início (E-09 bloco 20b)", () => {
     const base = { cardHeight: 0, insetBottom: 34, margin: 16, fallback: 120 };
     expect(homeSmallDetent({ ...base, handleHeight: 0, pillHeight: 44 })).toBe(120);
     expect(homeSmallDetent({ ...base, handleHeight: 20, pillHeight: 0 })).toBe(120);
+  });
+
+  it("homeSmallPlan devolve o plano com small consumido por campo", () => {
+    const base = { handleHeight: 20, cardHeight: 0, insetBottom: 34, margin: 16, fallback: 120 };
+    expect(homeSmallPlan({ ...base, pillHeight: 44 })).toEqual({ small: 114 });
+    expect(homeSmallPlan({ ...base, pillHeight: 43 })).toEqual({ small: 113 });
+    expect(homeSmallPlan({ ...base, handleHeight: 0, pillHeight: 44 })).toEqual({ small: 120 });
   });
 
   it("modelo: pílula com número inteiro de pixels não oscila", () => {

@@ -9,10 +9,19 @@ export interface HomeSmallDetentInput {
   fallback: number;
 }
 
+export interface HomeSmallPlan {
+  small: number;
+}
+
 /** Detent pequeno da Início: handle + cartão + pílula + área segura + margem; `fallback` até a primeira medida (E-09 Bloco 20b). */
 export function homeSmallDetent({ handleHeight, cardHeight, pillHeight, insetBottom, margin, fallback }: HomeSmallDetentInput): number {
   if (!(handleHeight > 0 && pillHeight > 0)) return fallback;
   return handleHeight + cardHeight + pillHeight + insetBottom + margin;
+}
+
+/** Função pura que devolve o plano consumido por campo (E-09 Bloco 20b). */
+export function homeSmallPlan(input: HomeSmallDetentInput): HomeSmallPlan {
+  return { small: homeSmallDetent(input) };
 }
 
 /**
