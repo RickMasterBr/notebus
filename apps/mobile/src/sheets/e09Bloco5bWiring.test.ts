@@ -70,7 +70,9 @@ describe("E-09 Bloco 5b guardas de ligação (e09Bloco5bWiring)", () => {
     });
 
     it("a medida vem do conteúdo interno, dentro do contêiner que encolhe", () => {
-      expect(home).toMatch(/<Animated\.View .*?phraseClipStyle.*?> <View collapsable=\{false\} onLayout=\{\(e\) => setPhraseHeight\(e\.nativeEvent\.layout\.height\)\}> <HomePhrase/);
+      expect(home).toMatch(/<View collapsable=\{false\} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style=\{styles\.phraseMeasure\} onLayout=\{\(e\) => setPhraseHeight\(\(prev\) => nextPhraseHeight\(prev, e\.nativeEvent\.layout\.height\)\)\} > <HomePhrase/);
+      expect(home).toMatch(/phraseClipStyle : null\]\} > <HomePhrase/);
+      expect(home).not.toMatch(/phraseClipStyle[^}]*\} onLayout/);
       expect(home).toMatch(/pendingClipStyle.*?> <View collapsable=\{false\} onLayout=\{\(e\) => setPendingHeight\(e\.nativeEvent\.layout\.height\)\}> <Pressable/);
     });
 
