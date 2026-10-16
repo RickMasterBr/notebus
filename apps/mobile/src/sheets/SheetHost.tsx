@@ -1,11 +1,12 @@
 /** Desenha a pilha: a folha-base e, por cima, cada folha empilhada (a última recebe o toque). */
+import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { AheadSheet } from "./AheadSheet";
 import { AlightSheet } from "./AlightSheet";
 import { BackupImportSheet } from "./BackupImportSheet";
 import { BoardSheet } from "./BoardSheet";
 import { TripSheet } from "./TripSheet";
-import { StackDiagStrip } from "./diagScroll";
+import { DIAG_SCROLL, StackDiagStrip, recordDiagEvent } from "./diagScroll";
 import { ClockPickerSheet } from "./ClockPickerSheet";
 import { HomeSheet } from "./HomeSheet";
 import { RecordSheet } from "./RecordSheet";
@@ -42,6 +43,9 @@ import { type SheetEntry, stackedSheets } from "./stack";
 export function SheetHost({ customBase }: { customBase?: React.ReactNode } = {}) {
   const { state } = useSheets();
   const stacked = stackedSheets(state);
+  useEffect(() => {
+    if (DIAG_SCROLL) recordDiagEvent(`inicio pe=${homeLayerPointerEvents(stacked.length)} pilha=${stacked.length}`);
+  }, [stacked.length]);
   // As folhas de baixo ficam sem toque, para os gesture handlers delas não disputarem o gesto com a folha do topo.
 
   return (

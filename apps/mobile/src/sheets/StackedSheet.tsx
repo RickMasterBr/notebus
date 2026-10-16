@@ -18,6 +18,7 @@ import { useSheets } from "./SheetsContext";
 import { activeSheet } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
+import { realNow } from "../data/clock";
 
 const OPEN_MS = motion.normal; // 250
 const CLOSE_MS = 180;
@@ -101,7 +102,15 @@ export function StackedSheet({
   // e a folha é aberta de novo quando voltar a ser a do topo. Assim a pilha e a tela não saem de sincronia.
   const closedWhileCovered = useRef(false);
 
+  // Só para o registro (FN-14): se a folha já terminou de abrir, quando montou e se o `close()` foi pedido.
+  const openedRef = useRef(false);
+  const mountedAtRef = useRef(0);
+  const closeRequestedRef = useRef(false);
+  const diagState = () =>
+    `abriu=${openedRef.current ? "sim" : "nao"} ms=${realNow() - mountedAtRef.current} topo=${isTopRef.current ? "sim" : "nao"}`;
+
   useEffect(() => {
+    if (DIAG_SCROLL) mountedAtRef.current = realNow();
     if (DIAG_SCROLL) recordDiagEvent(`montou #${id}`);
     return () => {
       if (DIAG_SCROLL) recordDiagEvent(`desmontou #${id}`);
@@ -113,6 +122,7 @@ export function StackedSheet({
   }, [isTop, id]);
 
   const pop = useCallback(() => {
+    if (DIAG_SCROLL) recordDiagEvent(`onClose #${id} origem=${closeRequestedRef.current ? "close()" : "gesto-ou-fundo"} ${diagState()}`);
     if (DIAG_SCROLL) recordDiagEvent(`fechou #${id}`);
     // Fechar por gesto, handle ou toque no fundo chega aqui; a pilha ignora avisos repetidos (fecha pelo id).
     if (!isTopRef.current) {
@@ -136,8 +146,10 @@ export function StackedSheet({
     // Sem movimento: sai direto e o `FadeOut` do invólucro faz o esmaecer. Com movimento: a folha desce e o `onClose` tira da pilha.
     if (reduceMotion) pop();
     else {
+      if (DIAG_SCROLL) closeRequestedRef.current = true;
       if (DIAG_SCROLL) recordDiagEvent(`close() #${id}`);
       ref.current?.close(closeConfig);
+      if (DIAG_SCROLL) recordDiagEvent(`close() #${id} ${diagState()}`);
     }
   }, [pop, reduceMotion, id]);
 
@@ -160,6 +172,7 @@ export function StackedSheet({
   const handleSheetChange = useCallback((index: number) => {
     if (DIAG_SCROLL) recordDiagEvent(`indice #${id} ${index}`);
     if (detents) handleChange(index);
+    if (DIAG_SCROLL && index >= 0) openedRef.current = true;
   }, [id, detents, handleChange]);
   const handleAnimate = useCallback(
     (fromIndex: number, toIndex: number) => {
@@ -180,9 +193,12 @@ export function StackedSheet({
         style={[props.style, { backgroundColor: colors.scrim }]}
         accessibilityLabel={t("common.close")}
         accessibilityHint={undefined}
+        onPress={() => {
+          if (DIAG_SCROLL) recordDiagEvent(`toque no fundo #${id}`);
+        }}
       />
     ),
-    [colors.scrim],
+    [colors.scrim, id],
   );
 
   return (
