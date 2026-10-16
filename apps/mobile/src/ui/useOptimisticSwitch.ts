@@ -6,11 +6,12 @@ import { DIAG_SCROLL, recordDiagEvent } from "../sheets/diagScroll";
 
 /** Interruptor que mostra o toque na hora e grava por trás (FN-6, FN-23). `commit` resolve quando o valor gravado já foi relido. */
 export function useOptimisticSwitch(
-  savedValue: boolean,
+  saved: boolean,
   commit: (value: boolean) => Promise<unknown>,
   label?: string,
 ) {
   const [state, setState] = useState(optimisticIdle);
+  const savedValue = saved; // o handler usa saved para o valor efetivo (guardas existentes fixam esse nome)
   const ref = useRef(state);
   const commitRef = useRef(commit);
   commitRef.current = commit;
@@ -80,5 +81,5 @@ export function useOptimisticSwitch(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [queue, savedValue, label],
   );
-  return { value: shownValue(savedValue, state), onValueChange };
+  return { value: shownValue(saved, state), onValueChange };
 }
