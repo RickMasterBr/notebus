@@ -7,7 +7,7 @@
  * fechar, fundo, pilha) é a mesma. O conteúdo é uma `View` que preenche a folha, como na `tall` (ver abaixo).
  */
 import BottomSheet, { BottomSheetBackdrop, type BottomSheetBackdropProps, BottomSheetView } from "@gorhom/bottom-sheet";
-import { type ComponentType, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { type ComponentType, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import Animated, { Easing, FadeIn, FadeOut, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +18,7 @@ import { useSheets } from "./SheetsContext";
 import { activeSheet } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
-import { isGhostSuspect } from "./ghostRepair";
+import { isGhostSuspect, repairStep } from "./ghostRepair";
 import { realNow } from "../data/clock";
 
 const OPEN_MS = motion.normal; // 250
@@ -150,6 +150,8 @@ export function StackedSheet({
   const animatedIndex = useSharedValue(-1);
   const { height: screenHeight } = useWindowDimensions();
   const hasBeenCoveredRef = useRef(false);
+  // Trocar a `key` do `BottomSheet` remonta a folha (2º passo do reparo); só acontece se a detecção disser que há fantasma.
+  const [revealKey, setRevealKey] = useState(0);
   const expectedIndex = detents?.initialIndex ?? 0;
   useEffect(() => {
     if (!isTop) {
@@ -157,12 +159,23 @@ export function StackedSheet({
       return;
     }
     if (!hasBeenCoveredRef.current) return;
-    const timer = setTimeout(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    let attempt = 0;
+    const check = () => {
       const position = animatedPosition.value;
       const index = animatedIndex.value;
       const suspect = isGhostSuspect({ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex });
       if (DIAG_SCROLL) recordDiagEvent(`revela #${id} pos=${Math.round(position)} idx=${index} tela=${Math.round(screenHeight)} suspeita=${suspect ? "sim" : "nao"}`);
-    }, REVEAL_CHECK_MS);
+      if (!suspect) return;
+      const step = repairStep(attempt);
+      attempt += 1;
+      if (DIAG_SCROLL) recordDiagEvent(`reparo #${id} ${step === "stop" ? "parou" : step}`);
+      if (step === "snap") ref.current?.snapToIndex(expectedIndex, openConfig);
+      else if (step === "remount") setRevealKey((k) => k + 1);
+      else return;
+      timer = setTimeout(check, REVEAL_CHECK_MS);
+    };
+    timer = setTimeout(check, REVEAL_CHECK_MS);
     return () => clearTimeout(timer);
   }, [isTop, id, screenHeight, expectedIndex, animatedPosition, animatedIndex]);
 
@@ -234,6 +247,7 @@ export function StackedSheet({
       exiting={reduceMotion ? FadeOut.duration(FADE_MS) : undefined}
     >
       <BottomSheet
+        key={revealKey}
         ref={ref}
         animatedPosition={animatedPosition}
         animatedIndex={animatedIndex}
@@ -241,7 +255,7 @@ export function StackedSheet({
         accessibilityRole={null}
         accessibilityLabel={null}
         index={detents?.initialIndex ?? 0}
-        animateOnMount={!reduceMotion}
+        animateOnMount={!reduceMotion && revealKey === 0}
         animationConfigs={openConfig}
         snapPoints={detents ? detents.snapPoints : tall ? TALL_SNAP_POINTS : undefined}
         enableDynamicSizing={!fill}
