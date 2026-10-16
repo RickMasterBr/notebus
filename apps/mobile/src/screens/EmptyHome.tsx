@@ -22,7 +22,7 @@ export function EmptyHome() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("empty_home.dashed_casa")}
-            onPress={() => dispatch({ type: "push", sheet: { kind: "place", initialName: "Casa" } })}
+            onPress={() => dispatch({ type: "push", sheet: { kind: "place", initialName: t("empty_home.dashed_casa") } })}
             style={({ pressed }) => [styles.shortcutItem, pressed && { opacity: 0.6 }]}
           >
             <View style={[styles.shortcutCircle, { borderColor: colors.accent }]}>
