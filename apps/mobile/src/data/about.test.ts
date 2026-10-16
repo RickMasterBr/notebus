@@ -1,24 +1,43 @@
+/// <reference types="node" />
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import { REPO_URL, aboutView, licenseRows } from "./about";
+import { aboutView, licenseRows } from "./about";
 
 const input = { appVersion: "0.4.0 (abc1234)", schemaVersion: 7, datasets: [{ name: "MOBILIS Teste", version: "2026-09-01" }] };
 
 describe("aboutView", () => {
-  it("devolve cada campo da página", () => {
+  it("devolve cada campo da página sem repoUrl", () => {
     expect(aboutView(input)).toEqual({
       appVersion: "0.4.0 (abc1234)",
       schemaVersion: "7",
       dataVersion: "MOBILIS Teste 2026-09-01",
       creditHolidays: "Feriados: date-holidays (CC BY-SA 3.0)",
       creditMap: "Mapa: OpenFreeMap © OpenMapTiles, dados de © OpenStreetMap contributors",
-      repoUrl: "https://github.com/RickMasterBr/notebus",
       noticeLines: [
         "O NoteBus não é um app da MOBILIS.",
         "Os horários vêm de um arquivo importado e podem estar errados ou mudar.",
         "A logo e o ícone são provisórios e vão mudar.",
       ],
     });
-    expect(REPO_URL).toBe("https://github.com/RickMasterBr/notebus");
+    expect(aboutView(input)).not.toHaveProperty("repoUrl");
+  });
+
+  it("nenhum arquivo de apps/mobile/src contém github.com/RickMasterBr", () => {
+    const srcDir = join(__dirname, "..");
+    function findAllFiles(dir: string): string[] {
+      return readdirSync(dir).flatMap((name) => {
+        const full = join(dir, name);
+        if (statSync(full).isDirectory()) return findAllFiles(full);
+        return [full];
+      });
+    }
+    const banned = ["github.com", "RickMasterBr"].join("/");
+    const files = findAllFiles(srcDir).filter((f) => !f.endsWith("about.test.ts"));
+    const violations = files
+      .map((f) => relative(srcDir, f).replace(/\\/g, "/"))
+      .filter((relPath) => readFileSync(join(srcDir, relPath), "utf8").includes(banned));
+    expect(violations).toEqual([]);
   });
 
   it("antes da leitura do banco mostra traço; sem horários instalados avisa", () => {

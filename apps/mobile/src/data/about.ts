@@ -1,12 +1,9 @@
 /**
- * Decisões puras da página Ajustes › Sobre (plano E-09 §3.7): as versões, os créditos exigidos por licença, o link do
- * código e o aviso honesto, tudo por campo; e as linhas da lista de licenças gerada (T-90).
+ * Decisões puras da página Ajustes › Sobre (plano E-09 §3.7): as versões, os créditos exigidos por licença e o
+ * aviso honesto, tudo por campo; e as linhas da lista de licenças gerada (T-90).
  * Sem React: o componente (`sheets/AboutPage.tsx`) só renderiza estes campos.
  */
 import { t } from "../i18n";
-
-/** O repositório público do código (`git remote get-url origin`, sem o `.git`). */
-export const REPO_URL = "https://github.com/RickMasterBr/notebus";
 
 export interface AboutInput {
   /** `appJson.expo.version` mais o código da compilação (o mesmo texto da linha Versão de Ajustes). */
@@ -23,7 +20,6 @@ export interface AboutView {
   dataVersion: string;
   creditHolidays: string;
   creditMap: string;
-  repoUrl: string;
   noticeLines: string[];
 }
 
@@ -40,7 +36,6 @@ export function aboutView(input: AboutInput): AboutView {
           : datasets.map((d) => `${d.name} ${d.version}`).join(", "),
     creditHolidays: t("settings.about.credit.holidays"),
     creditMap: t("settings.about.credit.map"),
-    repoUrl: REPO_URL,
     noticeLines: [
       t("settings.about.notice.not_mobilis"),
       t("settings.about.notice.times"),

@@ -101,7 +101,15 @@ export function StackedSheet({
   // e a folha é aberta de novo quando voltar a ser a do topo. Assim a pilha e a tela não saem de sincronia.
   const closedWhileCovered = useRef(false);
 
+  useEffect(() => {
+    if (DIAG_SCROLL) recordDiagEvent(`montou #${id}`);
+    return () => {
+      if (DIAG_SCROLL) recordDiagEvent(`desmontou #${id}`);
+    };
+  }, []);
+
   const pop = useCallback(() => {
+    if (DIAG_SCROLL) recordDiagEvent(`fechou #${id}`);
     // Fechar por gesto, handle ou toque no fundo chega aqui; a pilha ignora avisos repetidos (fecha pelo id).
     if (!isTopRef.current) {
       closedWhileCovered.current = true;
@@ -141,6 +149,12 @@ export function StackedSheet({
   const handleChange = useCallback((index: number) => {
     if (index >= 0) onChange?.(index);
   }, [onChange]);
+  const handleAnimate = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (DIAG_SCROLL) recordDiagEvent(`anim #${id} ${fromIndex}→${toIndex}`);
+    },
+    [id],
+  );
   const fill = tall || detents !== undefined;
 
   const renderBackdrop = useCallback(
@@ -178,6 +192,7 @@ export function StackedSheet({
         snapPoints={detents ? detents.snapPoints : tall ? TALL_SNAP_POINTS : undefined}
         enableDynamicSizing={!fill}
         onChange={detents ? handleChange : undefined}
+        onAnimate={handleAnimate}
         keyboardBehavior={tall ? "extend" : undefined}
         enablePanDownToClose
         enableContentPanningGesture={detents?.enableContentPanningGesture}

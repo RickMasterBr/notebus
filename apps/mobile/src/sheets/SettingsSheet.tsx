@@ -10,7 +10,7 @@
  * 5. Dados (Backup -> página backup, Versão com 7 batidas no relógio real)
  */
 import { dayTypeOf, lisbonWallClock } from "@notebus/domain";
-import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
+import { BottomSheetScrollView, type BottomSheetScrollViewMethods, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import {
   AccessibilityInfo,
@@ -21,7 +21,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutRight } from "react-native-reanimated";
+import Animated, { FadeIn, SlideInRight } from "react-native-reanimated";
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -59,6 +59,7 @@ import {
   splitOverrides,
 } from "../data/settingsView";
 import { greetingText } from "../data/greeting";
+import { resolveSettingsScroll } from "../data/settingsScroll";
 import {
   normalizeUserName,
   settingsHandle,
@@ -94,6 +95,7 @@ import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator"
 import { useKeyboardHeight } from "./useKeyboardHeight";
 import { useOptimisticSwitch } from "../ui/useOptimisticSwitch";
 import { useReduceMotion } from "./useReduceMotion";
+import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 
 const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D"})`;
 
@@ -145,6 +147,30 @@ export function SettingsSheet({ id }: { id: number }) {
   const keyboardHeight = useKeyboardHeight();
   const [page, dispatchNav] = useReducer(settingsNavReduce, "root");
   const handleBack = useCallback(() => dispatchNav({ type: "back" }), []);
+
+  const scrollRef = useRef<BottomSheetScrollViewMethods>(null);
+  const scrollOffsetRef = useRef(0);
+  const prevPageRef = useRef(page);
+
+  useEffect(() => {
+    const prev = prevPageRef.current;
+    if (prev !== page) {
+      if (DIAG_SCROLL) recordDiagEvent(`ajustes: pagina ${prev} → ${page}`);
+      const decision = resolveSettingsScroll(prev, page, scrollOffsetRef.current);
+      if (decision.restoreOffset !== null) {
+        scrollRef.current?.scrollTo({ y: decision.restoreOffset, animated: false });
+      }
+      scrollOffsetRef.current = decision.saveOffset;
+      prevPageRef.current = page;
+    }
+  }, [page]);
+
+  useEffect(() => {
+    return () => {
+      const decision = resolveSettingsScroll(prevPageRef.current, "closed", scrollOffsetRef.current);
+      scrollOffsetRef.current = decision.saveOffset;
+    };
+  }, []);
 
   const { name: currentUserName, setName, clear } = useUserName();
   const [draftName, setDraftName] = useState(currentUserName ?? "");
@@ -358,7 +384,15 @@ export function SettingsSheet({ id }: { id: number }) {
         <StackedSheet id={id} detents={DETENTS}>
           <View style={{ height: scrollAreaHeight, overflow: "hidden" }}>
             <BottomSheetScrollView
+              ref={scrollRef}
               keyboardShouldPersistTaps="handled"
+              // @ts-expect-error scrollEventThrottle omitido do tipo pelo gorhom mas aceito em runtime
+              scrollEventThrottle={16}
+              onScroll={(e) => {
+                if (page === "root") {
+                  scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+                }
+              }}
               style={{ height: scrollAreaHeight }}
               contentContainerStyle={[
                 styles.scrollContent,
@@ -436,13 +470,16 @@ export function SettingsSheet({ id }: { id: number }) {
                             {view.alertsHint}
                           </Text>
                         </View>
-                        <Switch
-                          accessibilityLabel={t("settings.alarms.allow")}
-                          value={alarmsSwitch.value}
-                          onValueChange={alarmsSwitch.onValueChange}
-                          trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                          thumbColor={colors.surface}
-                        />
+                        <View style={styles.switchWrapper}>
+                          <Switch
+                            accessibilityLabel={t("settings.alarms.allow")}
+                            value={alarmsSwitch.value}
+                            onValueChange={alarmsSwitch.onValueChange}
+                            style={{ alignSelf: "center" }}
+                            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+                            thumbColor={colors.surface}
+                          />
+                        </View>
                       </View>
                       <SettingsIndexRow
                         title={t("settings.alarms.on_row")}
@@ -522,7 +559,6 @@ export function SettingsSheet({ id }: { id: number }) {
                 <Animated.View
                   key={page}
                   entering={reduceMotion ? FadeIn.duration(200) : SlideInRight.duration(280)}
-                  exiting={reduceMotion ? FadeOut.duration(200) : SlideOutRight.duration(280)}
                   style={styles.pageContainer}
                 >
                   {/* Botão ‹ Ajustes */}
@@ -705,13 +741,16 @@ export function SettingsSheet({ id }: { id: number }) {
                           <Text style={[type.body, { color: colors.text, flex: 1 }]}>
                             {t("settings.holiday.municipal")}
                           </Text>
-                          <Switch
-                            accessibilityLabel={t("settings.holiday.municipal")}
-                            value={municipalSwitch.value}
-                            onValueChange={municipalSwitch.onValueChange}
-                            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                            thumbColor={colors.surface}
-                          />
+                          <View style={styles.switchWrapper}>
+                            <Switch
+                              accessibilityLabel={t("settings.holiday.municipal")}
+                              value={municipalSwitch.value}
+                              onValueChange={municipalSwitch.onValueChange}
+                              style={{ alignSelf: "center" }}
+                              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
+                              thumbColor={colors.surface}
+                            />
+                          </View>
                         </View>
                       </View>
 
@@ -1124,6 +1163,11 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
     paddingHorizontal: space.sm,
     gap: space.sm,
+  },
+  switchWrapper: {
+    height: 56 - 2 * space.xs,
+    justifyContent: "center",
+    alignItems: "center",
   },
   switchRowContent: {
     flex: 1,

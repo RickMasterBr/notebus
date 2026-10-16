@@ -42,7 +42,6 @@ describe("E-09 Bloco 7 guardas de ligação (e09Bloco7Wiring)", () => {
         "{view.creditHolidays}",
         "{view.creditMap}",
         't("settings.about.licenses")',
-        "Linking.openURL(view.repoUrl)",
         "view.noticeLines.map(",
       ];
       const positions = order.map((snippet) => about.indexOf(snippet));

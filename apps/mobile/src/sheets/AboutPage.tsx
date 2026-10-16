@@ -1,9 +1,9 @@
 /**
- * Ajustes › Sobre (plano E-09 §3.7): versões, créditos exigidos por licença, lista de licenças gerada (T-90), link do código
+ * Ajustes › Sobre (plano E-09 §3.7): versões, créditos exigidos por licença, lista de licenças gerada (T-90)
  * e aviso honesto. Toda decisão vem de `data/about.ts`; aqui só se desenha. Sem animação própria (a página já entra animada).
  */
 import { useEffect, useMemo, useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import appJson from "../../app.json";
 import { aboutView, licenseRows } from "../data/about";
 import licenses from "../data/licenses.generated.json";
@@ -80,16 +80,6 @@ export function AboutPage() {
             </View>
           ))}
         </View>
-      </View>
-
-      <View style={box}>
-        <LinkRow
-          title={t("settings.about.repo")}
-          accessibilityLabel={t("settings.about.repo")}
-          accessibilityHint={t("settings.about.repo.hint")}
-          last
-          onPress={() => void Linking.openURL(view.repoUrl)}
-        />
       </View>
 
       <View style={styles.notice}>

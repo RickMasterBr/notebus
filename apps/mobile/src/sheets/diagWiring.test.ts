@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { isDiagEnabled } from "./diagLog";
+import { DIAG_STRIP_EVENT_COUNT, isDiagEnabled } from "./diagLog";
 
 export function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
@@ -44,6 +44,7 @@ export interface DiagScrollWiringCheck {
   stripUsesTopInsetWithoutBottom: boolean;
   recordDiagEventCallsStoreRecord: boolean;
   hooksInOrder: boolean;
+  diagStoreCapacity60: boolean;
 }
 
 export function checkDiagScrollWiring(source: string): DiagScrollWiringCheck {
@@ -57,6 +58,8 @@ export function checkDiagScrollWiring(source: string): DiagScrollWiringCheck {
   const usesSyncExternalStore = norm.includes(
     "useSyncExternalStore(diagStore.subscribe, diagStore.getSnapshot)",
   );
+
+  const diagStoreCapacity60 = /const\s+diagStore\s*=\s*createDiagStore\(60\)/.test(norm);
 
   const callsDiagStripLines = norm.includes("diagStripLines(");
 
@@ -91,6 +94,7 @@ export function checkDiagScrollWiring(source: string): DiagScrollWiringCheck {
     stripUsesTopInsetWithoutBottom,
     recordDiagEventCallsStoreRecord,
     hooksInOrder,
+    diagStoreCapacity60,
   };
 }
 
@@ -134,6 +138,68 @@ export function checkMapPickerWiring(source: string): MapPickerWiringCheck {
   };
 }
 
+export interface StackedSheetDiagCheck {
+  mountRecordsWithDiag: boolean;
+  unmountRecordsInCleanupWithDiag: boolean;
+  onAnimateRecordsWithDiag: boolean;
+  popRecordsCloseWithDiag: boolean;
+  bottomSheetHasOnAnimate: boolean;
+  allRecordCallsGuardedByDiag: boolean;
+}
+
+export function checkStackedSheetDiagWiring(source: string): StackedSheetDiagCheck {
+  const norm = normalize(source);
+
+  const mountRecordsWithDiag =
+    /useEffect\(\(\)\s*=>\s*\{[^}]*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`montou #\$\{id\}`\)/.test(
+      norm,
+    );
+
+  const unmountRecordsInCleanupWithDiag =
+    /return\s*\(\)\s*=>\s*\{[^}]*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`desmontou #\$\{id\}`\)/.test(
+      norm,
+    );
+
+  const onAnimateRecordsWithDiag =
+    /const\s+handleAnimate\s*=\s*useCallback\([^)]*\)\s*=>\s*\{[^}]*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`anim #\$\{id\} \$\{fromIndex\}→\$\{toIndex\}`\)/.test(
+      norm,
+    );
+
+  const bottomSheetHasOnAnimate = /<BottomSheet\b[^>]*onAnimate=\{handleAnimate\}/.test(norm);
+
+  const popMatch = norm.match(
+    /const\s+pop\s*=\s*useCallback\(\(\)\s*=>\s*\{([\s\S]*?)dispatch\(\s*\{\s*type:\s*["']close["'],\s*id\s*\}\s*\);/,
+  );
+  const popRecordsCloseWithDiag =
+    popMatch !== null &&
+    /if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`fechou #\$\{id\}`\);?\s*if\s*\(!isTopRef\.current\)/.test(
+      popMatch[1]!,
+    );
+
+  const allRecordCalls = [...norm.matchAll(/(.{0,30})recordDiagEvent\(/g)];
+  const allRecordCallsGuardedByDiag =
+    allRecordCalls.length > 0 &&
+    allRecordCalls.every((m) => /if\s*\(\s*DIAG_SCROLL\s*\)\s*$/.test(m[1] ?? ""));
+
+  return {
+    mountRecordsWithDiag,
+    unmountRecordsInCleanupWithDiag,
+    onAnimateRecordsWithDiag,
+    popRecordsCloseWithDiag,
+    bottomSheetHasOnAnimate,
+    allRecordCallsGuardedByDiag,
+  };
+}
+
+export function checkSettingsSheetDiagWiring(source: string): { pageChangeRecordsWithDiag: boolean } {
+  const norm = normalize(source);
+  const pageChangeRecordsWithDiag =
+    /if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`ajustes: pagina \$\{prev\} → \$\{page\}`\)/.test(
+      norm,
+    );
+  return { pageChangeRecordsWithDiag };
+}
+
 describe("guarda estático de diagnóstico (Item 3)", () => {
   const sheetHostPath = join(__dirname, "SheetHost.tsx");
   const sheetHostSource = readFileSync(sheetHostPath, "utf8");
@@ -146,6 +212,12 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
 
   const mapPickerPath = join(__dirname, "../screens/MapPicker.tsx");
   const mapPickerSource = readFileSync(mapPickerPath, "utf8");
+
+  const stackedSheetPath = join(__dirname, "StackedSheet.tsx");
+  const stackedSheetSource = readFileSync(stackedSheetPath, "utf8");
+
+  const settingsSheetPath = join(__dirname, "SettingsSheet.tsx");
+  const settingsSheetSource = readFileSync(settingsSheetPath, "utf8");
 
   it("(1) SheetHost.tsx usa homeLayerPointerEvents(stacked.length) no pointerEvents da primeira View", () => {
     const checks = checkSheetHostWiring(sheetHostSource);
@@ -180,5 +252,26 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
     const checks = checkMapPickerWiring(mapPickerSource);
     expect(checks.recordsSelectorOpened).toBe(true);
     expect(checks.recordsSelectorClosedInCleanup).toBe(true);
+  });
+
+  it("(6) diagScroll.tsx cria armazém com capacidade 60 e constante da faixa é 6", () => {
+    const checks = checkDiagScrollWiring(diagScrollSource);
+    expect(checks.diagStoreCapacity60).toBe(true);
+    expect(DIAG_STRIP_EVENT_COUNT).toBe(6);
+  });
+
+  it("(7) StackedSheet.tsx registra montou, desmontou na limpeza, anim no onAnimate e fechou antes de pop, todos dentro de if (DIAG_SCROLL)", () => {
+    const checks = checkStackedSheetDiagWiring(stackedSheetSource);
+    expect(checks.mountRecordsWithDiag).toBe(true);
+    expect(checks.unmountRecordsInCleanupWithDiag).toBe(true);
+    expect(checks.onAnimateRecordsWithDiag).toBe(true);
+    expect(checks.bottomSheetHasOnAnimate).toBe(true);
+    expect(checks.popRecordsCloseWithDiag).toBe(true);
+    expect(checks.allRecordCallsGuardedByDiag).toBe(true);
+  });
+
+  it("(8) SettingsSheet.tsx registra ajustes: pagina X → Y quando page muda dentro de if (DIAG_SCROLL)", () => {
+    const checks = checkSettingsSheetDiagWiring(settingsSheetSource);
+    expect(checks.pageChangeRecordsWithDiag).toBe(true);
   });
 });
