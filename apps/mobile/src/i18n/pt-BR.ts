@@ -179,6 +179,8 @@ export const ptBR = {
   // textos abaixo. Nenhum altera copy aprovada.
   "common.relative.in": "daqui a {{minutes}} min",
   "common.relative.ago": "há {{minutes}} min",
+  "common.min": "{{min}}\u00A0min", // provisório
+  "common.min_range": "{{min}}–{{max}}\u00A0min", // provisório
   "sheet_board.pick_stop": "Escolher o ponto",
   "sheet_board.pick_stop_hint": "Escolha o ponto onde você está",
   "sheet_board.no_lines": "Nenhuma linha para embarcar neste ponto",
