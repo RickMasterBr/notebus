@@ -1,0 +1,84 @@
+name: e2e
+# Execução manual dos fluxos Maestro sem rede e Dynamic Type no simulador iOS (E-09 §3.4, §3.1, T-92 a T-95).
+# Só sob pedido manual ("Run workflow") pelo Rick: macOS consome minutos de cota do GitHub.
+on:
+  workflow_dispatch:
+
+jobs:
+  maestro:
+    runs-on: macos-latest
+    env:
+      EXPO_PUBLIC_NB_NO_NETWORK: "1"
+      EXPO_PUBLIC_NB_TEST_SEED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar Maestro CLI
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Gerar o projeto nativo (prebuild)
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform ios
+
+      - name: Compilar para o Simulador iOS
+        working-directory: apps/mobile/ios
+        run: |
+          xcodebuild \
+            -workspace "$(ls -d *.xcworkspace | head -1)" \
+            -scheme "$(basename "$(ls -d *.xcworkspace | head -1)" .xcworkspace)" \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Inicializar Simulador iOS e Instalar App
+        run: |
+          # Inicializa o primeiro simulador disponível ou cria/inicia iPhone padrão
+          DEVICE_UDID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | awk -F '[()]' '{print $(NF-1)}')
+          echo "Booting device: $DEVICE_UDID"
+          xcrun simctl boot "$DEVICE_UDID" || true
+          APP_BUNDLE=$(find apps/mobile/ios/build/Build/Products/Debug-iphonesimulator -name "*.app" | head -1)
+          echo "Installing: $APP_BUNDLE"
+          xcrun simctl install booted "$APP_BUNDLE"
+
+      - name: M-1 (T-92) Registrar L1 na Arrabalde
+        run: maestro test .maestro/m1-registrar.yaml
+
+      - name: M-2 (T-93) Atalho Facul
+        run: maestro test .maestro/m2-facul.yaml
+
+      - name: M-3 (T-94) Está indo ou voltando?
+        run: maestro test .maestro/m3-indo-ou-voltando.yaml
+
+      - name: Dynamic Type (T-95) em 5 tamanhos
+        run: |
+          mkdir -p screenshots
+          # 5 tamanhos requeridos: padrão, extra-large, accessibility-medium (AX1), accessibility-extra-large (AX3) e accessibility-extra-extra-extra-large (AX5)
+          SIZES=("standard" "extra-large" "accessibility-medium" "accessibility-extra-large" "accessibility-extra-extra-extra-large")
+          for size in "${SIZES[@]}"; do
+            echo "--- Executando Dynamic Type no tamanho: $size ---"
+            xcrun simctl ui booted content_size "$size"
+            mkdir -p "screenshots/$size"
+            DYNAMIC_TYPE_SIZE="$size" maestro test .maestro/dynamic-type.yaml
+            # Move capturas geradas para a pasta do respectivo tamanho
+            mv *.png "screenshots/$size/" 2>/dev/null || true
+          done
+
+      - name: Salvar capturas de tela como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-type-screenshots
+          path: screenshots/
