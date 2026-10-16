@@ -105,7 +105,7 @@ describe("SettingsSheet: interruptores (Mutação 2)", () => {
     expect(src).toMatch(/settings\.alarms\.allow/);
     expect(src).toMatch(/useOptimisticSwitch\(prefs\.alarmsAllowed,\s*handleToggleAlarms(,\s*["']avisos["'])?\)/);
     expect(src).toMatch(
-      /t\("settings\.alarms\.allow"\)[\s\S]{1,200}?\{view\.alertsHint\}[\s\S]{1,200}?<Switch\b[^>]*onValueChange=\{alarmsSwitch\.onValueChange\}/,
+      /t\("settings\.alarms\.allow"\)[\s\S]{1,200}?\{view\.alertsHint\}[\s\S]{1,200}?<NbSwitch\b[^>]*onValueChange=\{alarmsSwitch\.onValueChange\}/,
     );
   });
 

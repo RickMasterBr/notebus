@@ -21,9 +21,9 @@ describe("E-09 Bloco 5b guardas de ligação (e09Bloco5bWiring)", () => {
       expect(settings).toMatch(/const handleToggleAlarms = \(val: boolean\) => \{ return toggleAlarms\(\{ next: val,/);
     });
 
-    it("o <Switch> de avisos consome valor e onValueChange do interruptor otimista", () => {
+    it("o <NbSwitch> de avisos consome valor e onValueChange do interruptor otimista", () => {
       expect(settings).toMatch(
-        /<Switch accessibilityLabel=\{t\("settings\.alarms\.allow"\)\} value=\{alarmsSwitch\.value\} onValueChange=\{alarmsSwitch\.onValueChange\}/,
+        /<NbSwitch accessibilityLabel=\{t\("settings\.alarms\.allow"\)\} value=\{alarmsSwitch\.value\} onValueChange=\{alarmsSwitch\.onValueChange\}/,
       );
     });
   });
@@ -42,17 +42,17 @@ describe("E-09 Bloco 5b guardas de ligação (e09Bloco5bWiring)", () => {
       expect(edit).toMatch(/<Switch accessibilityLabel=\{t\("line_create\.circular"\)\} style=\{\{ alignSelf: "center" \}\}/);
     });
 
-    it("Avisos em Ajustes: switchRow com o <Switch> com alignSelf: \"center\"", () => {
+    it("Avisos em Ajustes: switchRow com o <NbSwitch>", () => {
       const settings = squash(read("sheets/SettingsSheet.tsx"));
       expect(settings).toMatch(
-        /styles\.switchRow[\s\S]*?<Switch\b[^>]*accessibilityLabel=\{t\("settings\.alarms\.allow"\)\}[^>]*style=\{\{\s*alignSelf:\s*"center"\s*\}\}/,
+        /styles\.switchRow[\s\S]*?<NbSwitch\b[^>]*accessibilityLabel=\{t\("settings\.alarms\.allow"\)\}/,
       );
     });
 
-    it("Feriados municipais em Ajustes: switchRow com o <Switch> com alignSelf: \"center\"", () => {
+    it("Feriados municipais em Ajustes: switchRow com o <NbSwitch>", () => {
       const settings = squash(read("sheets/SettingsSheet.tsx"));
       expect(settings).toMatch(
-        /styles\.switchRow[\s\S]*?<Switch\b[^>]*accessibilityLabel=\{t\("settings\.holiday\.municipal"\)\}[^>]*style=\{\{\s*alignSelf:\s*"center"\s*\}\}/,
+        /styles\.switchRow[\s\S]*?<NbSwitch\b[^>]*accessibilityLabel=\{t\("settings\.holiday\.municipal"\)\}/,
       );
     });
   });
