@@ -1,7 +1,7 @@
 /** CLI do relatório de critérios do MVP (@notebus/mvp-report). */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { lisbonWallClock } from "@notebus/domain/src/calendar.ts";
-import { replay } from "./replay.ts";
+import { isObservationAfterExport, parseExportedAtMs, replay } from "./replay.ts";
 import { formatReportText } from "./report.ts";
 import type { MvpReportResult } from "./types.ts";
 import { calculateUsage } from "./usage.ts";
@@ -12,6 +12,7 @@ export interface CliOptions {
   from?: string;
   to?: string;
   jsonPath?: string;
+  detail?: boolean;
   help?: boolean;
 }
 
@@ -25,6 +26,8 @@ export function parseArgs(args: string[]): CliOptions {
       opts.to = args[++i];
     } else if (arg === "--json" && i + 1 < args.length) {
       opts.jsonPath = args[++i];
+    } else if (arg === "--detalhe") {
+      opts.detail = true;
     } else if (arg === "--help" || arg === "-h") {
       opts.help = true;
     } else if (!arg.startsWith("--") && !opts.filePath) {
@@ -51,7 +54,7 @@ export async function main(
 
   if (opts.help || !opts.filePath) {
     err(
-      "Uso: npm --workspace=@notebus/mvp-report start -- <arquivo-de-backup.json> [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--json <saida.json>]"
+      "Uso: npm --workspace=@notebus/mvp-report start -- <arquivo-de-backup.json> [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--json <saida.json>] [--detalhe]"
     );
     return 1;
   }
@@ -76,13 +79,21 @@ export async function main(
   }
 
   const backup = validation.backup;
+  const exportedAtMs = parseExportedAtMs(backup.exportedAt);
+  const futureRecords = (backup.tables.observation ?? []).filter((o) =>
+    isObservationAfterExport(o, exportedAtMs)
+  ).length;
 
   // Se --from e --to não forem informados, usa os últimos 14 dias com registro ao vivo
   let from = opts.from;
   let to = opts.to;
   if (!from && !to) {
     const liveObs = (backup.tables.observation ?? []).filter(
-      (o) => o.deleted_at === null && o.mode === "live" && typeof o.observed_at === "number"
+      (o) =>
+        o.deleted_at === null &&
+        o.mode === "live" &&
+        typeof o.observed_at === "number" &&
+        !isObservationAfterExport(o, exportedAtMs)
     );
     const liveDates = [...new Set(liveObs.map((o) => lisbonWallClock(Number(o.observed_at)).date))].sort();
     if (liveDates.length > 14) {
@@ -94,8 +105,8 @@ export async function main(
     }
   }
 
-  const uso = calculateUsage(backup.tables, { from, to });
-  const rep = replay(backup.tables, { from, to });
+  const uso = calculateUsage(backup.tables, { from, to, exportedAt: exportedAtMs });
+  const rep = replay(backup.tables, { from, to, exportedAt: exportedAtMs, detail: opts.detail });
 
   const reportResult: MvpReportResult = {
     file: opts.filePath,
@@ -104,6 +115,8 @@ export async function main(
     to,
     criterio2: uso,
     criterio4: rep,
+    futureRecords,
+    detail: opts.detail,
   };
 
   const reportText = formatReportText(reportResult);

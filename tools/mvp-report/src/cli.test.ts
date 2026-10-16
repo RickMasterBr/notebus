@@ -99,4 +99,105 @@ describe("CLI mvp-report: fiação, argumentos e validação (Item 1)", () => {
     expect(jsonParsed.criterio2).toBeDefined();
     expect(jsonParsed.criterio4).toBeDefined();
   });
+
+  it("opção --detalhe no CLI: inclui o detalhe das exclusões na saída padrão", async () => {
+    // Cria backup com uma observação com line_id ausente
+    const now = Date.UTC(2026, 9, 10, 10, 0, 0);
+    const obs = [
+      {
+        id: "obs-cli-detail",
+        created_at: now,
+        updated_at: now,
+        deleted_at: null,
+        source: "user",
+        stop_id: "stop-arrabalde",
+        line_id: "line-dataset-inexistente",
+        pattern_stop_id: "ps-1",
+        trip_id: "trip-0810",
+        observed_at: now,
+        observed_end_at: null,
+        service_date: "2026-10-10",
+        service_minute: 494,
+        deviation_min: 2,
+        match_status: "auto",
+        mode: "live",
+        kind: "boarded",
+        recorded_at: now,
+      },
+    ];
+    const text = await createSyntheticBackupText(obs);
+    const backupPath = join(tempDir, "detail-backup.json");
+    writeFileSync(backupPath, text, "utf8");
+
+    const logs: string[] = [];
+    const code = await main([backupPath, "--detalhe"], (s) => logs.push(s), () => {});
+
+    expect(code).toBe(0);
+    const reportText = logs.join("\n");
+    expect(reportText).toContain("Detalhe das exclusões:");
+    expect(reportText).toContain("- Sem linha ou ponto no dataset (1):");
+    expect(reportText).toContain('* ID obs-cli-detail | 2026-10-10 | qual: line_id | valor: line_id="line-dataset-inexistente" (ausente no dataset)');
+  });
+
+  it("CLI com registros posteriores à exportação: separa registros do relógio de teste", async () => {
+    const exportTime = Date.UTC(2026, 9, 16, 12, 0, 0);
+    const pastTime = Date.UTC(2026, 9, 10, 10, 0, 0);
+    const futureTime = Date.UTC(2026, 9, 25, 10, 0, 0);
+
+    const obs = [
+      {
+        id: "obs-past",
+        created_at: pastTime,
+        updated_at: pastTime,
+        deleted_at: null,
+        source: "user",
+        stop_id: "stop-arrabalde",
+        line_id: "line-1",
+        pattern_stop_id: "ps-1",
+        trip_id: "trip-0810",
+        observed_at: pastTime,
+        observed_end_at: null,
+        service_date: "2026-10-10",
+        service_minute: 494,
+        deviation_min: 2,
+        match_status: "auto",
+        mode: "live",
+        kind: "boarded",
+        recorded_at: pastTime,
+      },
+      {
+        id: "obs-future",
+        created_at: futureTime,
+        updated_at: futureTime,
+        deleted_at: null,
+        source: "user",
+        stop_id: "stop-arrabalde",
+        line_id: "line-1",
+        pattern_stop_id: "ps-1",
+        trip_id: "trip-0810",
+        observed_at: futureTime,
+        observed_end_at: null,
+        service_date: "2026-10-25",
+        service_minute: 494,
+        deviation_min: 2,
+        match_status: "auto",
+        mode: "live",
+        kind: "boarded",
+        recorded_at: futureTime,
+      },
+    ];
+
+    const text = await createSyntheticBackupText(obs, {}, { exportedAt: exportTime });
+    const backupPath = join(tempDir, "future-clock-backup.json");
+    writeFileSync(backupPath, text, "utf8");
+
+    const logs: string[] = [];
+    const code = await main([backupPath], (s) => logs.push(s), () => {});
+
+    expect(code).toBe(0);
+    const reportText = logs.join("\n");
+    expect(reportText).toContain("1 dias com pelo menos 1 registro, de 2026-10-10 a 2026-10-10, 1 registros ao todo");
+    expect(reportText).toContain("registros datados depois da exportação (relógio de teste): 1");
+    expect(reportText).toContain("Total de embarques avaliados: 1");
+  });
 });
