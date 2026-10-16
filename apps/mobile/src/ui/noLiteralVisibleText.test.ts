@@ -94,7 +94,7 @@ export function findLiteralVisibleTextViolations(
         report(text, node, "JsxText");
       }
     } else if (ts.isJsxAttribute(node)) {
-      const attrName = node.name.text;
+      const attrName = ts.isIdentifier(node.name) ? node.name.text : node.name.getText(sf);
       if (CHECKED_ATTRS.has(attrName) && node.initializer) {
         if (ts.isStringLiteral(node.initializer)) {
           if (hasLetters(node.initializer.text)) {
