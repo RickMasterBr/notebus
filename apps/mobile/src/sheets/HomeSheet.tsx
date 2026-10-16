@@ -343,7 +343,10 @@ export function HomeSheet() {
                 accessibilityElementsHidden
                 importantForAccessibility="no-hide-descendants"
                 style={styles.phraseMeasure}
-                onLayout={(e) => setPhraseHeight((prev) => nextPhraseHeight(prev, e.nativeEvent.layout.height))}
+                onLayout={(e) => {
+                  const measured = e.nativeEvent.layout.height;
+                  setPhraseHeight((prev) => nextPhraseHeight(prev, measured));
+                }}
               >
                 <HomePhrase phrase={phrase} lineColor={lineColor} />
               </View>
