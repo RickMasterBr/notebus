@@ -53,7 +53,7 @@ describe("E-08.5 bloco 10 Item 4 (Guarda de ligação das folhas)", () => {
   it("NearbyStops.tsx: chama buildStopCard com registro.records e inclui registro.records nas dependências do useMemo de picked", () => {
     const start = nearbyStopsSheet.indexOf("const picked = useMemo");
     expect(start, "useMemo de picked em NearbyStops encontrado").toBeGreaterThan(-1);
-    const end = nearbyStopsSheet.indexOf("if (loading", start);
+    const end = nearbyStopsSheet.indexOf("useEffect", start);
     const block = nearbyStopsSheet.slice(start, end);
     expect(block).toMatch(
       /buildStopCard\(\s*id,\s*schedule\.data,\s*instant,\s*registro\.records\s*\)/,

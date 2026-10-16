@@ -43,4 +43,16 @@ describe("E-09 bloco 24 (FN-29): guarda de ligação de NearbyStops", () => {
     expect(squashed).not.toMatch(/byFix\.map\(/);
     expect(squashed).toMatch(/<Section>\s*\{picked\.cards\.map/);
   });
+
+  it("registro de diagnóstico perto sob if (DIAG_SCROLL) em useEffect, nunca no corpo do render", () => {
+    expect(squashed).toMatch(
+      /useEffect\(\s*\(\)\s*=>\s*\{\s*if\s*\(DIAG_SCROLL\)\s*recordDiagEvent\(`perto fonte=\$\{picked\.source\} fix=\$\{byFix\.length\} recentes=\$\{recent\.ids\.length\} cartoes=\$\{picked\.cards\.length\} estados=\$\{stops\.status\}\/\$\{schedule\.status\}\/\$\{recent\.status\}`\);\s*\},/,
+    );
+    const lines = rawNearbyStops.split(/\r?\n/);
+    const diagCalls = lines.filter((l) => l.includes("recordDiagEvent(") && !l.includes("import"));
+    expect(diagCalls.length).toBeGreaterThan(0);
+    for (const line of diagCalls) {
+      expect(line).toMatch(/^\s*if\s*\(DIAG_SCROLL\)\s*recordDiagEvent\(/);
+    }
+  });
 });

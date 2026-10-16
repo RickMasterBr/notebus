@@ -3,7 +3,7 @@
  * cada um num cartão de ponto. Sem nenhum ponto aberto ainda: nada (só a pílula; texto de convite é questão aberta).
  * Esqueleto (D-127) enquanto a lista de pontos, os horários e os últimos pontos não chegam.
  */
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { usePlaces } from "../data/PlacesProvider";
@@ -25,6 +25,7 @@ import { Skeleton } from "../ui/Skeleton";
 import { StopCardView } from "../ui/StopCardView";
 import { useReorderTransition } from "../ui/useReorderTransition";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
+import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 import { useOpenStop } from "./useOpenStop";
 
 export function NearbyStops() {
@@ -56,6 +57,10 @@ export function NearbyStops() {
         : { cards: [] as StopCard[], source: "none" as const },
     [byFix, recent.ids, schedule, instant, registro.records],
   );
+
+  useEffect(() => {
+    if (DIAG_SCROLL) recordDiagEvent(`perto fonte=${picked.source} fix=${byFix.length} recentes=${recent.ids.length} cartoes=${picked.cards.length} estados=${stops.status}/${schedule.status}/${recent.status}`);
+  }, [picked.source, byFix.length, recent.ids.length, picked.cards.length, stops.status, schedule.status, recent.status]);
 
   if (loading || skeleton) return skeleton ? <Section><Skeleton variant="card" /></Section> : null;
   if (picked.cards.length === 0) return null;
