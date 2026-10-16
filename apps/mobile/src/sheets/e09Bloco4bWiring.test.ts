@@ -20,14 +20,14 @@ describe("E-09 Bloco 4b guardas de ligação (e09Bloco4bWiring)", () => {
     const record = squash(read("sheets/RecordSheet.tsx"));
     const visual = squash(read("ui/AnimatedSwitchVisual.tsx"));
 
-    it("o <Switch> de avisos usa o valor otimista", () => {
+    it("o <NbSwitch> de avisos usa o valor otimista", () => {
       expect(settings).toContain('useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms, "avisos")');
-      expect(settings).toMatch(/<Switch[^>]*value=\{alarmsSwitch\.value\} onValueChange=\{alarmsSwitch\.onValueChange\}/);
+      expect(settings).toMatch(/<NbSwitch[^>]*value=\{alarmsSwitch\.value\} onValueChange=\{alarmsSwitch\.onValueChange\}/);
     });
 
-    it("o <Switch> de feriados municipais usa o valor otimista", () => {
+    it("o <NbSwitch> de feriados municipais usa o valor otimista", () => {
       expect(settings).toContain('useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados")');
-      expect(settings).toMatch(/<Switch[^>]*value=\{municipalSwitch\.value\} onValueChange=\{municipalSwitch\.onValueChange\}/);
+      expect(settings).toMatch(/<NbSwitch[^>]*value=\{municipalSwitch\.value\} onValueChange=\{municipalSwitch\.onValueChange\}/);
     });
 
     it("o hook mostra shownValue e encerra o pedido no finally, também na falha", () => {

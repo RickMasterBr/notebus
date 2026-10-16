@@ -8,7 +8,7 @@ export const SWITCH_ANIM_MS = 180;
 export const SWITCH_THUMB_TRAVEL = 20;
 
 /** Trilha e bolinha do interruptor do registro (FN-6): desliza e muda de cor; sem movimento se "Reduzir movimento". */
-export function AnimatedSwitchVisual({ on }: { on: boolean }) {
+export function AnimatedSwitchVisual({ on, offColor }: { on: boolean; offColor?: string }) {
   const { colors } = useTheme();
   const reduceMotion = useReduceMotion();
   const progress = useSharedValue(on ? 1 : 0);
@@ -16,7 +16,7 @@ export function AnimatedSwitchVisual({ on }: { on: boolean }) {
     progress.value = withTiming(on ? 1 : 0, { duration: reduceMotion ? 0 : SWITCH_ANIM_MS });
   }, [on, reduceMotion, progress]);
   const track = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], [colors.divider, colors.accent]),
+    backgroundColor: interpolateColor(progress.value, [0, 1], [offColor ?? colors.divider, colors.accent]),
   }));
   const thumb = useAnimatedStyle(() => ({
     transform: [{ translateX: progress.value * SWITCH_THUMB_TRAVEL }],

@@ -16,7 +16,6 @@ import {
   AccessibilityInfo,
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   View,
   useWindowDimensions,
@@ -85,6 +84,7 @@ import { expoPort } from "../notifications/expoPort";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { ChevronRightGlyph } from "../ui/Glyphs";
 import { ListRow } from "../ui/ListRow";
+import { NbSwitch } from "../ui/NbSwitch";
 import { AboutPage } from "./AboutPage";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
@@ -471,14 +471,11 @@ export function SettingsSheet({ id }: { id: number }) {
                           </Text>
                         </View>
                         <View style={styles.switchWrapper}>
-                          <Switch
+                          <NbSwitch
                             accessibilityLabel={t("settings.alarms.allow")}
                             value={alarmsSwitch.value}
                             onValueChange={alarmsSwitch.onValueChange}
-                            style={{ alignSelf: "center" }}
-                            trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                            thumbColor={colors.surface}
-                          />
+                            />
                         </View>
                       </View>
                       <SettingsIndexRow
@@ -742,14 +739,11 @@ export function SettingsSheet({ id }: { id: number }) {
                             {t("settings.holiday.municipal")}
                           </Text>
                           <View style={styles.switchWrapper}>
-                            <Switch
+                            <NbSwitch
                               accessibilityLabel={t("settings.holiday.municipal")}
                               value={municipalSwitch.value}
                               onValueChange={municipalSwitch.onValueChange}
-                              style={{ alignSelf: "center" }}
-                              trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                              thumbColor={colors.surface}
-                            />
+                              />
                           </View>
                         </View>
                       </View>
