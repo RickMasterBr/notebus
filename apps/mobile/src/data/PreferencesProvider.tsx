@@ -7,6 +7,8 @@ import { type ReactNode, createContext, useCallback, useContext, useEffect, useM
 import { DEFAULT_PREFERENCES, type Preferences } from "../db/preferences";
 import { expoPort } from "../notifications/expoPort";
 import { requestReschedule } from "../notifications/runtime";
+import { DIAG_SCROLL, recordDiagEvent } from "../sheets/diagScroll";
+import { realNow } from "./clock";
 import { useNow } from "./NowProvider";
 import { type PreferencesStore, createPreferences } from "./preferences";
 import { useRegistro } from "./RegistroProvider";
@@ -50,7 +52,11 @@ export function PreferencesProvider({ db, children }: { db: Parameters<typeof cr
     [db, exclusive, reload],
   );
 
-  const refresh = useCallback(() => store.read().then(setPrefs, () => undefined), [store]);
+  const refresh = useCallback(() => store.read().then((p) => {
+    // Valor lido de volta do banco (E-09 bloco 20a, item 0): só com DIAG_SCROLL.
+    if (DIAG_SCROLL) recordDiagEvent(`prefs lido feriados=${p.includeMunicipalHolidays} avisos=${p.alarmsAllowed} t=${realNow() % 100000}`);
+    setPrefs(p);
+  }, () => undefined), [store]);
   useEffect(() => {
     void refresh();
   }, [refresh]);
