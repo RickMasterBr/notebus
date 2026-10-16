@@ -71,13 +71,13 @@ describe("E-09 Bloco 5 guardas de ligação (e09Bloco5Wiring)", () => {
   });
 
   describe("Item 2: Animação ao voltar de página nos Ajustes (FN-16)", () => {
-    it("SettingsSheet.tsx usa animação ao voltar com FadeOut / SlideOutRight pelo mesmo caminho que o cabeçalho usa", () => {
+    it("SettingsSheet.tsx não tem exiting no Animated.View da página (FN-19)", () => {
       const settingsSource = squash(read("sheets/SettingsSheet.tsx"));
       expect(settingsSource).toMatch(
-        /import\s+Animated,\s*\{[^}]*FadeOut[^}]*SlideOutRight[^}]*\}\s+from\s+["']react-native-reanimated["']/,
+        /page !== "root" && \(\s*<Animated\.View\b[^>]*key=\{page\}[^>]*entering=\{reduceMotion \? FadeIn\.duration\(200\) : SlideInRight\.duration\(280\)\}/,
       );
-      expect(settingsSource).toMatch(
-        /exiting=\{reduceMotion\s*\?\s*FadeOut\.duration\(200\)\s*:\s*SlideOutRight\.duration\(280\)\}/,
+      expect(settingsSource).not.toMatch(
+        /page !== "root" && \(\s*<Animated\.View\b[^>]*exiting=/,
       );
     });
 
@@ -90,6 +90,20 @@ describe("E-09 Bloco 5 guardas de ligação (e09Bloco5Wiring)", () => {
       // Cancelar em Mapa sem internet
       expect(settingsSource).toMatch(
         /runOfflineSettingsAction\(\s*b\.action,\s*\{\s*startDownload:\s*offlineMap\.startDownload,\s*deleteMap:\s*offlineMap\.deleteMap,\s*goBack:\s*handleBack,?\s*\}\s*\)/,
+      );
+    });
+  });
+
+  describe("Item 3: Ajustes: posição da lista e restauração (FN-18)", () => {
+    it("SettingsSheet.tsx consome restoreOffset dentro do efeito de scrollTo e onScroll grava só em root", () => {
+      const settingsSource = squash(read("sheets/SettingsSheet.tsx"));
+      // onScroll gravando só em root
+      expect(settingsSource).toMatch(
+        /onScroll=\{\(e\) => \{\s*if \(page === "root"\) \{\s*scrollOffsetRef\.current = e\.nativeEvent\.contentOffset\.y;\s*\}\s*\}\}/,
+      );
+      // restoreOffset consumido dentro do efeito de scrollTo
+      expect(settingsSource).toMatch(
+        /if \(decision\.restoreOffset !== null\) \{\s*scrollRef\.current\?\.scrollTo\(\{ y: decision\.restoreOffset, animated: false \}\);\s*\}/,
       );
     });
   });
