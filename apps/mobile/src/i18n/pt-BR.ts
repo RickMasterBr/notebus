@@ -954,8 +954,6 @@ export const ptBR = {
   "settings.about.credit.holidays": "Feriados: date-holidays (CC BY-SA 3.0)", // provisório
   "settings.about.credit.map": "Mapa: OpenFreeMap © OpenMapTiles, dados de © OpenStreetMap contributors", // provisório
   "settings.about.licenses": "Licenças de código aberto", // provisório
-  "settings.about.repo": "Código do app no GitHub", // provisório
-  "settings.about.repo.hint": "Abre no navegador", // provisório
   "settings.about.notice.not_mobilis": "O NoteBus não é um app da MOBILIS.", // provisório
   "settings.about.notice.times": "Os horários vêm de um arquivo importado e podem estar errados ou mudar.", // provisório
   "settings.about.notice.brand": "A logo e o ícone são provisórios e vão mudar.", // provisório
