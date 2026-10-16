@@ -70,7 +70,7 @@ import { useOptimisticSwitch } from "./useOptimisticSwitch";
 
 type Variant = {
   /** Atraso da gravação no banco (ms). */
-  writeMs: number;
+  writeMs: number | number[];
   /** Tempo que a recarga dos horários bloqueia o JS (ms); 0 = sem recarga. */
   reloadMs: number;
   /** Atraso da releitura que atualiza `saved` (ms). */
@@ -114,8 +114,9 @@ function simulate(initial: boolean, tapTimes: number[], v: Variant, runUntil = 5
   };
 
   const commit = async (value: boolean) => {
+    const call = writes.length;
     writes.push(value);
-    await sleep(v.writeMs);
+    await sleep(typeof v.writeMs === "number" ? v.writeMs : (v.writeMs[call] ?? 5));
     db = value;
     if (v.reloadMs > 0) {
       jsFreeAt = nowMs() + v.reloadMs;
@@ -251,6 +252,11 @@ describe("simulador do interruptor (E-09 bloco 20a, item 1)", () => {
     expect(r.writes).toEqual([false, true]);
     expect(r.trace.length - 1).toBe(2);
     expect(r.native).toBe(true);
+  });
+  it("gravações com atrasos fora de ordem (a primeira lenta) ainda terminam no valor do último toque: a fila serializa", async () => {
+    const r = await simulate(true, [0, 10], { writeMs: [100, 5], reloadMs: 0, readMs: 3, renderLag: 4 }).run();
+    expect(r.writes).toEqual([false, true]);
+    expect({ native: r.native, db: r.db, saved: r.saved }).toEqual({ native: true, db: true, saved: true });
   });
   it("nada de diag roda sem DIAG_SCROLL", async () => {
     await simulate(true, [0, 100], SLOW_RELOAD).run();

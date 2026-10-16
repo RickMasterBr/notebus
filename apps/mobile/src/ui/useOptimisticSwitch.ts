@@ -6,51 +6,58 @@ import { DIAG_SCROLL, recordDiagEvent } from "../sheets/diagScroll";
 
 /** Interruptor que mostra o toque na hora e grava por trás (FN-6, FN-23). `commit` resolve quando o valor gravado já foi relido. */
 export function useOptimisticSwitch(
-  saved: boolean,
+  savedValue: boolean,
   commit: (value: boolean) => Promise<unknown>,
   label?: string,
 ) {
   const [state, setState] = useState(optimisticIdle);
   const ref = useRef(state);
-  // Valor gravado ATUAL: o log não pode usar o `saved` da closure do toque (E-09 bloco 20a, item 0).
-  const savedRef = useRef(saved);
-  savedRef.current = saved;
-  const mountedRef = useRef(true);
-  const diag = (text: string) => {
-    if (DIAG_SCROLL && label) recordDiagEvent(`sw ${label} ${text} t=${realNow() % 100000}`);
-  };
   const commitRef = useRef(commit);
   commitRef.current = commit;
-  const diagRef = useRef(diag);
-  diagRef.current = diag;
   const queue = useRef(
     createCommitQueue(async (value: boolean) => {
-      diagRef.current(`grava ${value} salvo=${savedRef.current}`);
+      if (DIAG_SCROLL && label) recordDiagEvent(`sw ${label} grava ${value} salvo=${savedRef.current} t=${realNow() % 100000}`);
       try {
         return await commitRef.current(value);
       } finally {
-        diagRef.current(`gravou ${value} salvo=${savedRef.current}`);
+        if (DIAG_SCROLL && label) recordDiagEvent(`sw ${label} gravou ${value} salvo=${savedRef.current} t=${realNow() % 100000}`);
       }
     }),
   ).current;
+  // Valor gravado ATUAL: o log não pode usar o `saved` da closure do toque (E-09 bloco 20a, item 0).
+  const savedRef = useRef(savedValue);
+  savedRef.current = savedValue;
+  const mountedRef = useRef(true);
+  // Último valor pedido (E-09 bloco 20a, item 2): vale na janela entre o `saved` novo chegar e o render que o entrega
+  // ao handler; sem ele o toque calcularia sobre o `saved` velho da closure e repetiria o valor antigo.
+  const intentRef = useRef<boolean | null>(null);
+  if (state.pending === null) intentRef.current = null;
   const apply = (next: typeof state) => {
     ref.current = next;
+    if (next.pending !== null) intentRef.current = next.pending;
     setState(next);
   };
-  const shown = shownValue(saved, state);
-  diag(`render value=${shown} salvo=${saved} pendente=${state.pending}`);
+  if (DIAG_SCROLL && label) {
+    recordDiagEvent(
+      `sw ${label} render value=${shownValue(savedValue, state)} salvo=${savedValue} pendente=${state.pending} t=${realNow() % 100000}`,
+    );
+  }
   useEffect(() => {
     mountedRef.current = true;
-    diagRef.current("monta");
+    if (DIAG_SCROLL && label) recordDiagEvent(`sw ${label} monta t=${realNow() % 100000}`);
     return () => {
       mountedRef.current = false;
-      diagRef.current("desmonta");
+      if (DIAG_SCROLL && label) recordDiagEvent(`sw ${label} desmonta t=${realNow() % 100000}`);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const onValueChange = useCallback(
     (eventValue: boolean) => {
-      const shownBefore = shownValue(savedRef.current, ref.current);
-      diagRef.current(`toque evento=${eventValue} mostrado=${shownBefore} salvo=${savedRef.current}`);
+      const saved = intentRef.current ?? savedValue;
+      const shownBefore = shownValue(saved, ref.current);
+      if (DIAG_SCROLL && label) {
+        recordDiagEvent(`sw ${label} toque evento=${eventValue} mostrado=${shownBefore} salvo=${savedRef.current} t=${realNow() % 100000}`);
+      }
       const nextValue = nextSwitchValue(saved, ref.current);
       const next = requestValue(ref.current, nextValue);
       apply(next);
@@ -59,16 +66,19 @@ export function useOptimisticSwitch(
           await queue.enqueue(nextValue);
         } catch {
           // falha: o finally devolve o valor gravado (o antigo)
+          if (next.seq === ref.current.seq) intentRef.current = null;
         } finally {
           apply(settle(ref.current, next.seq));
-          diagRef.current(
-            `fim mostra=${shownValue(savedRef.current, ref.current)} salvo=${savedRef.current} montado=${mountedRef.current}`,
-          );
+          if (DIAG_SCROLL && label) {
+            recordDiagEvent(
+              `sw ${label} fim mostra=${shownValue(savedRef.current, ref.current)} salvo=${savedRef.current} montado=${mountedRef.current} t=${realNow() % 100000}`,
+            );
+          }
         }
       })();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queue, saved, label],
+    [queue, savedValue, label],
   );
-  return { value: shown, onValueChange };
+  return { value: shownValue(savedValue, state), onValueChange };
 }
