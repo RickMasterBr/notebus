@@ -11,9 +11,9 @@ import { useRecentStops } from "../data/RecentStopsProvider";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
-import { nearbyIds } from "../data/homeStart";
 import { realNow } from "../data/clock";
 import { nearbyStopIdsByFix } from "../data/nearbyByFix";
+import { pickNearbyCards } from "../data/nearbyCards";
 import { useLastFix } from "../data/PositionProvider";
 import { useStopLocations } from "../data/StopLocationsProvider";
 import { type StopCard, buildStopCard } from "../data/stopCard";
@@ -42,29 +42,27 @@ export function NearbyStops() {
 
   const fix = useLastFix();
   const locations = useStopLocations();
-  // Pela posição quando há pontos perto (plano §3.4); senão a regra provisória da E-02, sem mudança. Pode reordenar com o tique.
-  const ids = useMemo(() => {
-    const byFix = nearbyStopIdsByFix(fix, realNow(), locations.stops);
-    return byFix.length > 0 ? byFix : nearbyIds(recent.ids);
-  }, [fix, locations.stops, recent.ids, instant]);
+  const byFix = useMemo(
+    () => nearbyStopIdsByFix(fix, realNow(), locations.stops),
+    [fix, locations.stops, instant],
+  );
 
-  const cards = useMemo(
+  const picked = useMemo(
     () =>
       schedule.status === "ready"
-        ? ids.flatMap((id): StopCard[] => {
-            const card = buildStopCard(id, schedule.data, instant, registro.records);
-            return card ? [card] : [];
-          })
-        : [],
-    [schedule, ids, instant, registro.records],
+        ? pickNearbyCards(byFix, recent.ids, (id) =>
+            buildStopCard(id, schedule.data, instant, registro.records),
+          )
+        : { cards: [] as StopCard[], source: "none" as const },
+    [byFix, recent.ids, schedule, instant, registro.records],
   );
 
   if (loading || skeleton) return skeleton ? <Section><Skeleton variant="card" /></Section> : null;
-  if (cards.length === 0) return null;
+  if (picked.cards.length === 0) return null;
 
   return (
     <Section>
-      {cards.map((card) => {
+      {picked.cards.map((card) => {
         const subtitle = stopCardLeaveAtSubtitle({
           stopId: card.stopId,
           places: places.places,
