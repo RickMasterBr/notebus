@@ -1,5 +1,7 @@
-// DIAG: painel de diagnóstico da TL-05 e faixa da pilha de folhas. Ficou ligado do bloco 8 até o fechamento da E-08, e está desligado (`DIAG_SCROLL = false`) de novo;
-// o código fica para o próximo sintoma (ou para quem for diagnosticar a gaveta). Para religar: mudar a constante para `true` (os guardas `bloco8Wiring.test.ts` e `diagWiring.test.ts` precisam mudar junto);
+// DIAG: painel de diagnóstico da TL-05 e faixa da pilha de folhas.
+// Desligado por padrão (`EXPO_PUBLIC_NOTEBUS_DIAG` ausente ou diferente de "1").
+// Para ligar na build: rodar o workflow `ios` com `diag` marcado (ou definir `EXPO_PUBLIC_NOTEBUS_DIAG=1`).
+// Nunca editar a constante diretamente no código.
 // para usar o painel: renderizar `AheadDiagPanel` dentro do `BottomSheet`.
 // Sempre overlay absoluto com `pointerEvents` "box-none"/"none", fora do layout das folhas (D-150). Valores lidos de
 // verdade ou "N/D".
@@ -16,10 +18,11 @@ import {
   createDiagStore,
   diagStripLines,
   homeLayerPointerEvents,
+  isDiagEnabled,
 } from "./diagLog";
 import { stackedSheets } from "./stack";
 
-export const DIAG_SCROLL = false;
+export const DIAG_SCROLL = isDiagEnabled(process.env.EXPO_PUBLIC_NOTEBUS_DIAG);
 
 const BUILD_SHA = process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D";
 

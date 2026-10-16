@@ -6,6 +6,14 @@
 export const SELECTOR_OPENED = "seletor aberto";
 export const SELECTOR_CLOSED = "seletor fechado";
 
+/**
+ * Ativa a faixa de diagnóstico e seus registros somente quando o valor for a string exata "1".
+ * Qualquer outro valor (undefined, "", "0", "true", etc.) retorna false.
+ */
+export function isDiagEnabled(value: string | undefined): boolean {
+  return value === "1";
+}
+
 export type DiagEvent = { at: number; text: string };
 
 export type DiagSnapshot = { events: readonly DiagEvent[]; picker: "aberto" | "fechado" };

@@ -14,6 +14,10 @@ on:
         type: choice
         default: nenhuma
         options: [nenhuma, add_column, fail]
+      diag:
+        description: "Build de diagnóstico: mostra a faixa da pilha de folhas no topo da tela. Em build normal, deixe desmarcado."
+        type: boolean
+        default: false
   push:
     tags: ["*"]
 jobs:
@@ -24,6 +28,7 @@ jobs:
       NOTEBUS_VARIANT: ${{ inputs.variante }}
       # Vazio em build normal e em tag; a migração de teste só liga se você escolher na mão.
       EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION: ${{ inputs.test_migration != 'nenhuma' && inputs.test_migration || '' }}
+      EXPO_PUBLIC_NOTEBUS_DIAG: ${{ inputs.diag && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,6 +36,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Registrar o SHA da build
+        run: echo "EXPO_PUBLIC_BUILD_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
       - name: Gerar o projeto nativo (prebuild)
         working-directory: apps/mobile
         run: npx expo prebuild --platform ios
@@ -61,5 +68,5 @@ jobs:
           ls -lh NoteBus.ipa
       - uses: actions/upload-artifact@v4
         with:
-          name: NoteBus-ipa${{ env.NOTEBUS_VARIANT == 'dev' && '-dev' || '' }}${{ env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION && format('-{0}', env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION) || '' }}
+          name: NoteBus-ipa${{ env.NOTEBUS_VARIANT == 'dev' && '-dev' || '' }}${{ env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION && format('-{0}', env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION) || '' }}${{ inputs.diag && '-diag' || '' }}
           path: apps/mobile/ios/NoteBus.ipa

@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { isDiagEnabled } from "./diagLog";
 
 export function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
@@ -48,7 +49,10 @@ export interface DiagScrollWiringCheck {
 export function checkDiagScrollWiring(source: string): DiagScrollWiringCheck {
   const norm = normalize(source);
 
-  const diagScrollDisabled = /export\s+const\s+DIAG_SCROLL\s*=\s*false\b/.test(norm);
+  const diagScrollDisabled =
+    /export\s+const\s+DIAG_SCROLL\s*=\s*isDiagEnabled\(\s*process\.env\.EXPO_PUBLIC_NOTEBUS_DIAG\s*\);/.test(
+      norm,
+    );
 
   const usesSyncExternalStore = norm.includes(
     "useSyncExternalStore(diagStore.subscribe, diagStore.getSnapshot)",
@@ -160,9 +164,10 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
     expect(checks.hooksInOrder).toBe(true);
   });
 
-  it("(3) DIAG_SCROLL = false: diagnóstico desligado no fechamento da E-08", () => {
+  it("(3) DIAG_SCROLL vem de EXPO_PUBLIC_NOTEBUS_DIAG e é desligado por padrão (sem a variável)", () => {
     const checks = checkDiagScrollWiring(diagScrollSource);
     expect(checks.diagScrollDisabled).toBe(true);
+    expect(isDiagEnabled(undefined)).toBe(false);
   });
 
   it("(4) SheetsContext.tsx registra fechar com dois argumentos e sem nowRef", () => {
