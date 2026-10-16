@@ -957,6 +957,7 @@ export const ptBR = {
   "settings.about.notice.not_mobilis": "O NoteBus não é um app da MOBILIS.", // provisório
   "settings.about.notice.times": "Os horários vêm de um arquivo importado e podem estar errados ou mudar.", // provisório
   "settings.about.notice.brand": "A logo e o ícone são provisórios e vão mudar.", // provisório
+  "settings.about.build_unknown": "N/D", // provisório
   "terminal_detail.gap.a11y": "mostrar mais {{count}} paragens", // provisório
 } as const;
 

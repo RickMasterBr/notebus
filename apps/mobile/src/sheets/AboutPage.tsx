@@ -14,7 +14,7 @@ import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { ChevronRightGlyph } from "../ui/Glyphs";
 
-const APP_VERSION = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D"})`;
+const APP_VERSION = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? t("settings.about.build_unknown")})`;
 
 export function AboutPage() {
   const { colors } = useTheme();
