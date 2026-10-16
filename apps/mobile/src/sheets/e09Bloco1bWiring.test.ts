@@ -42,7 +42,7 @@ describe("E-09 bloco 1b: SettingsSheet", () => {
     expect(settings).toMatch(
       /<Switch accessibilityLabel=\{t\("settings\.holiday\.municipal"\)\} value=\{municipalSwitch\.value\} onValueChange=\{municipalSwitch\.onValueChange\}/,
     );
-    expect(settings).toContain("useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays)");
+    expect(settings).toContain('useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados")');
     expect(settings).toMatch(/includeMunicipal: prefs\.includeMunicipalHolidays,/);
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { optimisticIdle, requestValue, settle, shownValue } from "./switchOptimistic";
+import { nextSwitchValue, optimisticIdle, requestValue, settle, shownValue } from "./switchOptimistic";
 
 describe("switchOptimistic (FN-6)", () => {
   it("sem pedido mostra o valor gravado", () => {
@@ -29,5 +29,28 @@ describe("switchOptimistic (FN-6)", () => {
     const afterOld = settle(b, a.seq);
     expect(shownValue(true, afterOld)).toBe(false);
     expect(shownValue(true, settle(afterOld, b.seq))).toBe(true);
+  });
+
+  describe("nextSwitchValue (FN-23)", () => {
+    it("com pending nulo inverte saved", () => {
+      expect(nextSwitchValue(false, optimisticIdle)).toBe(true);
+      expect(nextSwitchValue(true, optimisticIdle)).toBe(false);
+    });
+
+    it("com pending inverte pending independentemente de saved", () => {
+      expect(nextSwitchValue(false, { pending: true, seq: 1 })).toBe(false);
+      expect(nextSwitchValue(true, { pending: false, seq: 1 })).toBe(true);
+    });
+
+    it("dois toques seguidos voltam ao valor de partida", () => {
+      const saved = false;
+      const v1 = nextSwitchValue(saved, optimisticIdle);
+      expect(v1).toBe(true);
+      const s1 = requestValue(optimisticIdle, v1);
+      const v2 = nextSwitchValue(saved, s1);
+      expect(v2).toBe(false);
+      const s2 = requestValue(s1, v2);
+      expect(shownValue(saved, s2)).toBe(false);
+    });
   });
 });

@@ -21,18 +21,18 @@ describe("E-09 Bloco 4b guardas de ligação (e09Bloco4bWiring)", () => {
     const visual = squash(read("ui/AnimatedSwitchVisual.tsx"));
 
     it("o <Switch> de avisos usa o valor otimista", () => {
-      expect(settings).toContain("useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms)");
+      expect(settings).toContain('useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms, "avisos")');
       expect(settings).toMatch(/<Switch[^>]*value=\{alarmsSwitch\.value\} onValueChange=\{alarmsSwitch\.onValueChange\}/);
     });
 
     it("o <Switch> de feriados municipais usa o valor otimista", () => {
-      expect(settings).toContain("useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays)");
+      expect(settings).toContain('useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados")');
       expect(settings).toMatch(/<Switch[^>]*value=\{municipalSwitch\.value\} onValueChange=\{municipalSwitch\.onValueChange\}/);
     });
 
     it("o hook mostra shownValue e encerra o pedido no finally, também na falha", () => {
       expect(hook).toContain("value: shownValue(saved, state)");
-      expect(hook).toMatch(/catch \{[^}]*\} finally \{ apply\(settle\(ref\.current, next\.seq\)\); \}/);
+      expect(hook).toMatch(/catch \{[^}]*\} finally \{\s*apply\(settle\(ref\.current, next\.seq\)\);/);
     });
 
     it("o registro usa o interruptor animado e a duração vem da constante, com reduceMotion", () => {

@@ -153,18 +153,37 @@ describe("commitQueue (FN-23)", () => {
 
     // Usa createCommitQueue ligado ao commit atual via ref
     expect(
-      /const\s+commitRef\s*=\s*useRef\(commit\);\s*commitRef\.current\s*=\s*commit;\s*const\s+queue\s*=\s*useRef\(\s*createCommitQueue\(\(value:\s*boolean\)\s*=>\s*commitRef\.current\(value\)\)\s*\)\.current;/.test(
+      /const\s+commitRef\s*=\s*useRef\(commit\);\s*commitRef\.current\s*=\s*commit;\s*const\s+queue\s*=\s*useRef\(\s*createCommitQueue\(/.test(
         norm,
       ),
     ).toBe(true);
+    expect(norm).toContain("commitRef.current(value)");
 
-    // Dentro de onValueChange, aguarda queue.enqueue(value) e não commit(value) direto
+    // Dentro de onValueChange, aguarda queue.enqueue(nextValue) e não commit(value) direto
     expect(
-      /const\s+onValueChange\s*=\s*useCallback\(\s*\(value:\s*boolean\)\s*=>\s*\{\s*const\s+next\s*=\s*requestValue\(ref\.current,\s*value\);\s*apply\(next\);\s*void\s*\(async\s*\(\)\s*=>\s*\{\s*try\s*\{\s*await\s+queue\.enqueue\(value\);\s*\}\s*catch\s*\{\s*\}\s*finally\s*\{\s*apply\(settle\(ref\.current,\s*next\.seq\)\);\s*\}\s*\}\)\(\);/.test(
+      /const\s+nextValue\s*=\s*nextSwitchValue\(saved,\s*ref\.current\);\s*const\s+next\s*=\s*requestValue\(ref\.current,\s*nextValue\);\s*apply\(next\);\s*void\s*\(async\s*\(\)\s*=>\s*\{\s*try\s*\{\s*await\s+queue\.enqueue\(nextValue\);/.test(
         norm,
       ),
     ).toBe(true);
 
     expect(/\bawait\s+commit\s*\(/.test(norm)).toBe(false);
+  });
+
+  it("guarda estático (FN-23): onValueChange não usa o argumento recebido e usa nextSwitchValue", () => {
+    const hookPath = join(__dirname, "../ui/useOptimisticSwitch.ts");
+    const raw = readFileSync(hookPath, "utf8");
+    const norm = raw.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "").replace(/\s+/g, " ");
+
+    // Usa nextSwitchValue(saved, ref.current) para calcular o próximo valor e ignora o argumento do evento
+    expect(norm).toContain("nextSwitchValue(");
+    expect(
+      /const\s+nextVal(ue)?\s*=\s*nextSwitchValue\(saved,\s*ref\.current\);/.test(norm) ||
+      /requestValue\(ref\.current,\s*nextSwitchValue\(saved,\s*ref\.current\)\)/.test(norm),
+    ).toBe(true);
+    // onValueChange não passa o argumento de entrada (event value) para requestValue
+    expect(norm).not.toMatch(/requestValue\(ref\.current,\s*value\)/);
+
+    // Registra sw <label> toque ... dentro de if (DIAG_SCROLL)
+    expect(norm).toMatch(/recordDiagEvent\(`sw \$\{label\} toque/);
   });
 });
