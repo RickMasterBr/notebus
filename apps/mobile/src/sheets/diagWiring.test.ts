@@ -338,4 +338,30 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
     expect(/windowHeight:\s*window\.height\b/.test(norm)).toBe(true);
     expect(/maxHeight:\s*Math\.floor\(window\.height\s*\*\s*0\.45\)/.test(norm)).toBe(true);
   });
+
+  it("(12) StackedSheet.tsx e SheetsContext.tsx registram close() #id, snap #id e dispatch de pilha dentro de if (DIAG_SCROLL)", () => {
+    const stackedNorm = normalize(readFileSync(stackedSheetPath, "utf8"));
+    const sheetsNorm = normalize(readFileSync(sheetsContextPath, "utf8"));
+
+    // close() #id em closeFromHandle dentro de if (DIAG_SCROLL) com id dinâmico
+    expect(
+      /const\s+closeFromHandle\s*=\s*useCallback\([^)]*\)\s*=>\s*\{[\s\S]*?if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`close\(\) #\$\{id\}`\);\s*ref\.current\?\.close\(closeConfig\);/.test(
+        stackedNorm,
+      ),
+    ).toBe(true);
+
+    // snap #id N em reabrir dentro de if (DIAG_SCROLL)
+    expect(
+      /if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`snap #\$\{id\} \$\{[^}]*\}\`\);\s*ref\.current\?\.snapToIndex\(/.test(
+        stackedNorm,
+      ),
+    ).toBe(true);
+
+    // SheetsContext.tsx registra a cada ação despachada: pilha [A > B] → [A] dentro de if (DIAG_SCROLL)
+    expect(
+      /if\s*\(\s*DIAG_SCROLL\s*\)\s*\{[\s\S]*?recordDiagEvent\(`pilha \$\{action\.type\} \[[\s\S]*?\] → \[[\s\S]*?\]`\);?\s*\}/.test(
+        sheetsNorm,
+      ),
+    ).toBe(true);
+  });
 });

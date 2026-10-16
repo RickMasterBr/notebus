@@ -73,12 +73,12 @@ describe("E-09 Bloco 9 guardas de ligação (e09Bloco9Wiring)", () => {
 
     it("useEffect reabre folha e registra 'reabrir #${id}' sob if (DIAG_SCROLL) junto de snapToIndex", () => {
       const effectMatch = stackedSheetSquash.match(
-        /useEffect\(\(\)\s*=>\s*\{(.*?)\},\s*\[isTop,\s*detents\?\.initialIndex\]\);/,
+        /useEffect\(\(\)\s*=>\s*\{(.*?)\},\s*\[isTop,\s*detents\?\.initialIndex(?:,\s*id)?\]\);/,
       );
       expect(effectMatch).not.toBeNull();
       const effectBody = effectMatch![1];
       expect(effectBody).toMatch(
-        /if\s*\(\s*isTop\s*&&\s*closedWhileCovered\.current\s*\)\s*\{\s*closedWhileCovered\.current\s*=\s*false;\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(\s*`reabrir #\$\{id\}`\s*\);\s*ref\.current\?\.snapToIndex\(/,
+        /if\s*\(\s*isTop\s*&&\s*closedWhileCovered\.current\s*\)\s*\{\s*closedWhileCovered\.current\s*=\s*false;\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(\s*`reabrir #\$\{id\}`\s*\);\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(\s*`snap #\$\{id\} \$\{[^}]*\}\`\s*\);\s*ref\.current\?\.snapToIndex\(/,
       );
     });
   });

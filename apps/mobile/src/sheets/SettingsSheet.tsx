@@ -349,8 +349,8 @@ export function SettingsSheet({ id }: { id: number }) {
     });
   };
 
-  const alarmsSwitch = useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms);
-  const municipalSwitch = useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays);
+  const alarmsSwitch = useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms, "avisos");
+  const municipalSwitch = useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados");
 
   const view = settingsIndexView({
     userName: currentUserName,

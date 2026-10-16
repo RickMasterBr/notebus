@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HomePhrase } from "./homePhrase";
-import { phraseVisible } from "./homePhraseVisible";
+import { nextPhraseHeight, phraseMounted, phraseVisible } from "./homePhraseVisible";
 
 describe("phraseVisible (Item 4.3, D-141, D-207)", () => {
   const samplePhrase: HomePhrase = {
@@ -72,5 +72,34 @@ describe("phraseVisible (Item 4.3, D-141, D-207)", () => {
         detent: 2,
       }),
     ).toBe(false);
+  });
+
+  describe("phraseMounted (E-09 bloco 15, FN-15)", () => {
+    it("monta quando há frase e não há viagem, sem depender de detent", () => {
+      expect(phraseMounted({ phrase: samplePhrase, inTrip: false })).toBe(true);
+    });
+
+    it("não monta em viagem", () => {
+      expect(phraseMounted({ phrase: samplePhrase, inTrip: true })).toBe(false);
+    });
+
+    it("não monta sem frase", () => {
+      expect(phraseMounted({ phrase: null, inTrip: false })).toBe(false);
+    });
+  });
+
+  describe("nextPhraseHeight (E-09 bloco 15, FN-15)", () => {
+    it("ignora variação menor que 0,5 px (corta laço de medida)", () => {
+      expect(nextPhraseHeight(64, 64.2)).toBe(64);
+      expect(nextPhraseHeight(64, 64.49)).toBe(64);
+      expect(nextPhraseHeight(64, 63.6)).toBe(64);
+    });
+
+    it("aceita variação maior ou igual a 0,5 px", () => {
+      expect(nextPhraseHeight(64, 64.5)).toBe(64.5);
+      expect(nextPhraseHeight(64, 63.5)).toBe(63.5);
+      expect(nextPhraseHeight(0, 64)).toBe(64);
+      expect(nextPhraseHeight(64, 0)).toBe(0);
+    });
   });
 });

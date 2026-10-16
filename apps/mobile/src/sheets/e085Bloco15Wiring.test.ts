@@ -69,7 +69,7 @@ describe("e085Bloco15Wiring (Item 3: Ajustes como índice e páginas)", () => {
   });
 
   it("o interruptor de avisos fica na linha e usa handleToggleAlarms", () => {
-    expect(settingsSheet).toContain("useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms)");
+    expect(settingsSheet).toContain('useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms, "avisos")');
     expect(settingsSheet).toMatch(/<Switch[\s\S]*?onValueChange=\{alarmsSwitch\.onValueChange\}/);
   });
 

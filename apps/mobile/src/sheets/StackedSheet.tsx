@@ -127,15 +127,19 @@ export function StackedSheet({
     if (isTop && closedWhileCovered.current) {
       closedWhileCovered.current = false;
       if (DIAG_SCROLL) recordDiagEvent(`reabrir #${id}`);
+      if (DIAG_SCROLL) recordDiagEvent(`snap #${id} ${detents?.initialIndex ?? 0}`);
       ref.current?.snapToIndex(detents?.initialIndex ?? 0, openConfig);
     }
-  }, [isTop, detents?.initialIndex]);
+  }, [isTop, detents?.initialIndex, id]);
 
   const closeFromHandle = useCallback(() => {
     // Sem movimento: sai direto e o `FadeOut` do invólucro faz o esmaecer. Com movimento: a folha desce e o `onClose` tira da pilha.
     if (reduceMotion) pop();
-    else ref.current?.close(closeConfig);
-  }, [pop, reduceMotion]);
+    else {
+      if (DIAG_SCROLL) recordDiagEvent(`close() #${id}`);
+      ref.current?.close(closeConfig);
+    }
+  }, [pop, reduceMotion, id]);
 
   const closeCtx = useContext(CloseSheetContext);
   useEffect(() => {

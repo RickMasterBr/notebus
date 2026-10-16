@@ -59,6 +59,12 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
   stateRef.current = state;
   const dispatch = useCallback<Dispatch<SheetAction>>((action) => {
     // Só com o painel de diagnóstico ligado (`DIAG_SCROLL`): anota abertura e fechamento.
+    if (DIAG_SCROLL) {
+      const nextState = sheetReducer(stateRef.current, action);
+      const before = stateRef.current.stack.map((e) => `${e.kind}#${e.id}`).join(" > ");
+      const after = nextState.stack.map((e) => `${e.kind}#${e.id}`).join(" > ");
+      recordDiagEvent(`pilha ${action.type} [${before}] → [${after}]`);
+    }
     if (DIAG_SCROLL && action.type === "push") recordOpenRequest(action.sheet.kind, nowRef.current());
     if (DIAG_SCROLL && action.type === "close") {
       const closing = stateRef.current.stack.find((e) => e.id === action.id);

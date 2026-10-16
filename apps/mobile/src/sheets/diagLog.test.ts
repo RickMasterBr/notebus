@@ -5,6 +5,7 @@ import {
   createDiagStore,
   diagStripLines,
   formatDiagLog,
+  formatSheetStates,
   homeLayerPointerEvents,
   pushDiagEvent,
   SELECTOR_CLOSED,
@@ -164,6 +165,30 @@ describe("diagLog", () => {
     });
   });
 
+  describe("formatSheetStates", () => {
+    it("ordem: ordena as folhas por id crescente", () => {
+      const states = new Map<number, number | null>([
+        [6, -1],
+        [4, 0],
+        [5, -1],
+      ]);
+      expect(formatSheetStates(states)).toBe("folhas: #4 i=0 · #5 i=-1 · #6 i=-1");
+    });
+
+    it("?: formata ? quando o índice for nulo ou indefinido", () => {
+      const states = new Map<number, number | null | undefined>([
+        [4, null],
+        [5, undefined],
+      ]);
+      expect(formatSheetStates(states)).toBe("folhas: #4 i=? · #5 i=?");
+    });
+
+    it("vazio: formata 'folhas: nenhuma' quando o mapa for vazio", () => {
+      expect(formatSheetStates(new Map())).toBe("folhas: nenhuma");
+      expect(formatSheetStates([])).toBe("folhas: nenhuma");
+    });
+  });
+
   describe("diagStripLines", () => {
     it("constante da faixa fixa 12 eventos", () => {
       expect(DIAG_STRIP_EVENT_COUNT).toBe(12);
@@ -179,25 +204,25 @@ describe("diagLog", () => {
       expect(log[59]!.text).toBe("ev 69");
     });
 
-    it("com 0, 1, 2 e 10 eventos e pilha com 0 e 8 entradas, length <= 8 sempre", () => {
+    it("com 0, 1, 2 e 10 eventos e pilha com 0 e 8 entradas", () => {
       const stack8 = Array.from({ length: 8 }, (_, i) => ({ kind: "stop", id: i + 1 }));
       const events10: DiagEvent[] = Array.from({ length: 10 }, (_, i) => ({ at: i * 1000, text: `ev ${i}` }));
 
       const l0_0 = diagStripLines({ sha: "abc", homePointer: "box-none", picker: "fechado", stack: [], events: [], now: 10000 });
       expect(l0_0.length).toBeLessThanOrEqual(8);
-      expect(l0_0.length).toBe(2);
+      expect(l0_0.length).toBe(3);
 
       const l1_0 = diagStripLines({ sha: "abc", homePointer: "box-none", picker: "fechado", stack: [], events: events10.slice(0, 1), now: 10000 });
       expect(l1_0.length).toBeLessThanOrEqual(8);
-      expect(l1_0.length).toBe(3);
+      expect(l1_0.length).toBe(4);
 
       const l2_8 = diagStripLines({ sha: "abc", homePointer: "none", picker: "aberto", stack: stack8, events: events10.slice(0, 2), now: 10000 });
       expect(l2_8.length).toBeLessThanOrEqual(8);
-      expect(l2_8.length).toBe(4);
+      expect(l2_8.length).toBe(5);
 
       const l10_8 = diagStripLines({ sha: "abc", homePointer: "none", picker: "aberto", stack: stack8, events: events10, now: 10000 });
-      expect(l10_8.length).toBeLessThanOrEqual(14);
-      expect(l10_8.length).toBe(12);
+      expect(l10_8.length).toBeLessThanOrEqual(15);
+      expect(l10_8.length).toBe(13);
     });
 
     it("linha 1 traz sha, home e seletor", () => {
@@ -208,6 +233,7 @@ describe("diagLog", () => {
     it("linha 2 traz o topo certo e topo=nenhum com pilha vazia", () => {
       const empty = diagStripLines({ sha: "abc", homePointer: "box-none", picker: "fechado", stack: [], events: [], now: 1000 });
       expect(empty[1]).toBe("topo=nenhum · pilha=[]");
+      expect(empty[2]).toBe("folhas: nenhuma");
 
       const populated = diagStripLines({
         sha: "abc",
@@ -218,9 +244,28 @@ describe("diagLog", () => {
         now: 1000,
       });
       expect(populated[1]).toBe("topo=stop#42 · pilha=[place#1 > stop#42]");
+      expect(populated[2]).toBe("folhas: nenhuma");
     });
 
-    it("linhas 3 a 8 são os 6 últimos eventos, na ordem", () => {
+    it("linha 3 traz folhas formatadas por id crescente com seus índices", () => {
+      const sheetStates = new Map<number, number | null>([
+        [5, -1],
+        [4, 0],
+        [6, -1],
+      ]);
+      const lines = diagStripLines({
+        sha: "abc",
+        homePointer: "none",
+        picker: "fechado",
+        stack: [],
+        sheetStates,
+        events: [],
+        now: 1000,
+      });
+      expect(lines[2]).toBe("folhas: #4 i=0 · #5 i=-1 · #6 i=-1");
+    });
+
+    it("linhas 4 a 11 são os eventos, na ordem", () => {
       const events: DiagEvent[] = Array.from({ length: 8 }, (_, i) => ({
         at: (i + 1) * 1000,
         text: `ev ${i + 1}`,
@@ -233,12 +278,13 @@ describe("diagLog", () => {
         events,
         now: 10_000,
       });
-      expect(lines.length).toBe(10);
-      expect(lines[2]).toBe("há 9 s: ev 1");
-      expect(lines[9]).toBe("há 2 s: ev 8");
+      expect(lines.length).toBe(11);
+      expect(lines[2]).toBe("folhas: nenhuma");
+      expect(lines[3]).toBe("há 9 s: ev 1");
+      expect(lines[10]).toBe("há 2 s: ev 8");
     });
 
-    it("com 15 eventos mostra os 12 últimos (linhas 3 a 14)", () => {
+    it("com 15 eventos mostra os 12 últimos (linhas 4 a 15)", () => {
       const events: DiagEvent[] = Array.from({ length: 15 }, (_, i) => ({
         at: (i + 1) * 1000,
         text: `ev ${i + 1}`,
@@ -251,9 +297,10 @@ describe("diagLog", () => {
         events,
         now: 20_000,
       });
-      expect(lines.length).toBe(14);
-      expect(lines[2]).toBe("há 16 s: ev 4");
-      expect(lines[13]).toBe("há 5 s: ev 15");
+      expect(lines.length).toBe(15);
+      expect(lines[2]).toBe("folhas: nenhuma");
+      expect(lines[3]).toBe("há 16 s: ev 4");
+      expect(lines[14]).toBe("há 5 s: ev 15");
     });
 
     it("corta os eventos mais antigos quando a altura da tela não comporta os 12 em 45%", () => {
@@ -261,7 +308,7 @@ describe("diagLog", () => {
         at: (i + 1) * 1000,
         text: `ev ${i + 1}`,
       }));
-      // windowHeight = 200 -> 45% = 90 px -> (90 - 6) / 12 = 7 linhas no total (2 fixas + 5 eventos)
+      // windowHeight = 200 -> 45% = 90 px -> (90 - 6) / 12 = 7 linhas no total (3 fixas + 4 eventos)
       const lines = diagStripLines({
         sha: "abc",
         homePointer: "none",
@@ -272,7 +319,8 @@ describe("diagLog", () => {
         windowHeight: 200,
       });
       expect(lines.length).toBe(7);
-      expect(lines[2]).toBe("há 12 s: ev 8");
+      expect(lines[2]).toBe("folhas: nenhuma");
+      expect(lines[3]).toBe("há 11 s: ev 9");
       expect(lines[6]).toBe("há 8 s: ev 12");
     });
   });

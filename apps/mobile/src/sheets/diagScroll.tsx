@@ -31,8 +31,22 @@ const BUILD_SHA = process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D";
 let lastOpen: { kind: string; at: number; sinceStartMs: number } | null = null;
 const diagStore = createDiagStore(60);
 
+const sheetStatesMap = new Map<number, number | null>();
+
 export function recordDiagEvent(text: string) {
   diagStore.record(text, realNow());
+  const mountMatch = text.match(/^montou #(\d+)$/);
+  if (mountMatch) {
+    sheetStatesMap.set(Number(mountMatch[1]), null);
+  }
+  const indexMatch = text.match(/^indice #(\d+) (-?\d+)$/);
+  if (indexMatch) {
+    sheetStatesMap.set(Number(indexMatch[1]), Number(indexMatch[2]));
+  }
+  const unmountMatch = text.match(/^desmontou #(\d+)$/);
+  if (unmountMatch) {
+    sheetStatesMap.delete(Number(unmountMatch[1]));
+  }
 }
 
 export function recordCloseRequest(id: number, kind: string) {
@@ -85,6 +99,7 @@ function StackDiagStripBody() {
     homePointer: homeLayerPointerEvents(stackedSheets(state).length),
     picker: snapshot.picker,
     stack: state.stack,
+    sheetStates: sheetStatesMap,
     events: snapshot.events,
     now: realNow(),
     windowHeight: window.height,
@@ -113,7 +128,7 @@ function StackDiagStripBody() {
           ellipsizeMode="tail"
           style={[
             styles.metric,
-            { color: i < 2 ? colors.text : colors.textSecondary },
+            { color: i < 3 ? colors.text : colors.textSecondary },
           ]}
         >
           {line}
