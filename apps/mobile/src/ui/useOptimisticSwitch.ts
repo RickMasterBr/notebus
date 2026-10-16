@@ -1,10 +1,14 @@
 import { useCallback, useRef, useState } from "react";
+import { createCommitQueue } from "../data/commitQueue";
 import { optimisticIdle, requestValue, settle, shownValue } from "../data/switchOptimistic";
 
-/** Interruptor que mostra o toque na hora e grava por trás (FN-6). `commit` resolve quando o valor gravado já foi relido. */
+/** Interruptor que mostra o toque na hora e grava por trás (FN-6, FN-23). `commit` resolve quando o valor gravado já foi relido. */
 export function useOptimisticSwitch(saved: boolean, commit: (value: boolean) => Promise<unknown>) {
   const [state, setState] = useState(optimisticIdle);
   const ref = useRef(state);
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  const queue = useRef(createCommitQueue((value: boolean) => commitRef.current(value))).current;
   const apply = (next: typeof state) => {
     ref.current = next;
     setState(next);
@@ -15,7 +19,7 @@ export function useOptimisticSwitch(saved: boolean, commit: (value: boolean) => 
       apply(next);
       void (async () => {
         try {
-          await commit(value);
+          await queue.enqueue(value);
         } catch {
           // falha: o finally devolve o valor gravado (o antigo)
         } finally {
@@ -24,7 +28,7 @@ export function useOptimisticSwitch(saved: boolean, commit: (value: boolean) => 
       })();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [commit],
+    [queue],
   );
   return { value: shownValue(saved, state), onValueChange };
 }

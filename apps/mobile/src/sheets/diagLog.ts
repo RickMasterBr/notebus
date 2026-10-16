@@ -31,6 +31,17 @@ export function pushDiagEvent(
   max: number,
 ): DiagEvent[] {
   if (max <= 0) return [];
+  if (log.length > 0) {
+    const last = log[log.length - 1]!;
+    const match = last.text.match(/^(.*) ×(\d+)$/);
+    const baseText = match ? match[1]! : last.text;
+    const count = match ? Number(match[2]!) : 1;
+    if (baseText === event.text) {
+      const merged: DiagEvent = { at: event.at, text: `${event.text} ×${count + 1}` };
+      const replaced = [...log.slice(0, -1), merged];
+      return replaced.length > max ? replaced.slice(-max) : replaced;
+    }
+  }
   const next = [...log, event];
   if (next.length > max) {
     return next.slice(-max);
@@ -87,9 +98,14 @@ export function createDiagStore(max: number): DiagStore {
 }
 
 /** Quantidade de eventos recentes exibidos na faixa superior de diagnóstico. */
-export const DIAG_STRIP_EVENT_COUNT = 6;
+export const DIAG_STRIP_EVENT_COUNT = 12;
 
-/** Formata no máximo 8 linhas de texto para a faixa superior de diagnóstico. */
+/** Fração máxima da altura da tela que a faixa de diagnóstico pode ocupar. */
+export const DIAG_STRIP_MAX_HEIGHT_RATIO = 0.45;
+const DIAG_STRIP_LINE_HEIGHT = 12;
+const DIAG_STRIP_CHROME_PX = 6;
+
+/** Formata no máximo 14 linhas de texto para a faixa superior de diagnóstico, cortando os eventos mais antigos se passar de 45% da tela. */
 export function diagStripLines(input: {
   sha: string;
   homePointer: "none" | "box-none";
@@ -97,13 +113,20 @@ export function diagStripLines(input: {
   stack: readonly { kind: string; id: number }[];
   events: readonly DiagEvent[];
   now: number;
+  windowHeight?: number;
 }): string[] {
   const line1 = `[DIAG] ${input.sha} · home=${input.homePointer} · seletor=${input.picker}`;
   const top = input.stack[input.stack.length - 1];
   const topText = top ? `${top.kind}#${top.id}` : "nenhum";
   const stackList = input.stack.map((e) => `${e.kind}#${e.id}`).join(" > ");
   const line2 = `topo=${topText} · pilha=[${stackList}]`;
-  const recentEvents = input.events.slice(-DIAG_STRIP_EVENT_COUNT);
+  let maxEvents = DIAG_STRIP_EVENT_COUNT;
+  if (input.windowHeight !== undefined && input.windowHeight > 0) {
+    const maxPx = Math.floor(input.windowHeight * DIAG_STRIP_MAX_HEIGHT_RATIO);
+    const maxLines = Math.max(2, Math.floor((maxPx - DIAG_STRIP_CHROME_PX) / DIAG_STRIP_LINE_HEIGHT));
+    maxEvents = Math.min(DIAG_STRIP_EVENT_COUNT, Math.max(0, maxLines - 2));
+  }
+  const recentEvents = maxEvents > 0 ? input.events.slice(-maxEvents) : [];
   const eventLines = formatDiagLog(recentEvents, input.now);
   return [line1, line2, ...eventLines];
 }

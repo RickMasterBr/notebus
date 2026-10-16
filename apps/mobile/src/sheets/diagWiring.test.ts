@@ -254,10 +254,10 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
     expect(checks.recordsSelectorClosedInCleanup).toBe(true);
   });
 
-  it("(6) diagScroll.tsx cria armazém com capacidade 60 e constante da faixa é 6", () => {
+  it("(6) diagScroll.tsx cria armazém com capacidade 60 e constante da faixa é 12", () => {
     const checks = checkDiagScrollWiring(diagScrollSource);
     expect(checks.diagStoreCapacity60).toBe(true);
-    expect(DIAG_STRIP_EVENT_COUNT).toBe(6);
+    expect(DIAG_STRIP_EVENT_COUNT).toBe(12);
   });
 
   it("(7) StackedSheet.tsx registra montou, desmontou na limpeza, anim no onAnimate e fechou antes de pop, todos dentro de if (DIAG_SCROLL)", () => {
@@ -273,5 +273,69 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
   it("(8) SettingsSheet.tsx registra ajustes: pagina X → Y quando page muda dentro de if (DIAG_SCROLL)", () => {
     const checks = checkSettingsSheetDiagWiring(settingsSheetSource);
     expect(checks.pageChangeRecordsWithDiag).toBe(true);
+  });
+
+  it("(9) StackedSheet.tsx (v3) registra topo sobre isTop, indice em todo onChange chamando handleChange com filtro index >= 0, e mantém reabrir/coberta fechou", () => {
+    const norm = normalize(stackedSheetSource);
+    // Efeito sobre isTop registrando topo #id sim|nao
+    expect(
+      /useEffect\(\(\)\s*=>\s*\{\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`topo #\$\{id\} \$\{isTop \? ["']sim["'] : ["']nao["']\}`\);\s*\},\s*\[isTop,\s*id\]\)/.test(norm) ||
+      /useEffect\(\(\)\s*=>\s*\{\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`topo #\$\{id\} \$\{isTop \? ["']sim["'] : ["']nao["']\}`\);\s*\},\s*\[isTop\]\)/.test(norm),
+    ).toBe(true);
+    // handleChange intacto com index >= 0
+    expect(
+      /const\s+handleChange\s*=\s*useCallback\(\(index:\s*number\)\s*=>\s*\{\s*if\s*\(\s*index\s*>=\s*0\s*\)\s*onChange\?\.\(index\);\s*\},\s*\[onChange\]\)/.test(norm),
+    ).toBe(true);
+    // Invólucro de onChange registra indice #id N e chama handleChange se detents
+    expect(
+      /const\s+handleSheetChange\s*=\s*useCallback\(\(index:\s*number\)\s*=>\s*\{\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`indice #\$\{id\} \$\{index\}`\);\s*if\s*\(\s*detents\s*\)\s*handleChange\(index\);\s*\},\s*\[id,\s*detents,\s*handleChange\]\)/.test(norm),
+    ).toBe(true);
+    expect(/<BottomSheet\b[^>]*onChange=\{DIAG_SCROLL \? handleSheetChange : detents \? handleChange : undefined\}/.test(norm)).toBe(true);
+    // reabrir e coberta fechou continuam
+    expect(norm.includes("if (DIAG_SCROLL) recordDiagEvent(`coberta fechou #${id}`)")).toBe(true);
+    expect(norm.includes("if (DIAG_SCROLL) recordDiagEvent(`reabrir #${id}`)")).toBe(true);
+  });
+
+  it("(10) HomeSheet.tsx (v3) registra frase, phraseHeight, detent, small e anim todos dentro de if (DIAG_SCROLL) e com dependências primitivas", () => {
+    const homeSheetPath = join(__dirname, "HomeSheet.tsx");
+    const norm = normalize(readFileSync(homeSheetPath, "utf8"));
+
+    // Todos os recordDiagEvent da HomeSheet protegidos por if (DIAG_SCROLL)
+    const allRecordCalls = [...norm.matchAll(/(.{0,30})recordDiagEvent\(/g)];
+    expect(allRecordCalls.length).toBeGreaterThanOrEqual(5);
+    expect(allRecordCalls.every((m) => /if\s*\(\s*DIAG_SCROLL\s*\)\s*$/.test(m[1] ?? ""))).toBe(true);
+
+    // 1. home frase mostrar|ocultar quando showPhrase muda
+    expect(
+      /useEffect\(\(\)\s*=>\s*\{\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`home frase \$\{showPhrase \? ["']mostrar["'] : ["']ocultar["']\}`\);\s*\},\s*\[showPhrase\]\)/.test(norm),
+    ).toBe(true);
+
+    // 2. home phraseHeight A→B quando phraseHeight muda (dependência primitiva [phraseHeight])
+    expect(
+      /useEffect\(\(\)\s*=>\s*\{\s*const\s+prev\s*=\s*prevPhraseHeightRef\.current;\s*if\s*\(\s*prev\s*!==\s*phraseHeight\s*\)\s*\{\s*prevPhraseHeightRef\.current\s*=\s*phraseHeight;\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`home phraseHeight \$\{prev\}→\$\{phraseHeight\}`\);\s*\}\s*\},\s*\[phraseHeight\]\)/.test(norm),
+    ).toBe(true);
+
+    // 3. home detent A→B quando state.detent muda (dependência primitiva [state.detent])
+    expect(
+      /useEffect\(\(\)\s*=>\s*\{\s*const\s+prev\s*=\s*prevDetentRef\.current;\s*if\s*\(\s*prev\s*!==\s*state\.detent\s*\)\s*\{\s*prevDetentRef\.current\s*=\s*state\.detent;\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`home detent \$\{prev\}→\$\{state\.detent\}`\);\s*\}\s*\},\s*\[state\.detent\]\)/.test(norm),
+    ).toBe(true);
+
+    // 4. home small=N quando small muda (primeiro valor e mudanças, dependência primitiva [small])
+    expect(
+      /useEffect\(\(\)\s*=>\s*\{\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`home small=\$\{small\}`\);\s*\},\s*\[small\]\)/.test(norm),
+    ).toBe(true);
+
+    // 5. home anim A→B no onAnimate do BottomSheet da Início
+    expect(
+      /const\s+onAnimate\s*=\s*useCallback\(\(fromIndex:\s*number,\s*toIndex:\s*number\)\s*=>\s*\{\s*if\s*\(\s*DIAG_SCROLL\s*\)\s*recordDiagEvent\(`home anim \$\{fromIndex\}→\$\{toIndex\}`\);\s*\},\s*\[\]\)/.test(norm),
+    ).toBe(true);
+    expect(/<BottomSheet\b[^>]*onAnimate=\{onAnimate\}/.test(norm)).toBe(true);
+  });
+
+  it("(11) diagScroll.tsx usa useWindowDimensions e limita a faixa a 45% da altura da tela", () => {
+    const norm = normalize(diagScrollSource);
+    expect(norm.includes("useWindowDimensions()")).toBe(true);
+    expect(/windowHeight:\s*window\.height\b/.test(norm)).toBe(true);
+    expect(/maxHeight:\s*Math\.floor\(window\.height\s*\*\s*0\.45\)/.test(norm)).toBe(true);
   });
 });
