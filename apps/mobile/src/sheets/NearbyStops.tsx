@@ -3,7 +3,7 @@
  * cada um num cartão de ponto. Sem nenhum ponto aberto ainda: nada (só a pílula; texto de convite é questão aberta).
  * Esqueleto (D-127) enquanto a lista de pontos, os horários e os últimos pontos não chegam.
  */
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { usePlaces } from "../data/PlacesProvider";
@@ -11,9 +11,9 @@ import { useRecentStops } from "../data/RecentStopsProvider";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
-import { nearbyIds } from "../data/homeStart";
 import { realNow } from "../data/clock";
 import { nearbyStopIdsByFix } from "../data/nearbyByFix";
+import { pickNearbyCards } from "../data/nearbyCards";
 import { useLastFix } from "../data/PositionProvider";
 import { useStopLocations } from "../data/StopLocationsProvider";
 import { type StopCard, buildStopCard } from "../data/stopCard";
@@ -25,6 +25,7 @@ import { Skeleton } from "../ui/Skeleton";
 import { StopCardView } from "../ui/StopCardView";
 import { useReorderTransition } from "../ui/useReorderTransition";
 import { useSkeletonVisible } from "../ui/useSkeletonVisible";
+import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 import { useOpenStop } from "./useOpenStop";
 
 export function NearbyStops() {
@@ -42,29 +43,31 @@ export function NearbyStops() {
 
   const fix = useLastFix();
   const locations = useStopLocations();
-  // Pela posição quando há pontos perto (plano §3.4); senão a regra provisória da E-02, sem mudança. Pode reordenar com o tique.
-  const ids = useMemo(() => {
-    const byFix = nearbyStopIdsByFix(fix, realNow(), locations.stops);
-    return byFix.length > 0 ? byFix : nearbyIds(recent.ids);
-  }, [fix, locations.stops, recent.ids, instant]);
-
-  const cards = useMemo(
-    () =>
-      schedule.status === "ready"
-        ? ids.flatMap((id): StopCard[] => {
-            const card = buildStopCard(id, schedule.data, instant, registro.records);
-            return card ? [card] : [];
-          })
-        : [],
-    [schedule, ids, instant, registro.records],
+  const byFix = useMemo(
+    () => nearbyStopIdsByFix(fix, realNow(), locations.stops),
+    [fix, locations.stops, instant],
   );
 
+  const picked = useMemo(
+    () =>
+      schedule.status === "ready"
+        ? pickNearbyCards(byFix, recent.ids, (id) =>
+            buildStopCard(id, schedule.data, instant, registro.records),
+          )
+        : { cards: [] as StopCard[], source: "none" as const },
+    [byFix, recent.ids, schedule, instant, registro.records],
+  );
+
+  useEffect(() => {
+    if (DIAG_SCROLL) recordDiagEvent(`perto fonte=${picked.source} fix=${byFix.length} recentes=${recent.ids.length} cartoes=${picked.cards.length} estados=${stops.status}/${schedule.status}/${recent.status}`);
+  }, [picked.source, byFix.length, recent.ids.length, picked.cards.length, stops.status, schedule.status, recent.status]);
+
   if (loading || skeleton) return skeleton ? <Section><Skeleton variant="card" /></Section> : null;
-  if (cards.length === 0) return null;
+  if (picked.cards.length === 0) return null;
 
   return (
     <Section>
-      {cards.map((card) => {
+      {picked.cards.map((card) => {
         const subtitle = stopCardLeaveAtSubtitle({
           stopId: card.stopId,
           places: places.places,
