@@ -38,11 +38,14 @@ export function useOptimisticSwitch(
     if (next.pending !== null) intentRef.current = next.pending;
     setState(next);
   };
-  if (DIAG_SCROLL && label) {
-    recordDiagEvent(
-      `sw ${label} render value=${shownValue(savedValue, state)} salvo=${savedValue} pendente=${state.pending} t=${realNow() % 100000}`,
-    );
-  }
+  // Registro de cada commit (sem lista de dependências); fora do corpo do render, que não pode ter efeito colateral.
+  useEffect(() => {
+    if (DIAG_SCROLL && label) {
+      recordDiagEvent(
+        `sw ${label} render value=${shownValue(savedValue, state)} salvo=${savedValue} pendente=${state.pending} t=${realNow() % 100000}`,
+      );
+    }
+  });
   useEffect(() => {
     mountedRef.current = true;
     if (DIAG_SCROLL && label) recordDiagEvent(`sw ${label} monta t=${realNow() % 100000}`);

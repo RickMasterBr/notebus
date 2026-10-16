@@ -83,7 +83,13 @@ const FAST: Variant = { writeMs: 5, reloadMs: 0, readMs: 3, renderLag: 4 };
 /** Feriados: a recarga do `ScheduleProvider` recalcula tudo e ocupa o JS. */
 const SLOW_RELOAD: Variant = { writeMs: 5, reloadMs: 600, readMs: 3, renderLag: 4 };
 
-function simulate(initial: boolean, tapTimes: number[], v: Variant, runUntil = 5000) {
+function simulate(
+  initial: boolean,
+  tapTimes: number[],
+  v: Variant,
+  runUntil = 5000,
+  extra: { externalSaved?: { at: number; value: boolean }; failFirst?: boolean } = {},
+) {
   rt.state.slots = [];
   rt.state.idx = 0;
   rt.state.dirty = false;
@@ -117,6 +123,7 @@ function simulate(initial: boolean, tapTimes: number[], v: Variant, runUntil = 5
     const call = writes.length;
     writes.push(value);
     await sleep(typeof v.writeMs === "number" ? v.writeMs : (v.writeMs[call] ?? 5));
+    if (extra.failFirst && call === 0) throw new Error("falha simulada");
     db = value;
     if (v.reloadMs > 0) {
       jsFreeAt = nowMs() + v.reloadMs;
@@ -165,6 +172,13 @@ function simulate(initial: boolean, tapTimes: number[], v: Variant, runUntil = 5
     run: async () => {
       let elapsed = 0;
       const sorted = [...tapTimes].sort((a, b) => a - b);
+      const ext = extra.externalSaved;
+      if (ext) {
+        setTimeout(() => {
+          savedNow = ext.value;
+          setSaved(ext.value);
+        }, ext.at);
+      }
       for (const t of sorted) {
         await vi.advanceTimersByTimeAsync(t - elapsed);
         elapsed = t;
@@ -257,6 +271,18 @@ describe("simulador do interruptor (E-09 bloco 20a, item 1)", () => {
     const r = await simulate(true, [0, 10], { writeMs: [100, 5], reloadMs: 0, readMs: 3, renderLag: 4 }).run();
     expect(r.writes).toEqual([false, true]);
     expect({ native: r.native, db: r.db, saved: r.saved }).toEqual({ native: true, db: true, saved: true });
+  });
+  it("`saved` muda por fora depois de assentar: o toque seguinte parte do valor novo, não de um pedido antigo (lacuna a: intentRef zerado no render)", async () => {
+    const r = await simulate(true, [0, 1500], FAST, 5000, { externalSaved: { at: 1000, value: true } }).run();
+    expect(r.writes).toEqual([false, false]);
+  });
+  it("gravação falha e toque antes do render seguinte: parte do valor gravado, não do pedido que falhou (lacuna b: catch zera intentRef)", async () => {
+    const bad: number[] = [];
+    for (const gap of [5, 6, 7, 8]) {
+      const r = await simulate(true, [0, gap], FAST, 5000, { failFirst: true }).run();
+      if (r.writes[1] !== false) bad.push(gap);
+    }
+    expect(bad).toEqual([]);
   });
   it("nada de diag roda sem DIAG_SCROLL", async () => {
     await simulate(true, [0, 100], SLOW_RELOAD).run();
