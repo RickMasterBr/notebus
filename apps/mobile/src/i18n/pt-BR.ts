@@ -256,10 +256,12 @@ export const ptBR = {
   "sheet_record.day.today": "Hoje · {{weekday}} {{date}}",
   "sheet_record.kind.boarded": "Embarquei",
   "sheet_record.kind.passed": "Só vi passar",
+  "sheet_record.kind.a11y": "O que aconteceu", // provisório
   "common.kind.boarded.short": "embarquei",
   "sheet_record.time": "Hora",
   "sheet_record.time.exact": "Exata",
   "sheet_record.time.range": "Mais ou menos",
+  "sheet_record.precision.a11y": "Precisão da hora", // provisório
   "sheet_record.time.aria": "Hora {{time}}, tocar para escolher",
   "sheet_record.time.yesterday_at": "ontem às {{time}}",
   "sheet_record.adjust.before.aria": "{{count}} minuto(s) antes",

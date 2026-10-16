@@ -386,7 +386,7 @@ function RecordSheetLoaded({
 
           {/* Tipo de Registro (Embarquei / Só vi passar) - apenas para não-descida */}
           {initialRow.kind !== "alighted" && (
-            <View role="radiogroup" aria-label="O que aconteceu" style={styles.kindGroup}>
+            <View role="radiogroup" aria-label={t("sheet_record.kind.a11y")} style={styles.kindGroup}>
               <Pressable
                 role="radio"
                 aria-checked={draft.kind === "boarded"}
@@ -439,7 +439,7 @@ function RecordSheetLoaded({
               <Text style={[type.caption, { color: colors.textSecondary, fontWeight: "600" }]}>
                 {t("sheet_record.time")}
               </Text>
-              <View role="radiogroup" aria-label="Precisão da hora" style={[styles.modeToggle, { backgroundColor: colors.fill }]}>
+              <View role="radiogroup" aria-label={t("sheet_record.precision.a11y")} style={[styles.modeToggle, { backgroundColor: colors.fill }]}>
                 <Pressable
                   role="radio"
                   aria-checked={draft.precision === "exact"}
