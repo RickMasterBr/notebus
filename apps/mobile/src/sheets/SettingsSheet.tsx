@@ -94,6 +94,7 @@ import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator"
 import { useKeyboardHeight } from "./useKeyboardHeight";
 import { useOptimisticSwitch } from "../ui/useOptimisticSwitch";
 import { useReduceMotion } from "./useReduceMotion";
+import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 
 const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D"})`;
 
@@ -145,6 +146,15 @@ export function SettingsSheet({ id }: { id: number }) {
   const keyboardHeight = useKeyboardHeight();
   const [page, dispatchNav] = useReducer(settingsNavReduce, "root");
   const handleBack = useCallback(() => dispatchNav({ type: "back" }), []);
+
+  const prevPageRef = useRef(page);
+  useEffect(() => {
+    const prev = prevPageRef.current;
+    if (prev !== page) {
+      if (DIAG_SCROLL) recordDiagEvent(`ajustes: pagina ${prev} → ${page}`);
+      prevPageRef.current = page;
+    }
+  }, [page]);
 
   const { name: currentUserName, setName, clear } = useUserName();
   const [draftName, setDraftName] = useState(currentUserName ?? "");

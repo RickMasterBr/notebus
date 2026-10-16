@@ -29,7 +29,7 @@ const BUILD_SHA = process.env.EXPO_PUBLIC_BUILD_SHA ?? "N/D";
 // ─── Registro de eventos de diagnóstico e abertura de folha ──────────────────
 
 let lastOpen: { kind: string; at: number; sinceStartMs: number } | null = null;
-const diagStore = createDiagStore(20);
+const diagStore = createDiagStore(60);
 
 export function recordDiagEvent(text: string) {
   diagStore.record(text, realNow());

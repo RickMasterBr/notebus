@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DIAG_STRIP_EVENT_COUNT,
   type DiagEvent,
   createDiagStore,
   diagStripLines,
@@ -148,25 +149,39 @@ describe("diagLog", () => {
   });
 
   describe("diagStripLines", () => {
-    it("com 0, 1, 2 e 10 eventos e pilha com 0 e 8 entradas, length <= 4 sempre", () => {
+    it("constante da faixa fixa 6 eventos", () => {
+      expect(DIAG_STRIP_EVENT_COUNT).toBe(6);
+    });
+
+    it("pushDiagEvent com max 60 guarda os 60 últimos", () => {
+      let log: DiagEvent[] = [];
+      for (let i = 0; i < 70; i++) {
+        log = pushDiagEvent(log, { at: i * 1000, text: `ev ${i}` }, 60);
+      }
+      expect(log.length).toBe(60);
+      expect(log[0]!.text).toBe("ev 10");
+      expect(log[59]!.text).toBe("ev 69");
+    });
+
+    it("com 0, 1, 2 e 10 eventos e pilha com 0 e 8 entradas, length <= 8 sempre", () => {
       const stack8 = Array.from({ length: 8 }, (_, i) => ({ kind: "stop", id: i + 1 }));
       const events10: DiagEvent[] = Array.from({ length: 10 }, (_, i) => ({ at: i * 1000, text: `ev ${i}` }));
 
       const l0_0 = diagStripLines({ sha: "abc", homePointer: "box-none", picker: "fechado", stack: [], events: [], now: 10000 });
-      expect(l0_0.length).toBeLessThanOrEqual(4);
+      expect(l0_0.length).toBeLessThanOrEqual(8);
       expect(l0_0.length).toBe(2);
 
       const l1_0 = diagStripLines({ sha: "abc", homePointer: "box-none", picker: "fechado", stack: [], events: events10.slice(0, 1), now: 10000 });
-      expect(l1_0.length).toBeLessThanOrEqual(4);
+      expect(l1_0.length).toBeLessThanOrEqual(8);
       expect(l1_0.length).toBe(3);
 
       const l2_8 = diagStripLines({ sha: "abc", homePointer: "none", picker: "aberto", stack: stack8, events: events10.slice(0, 2), now: 10000 });
-      expect(l2_8.length).toBeLessThanOrEqual(4);
+      expect(l2_8.length).toBeLessThanOrEqual(8);
       expect(l2_8.length).toBe(4);
 
       const l10_8 = diagStripLines({ sha: "abc", homePointer: "none", picker: "aberto", stack: stack8, events: events10, now: 10000 });
-      expect(l10_8.length).toBeLessThanOrEqual(4);
-      expect(l10_8.length).toBe(4);
+      expect(l10_8.length).toBeLessThanOrEqual(8);
+      expect(l10_8.length).toBe(8);
     });
 
     it("linha 1 traz sha, home e seletor", () => {
@@ -189,12 +204,11 @@ describe("diagLog", () => {
       expect(populated[1]).toBe("topo=stop#42 · pilha=[place#1 > stop#42]");
     });
 
-    it("linhas 3 e 4 são os 2 últimos eventos, na ordem", () => {
-      const events: DiagEvent[] = [
-        { at: 1000, text: "ev 1" },
-        { at: 5000, text: "ev 2" },
-        { at: 8000, text: "ev 3" },
-      ];
+    it("linhas 3 a 8 são os 6 últimos eventos, na ordem", () => {
+      const events: DiagEvent[] = Array.from({ length: 8 }, (_, i) => ({
+        at: (i + 1) * 1000,
+        text: `ev ${i + 1}`,
+      }));
       const lines = diagStripLines({
         sha: "abc",
         homePointer: "none",
@@ -203,8 +217,9 @@ describe("diagLog", () => {
         events,
         now: 10_000,
       });
-      expect(lines[2]).toBe("há 5 s: ev 2");
-      expect(lines[3]).toBe("há 2 s: ev 3");
+      expect(lines.length).toBe(8);
+      expect(lines[2]).toBe("há 7 s: ev 3");
+      expect(lines[7]).toBe("há 2 s: ev 8");
     });
   });
 });

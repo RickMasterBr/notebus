@@ -86,7 +86,10 @@ export function createDiagStore(max: number): DiagStore {
   };
 }
 
-/** Formata no máximo 4 linhas de texto para a faixa superior de diagnóstico. */
+/** Quantidade de eventos recentes exibidos na faixa superior de diagnóstico. */
+export const DIAG_STRIP_EVENT_COUNT = 6;
+
+/** Formata no máximo 8 linhas de texto para a faixa superior de diagnóstico. */
 export function diagStripLines(input: {
   sha: string;
   homePointer: "none" | "box-none";
@@ -100,7 +103,7 @@ export function diagStripLines(input: {
   const topText = top ? `${top.kind}#${top.id}` : "nenhum";
   const stackList = input.stack.map((e) => `${e.kind}#${e.id}`).join(" > ");
   const line2 = `topo=${topText} · pilha=[${stackList}]`;
-  const recentEvents = input.events.slice(-2);
+  const recentEvents = input.events.slice(-DIAG_STRIP_EVENT_COUNT);
   const eventLines = formatDiagLog(recentEvents, input.now);
   return [line1, line2, ...eventLines];
 }
