@@ -635,6 +635,7 @@ export const ptBR = {
   "net.stop.id": "ID {{id}}", // provisório
   "net.stop.aliases": "Também: {{list}}", // provisório
   "net.official": "MOBILIS", // provisório
+  "net.default_name": "MOBILIS Leiria", // provisório
   "net.empty.lines": "Nenhuma linha ainda. Cadastre a linha que passa no seu ponto.", // provisório
   "net.empty.stops": "Nenhum ponto ainda. Comece pelo ponto onde você pega o ônibus.", // provisório
   "net.stops.search_placeholder": "Buscar ponto", // provisório
