@@ -1,0 +1,24 @@
+appId: com.rickmasterbr.notebus
+---
+# M-1 (T-92): Registrar a L1 na Arrabalde sem rede
+# Do Início, 2 toques: botão flutuante "Registrar" e escolha da "Linha 1".
+# O toast com "registrado" aparece e o registro fica disponível.
+
+- launchApp:
+    clearState: true
+
+# Toque 1: abre a folha de registro
+- tapOn:
+    text: "Registrar"
+
+# Toque 2: seleciona a Linha 1 no ponto sugerido (Arrabalde)
+- tapOn:
+    text: ".*Linha 1.*"
+
+# Asserção do toast de sucesso
+- assertVisible:
+    text: ".*registrado.*"
+
+# Confere o cartão "Em viagem" ativo ou o registro na lista
+- assertVisible:
+    text: ".*Em viagem.*"
