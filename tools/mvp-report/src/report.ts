@@ -1,5 +1,5 @@
 /** Formatação do relatório em texto e JSON para o mvp-report. */
-import type { MvpReportResult } from "./types.ts";
+import { MIN_EVALUATED_BOARDINGS, type ExclusionReason, type MvpReportResult } from "./types.ts";
 
 /** Formata o resultado da análise em texto simples em português do Brasil, sem emoji (D-171). */
 export function formatReportText(report: MvpReportResult): string {
@@ -22,6 +22,10 @@ export function formatReportText(report: MvpReportResult): string {
   } else {
     lines.push("0 dias com pelo menos 1 registro, 0 registros ao todo");
   }
+  const futureCount = report.futureRecords ?? u.futureRecords ?? 0;
+  if (futureCount > 0) {
+    lines.push(`registros datados depois da exportação (relógio de teste): ${futureCount}`);
+  }
   lines.push("");
 
   // Critério 4: Replay
@@ -31,11 +35,12 @@ export function formatReportText(report: MvpReportResult): string {
   lines.push(`Total de embarques avaliados: ${s.total}`);
   lines.push(`Passaram: ${s.passed}`);
   lines.push(`Falharam: ${s.failed}`);
-  if (s.total >= 10) {
+  if (s.total >= MIN_EVALUATED_BOARDINGS) {
     const pct = Math.round(s.ratio * 100);
     lines.push(`Resultado: ${s.passed} de ${s.total} (${pct}%): ${s.verdict}`);
   } else {
-    lines.push(`Resultado: amostra pequena: ${s.total} embarques`);
+    const missing = MIN_EVALUATED_BOARDINGS - s.total;
+    lines.push(`Resultado: amostra pequena: ${s.total} embarques (faltam ${missing})`);
   }
   lines.push("");
 
@@ -55,6 +60,33 @@ export function formatReportText(report: MvpReportResult): string {
   lines.push(
     `Exclusões: ${ex.total} excluídos (${ex.memory} de memória, ${ex.later} ajustados, ${ex.notBoarded} não embarque, ${ex.unmatched} sem viagem casada, ${ex.missingSchedule} sem linha ou ponto no dataset)`
   );
+  if (report.detail) {
+    const details = ex.details;
+    if (details) {
+      lines.push("");
+      lines.push("Detalhe das exclusões:");
+      const sections: Array<{ key: ExclusionReason; label: string; count: number }> = [
+        { key: "memory", label: "De memória", count: ex.memory },
+        { key: "later", label: "Ajustados", count: ex.later },
+        { key: "notBoarded", label: "Não embarque", count: ex.notBoarded },
+        { key: "unmatched", label: "Sem viagem casada", count: ex.unmatched },
+        { key: "missingSchedule", label: "Sem linha ou ponto no dataset", count: ex.missingSchedule },
+      ];
+      for (const sec of sections) {
+        if (sec.count > 0) {
+          lines.push(`- ${sec.label} (${sec.count}):`);
+          const items = details[sec.key] ?? [];
+          const top10 = items.slice(0, 10);
+          for (const item of top10) {
+            lines.push(`  * ID ${item.observationId} | ${item.date} | ${item.detail}`);
+          }
+          if (items.length > 10) {
+            lines.push(`  * ... e mais ${items.length - 10} registros`);
+          }
+        }
+      }
+    }
+  }
   lines.push("");
   lines.push(
     "Limite honesto: o replay usa o modelo de hoje com os dados de então; se o Rick declarou horário ou editou registro depois, o replay vê a versão editada."

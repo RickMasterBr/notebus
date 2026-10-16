@@ -18,6 +18,25 @@ export interface ReplaySummary {
   verdict: string;
 }
 
+export const MIN_EVALUATED_BOARDINGS = 10;
+
+export type ExclusionReason =
+  | "memory"
+  | "later"
+  | "notBoarded"
+  | "unmatched"
+  | "missingSchedule";
+
+export interface ExclusionDetail {
+  observationId: string;
+  date: string;
+  reason: ExclusionReason;
+  qual?: "line_id" | "stop_id" | "pattern_stop_id" | string;
+  value?: string | null;
+  status?: string;
+  detail: string;
+}
+
 export interface ReplayExclusions {
   total: number;
   memory: number;
@@ -25,6 +44,7 @@ export interface ReplayExclusions {
   notBoarded: number;
   unmatched: number;
   missingSchedule: number;
+  details?: Record<ExclusionReason, ExclusionDetail[]>;
 }
 
 export interface ReplayResult {
@@ -40,6 +60,7 @@ export interface UsageSummary {
   lastDay: string | null;
   totalRecords: number;
   perDay: Record<string, number>;
+  futureRecords?: number;
 }
 
 export interface MvpReportResult {
@@ -49,4 +70,6 @@ export interface MvpReportResult {
   to?: string;
   criterio2: UsageSummary;
   criterio4: ReplayResult;
+  futureRecords?: number;
+  detail?: boolean;
 }

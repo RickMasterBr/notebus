@@ -1,11 +1,12 @@
-/** Critério 2: Contagem de dias com registro ao vivo pelo fuso local de Lisboa. */
 import { lisbonWallClock } from "@notebus/domain/src/calendar.ts";
 import type { BackupTables } from "@notebus/domain/src/backup.ts";
+import { isObservationAfterExport, parseExportedAtMs } from "./replay.ts";
 import type { UsageSummary } from "./types.ts";
 
 export interface UsageOptions {
   from?: string;
   to?: string;
+  exportedAt?: number | string | null;
 }
 
 /**
@@ -13,6 +14,7 @@ export interface UsageOptions {
  *
  * Registros de memória (`mode = "memory"`) e ajustados (`mode = "later"`) não entram.
  * Registros apagados (`deleted_at !== null`) não entram.
+ * Registros posteriores à exportação (relógio de teste) não entram.
  */
 export function calculateUsage(
   tables: BackupTables,
@@ -20,9 +22,15 @@ export function calculateUsage(
 ): UsageSummary {
   const perDay: Record<string, number> = {};
   const observations = tables.observation ?? [];
+  const exportedAtMs = parseExportedAtMs(options.exportedAt);
+  let futureRecords = 0;
 
   for (const obs of observations) {
     if (obs.deleted_at !== null) continue;
+    if (isObservationAfterExport(obs, exportedAtMs)) {
+      futureRecords++;
+      continue;
+    }
     if (obs.mode !== "live") continue;
     if (typeof obs.observed_at !== "number") continue;
 
@@ -47,5 +55,6 @@ export function calculateUsage(
     lastDay,
     totalRecords,
     perDay,
+    futureRecords,
   };
 }
