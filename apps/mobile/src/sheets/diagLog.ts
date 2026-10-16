@@ -105,12 +105,37 @@ export const DIAG_STRIP_MAX_HEIGHT_RATIO = 0.45;
 const DIAG_STRIP_LINE_HEIGHT = 12;
 const DIAG_STRIP_CHROME_PX = 6;
 
-/** Formata no máximo 14 linhas de texto para a faixa superior de diagnóstico, cortando os eventos mais antigos se passar de 45% da tela. */
+/**
+ * Formata os estados das folhas montadas (id e último índice recebido da biblioteca) (E-09 Bloco 15, FN-14).
+ * Devolve "folhas: nenhuma" quando não há folhas montadas.
+ */
+export function formatSheetStates(
+  states?: ReadonlyMap<number, number | null | undefined> | Record<number, number | null | undefined> | readonly (readonly [number, number | null | undefined])[],
+): string {
+  if (!states) return "folhas: nenhuma";
+  let entries: [number, number | null | undefined][];
+  if (states instanceof Map) {
+    entries = Array.from(states.entries());
+  } else if (Array.isArray(states)) {
+    entries = states.map((e) => [e[0], e[1]]);
+  } else {
+    entries = Object.entries(states).map(([k, v]) => [Number(k), v]);
+  }
+  if (entries.length === 0) return "folhas: nenhuma";
+  entries.sort(([a], [b]) => a - b);
+  const formatted = entries
+    .map(([id, idx]) => `#${id} i=${idx !== null && idx !== undefined ? idx : "?"}`)
+    .join(" · ");
+  return `folhas: ${formatted}`;
+}
+
+/** Formata no máximo 15 linhas de texto para a faixa superior de diagnóstico, cortando os eventos mais antigos se passar de 45% da tela. */
 export function diagStripLines(input: {
   sha: string;
   homePointer: "none" | "box-none";
   picker: "aberto" | "fechado";
   stack: readonly { kind: string; id: number }[];
+  sheetStates?: ReadonlyMap<number, number | null | undefined> | Record<number, number | null | undefined> | readonly (readonly [number, number | null | undefined])[];
   events: readonly DiagEvent[];
   now: number;
   windowHeight?: number;
@@ -120,14 +145,15 @@ export function diagStripLines(input: {
   const topText = top ? `${top.kind}#${top.id}` : "nenhum";
   const stackList = input.stack.map((e) => `${e.kind}#${e.id}`).join(" > ");
   const line2 = `topo=${topText} · pilha=[${stackList}]`;
+  const line3 = formatSheetStates(input.sheetStates);
   let maxEvents = DIAG_STRIP_EVENT_COUNT;
   if (input.windowHeight !== undefined && input.windowHeight > 0) {
     const maxPx = Math.floor(input.windowHeight * DIAG_STRIP_MAX_HEIGHT_RATIO);
-    const maxLines = Math.max(2, Math.floor((maxPx - DIAG_STRIP_CHROME_PX) / DIAG_STRIP_LINE_HEIGHT));
-    maxEvents = Math.min(DIAG_STRIP_EVENT_COUNT, Math.max(0, maxLines - 2));
+    const maxLines = Math.max(3, Math.floor((maxPx - DIAG_STRIP_CHROME_PX) / DIAG_STRIP_LINE_HEIGHT));
+    maxEvents = Math.min(DIAG_STRIP_EVENT_COUNT, Math.max(0, maxLines - 3));
   }
   const recentEvents = maxEvents > 0 ? input.events.slice(-maxEvents) : [];
   const eventLines = formatDiagLog(recentEvents, input.now);
-  return [line1, line2, ...eventLines];
+  return [line1, line2, line3, ...eventLines];
 }
 
