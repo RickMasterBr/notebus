@@ -1,5 +1,5 @@
 name: e2e
-# Execução manual dos fluxos Maestro sem rede e Dynamic Type no simulador iOS (E-09 §3.4, §3.1, T-92 a T-95).
+# [hipótese, nunca rodou num Mac: só o primeiro disparo no GitHub decide] Execução manual dos fluxos Maestro sem rede e Dynamic Type no simulador iOS (E-09 §3.4, §3.1, T-92 a T-95).
 # Só sob pedido manual ("Run workflow") pelo Rick: macOS consome minutos de cota do GitHub.
 on:
   workflow_dispatch:
@@ -36,7 +36,7 @@ jobs:
           xcodebuild \
             -workspace "$(ls -d *.xcworkspace | head -1)" \
             -scheme "$(basename "$(ls -d *.xcworkspace | head -1)" .xcworkspace)" \
-            -configuration Debug \
+            -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
             -sdk iphonesimulator \
             -derivedDataPath build \
@@ -49,7 +49,7 @@ jobs:
           DEVICE_UDID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | awk -F '[()]' '{print $(NF-1)}')
           echo "Booting device: $DEVICE_UDID"
           xcrun simctl boot "$DEVICE_UDID" || true
-          APP_BUNDLE=$(find apps/mobile/ios/build/Build/Products/Debug-iphonesimulator -name "*.app" | head -1)
+          APP_BUNDLE=$(find apps/mobile/ios/build/Build/Products/Release-iphonesimulator -name "*.app" | head -1)
           echo "Installing: $APP_BUNDLE"
           xcrun simctl install booted "$APP_BUNDLE"
 
@@ -65,13 +65,14 @@ jobs:
       - name: Dynamic Type (T-95) em 5 tamanhos
         run: |
           mkdir -p screenshots
-          # 5 tamanhos requeridos: padrão, extra-large, accessibility-medium (AX1), accessibility-extra-large (AX3) e accessibility-extra-extra-extra-large (AX5)
-          SIZES=("standard" "extra-large" "accessibility-medium" "accessibility-extra-large" "accessibility-extra-extra-extra-large")
+          # 5 tamanhos requeridos: padrão do iOS (large), extra-large, accessibility-medium (AX1), accessibility-extra-large (AX3) e accessibility-extra-extra-extra-large (AX5)
+          SIZES=("large" "extra-large" "accessibility-medium" "accessibility-extra-large" "accessibility-extra-extra-extra-large")
+          echo "Tamanho atual: $(xcrun simctl ui booted content_size)"
           for size in "${SIZES[@]}"; do
             echo "--- Executando Dynamic Type no tamanho: $size ---"
-            xcrun simctl ui booted content_size "$size"
+            xcrun simctl ui booted content_size "$size" || { echo "simctl recusou o tamanho: $size"; exit 1; }
             mkdir -p "screenshots/$size"
-            DYNAMIC_TYPE_SIZE="$size" maestro test .maestro/dynamic-type.yaml
+            maestro test .maestro/dynamic-type.yaml
             # Move capturas geradas para a pasta do respectivo tamanho
             mv *.png "screenshots/$size/" 2>/dev/null || true
           done

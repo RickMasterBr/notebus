@@ -17,6 +17,14 @@ export interface GhostInput {
   expectedIndex: number;
 }
 
+/** Espera, em ms, entre a folha voltar a ser a do topo e a conferência (e entre as tentativas de reparo). */
+export const REVEAL_CHECK_MS = 350;
+
+/** Último índice em que a folha assentou: `next` se for um detent (>= 0), senão `previous` (-1 é fechada, não detent). */
+export function settledIndex(previous: number, next: number): number {
+  return next >= 0 ? next : previous;
+}
+
 /** Folha fora da tela: a posição está a menos de 4 px do fim da tela ou além dele. */
 const OFFSCREEN_MARGIN = 4;
 

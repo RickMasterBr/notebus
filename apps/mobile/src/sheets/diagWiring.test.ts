@@ -284,7 +284,7 @@ describe("guarda estático de diagnóstico (Item 3)", () => {
     ).toBe(true);
     // handleChange intacto com index >= 0
     expect(
-      /const\s+handleChange\s*=\s*useCallback\(\(index:\s*number\)\s*=>\s*\{\s*if\s*\(\s*index\s*>=\s*0\s*\)\s*onChange\?\.\(index\);\s*\},\s*\[onChange\]\)/.test(norm),
+      /const\s+handleChange\s*=\s*useCallback\(\(index:\s*number\)\s*=>\s*\{\s*(?:settledIndexRef\.current\s*=\s*settledIndex\(settledIndexRef\.current,\s*index\);\s*)?if\s*\(\s*index\s*>=\s*0\s*\)\s*onChange\?\.\(index\);\s*\},\s*\[onChange\]\)/.test(norm),
     ).toBe(true);
     // Invólucro de onChange registra indice #id N e chama handleChange se detents
     expect(

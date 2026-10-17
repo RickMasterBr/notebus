@@ -18,13 +18,12 @@ import { useSheets } from "./SheetsContext";
 import { activeSheet } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
-import { isGhostSuspect, repairStep } from "./ghostRepair";
+import { REVEAL_CHECK_MS, isGhostSuspect, repairStep, settledIndex } from "./ghostRepair";
 import { realNow } from "../data/clock";
 
 const OPEN_MS = motion.normal; // 250
 const CLOSE_MS = 180;
 const FADE_MS = motion.fast; // 150
-const REVEAL_CHECK_MS = 350;
 const openConfig = { duration: OPEN_MS, easing: Easing.out(Easing.ease) };
 const closeConfig = { duration: CLOSE_MS, easing: Easing.in(Easing.ease) };
 
@@ -152,7 +151,8 @@ export function StackedSheet({
   const hasBeenCoveredRef = useRef(false);
   // Trocar a `key` do `BottomSheet` remonta a folha (2º passo do reparo); só acontece se a detecção disser que há fantasma.
   const [revealKey, setRevealKey] = useState(0);
-  const expectedIndex = detents?.initialIndex ?? 0;
+  // Último detent em que a folha assentou (escrito só no `onChange`): a folha do ponto expandida volta onde estava.
+  const settledIndexRef = useRef(detents?.initialIndex ?? 0);
   useEffect(() => {
     if (!isTop) {
       hasBeenCoveredRef.current = true;
@@ -162,6 +162,7 @@ export function StackedSheet({
     let timer: ReturnType<typeof setTimeout>;
     let attempt = 0;
     const check = () => {
+      const expectedIndex = settledIndexRef.current;
       const position = animatedPosition.value;
       const index = animatedIndex.value;
       const suspect = isGhostSuspect({ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex });
@@ -171,13 +172,16 @@ export function StackedSheet({
       attempt += 1;
       if (DIAG_SCROLL) recordDiagEvent(`reparo #${id} ${step === "stop" ? "parou" : step}`);
       if (step === "snap") ref.current?.snapToIndex(expectedIndex, openConfig);
-      else if (step === "remount") setRevealKey((k) => k + 1);
+      else if (step === "remount") {
+        settledIndexRef.current = detents?.initialIndex ?? 0;
+        setRevealKey((k) => k + 1);
+      }
       else return;
       timer = setTimeout(check, REVEAL_CHECK_MS);
     };
     timer = setTimeout(check, REVEAL_CHECK_MS);
     return () => clearTimeout(timer);
-  }, [isTop, id, screenHeight, expectedIndex, animatedPosition, animatedIndex]);
+  }, [isTop, id, screenHeight, detents?.initialIndex, animatedPosition, animatedIndex]);
 
   const closeFromHandle = useCallback(() => {
     // Sem movimento: sai direto e o `FadeOut` do invólucro faz o esmaecer. Com movimento: a folha desce e o `onClose` tira da pilha.
@@ -204,6 +208,7 @@ export function StackedSheet({
   );
   const onChange = detents?.onChange;
   const handleChange = useCallback((index: number) => {
+    settledIndexRef.current = settledIndex(settledIndexRef.current, index);
     if (index >= 0) onChange?.(index);
   }, [onChange]);
   const handleSheetChange = useCallback((index: number) => {

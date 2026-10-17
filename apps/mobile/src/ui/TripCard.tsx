@@ -8,7 +8,8 @@
  * da descida sairia vazia); "Não embarquei" e "Dispensar" continuam.
  * Desce 12 px e aparece em 250 ms; com "Reduzir movimento", só esmaece (4.5 §2.5).
  */
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { useEffect } from "react";
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Animated, { Easing, FadeIn, withTiming } from "react-native-reanimated";
 import type { TripCardModel } from "../data/rideView";
 import { t } from "../i18n";
@@ -52,6 +53,10 @@ export function TripCard({
     : card.destination
       ? t("home.trip.title", { destination: card.destination })
       : t("home.trip.title_no_destination");
+  // D-050: o cartão é anunciado ao aparecer. `accessibilityLiveRegion` só vale no Android; no iPhone é este aviso falado.
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility(title);
+  }, [title]);
   const subtitle = t("home.trip.subtitle", { time: card.boardedTime, stop_name: card.stopName });
   const eta = card.eta ? `${card.eta.approximate ? "~" : ""}${card.eta.time}` : null;
   const nextText = card.unmatched ? card.unmatchedNext : null;

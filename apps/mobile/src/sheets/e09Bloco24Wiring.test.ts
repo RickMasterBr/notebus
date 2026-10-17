@@ -55,4 +55,19 @@ describe("E-09 bloco 24 (FN-29): guarda de ligação de NearbyStops", () => {
       expect(line).toMatch(/^\s*if\s*\(DIAG_SCROLL\)\s*recordDiagEvent\(/);
     }
   });
+
+  it("o useEffect do registro perto depende exatamente dos sete valores que ele registra", () => {
+    const m = squashed.match(/recordDiagEvent\(`perto fonte=[^`]*`\);\s*\},\s*\[([^\]]*)\]\s*\)/);
+    expect(m, "efeito do registro perto").not.toBeNull();
+    const deps = (m?.[1] ?? "").split(",").map((d) => d.trim());
+    expect(deps).toEqual([
+      "picked.source",
+      "byFix.length",
+      "recent.ids.length",
+      "picked.cards.length",
+      "stops.status",
+      "schedule.status",
+      "recent.status",
+    ]);
+  });
 });

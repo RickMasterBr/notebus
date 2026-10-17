@@ -52,6 +52,8 @@ describe("Auditoria de acessibilidade (T-96, D-046, D-047, D-050)", () => {
     const tripCardPath = join(uiDir, "TripCard.tsx");
     const tripCardSource = stripComments(readFileSync(tripCardPath, "utf-8"));
     expect(tripCardSource).toContain('accessibilityLiveRegion="polite"');
+    // A prop é só Android (RN 0.86): no iPhone o aviso falado vem de announceForAccessibility, dentro de useEffect (nunca no render).
+    expect(tripCardSource).toMatch(/useEffect\(\(\) => \{\s*AccessibilityInfo\.announceForAccessibility\(title\);\s*\}, \[title\]\);/);
   });
 
   // 5. Todo Pressable em ui/ tem accessibilityLabel ou texto filho
