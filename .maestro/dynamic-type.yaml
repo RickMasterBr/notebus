@@ -6,7 +6,7 @@ appId: com.rickmasterbr.notebus
 # 3. TL-05 Daqui para a frente
 # 4. TL-03 Registrar
 # 5. TL-04 Ir para X (Facul)
-# Tira uma captura de cada tela e confere que "sair às" e "esteja às" estão visíveis inteiros.
+# Tira uma captura de cada tela e confere que "no ponto às" e "sair às" estão visíveis inteiros.
 
 - launchApp:
     clearState: false
@@ -21,9 +21,9 @@ appId: com.rickmasterbr.notebus
     text: "Arrabalde"
 - assertVisible:
     text: "Arrabalde"
-# Confere "esteja às" / "no ponto às" inteiro
+# Confere "no ponto às" inteiro (rótulo da hora do ônibus na folha do ponto, `home.stop_card.eta_label`)
 - assertVisible:
-    text: ".*esteja às.*|.*no ponto às.*|.*às.*"
+    text: ".*no ponto às.*"
 - takeScreenshot: "02-ponto"
 
 # 3. TL-05 Daqui para a frente
