@@ -66,7 +66,7 @@ describe("E-08.5 bloco 4 guardas de ligação", () => {
         '<Pressable accessibilityRole="button" accessibilityLabel={t("toast.dismiss.a11y")} onPress={dismiss}',
       );
       expect(closeBranch).toContain(
-        "style={({ pressed }) => [styles.closeAction, pressed && { opacity: 0.6 }]}",
+        "style={({ pressed }) => [styles.closeAction, pressedStyle(pressed)]}",
       );
     });
 
