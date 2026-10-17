@@ -696,7 +696,7 @@ export function OptionSheet({
                             target: t("option.walk_to"),
                           })}
                           onPress={() => setWalkToMax((max) => (max !== null ? Math.max(walkToMin, max - 1) : walkToMin))}
-                          hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }}
+                          hitSlop={{ ...hitSlopToMinTouch(36), left: 5, right: 3 }}
                           style={({ pressed }) => [styles.stepperBtnSmall, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <MinusGlyph color={colors.text} />
@@ -707,7 +707,7 @@ export function OptionSheet({
                             target: t("option.walk_to"),
                           })}
                           onPress={() => setWalkToMax((max) => (max !== null ? max + 1 : walkToMin + 1))}
-                          hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }}
+                          hitSlop={{ ...hitSlopToMinTouch(36), left: 3, right: 5 }}
                           style={({ pressed }) => [styles.stepperBtnSmall, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <PlusGlyph color={colors.text} />
@@ -802,7 +802,7 @@ export function OptionSheet({
                             setWalkFromMax((max) => (max !== null ? Math.max(walkFromMin, max - 1) : walkFromMin));
                             setWalkFromEdited(true);
                           }}
-                          hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }}
+                          hitSlop={{ ...hitSlopToMinTouch(36), left: 5, right: 3 }}
                           style={({ pressed }) => [styles.stepperBtnSmall, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <MinusGlyph color={colors.text} />
@@ -816,7 +816,7 @@ export function OptionSheet({
                             setWalkFromMax((max) => (max !== null ? max + 1 : walkFromMin + 1));
                             setWalkFromEdited(true);
                           }}
-                          hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }}
+                          hitSlop={{ ...hitSlopToMinTouch(36), left: 3, right: 5 }}
                           style={({ pressed }) => [styles.stepperBtnSmall, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <PlusGlyph color={colors.text} />

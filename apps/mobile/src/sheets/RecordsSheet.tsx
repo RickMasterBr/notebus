@@ -304,6 +304,11 @@ const PendingCardView = memo(function PendingCardView({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${t("sheet_records.pending.check")}, ${row.stop.name}, ${row.time}`}
+      accessibilityActions={[{ name: "dismiss", label: t("sheet_records.pending.unsure") }]}
+      onAccessibilityAction={(e) => {
+        const action = e.nativeEvent.actionName;
+        if (action === "dismiss") onDismiss(row);
+      }}
       onPress={() => onCheck(row)}
       style={({ pressed }) => [styles.pendingCardContainer, { borderColor: colors.accent, backgroundColor: colors.highlight }, pressedStyle(pressed)]}
     >

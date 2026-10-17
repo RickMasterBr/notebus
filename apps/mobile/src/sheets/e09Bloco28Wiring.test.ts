@@ -76,8 +76,8 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
     const count = (code: string, piece: string) => code.split(piece).length - 1;
     const casos: [string, string, number][] = [
       ["sheets/OptionSheet.tsx", "hitSlop={hitSlopToMinTouch(28)} style={({ pressed }) => [styles.rangeToggleBtn", 2],
-      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }} style={({ pressed }) => [styles.stepperBtnSmall", 2],
-      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }} style={({ pressed }) => [styles.stepperBtnSmall", 2],
+      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), left: 5, right: 3 }} style={({ pressed }) => [styles.stepperBtnSmall", 2],
+      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), left: 3, right: 5 }} style={({ pressed }) => [styles.stepperBtnSmall", 2],
       [
         "sheets/OptionSheet.tsx",
         "hitSlop={{ ...hitSlopToMinTouch(28), top: space.xs, bottom: space.xs, left: space.xs, right: space.xs }} style={({ pressed }) => [ styles.lineOption,",
