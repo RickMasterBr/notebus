@@ -17,15 +17,14 @@ const stopCardView = strip(new URL("../ui/StopCardView.tsx", import.meta.url));
 const lineOf = (call: string) => indexLines.findIndex((l) => l === call);
 
 describe("E-09 bloco 26: index.ts", () => {
-  it("importa installNoNetwork e runTestSeedIfNeeded dos módulos certos", () => {
+  it("importa installNoNetwork do módulo certo", () => {
     const text = indexLines.join("\n");
     expect(text).toMatch(/import \{ installNoNetwork \} from ['"]\.\/src\/data\/noNetwork['"];/);
-    expect(text).toMatch(/import \{ runTestSeedIfNeeded \} from ['"]\.\/src\/db\/testSeed['"];/);
   });
-  it("chama as duas no escopo do módulo, antes de registerRootComponent(", () => {
+  it("chama installNoNetwork no escopo do módulo, antes de registerRootComponent(", () => {
     const register = indexLines.findIndex((l) => l.startsWith("registerRootComponent("));
     expect(register, "registerRootComponent").toBeGreaterThanOrEqual(0);
-    for (const call of ["installNoNetwork();", "void runTestSeedIfNeeded();"]) {
+    for (const call of ["installNoNetwork();"]) {
       const at = lineOf(call);
       expect(at, call).toBeGreaterThanOrEqual(0);
       expect(at, `${call} antes de registerRootComponent`).toBeLessThan(register);

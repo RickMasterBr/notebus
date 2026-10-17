@@ -7,17 +7,26 @@ import { SafeAreaView, StyleSheet, Text } from "react-native";
 import { t } from "../i18n";
 import { space, type, useTheme } from "../theme";
 
+export interface MigrationNoticeProps {
+  detail?: string;
+}
+
 /**
  * Alerta simples e fixo no topo da tela para indicar que a tentativa de migração
  * dos dados do banco falhou. O banco volta ao estado anterior, nada é perdido.
  */
-export function MigrationNotice() {
+export function MigrationNotice({ detail }: MigrationNoticeProps = {}) {
   const { colors } = useTheme();
   return (
     <SafeAreaView style={{ backgroundColor: colors.surface }}>
       <Text accessibilityRole="alert" style={[type.body, styles.text, { color: colors.danger }]}>
         {t("migration.failed")}
       </Text>
+      {detail ? (
+        <Text style={[type.body, styles.text, { color: colors.danger }]}>
+          {detail}
+        </Text>
+      ) : null}
     </SafeAreaView>
   );
 }

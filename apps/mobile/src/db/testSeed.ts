@@ -110,21 +110,3 @@ export async function seedTestDatabase(executor: SqlExecutor, now = SEED_TIMESTA
   }
 }
 
-/**
- * Ponto de entrada chamado em apps/mobile/index.ts.
- * Se EXPO_PUBLIC_NB_TEST_SEED=1, garante abertura, migrações e seed da base.
- */
-export async function runTestSeedIfNeeded(): Promise<boolean> {
-  if (!isTestSeedEnabled()) return false;
-  try {
-    const { openNotebusDb } = await import("./open");
-    const { db } = await openNotebusDb();
-    await seedTestDatabase({
-      execAsync: (sql) => db.$client.execAsync(sql),
-    });
-    return true;
-  } catch (err) {
-    console.warn("Falha ao rodar testSeed:", err);
-    return false;
-  }
-}
