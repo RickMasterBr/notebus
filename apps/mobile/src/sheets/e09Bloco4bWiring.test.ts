@@ -26,7 +26,7 @@ describe("E-09 Bloco 4b guardas de ligação (e09Bloco4bWiring)", () => {
     });
 
     it("o <NbSwitch> de feriados municipais usa o valor otimista", () => {
-      expect(settings).toContain('useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados")');
+      expect(settings).toContain('useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados", { deferCommitMs: SWITCH_ANIM_MS + 30, })');
       expect(settings).toMatch(/<NbSwitch[^>]*value=\{municipalSwitch\.value\} onValueChange=\{municipalSwitch\.onValueChange\}/);
     });
 

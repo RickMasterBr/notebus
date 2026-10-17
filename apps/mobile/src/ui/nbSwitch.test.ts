@@ -20,7 +20,7 @@ describe("NbSwitch (E-09 bloco 22, FN-23)", () => {
     expect(src).toMatch(/<Pressable[^>]*accessibilityState=\{\{ checked: value \}\}/);
     expect(src).toMatch(/<Pressable[^>]*onPress=\{\(\) => onValueChange\(!value\)\}/);
     expect(src).toContain("hitSlop={{ top: NB_SWITCH_HIT_SLOP, bottom: NB_SWITCH_HIT_SLOP }}");
-    expect(src).toContain("<AnimatedSwitchVisual on={value} offColor={colors.switchTrackOff} />");
+    expect(src).toContain("<AnimatedSwitchVisual on={value} offColor={colors.switchTrackOff} diagLabel={diagLabel} />");
   });
   it("AnimatedSwitchVisual continua usando colors.divider por padrão (o RecordSheet não muda)", () => {
     expect(read("./AnimatedSwitchVisual.tsx")).toContain("offColor ?? colors.divider");

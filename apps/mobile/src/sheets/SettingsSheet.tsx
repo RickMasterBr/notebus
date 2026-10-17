@@ -84,6 +84,7 @@ import { expoPort } from "../notifications/expoPort";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { ChevronRightGlyph } from "../ui/Glyphs";
 import { ListRow } from "../ui/ListRow";
+import { SWITCH_ANIM_MS } from "../ui/AnimatedSwitchVisual";
 import { NbSwitch } from "../ui/NbSwitch";
 import { AboutPage } from "./AboutPage";
 import { SheetHandle } from "./SheetHandle";
@@ -350,7 +351,9 @@ export function SettingsSheet({ id }: { id: number }) {
   };
 
   const alarmsSwitch = useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms, "avisos");
-  const municipalSwitch = useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados");
+  const municipalSwitch = useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados", {
+    deferCommitMs: SWITCH_ANIM_MS + 30,
+  });
 
   const view = settingsIndexView({
     userName: currentUserName,
@@ -475,6 +478,7 @@ export function SettingsSheet({ id }: { id: number }) {
                             accessibilityLabel={t("settings.alarms.allow")}
                             value={alarmsSwitch.value}
                             onValueChange={alarmsSwitch.onValueChange}
+                            diagLabel="avisos"
                             />
                         </View>
                       </View>
@@ -743,6 +747,7 @@ export function SettingsSheet({ id }: { id: number }) {
                               accessibilityLabel={t("settings.holiday.municipal")}
                               value={municipalSwitch.value}
                               onValueChange={municipalSwitch.onValueChange}
+                              diagLabel="feriados"
                               />
                           </View>
                         </View>
