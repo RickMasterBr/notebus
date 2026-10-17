@@ -543,7 +543,7 @@ export function SettingsSheet({ id }: { id: number }) {
                         onPress={() =>
                           counter.tap(realNow()) && dispatch({ type: "push", sheet: { kind: "clockPicker" } })
                         }
-                        style={[styles.indexRow, { minHeight: 56 }]}
+                        style={({ pressed }) => [styles.indexRow, { minHeight: 56 }, pressedStyle(pressed)]}
                       >
                         <Text style={[type.body, { color: colors.text, fontWeight: "500", flex: 1 }]}>
                           {t("settings.version")}
@@ -642,7 +642,7 @@ export function SettingsSheet({ id }: { id: number }) {
                             accessibilityRole="button"
                             accessibilityLabel={t("settings.name.clear")}
                             onPress={handleClearName}
-                            style={styles.dangerButton}
+                            style={({ pressed }) => [styles.dangerButton, pressedStyle(pressed)]}
                           >
                             <Text style={[type.bodyStrong, { color: colors.danger, fontSize: 16 }]}>
                               {t("settings.name.clear")}
@@ -828,12 +828,9 @@ export function SettingsSheet({ id }: { id: number }) {
                                     goBack: handleBack,
                                   })
                                 }
-                                style={[
-                                  styles.actionButton,
-                                  b.style === "destructive"
+                                style={({ pressed }) => [styles.actionButton, b.style === "destructive"
                                     ? styles.dangerButton
-                                    : [styles.fillButton, { backgroundColor: colors.fill }],
-                                ]}
+                                    : [styles.fillButton, { backgroundColor: colors.fill }], pressedStyle(pressed)]}
                               >
                                 <Text
                                   style={[
@@ -933,11 +930,7 @@ function SettingsIndexRow({
       accessibilityRole="button"
       accessibilityLabel={value ? `${title}, ${value}` : title}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.indexRow,
-        borderBottom && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
-        pressed && { opacity: 0.7 },
-      ]}
+      style={({ pressed }) => [styles.indexRow, borderBottom && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider }, pressedStyle(pressed)]}
     >
       {icon ? <View style={styles.rowIcon}>{icon}</View> : null}
       {valueRight ? (
@@ -989,7 +982,7 @@ function OverrideRow({
             swipeableMethods.close();
             onDelete();
           }}
-          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+          style={({ pressed }) => [styles.deleteButton, { backgroundColor: colors.danger }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
             {t("alarms.delete")}
@@ -1050,7 +1043,7 @@ function HolidayRow({
             swipeableMethods.close();
             onDelete();
           }}
-          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+          style={({ pressed }) => [styles.deleteButton, { backgroundColor: colors.danger }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
             {t("alarms.delete")}

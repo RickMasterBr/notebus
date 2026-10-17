@@ -182,7 +182,7 @@ const TripCardView = memo(function TripCardView({
         accessibilityRole="button"
         accessibilityLabel={t("sheet_records.action.delete")}
         onPress={() => handleDeleteAction(swipeableMethods)}
-        style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+        style={({ pressed }) => [styles.deleteButton, { backgroundColor: colors.danger }, pressedStyle(pressed)]}
       >
         <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
           {t("sheet_records.action.delete")}
@@ -212,9 +212,9 @@ const TripCardView = memo(function TripCardView({
         styles.tripCardContainer,
         {
           backgroundColor: isNow ? colors.highlight : colors.surface,
-          borderColor: isNow ? colors.accent : colors.divider,
-          opacity: pressed ? 0.7 : 1,
+          borderColor: isNow ? colors.accent : colors.divider,
         },
+        pressedStyle(pressed),
       ]}
     >
       <View style={styles.tripCardRow}>
@@ -407,7 +407,7 @@ const LineItemView = memo(function LineItemView({
         accessibilityRole="button"
         accessibilityLabel={t("sheet_records.action.delete")}
         onPress={() => handleDeleteAction(swipeableMethods)}
-        style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+        style={({ pressed }) => [styles.deleteButton, { backgroundColor: colors.danger }, pressedStyle(pressed)]}
       >
         <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
           {t("sheet_records.action.delete")}
@@ -447,9 +447,9 @@ const LineItemView = memo(function LineItemView({
           styles.lineItemContainer,
           {
             backgroundColor: colors.surface,
-            borderBottomColor: colors.divider,
-            opacity: pressed ? 0.7 : 1,
+            borderBottomColor: colors.divider,
           },
+          pressedStyle(pressed),
         ]}
       >
         <View style={styles.glyphBox}>
@@ -917,7 +917,7 @@ export function RecordsSheet({ id }: { id: number }) {
                                 sheet: { kind: "record", observationId: tripModel.boarding.id },
                               })
                             }
-                            style={styles.editHitTarget}
+                            style={({ pressed }) => [styles.editHitTarget, pressedStyle(pressed)]}
                           >
                             <Text style={[type.bodyStrong, { color: colors.accent }]}>
                               {t("sheet_records.page.edit")}
@@ -954,7 +954,7 @@ export function RecordsSheet({ id }: { id: number }) {
                                   sheet: { kind: "record", observationId: tripModel.alighting!.id },
                                 })
                               }
-                              style={styles.editHitTarget}
+                              style={({ pressed }) => [styles.editHitTarget, pressedStyle(pressed)]}
                             >
                               <Text style={[type.bodyStrong, { color: colors.accent }]}>
                                 {t("sheet_records.page.edit")}

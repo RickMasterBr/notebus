@@ -230,7 +230,7 @@ function StopOrderRow({ row, total, dragFrom, dragTo, onMove, onRemove }: StopOr
           accessibilityRole="button"
           accessibilityLabel={t("line_create.stop.remove")}
           onPress={() => onRemove(row.index)}
-          style={styles.smallAction}
+          style={({ pressed }) => [styles.smallAction, pressedStyle(pressed)]}
         >
           <Text style={[type.caption, { color: colors.danger }]}>
             {t("line_create.stop.remove")}
@@ -472,7 +472,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                         accessibilityState={{ selected: isSelected }}
                         accessibilityLabel={a11yLabel}
                         onPress={() => setState((prev) => ({ ...prev, color: c }))}
-                        style={styles.colorHitTarget}
+                        style={({ pressed }) => [styles.colorHitTarget, pressedStyle(pressed)]}
                       >
                         <View
                           style={[
@@ -562,7 +562,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                   accessibilityRole="button"
                   accessibilityLabel={t("line_create.stop.add")}
                   onPress={handleAddStop}
-                  style={[styles.addStopButton, { backgroundColor: colors.fill }]}
+                  style={({ pressed }) => [styles.addStopButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                 >
                   <Text style={[type.bodyStrong, { color: colors.accent }]}>
                     {`+ ${t("line_create.stop.add")}`}
@@ -640,7 +640,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                             accessibilityRole="button"
                             accessibilityLabel={t("line_create.stop.remove")}
                             onPress={() => setState((prev) => ({ ...prev, departures: removeDeparture(prev.departures, index) }))}
-                            style={styles.smallAction}
+                            style={({ pressed }) => [styles.smallAction, pressedStyle(pressed)]}
                           >
                             <Text style={[type.caption, { color: colors.danger }]}>
                               {t("line_create.stop.remove")}
@@ -653,7 +653,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                       accessibilityRole="button"
                       accessibilityLabel={t("line_create.departure.add")}
                       onPress={() => openTimePicker("departure")}
-                      style={[styles.addStopButton, { backgroundColor: colors.fill }]}
+                      style={({ pressed }) => [styles.addStopButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                     >
                       <Text style={[type.bodyStrong, { color: colors.accent }]}>
                         {`+ ${t("line_create.departure.add")}`}
@@ -667,7 +667,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                         accessibilityRole="button"
                         accessibilityLabel={`${t("line_create.departure.from")}: ${formatClock(state.frequency.fromMinute)}`}
                         onPress={() => openTimePicker("freqFrom")}
-                        style={[styles.freqTimeBox, { backgroundColor: colors.fill }]}
+                        style={({ pressed }) => [styles.freqTimeBox, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                       >
                         <Text style={[type.caption, { color: colors.textSecondary }]}>
                           {t("line_create.departure.from")}
@@ -680,7 +680,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                         accessibilityRole="button"
                         accessibilityLabel={`${t("line_create.departure.to")}: ${formatClock(state.frequency.toMinute)}`}
                         onPress={() => openTimePicker("freqTo")}
-                        style={[styles.freqTimeBox, { backgroundColor: colors.fill }]}
+                        style={({ pressed }) => [styles.freqTimeBox, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                       >
                         <Text style={[type.caption, { color: colors.textSecondary }]}>
                           {t("line_create.departure.to")}
@@ -710,10 +710,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                               },
                             }))
                           }
-                          style={[
-                            styles.stepperButton,
-                            state.frequency.headwayMinutes <= 1 && styles.disabledButton,
-                          ]}
+                          style={({ pressed }) => [styles.stepperButton, state.frequency.headwayMinutes <= 1 && styles.disabledButton, pressedStyle(pressed, state.frequency.headwayMinutes <= 1)]}
                         >
                           <Text style={[type.title, { color: colors.text }]}>−</Text>
                         </Pressable>
@@ -729,7 +726,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                               },
                             }))
                           }
-                          style={styles.stepperButton}
+                          style={({ pressed }) => [styles.stepperButton, pressedStyle(pressed)]}
                         >
                           <Text style={[type.title, { color: colors.text }]}>+</Text>
                         </Pressable>

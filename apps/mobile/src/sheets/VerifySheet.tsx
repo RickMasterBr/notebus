@@ -268,11 +268,7 @@ export function VerifySheet({ id, observationId }: { id: number; observationId: 
                         key={`${c.tripId}:${c.position}`}
                         accessibilityRole="button"
                         onPress={() => void handleChoose(c)}
-                        style={({ pressed }) => [
-                          styles.candidateCard,
-                          { borderColor: colors.divider, backgroundColor: colors.surface },
-                          pressed && { opacity: 0.6 },
-                        ]}
+                        style={({ pressed }) => [styles.candidateCard, { borderColor: colors.divider, backgroundColor: colors.surface }, pressedStyle(pressed)]}
                       >
                         <LineBadge code={cLineCode} color={cLineColor} />
                         <View style={styles.candidateText}>
@@ -327,11 +323,7 @@ export function VerifySheet({ id, observationId }: { id: number; observationId: 
                         key={`${c.lineId}:${c.tripId}:${c.position}`}
                         accessibilityRole="button"
                         onPress={() => void handleChoose(c)}
-                        style={({ pressed }) => [
-                          styles.candidateCard,
-                          { borderColor: colors.divider, backgroundColor: colors.surface },
-                          pressed && { opacity: 0.6 },
-                        ]}
+                        style={({ pressed }) => [styles.candidateCard, { borderColor: colors.divider, backgroundColor: colors.surface }, pressedStyle(pressed)]}
                       >
                         <LineBadge code={cLineCode} color={cLineColor} />
                         <View style={styles.candidateText}>
@@ -354,11 +346,7 @@ export function VerifySheet({ id, observationId }: { id: number; observationId: 
               <Pressable
                 accessibilityRole="button"
                 onPress={handleAdjustTime}
-                style={({ pressed }) => [
-                  styles.footerButton,
-                  { backgroundColor: colors.fill },
-                  pressed && { opacity: 0.7 },
-                ]}
+                style={({ pressed }) => [styles.footerButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.text }]}>
                   {t("sheet_verify.fix_time")}
@@ -368,11 +356,7 @@ export function VerifySheet({ id, observationId }: { id: number; observationId: 
               <Pressable
                 accessibilityRole="button"
                 onPress={() => void handleDismiss()}
-                style={({ pressed }) => [
-                  styles.footerButton,
-                  { backgroundColor: colors.fill },
-                  pressed && { opacity: 0.7 },
-                ]}
+                style={({ pressed }) => [styles.footerButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.text }]}>
                   {t("sheet_verify.dont_know")}

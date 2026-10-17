@@ -267,11 +267,7 @@ export function PlaceSheet({
                         setUserPickedIcon(true);
                         setIcon(ic);
                       }}
-                      style={[
-                        styles.iconButton,
-                        { backgroundColor: colors.fill },
-                        isSelected && { borderColor: colors.accent, borderWidth: 2 },
-                      ]}
+                      style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.fill }, isSelected && { borderColor: colors.accent, borderWidth: 2 }, pressedStyle(pressed)]}
                     >
                       <PlaceIconGlyph
                         icon={ic}
@@ -289,7 +285,7 @@ export function PlaceSheet({
               accessibilityRole="switch"
               accessibilityState={{ checked: isShortcut }}
               onPress={() => setIsShortcut((s) => !s)}
-              style={styles.switchRow}
+              style={({ pressed }) => [styles.switchRow, pressedStyle(pressed)]}
             >
               <Text style={[type.bodyStrong, { color: colors.text }]}>
                 {t("place.shortcut")}
@@ -326,7 +322,7 @@ export function PlaceSheet({
               <Pressable
                 accessibilityRole="button"
                 onPress={handleRequestLocation}
-                style={[styles.locationButton, { backgroundColor: colors.fill }]}
+                style={({ pressed }) => [styles.locationButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.text }]}>
                   {t("place.location.use_now")}
@@ -336,7 +332,7 @@ export function PlaceSheet({
                 accessibilityRole="button"
                 accessibilityLabel={t("map_pick.open.place.a11y")}
                 onPress={() => setPickerOpen(true)}
-                style={[styles.locationButton, { backgroundColor: colors.fill }]}
+                style={({ pressed }) => [styles.locationButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.text }]}>
                   {t("map_pick.open")}
@@ -383,7 +379,7 @@ export function PlaceSheet({
                           onPress={() =>
                             dispatch({ type: "push", sheet: { kind: "route", routeId: r.id } })
                           }
-                          style={[styles.routeRow, { backgroundColor: colors.fill }]}
+                          style={({ pressed }) => [styles.routeRow, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <View style={styles.routeRowText}>
                             <Text style={[type.bodyStrong, { color: colors.text }]}>
@@ -417,7 +413,7 @@ export function PlaceSheet({
                         key={op.id}
                         accessibilityRole="button"
                         onPress={() => handleCreateRouteFrom(op.id)}
-                        style={[styles.originOption, { backgroundColor: colors.fill }]}
+                        style={({ pressed }) => [styles.originOption, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                       >
                         <PlaceIconGlyph icon={op.icon} color={colors.text} size={18} />
                         <Text style={[type.body, { color: colors.text }]}>{op.name}</Text>
@@ -427,7 +423,7 @@ export function PlaceSheet({
                       accessibilityRole="button"
                       onPress={() => setPickingOrigin(false)}
                       hitSlop={hitSlopToMinTouch(24)}
-                      style={[styles.cancelOriginButton]}
+                      style={({ pressed }) => [styles.cancelOriginButton, pressedStyle(pressed)]}
                     >
                       <Text style={[type.caption, { color: colors.textSecondary }]}>
                         {t("common.cancel")}
@@ -439,7 +435,7 @@ export function PlaceSheet({
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setPickingOrigin(true)}
-                      style={[styles.newRouteButton, { backgroundColor: colors.fill }]}
+                      style={({ pressed }) => [styles.newRouteButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                     >
                       <PlusGlyph color={colors.text} />
                       <Text style={[type.bodyStrong, { color: colors.text }]}>
@@ -458,7 +454,7 @@ export function PlaceSheet({
                   accessibilityRole="button"
                   accessibilityLabel={t("sheet_goto.title", { destination: existingPlace.name })}
                   onPress={() => void openGotoOrNewOption(dispatch, places, existingPlace.id)}
-                  style={[styles.gotoButton, { backgroundColor: colors.fill }]}
+                  style={({ pressed }) => [styles.gotoButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                 >
                   <Text style={[type.bodyStrong, { color: colors.accent }]}>
                     {t("sheet_goto.title", { destination: existingPlace.name })}

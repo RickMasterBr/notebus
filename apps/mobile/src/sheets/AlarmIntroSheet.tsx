@@ -23,6 +23,7 @@ import { minTouch, radius, space, type, useTheme } from "../theme";
 import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -105,11 +106,7 @@ export function AlarmIntroSheet({
                     accessibilityRole="button"
                     accessibilityLabel={t("alarm.intro.continue")}
                     onPress={handleContinue}
-                    style={({ pressed }) => [
-                      styles.primaryButton,
-                      { backgroundColor: colors.accent },
-                      pressed && { opacity: 0.8 },
-                    ]}
+                    style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
                   >
                     <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
                       {t("alarm.intro.continue")}
@@ -120,11 +117,7 @@ export function AlarmIntroSheet({
                     accessibilityRole="button"
                     accessibilityLabel={t("alarm.intro.later")}
                     onPress={handleLater}
-                    style={({ pressed }) => [
-                      styles.secondaryButton,
-                      { backgroundColor: colors.fill },
-                      pressed && { opacity: 0.7 },
-                    ]}
+                    style={({ pressed }) => [styles.secondaryButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                   >
                     <Text style={[type.bodyStrong, { color: colors.text }]}>
                       {t("alarm.intro.later")}
@@ -148,11 +141,7 @@ export function AlarmIntroSheet({
                     accessibilityRole="button"
                     accessibilityLabel={t("alarm.denied.open")}
                     onPress={handleOpenSettings}
-                    style={({ pressed }) => [
-                      styles.primaryButton,
-                      { backgroundColor: colors.accent },
-                      pressed && { opacity: 0.8 },
-                    ]}
+                    style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
                   >
                     <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
                       {t("alarm.denied.open")}
@@ -203,11 +192,7 @@ export function AlarmIntroSheet({
                     accessibilityRole="button"
                     accessibilityLabel={t("alarm.focus.done")}
                     onPress={close}
-                    style={({ pressed }) => [
-                      styles.primaryButton,
-                      { backgroundColor: colors.accent },
-                      pressed && { opacity: 0.8 },
-                    ]}
+                    style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
                   >
                     <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
                       {t("alarm.focus.done")}

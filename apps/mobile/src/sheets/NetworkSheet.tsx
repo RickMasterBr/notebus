@@ -334,11 +334,7 @@ export function NetworkSheet({ id }: { id: number }) {
             accessibilityRole="button"
             accessibilityLabel={t("net.line.new")}
             onPress={handleNewLinePress}
-            style={({ pressed }) => [
-              styles.row,
-              { borderBottomColor: colors.divider },
-              pressed && styles.rowPressed,
-            ]}
+            style={({ pressed }) => [styles.row, { borderBottomColor: colors.divider }, pressedStyle(pressed)]}
           >
             <Text style={[type.bodyStrong, { color: colors.accent }]}>{`+ ${t("net.line.new")}`}</Text>
           </Pressable>
@@ -351,11 +347,7 @@ export function NetworkSheet({ id }: { id: number }) {
             accessibilityRole="button"
             accessibilityLabel={t("net.stop.new")}
             onPress={handleNewStopPress}
-            style={({ pressed }) => [
-              styles.row,
-              { borderBottomColor: colors.divider },
-              pressed && styles.rowPressed,
-            ]}
+            style={({ pressed }) => [styles.row, { borderBottomColor: colors.divider }, pressedStyle(pressed)]}
           >
             <Text style={[type.bodyStrong, { color: colors.accent }]}>{`+ ${t("net.stop.new")}`}</Text>
           </Pressable>
@@ -394,7 +386,7 @@ export function NetworkSheet({ id }: { id: number }) {
                   accessibilityLabel={t("search.clear.a11y")}
                   hitSlop={space.xs}
                   onPress={() => handleTermChange("")}
-                  style={styles.searchClear}
+                  style={({ pressed }) => [styles.searchClear, pressedStyle(pressed)]}
                 >
                   <CrossGlyph color={colors.textSecondary} />
                 </Pressable>
@@ -543,7 +535,7 @@ const StopRow = memo(function StopRow({
             swipeableMethods.close();
             onDelete(stop);
           }}
-          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+          style={({ pressed }) => [styles.deleteButton, { backgroundColor: colors.danger }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>{t("stop_delete.action")}</Text>
         </Pressable>
@@ -557,11 +549,7 @@ const StopRow = memo(function StopRow({
           if (isDeleteAction(event.nativeEvent.actionName)) onDelete(stop);
         }}
         onPress={() => onPress(stop.id, stop.name)}
-        style={({ pressed }) => [
-          styles.row,
-          { borderBottomColor: colors.divider, backgroundColor: colors.bg },
-          pressed && styles.rowPressed,
-        ]}
+        style={({ pressed }) => [styles.row, { borderBottomColor: colors.divider, backgroundColor: colors.bg }, pressedStyle(pressed)]}
       >
         <View style={styles.rowContent}>
           <Text style={[type.body, { color: colors.text, flexShrink: 1 }]}>{stop.name}</Text>
@@ -619,7 +607,7 @@ const LineRow = memo(function LineRow({
             swipeableMethods.close();
             onDelete(line);
           }}
-          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+          style={({ pressed }) => [styles.deleteButton, { backgroundColor: colors.danger }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>{t("line_delete.action")}</Text>
         </Pressable>
@@ -633,11 +621,7 @@ const LineRow = memo(function LineRow({
           if (isDeleteAction(event.nativeEvent.actionName)) onDelete(line);
         }}
         onPress={() => onPress(line.id)}
-        style={({ pressed }) => [
-          styles.row,
-          { borderBottomColor: colors.divider, backgroundColor: colors.bg },
-          pressed && styles.rowPressed,
-        ]}
+        style={({ pressed }) => [styles.row, { borderBottomColor: colors.divider, backgroundColor: colors.bg }, pressedStyle(pressed)]}
       >
         <LineBadge code={line.code} color={line.color} />
         <View style={styles.rowContent}>
@@ -675,11 +659,7 @@ function StopsPager({
         accessibilityState={{ disabled: !stopsView.hasPrev }}
         disabled={!stopsView.hasPrev}
         onPress={handlePrev}
-        style={({ pressed }) => [
-          styles.pagerButton,
-          !stopsView.hasPrev && styles.pagerButtonDisabled,
-          pressed && stopsView.hasPrev && styles.rowPressed,
-        ]}
+        style={({ pressed }) => [styles.pagerButton, !stopsView.hasPrev && styles.pagerButtonDisabled, pressedStyle(pressed, !stopsView.hasPrev)]}
       >
         <Text
           style={[
@@ -706,11 +686,7 @@ function StopsPager({
         accessibilityState={{ disabled: !stopsView.hasNext }}
         disabled={!stopsView.hasNext}
         onPress={handleNext}
-        style={({ pressed }) => [
-          styles.pagerButton,
-          !stopsView.hasNext && styles.pagerButtonDisabled,
-          pressed && stopsView.hasNext && styles.rowPressed,
-        ]}
+        style={({ pressed }) => [styles.pagerButton, !stopsView.hasNext && styles.pagerButtonDisabled, pressedStyle(pressed, !stopsView.hasNext)]}
       >
         <Text
           style={[

@@ -45,13 +45,14 @@ export const EXEMPT: { file: string; count: number; reason: string }[] = [
   { file: "ui/NbSwitch.tsx", count: 1, reason: "interruptor tem animação própria (trilho e botão)" },
   { file: "ui/RegisterButton.tsx", count: 1, reason: "feedback próprio especificado: encolhe para 96% (4.5 §2.5)" },
   { file: "ui/PickerModal.tsx", count: 1, reason: "cortina: fundo invisível que só fecha a folha" },
+  { file: "sheets/HolidaySheet.tsx", count: 2, reason: "cortina do seletor de data (fecha ao tocar fora) e caixa que só barra o toque (stopPropagation)" },
+  { file: "sheets/RepeatSheet.tsx", count: 2, reason: "cortina do seletor de data (fecha ao tocar fora) e caixa que só barra o toque (stopPropagation)" },
 ];
 
 /** Arquivos que o bloco 33 ainda cobre, com a quantidade de botões sem feedback (medição do bloco 32). Só pode descer; zero sai da lista. */
 export const PENDING_BLOCO_33: Record<string, number> = {
   "sheets/AboutPage.tsx": 1,
   "sheets/AheadSheet.tsx": 1,
-  "sheets/AlarmIntroSheet.tsx": 4,
   "sheets/AlarmsSheet.tsx": 3,
   "sheets/AlightPickerSheet.tsx": 1,
   "sheets/AlightSheet.tsx": 1,
@@ -60,26 +61,17 @@ export const PENDING_BLOCO_33: Record<string, number> = {
   "sheets/ClockPickerSheet.tsx": 1,
   "sheets/DeclareSheet.tsx": 3,
   "sheets/diagScroll.tsx": 1,
-  "sheets/HolidaySheet.tsx": 5,
   "sheets/LineDetailSheet.tsx": 1,
-  "sheets/LineEditSheet.tsx": 9,
   "sheets/MarginStepper.tsx": 2,
-  "sheets/NetworkSheet.tsx": 9,
   "sheets/OverrideSheet.tsx": 2,
   "sheets/PastOverridesSheet.tsx": 1,
-  "sheets/PlaceSheet.tsx": 9,
   "sheets/PlacesSheet.tsx": 3,
-  "sheets/RecordsSheet.tsx": 6,
-  "sheets/RepeatSheet.tsx": 8,
   "sheets/RouteSheet.tsx": 3,
   "sheets/SearchSheet.tsx": 2,
-  "sheets/SettingsSheet.tsx": 6,
   "sheets/SheetHandle.tsx": 1,
-  "sheets/StopEditSheet.tsx": 4,
   "sheets/StopLocationOffer.tsx": 2,
   "sheets/StopMapPick.tsx": 1,
   "sheets/StopSheet.tsx": 3,
-  "sheets/VerifySheet.tsx": 4,
 };
 
 describe("Feedback de toque em todo botão (bloco 32 e 33)", () => {

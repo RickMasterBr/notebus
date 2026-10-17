@@ -457,7 +457,7 @@ export function StopEditSheet({
                         accessibilityRole="button"
                         accessibilityLabel={t("stop_edit.alias.add")}
                         onPress={handleAddAlias}
-                        style={[styles.addAliasButton, { backgroundColor: colors.fill }]}
+                        style={({ pressed }) => [styles.addAliasButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                       >
                         <Text style={[type.bodyStrong, { color: colors.accent }]}>
                           {t("stop_edit.alias.add")}
@@ -494,7 +494,7 @@ export function StopEditSheet({
                               accessibilityRole="button"
                               accessibilityLabel={t("stop_edit.alias.remove.a11y", { alias })}
                               onPress={() => handleRemoveAlias(index)}
-                              style={styles.chipRemoveButton}
+                              style={({ pressed }) => [styles.chipRemoveButton, pressedStyle(pressed)]}
                             >
                               <CrossGlyph color={colors.textSecondary} />
                             </Pressable>
@@ -584,7 +584,7 @@ export function StopEditSheet({
                         accessibilityRole="button"
                         accessibilityLabel={t("map_pick.open.stop.a11y")}
                         onPress={() => setPickerVisible(true)}
-                        style={[styles.locationButton, { backgroundColor: colors.fill }]}
+                        style={({ pressed }) => [styles.locationButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                       >
                         <Text style={[type.bodyStrong, { color: colors.accent, textAlign: "center" }]}>
                           {t("map_pick.open")}
@@ -595,7 +595,7 @@ export function StopEditSheet({
                           accessibilityRole="button"
                           accessibilityLabel={t("stop_new.location.remove")}
                           onPress={() => setLocation(null)}
-                          style={[styles.locationButton, { backgroundColor: colors.fill }]}
+                          style={({ pressed }) => [styles.locationButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <Text style={[type.bodyStrong, { color: colors.danger, textAlign: "center" }]}>
                             {t("stop_new.location.remove")}
