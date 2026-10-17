@@ -3,13 +3,16 @@ import { realNow } from "../data/clock";
 import { createCommitQueue } from "../data/commitQueue";
 import { nextSwitchValue, optimisticIdle, requestValue, settle, shownValue } from "../data/switchOptimistic";
 import { DIAG_SCROLL, recordDiagEvent } from "../sheets/diagScroll";
+import { markSwitchRender, markSwitchTap } from "./switchDiag";
 
 /** Interruptor que mostra o toque na hora e grava por trás (FN-6, FN-23). `commit` resolve quando o valor gravado já foi relido. */
 export function useOptimisticSwitch(
   saved: boolean,
   commit: (value: boolean) => Promise<unknown>,
   label?: string,
+  options?: { deferCommitMs?: number },
 ) {
+  const deferCommitMs = options?.deferCommitMs ?? 0;
   const [state, setState] = useState(optimisticIdle);
   const savedValue = saved; // o handler usa saved para o valor efetivo (guardas existentes fixam esse nome)
   const ref = useRef(state);
@@ -44,6 +47,7 @@ export function useOptimisticSwitch(
       recordDiagEvent(
         `sw ${label} render value=${shownValue(savedValue, state)} salvo=${savedValue} pendente=${state.pending} t=${realNow() % 100000}`,
       );
+      markSwitchRender(label);
     }
   });
   useEffect(() => {
@@ -62,11 +66,14 @@ export function useOptimisticSwitch(
       if (DIAG_SCROLL && label) {
         recordDiagEvent(`sw ${label} toque evento=${eventValue} mostrado=${shownBefore} salvo=${savedRef.current} t=${realNow() % 100000}`);
       }
+      if (DIAG_SCROLL && label) markSwitchTap(label);
       const nextValue = nextSwitchValue(saved, ref.current);
       const next = requestValue(ref.current, nextValue);
       apply(next);
       void (async () => {
         try {
+          // Sem cancelar ao desmontar: a gravação ainda tem de ocorrer. Timers de mesmo prazo disparam na ordem dos toques.
+          if (deferCommitMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, deferCommitMs));
           await queue.enqueue(nextValue);
         } catch {
           // falha: o finally devolve o valor gravado (o antigo)
@@ -82,7 +89,7 @@ export function useOptimisticSwitch(
       })();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queue, savedValue, label],
+    [queue, savedValue, label, deferCommitMs],
   );
   return { value: shownValue(saved, state), onValueChange };
 }

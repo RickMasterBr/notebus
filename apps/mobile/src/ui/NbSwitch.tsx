@@ -11,10 +11,13 @@ export function NbSwitch({
   value,
   onValueChange,
   accessibilityLabel,
+  diagLabel,
 }: {
   value: boolean;
   onValueChange: (value: boolean) => void;
   accessibilityLabel: string;
+  /** Só para o registro de diagnóstico (DIAG_SCROLL). */
+  diagLabel?: string;
 }) {
   const { colors } = useTheme();
   return (
@@ -26,7 +29,7 @@ export function NbSwitch({
       hitSlop={{ top: NB_SWITCH_HIT_SLOP, bottom: NB_SWITCH_HIT_SLOP }}
       style={{ alignSelf: "center" }}
     >
-      <AnimatedSwitchVisual on={value} offColor={colors.switchTrackOff} />
+      <AnimatedSwitchVisual on={value} offColor={colors.switchTrackOff} diagLabel={diagLabel} />
     </Pressable>
   );
 }

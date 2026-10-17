@@ -10,19 +10,19 @@ const settings = readFileSync(new URL("./SettingsSheet.tsx", import.meta.url), "
 describe("E-09 bloco 22: Ajustes sem o Switch nativo", () => {
   it("(a) feriados municipais: NbSwitch com municipalSwitch", () => {
     expect(settings).toMatch(
-      /<NbSwitch accessibilityLabel=\{t\("settings\.holiday\.municipal"\)\} value=\{municipalSwitch\.value\} onValueChange=\{municipalSwitch\.onValueChange\} \/>/,
+      /<NbSwitch accessibilityLabel=\{t\("settings\.holiday\.municipal"\)\} value=\{municipalSwitch\.value\} onValueChange=\{municipalSwitch\.onValueChange\} diagLabel="feriados" \/>/,
     );
   });
   it("(b) avisos: NbSwitch com alarmsSwitch", () => {
     expect(settings).toMatch(
-      /<NbSwitch accessibilityLabel=\{t\("settings\.alarms\.allow"\)\} value=\{alarmsSwitch\.value\} onValueChange=\{alarmsSwitch\.onValueChange\} \/>/,
+      /<NbSwitch accessibilityLabel=\{t\("settings\.alarms\.allow"\)\} value=\{alarmsSwitch\.value\} onValueChange=\{alarmsSwitch\.onValueChange\} diagLabel="avisos" \/>/,
     );
   });
   it("(c) nenhum <Switch nativo sobra no arquivo", () => {
     expect(settings).not.toMatch(/<Switch\b/);
   });
   it("(d) useOptimisticSwitch continua ligado aos dois", () => {
-    expect(settings).toContain('useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados")');
+    expect(settings).toContain('useOptimisticSwitch(prefs.includeMunicipalHolidays, prefs.setIncludeMunicipalHolidays, "feriados", { deferCommitMs: SWITCH_ANIM_MS + 30, })');
     expect(settings).toContain('useOptimisticSwitch(prefs.alarmsAllowed, handleToggleAlarms, "avisos")');
   });
 });

@@ -96,7 +96,7 @@ describe("SettingsSheet: interruptores (Mutação 2)", () => {
   it("interruptor municipal tem onValueChange ligado a setIncludeMunicipalHolidays", () => {
     const src = read();
     expect(src).toMatch(/setIncludeMunicipalHolidays/);
-    expect(src).toMatch(/useOptimisticSwitch\(prefs\.includeMunicipalHolidays,\s*prefs\.setIncludeMunicipalHolidays(,\s*["']feriados["'])?\)/);
+    expect(src).toMatch(/useOptimisticSwitch\(prefs\.includeMunicipalHolidays,\s*prefs\.setIncludeMunicipalHolidays(,\s*["']feriados["'](,\s*\{\s*deferCommitMs:[^}]*\})?)?\)/);
     expect(src).toMatch(/onValueChange=\{municipalSwitch\.onValueChange\}/);
   });
 

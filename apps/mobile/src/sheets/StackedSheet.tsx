@@ -149,6 +149,10 @@ export function StackedSheet({
   const animatedIndex = useSharedValue(-1);
   const { height: screenHeight } = useWindowDimensions();
   const hasBeenCoveredRef = useRef(false);
+  // Vista do conteúdo da folha: o efeito de revelação a mede na janela (escrita só pela biblioteca, lida só dentro do efeito).
+  const contentRef = useRef<View>(null);
+  // Os tipos de `BottomSheetView` não declaram `ref`, mas ele repassa o resto das props a um `View` (React 19): se não pegar, `contentRef` fica nulo e vale o critério antigo.
+  const contentRefProps = { ref: contentRef } as object;
   // Trocar a `key` do `BottomSheet` remonta a folha (2º passo do reparo); só acontece se a detecção disser que há fantasma.
   const [revealKey, setRevealKey] = useState(0);
   // Último detent em que a folha assentou (escrito só no `onChange`): a folha do ponto expandida volta onde estava.
@@ -165,19 +169,25 @@ export function StackedSheet({
       const expectedIndex = settledIndexRef.current;
       const position = animatedPosition.value;
       const index = animatedIndex.value;
-      const suspect = isGhostSuspect({ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex });
-      if (DIAG_SCROLL) recordDiagEvent(`revela #${id} pos=${Math.round(position)} idx=${index} tela=${Math.round(screenHeight)} suspeita=${suspect ? "sim" : "nao"}`);
-      if (!suspect) return;
-      const step = repairStep(attempt);
-      attempt += 1;
-      if (DIAG_SCROLL) recordDiagEvent(`reparo #${id} ${step === "stop" ? "parou" : step}`);
-      if (step === "snap") ref.current?.snapToIndex(expectedIndex, openConfig);
-      else if (step === "remount") {
-        settledIndexRef.current = detents?.initialIndex ?? 0;
-        setRevealKey((k) => k + 1);
-      }
-      else return;
-      timer = setTimeout(check, REVEAL_CHECK_MS);
+      const decide = (measured: { top: number; height: number } | null) => {
+        const suspect = isGhostSuspect({ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex, measured });
+        if (DIAG_SCROLL) recordDiagEvent(`revela #${id} pos=${Math.round(position)} idx=${index} tela=${Math.round(screenHeight)} medido=${measured ? `top:${Math.round(measured.top)} h:${Math.round(measured.height)}` : "indisponivel"} suspeita=${suspect ? "sim" : "nao"}`);
+        if (!suspect) return;
+        const step = repairStep(attempt);
+        attempt += 1;
+        if (DIAG_SCROLL) recordDiagEvent(`reparo #${id} ${step === "stop" ? "parou" : step}`);
+        if (step === "snap") ref.current?.snapToIndex(expectedIndex, openConfig);
+        else if (step === "remount") {
+          settledIndexRef.current = detents?.initialIndex ?? 0;
+          setRevealKey((k) => k + 1);
+        }
+        else return;
+        timer = setTimeout(check, REVEAL_CHECK_MS);
+      };
+      // A medida chega no callback; sem ref ou sem valores, `measured: null` (só posição e índice).
+      const contentView = contentRef.current;
+      if (!contentView) return decide(null);
+      contentView.measureInWindow((_x, y, _w, height) => decide(Number.isFinite(y) && Number.isFinite(height) ? { top: y, height } : null));
     };
     timer = setTimeout(check, REVEAL_CHECK_MS);
     return () => clearTimeout(timer);
@@ -280,9 +290,9 @@ export function StackedSheet({
           // Folha alta com lista: `View` comum, não `BottomSheetView`. A `BottomSheetView` é absoluta e sem altura (a lista
           // dentro dela cresce até o fim do conteúdo e é cortada) e, ao montar depois da lista, troca o tipo de rolagem
           // registrado de "rolável" para "vista", e a folha passa a arrastar em vez de rolar.
-          <View collapsable={false} style={[styles.content, styles.tall]}>{children}</View>
+          <View ref={contentRef} collapsable={false} style={[styles.content, styles.tall]}>{children}</View>
         ) : (
-          <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + space.md }]}>{children}</BottomSheetView>
+          <BottomSheetView {...contentRefProps} collapsable={false} style={[styles.content, { paddingBottom: insets.bottom + space.md }]}>{children}</BottomSheetView>
         )}
       </BottomSheet>
     </Animated.View>

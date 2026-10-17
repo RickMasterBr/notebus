@@ -15,6 +15,8 @@ export interface GhostInput {
   screenHeight: number;
   /** Índice em que a folha deveria estar (o `initialIndex`). */
   expectedIndex: number;
+  /** Retângulo medido na janela (`measureInWindow`); ausente ou `null` = sem medida, vale só posição e índice. */
+  measured?: { top: number; height: number } | null;
 }
 
 /** Espera, em ms, entre a folha voltar a ser a do topo e a conferência (e entre as tentativas de reparo). */
@@ -27,10 +29,14 @@ export function settledIndex(previous: number, next: number): number {
 
 /** Folha fora da tela: a posição está a menos de 4 px do fim da tela ou além dele. */
 const OFFSCREEN_MARGIN = 4;
+/** Folha medida: o topo a menos de 50 px do fim da tela já não mostra a folha. */
+const MEASURED_OFFSCREEN_MARGIN = 50;
 
-export function isGhostSuspect({ isTop, hasBeenCovered, position, index, screenHeight, expectedIndex }: GhostInput): boolean {
+export function isGhostSuspect({ isTop, hasBeenCovered, position, index, screenHeight, expectedIndex, measured }: GhostInput): boolean {
   if (!isTop || !hasBeenCovered) return false;
-  return position >= screenHeight - OFFSCREEN_MARGIN || index !== expectedIndex;
+  if (position >= screenHeight - OFFSCREEN_MARGIN || index !== expectedIndex) return true;
+  // A biblioteca diz "aberta" (E-09 bloco 29): confere o que está na tela de fato.
+  return !!measured && (measured.height <= 0 || measured.top >= screenHeight - MEASURED_OFFSCREEN_MARGIN);
 }
 
 export type RepairStep = "snap" | "remount" | "stop";

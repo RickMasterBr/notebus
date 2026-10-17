@@ -161,7 +161,7 @@ describe("commitQueue (FN-23)", () => {
 
     // Dentro de onValueChange, aguarda queue.enqueue(nextValue) e não commit(value) direto
     expect(
-      /const\s+nextValue\s*=\s*nextSwitchValue\(saved,\s*ref\.current\);\s*const\s+next\s*=\s*requestValue\(ref\.current,\s*nextValue\);\s*apply\(next\);\s*void\s*\(async\s*\(\)\s*=>\s*\{\s*try\s*\{\s*await\s+queue\.enqueue\(nextValue\);/.test(
+      /const\s+nextValue\s*=\s*nextSwitchValue\(saved,\s*ref\.current\);\s*const\s+next\s*=\s*requestValue\(ref\.current,\s*nextValue\);\s*apply\(next\);\s*void\s*\(async\s*\(\)\s*=>\s*\{\s*try\s*\{\s*(?:if\s*\(deferCommitMs\s*>\s*0\)\s*await\s+new\s+Promise<void>\(\(resolve\)\s*=>\s*setTimeout\(resolve,\s*deferCommitMs\)\);\s*)?await\s+queue\.enqueue\(nextValue\);/.test(
         norm,
       ),
     ).toBe(true);
