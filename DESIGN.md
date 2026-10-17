@@ -107,3 +107,11 @@ Mensagens que o Rick vê (confira o texto exato no catálogo antes de escrever o
 | `theme/tokens.test.ts` | Chaves iguais nos dois temas e valores revisados | `type`, `space`, `radius`, `minTouch`, `opacity` |
 
 A lista completa de defeitos e das lacunas sem guarda está em `docs/fase-6/regressoes.md` (privado).
+
+
+## 7. Fechar e botão <!-- provisório -->
+
+Duas regras do bloco 28 (texto provisório; o Rick aprova na revisão).
+
+- **Fechar:** folha com título usa o ✕ redondo na linha do título (decisão do Rick, 17/10); folha sem título usa o ✕ do handle; um só por folha (o guarda `singleCloseButton` continua valendo).
+- **Botão:** desativado só quando falta dado obrigatório ou no limite de um ajuste numérico; envio em andamento também desativa; nos demais casos o botão fica ativo e o erro aparece. Todo botão tem feedback de pressionado (`pressedStyle`, `ui/pressed.ts`) e alvo de pelo menos 44 pt (`hitSlopToMinTouch`, `ui/touch.ts`). Interruptor é sempre `NbSwitch`.
