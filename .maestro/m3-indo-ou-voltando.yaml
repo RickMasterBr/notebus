@@ -6,6 +6,15 @@ appId: com.rickmasterbr.notebus
 - launchApp:
     clearState: true
 
+# Sobe a folha da Início para revelar o cartão Arrabalde abaixo da dobra
+- swipe:
+    start: 50%, 65%
+    end: 50%, 20%
+- extendedWaitUntil:
+    visible:
+      text: "Arrabalde.*"
+    timeout: 8000
+
 # Abre o ponto Arrabalde a partir dos recentes
 - tapOn:
     text: "Arrabalde.*"
