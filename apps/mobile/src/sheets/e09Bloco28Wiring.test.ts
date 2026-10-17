@@ -72,4 +72,26 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
       });
     }
   });
+  describe("Item 3 · hitSlop até 44 pt, tamanho medido no estilo", () => {
+    const count = (code: string, piece: string) => code.split(piece).length - 1;
+    const casos: [string, string, number][] = [
+      ["sheets/OptionSheet.tsx", "hitSlop={hitSlopToMinTouch(28)} style={[styles.rangeToggleBtn", 2],
+      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }} style={[styles.stepperBtnSmall", 2],
+      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }} style={[styles.stepperBtnSmall", 2],
+      [
+        "sheets/OptionSheet.tsx",
+        "hitSlop={{ ...hitSlopToMinTouch(28), top: 2, bottom: 2, left: 2, right: 2 }} style={[ styles.lineOption,",
+        1,
+      ],
+      ["sheets/RecordSheet.tsx", "hitSlop={hitSlopToMinTouch(20)} style={styles.alightLink}", 1],
+      ["sheets/RecordSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(24), left: 4, right: 4 }} style={[ styles.modeButton,", 2],
+      ["sheets/PlaceSheet.tsx", "hitSlop={hitSlopToMinTouch(24)} style={[styles.cancelOriginButton]}", 1],
+      ["sheets/GotoSheet.tsx", "hitSlop={hitSlopToMinTouch(28)} style={[styles.originSelector,", 1],
+    ];
+    for (const [rel, piece, n] of casos) {
+      it(`${rel}: ${n}x ${piece}`, () => {
+        expect(count(squash(read(rel)), piece)).toBe(n);
+      });
+    }
+  });
 });

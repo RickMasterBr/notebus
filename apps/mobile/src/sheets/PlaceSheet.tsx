@@ -29,6 +29,7 @@ import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import type { SheetContent } from "./stack";
 import { pressedStyle } from "../ui/pressed";
+import { hitSlopToMinTouch } from "../ui/touch";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -425,6 +426,7 @@ export function PlaceSheet({
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setPickingOrigin(false)}
+                      hitSlop={hitSlopToMinTouch(24)}
                       style={[styles.cancelOriginButton]}
                     >
                       <Text style={[type.caption, { color: colors.textSecondary }]}>

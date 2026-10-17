@@ -77,6 +77,7 @@ import {
   weekdayPluralKey,
 } from "../data/alarmsUi";
 import { hasShownAlarmFocusHint, markAlarmFocusHintShown } from "../db/appState";
+import { hitSlopToMinTouch } from "../ui/touch";
 
 const START_INDEX = 0;
 const LAST_INDEX = 2;
@@ -653,7 +654,7 @@ export function GotoSheet({
                 accessibilityRole="button"
                 accessibilityLabel={`${t("sheet_goto.origin_change")}: ${originPlace?.name ?? ""}`}
                 onPress={() => setIsChoosingOrigin((v) => !v)}
-                hitSlop={space.xs}
+                hitSlop={hitSlopToMinTouch(28)}
                 style={[styles.originSelector, { backgroundColor: colors.fill }]}
               >
                 <PlaceIconGlyph icon={originPlace?.icon} color={colors.accent} size={16} />

@@ -33,6 +33,7 @@ import { useAlightPick, useSheets, useStopPick } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { pressedStyle } from "../ui/pressed";
+import { hitSlopToMinTouch } from "../ui/touch";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -568,6 +569,7 @@ export function OptionSheet({
                             setBoardPatternStopId("");
                             setAlightPatternStopId("");
                           }}
+                          hitSlop={{ ...hitSlopToMinTouch(28), top: 2, bottom: 2, left: 2, right: 2 }}
                           style={[
                             styles.lineOption,
                             isSelected && { borderColor: colors.accent, borderWidth: 2 },
@@ -644,6 +646,7 @@ export function OptionSheet({
                           setWalkToMax(null);
                         }
                       }}
+                      hitSlop={hitSlopToMinTouch(28)}
                       style={[styles.rangeToggleBtn, { backgroundColor: colors.fill }]}
                     >
                       <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
@@ -697,6 +700,7 @@ export function OptionSheet({
                             target: t("option.walk_to"),
                           })}
                           onPress={() => setWalkToMax((max) => (max !== null ? Math.max(walkToMin, max - 1) : walkToMin))}
+                          hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }}
                           style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
                         >
                           <MinusGlyph color={colors.text} />
@@ -707,6 +711,7 @@ export function OptionSheet({
                             target: t("option.walk_to"),
                           })}
                           onPress={() => setWalkToMax((max) => (max !== null ? max + 1 : walkToMin + 1))}
+                          hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }}
                           style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
                         >
                           <PlusGlyph color={colors.text} />
@@ -735,6 +740,7 @@ export function OptionSheet({
                           setWalkFromMax(null);
                         }
                       }}
+                      hitSlop={hitSlopToMinTouch(28)}
                       style={[styles.rangeToggleBtn, { backgroundColor: colors.fill }]}
                     >
                       <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
@@ -800,6 +806,7 @@ export function OptionSheet({
                             setWalkFromMax((max) => (max !== null ? Math.max(walkFromMin, max - 1) : walkFromMin));
                             setWalkFromEdited(true);
                           }}
+                          hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }}
                           style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
                         >
                           <MinusGlyph color={colors.text} />
@@ -813,6 +820,7 @@ export function OptionSheet({
                             setWalkFromMax((max) => (max !== null ? max + 1 : walkFromMin + 1));
                             setWalkFromEdited(true);
                           }}
+                          hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }}
                           style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
                         >
                           <PlusGlyph color={colors.text} />
