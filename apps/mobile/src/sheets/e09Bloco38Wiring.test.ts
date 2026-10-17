@@ -82,4 +82,16 @@ describe("E-09 Bloco 38 · seletores Maestro e resiliência do workflow e2e.yml"
     expect(uploadStep).toContain("path: maestro-debug/");
     expect(uploadStep).toContain("if-no-files-found: ignore");
   });
+
+  it('(d) m3-indo-ou-voltando.yaml não tem seletores exatos text: "Casa" nem text: "Facul" sem .*', () => {
+    const m3Content = readFileSync(join(repoRoot, ".maestro", "m3-indo-ou-voltando.yaml"), "utf8");
+    const lines = m3Content.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      expect(
+        /^\s*text:\s*"(?:Casa|Facul)"\s*$/.test(line),
+        `m3-indo-ou-voltando.yaml:${i + 1} contém seletor exato sem .*: ${line.trim()}`,
+      ).toBe(false);
+    }
+  });
 });

@@ -27,4 +27,4 @@ appId: com.rickmasterbr.notebus
     text: ".*Facul.*"
 
 - assertVisible:
-    text: "Casa"
+    text: ".*Casa.*"
