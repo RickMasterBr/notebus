@@ -595,7 +595,6 @@ export function SettingsSheet({ id }: { id: number }) {
                           placeholder={t("settings.name.placeholder")}
                           placeholderTextColor={colors.textSecondary}
                           accessibilityLabel={t("settings.name.label")}
-                          autoFocus
                           maxLength={24}
                           autoComplete="given-name"
                           style={[
