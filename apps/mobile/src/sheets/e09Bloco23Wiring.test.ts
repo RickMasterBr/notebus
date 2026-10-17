@@ -29,7 +29,11 @@ describe("E-09 bloco 23: folha fantasma (FN-14)", () => {
   it("o resultado de repairStep manda: snap reabre pela biblioteca, remount troca a key", () => {
     expect(checkBlock.includes("const step = repairStep(attempt);")).toBe(true);
     expect(checkBlock.includes('if (step === "snap") ref.current?.snapToIndex(expectedIndex, openConfig);')).toBe(true);
-    expect(checkBlock.includes('else if (step === "remount") setRevealKey((k) => k + 1);')).toBe(true);
+    expect(
+      checkBlock.includes(
+        'else if (step === "remount") { settledIndexRef.current = detents?.initialIndex ?? 0; setRevealKey((k) => k + 1); }',
+      ),
+    ).toBe(true);
   });
   it("o BottomSheet usa key={revealKey} e só anima ao montar com revealKey === 0", () => {
     expect(/<BottomSheet key=\{revealKey\} ref=\{ref\}/.test(stripped)).toBe(true);
@@ -52,5 +56,35 @@ describe("E-09 bloco 23: folha fantasma (FN-14)", () => {
       expect(at, frag).toBeGreaterThan(0);
       expect(stripped.slice(at - 17, at), frag).toBe("if (DIAG_SCROLL) ");
     }
+  });
+
+  it("o efeito inteiro: cobre, só segue se já foi coberta, depois agenda, e limpa o timer", () => {
+    const start = stripped.indexOf("useEffect(() => { if (!isTop) {");
+    expect(start, "efeito do detector").toBeGreaterThan(0);
+    expect(
+      stripped
+        .slice(start)
+        .startsWith(
+          "useEffect(() => { if (!isTop) { hasBeenCoveredRef.current = true; return; } if (!hasBeenCoveredRef.current) return; let timer: ReturnType<typeof setTimeout>; let attempt = 0; const check = () => {",
+        ),
+    ).toBe(true);
+    const tail = "timer = setTimeout(check, REVEAL_CHECK_MS); return () => clearTimeout(timer); }, [";
+    expect(stripped.indexOf(tail, start), "agenda e limpa").toBeGreaterThan(start);
+  });
+  it("REVEAL_CHECK_MS vem de ./ghostRepair (valor fixado no teste da regra)", () => {
+    expect(/import \{[^}]*\bREVEAL_CHECK_MS\b[^}]*\} from "\.\/ghostRepair";/.test(stripped)).toBe(true);
+    expect(/const REVEAL_CHECK_MS\b/.test(stripped)).toBe(false);
+  });
+  it("o índice esperado é o último assentado (settledIndexRef), escrito só em callback", () => {
+    const handle = /const handleChange = useCallback\(\(index: number\) => \{(.*?)\}, \[onChange\]\);/.exec(stripped)?.[1] ?? "";
+    const write = handle.indexOf("settledIndexRef.current = settledIndex(settledIndexRef.current, index);");
+    expect(write, "escrita em handleChange").toBeGreaterThanOrEqual(0);
+    expect(write).toBeLessThan(handle.indexOf("onChange?.(index)"));
+    const decl = checkBlock.indexOf("const expectedIndex = settledIndexRef.current;");
+    expect(decl, "leitura em check").toBeGreaterThan(0);
+    expect(decl).toBeLessThan(checkBlock.indexOf("const suspect = isGhostSuspect("));
+    expect(/const expectedIndex = detents/.test(stripped)).toBe(false);
+    expect(stripped.includes("const settledIndexRef = useRef(detents?.initialIndex ?? 0);")).toBe(true);
+    expect(stripped.match(/settledIndexRef\.current = /g)?.length).toBe(2);
   });
 });
