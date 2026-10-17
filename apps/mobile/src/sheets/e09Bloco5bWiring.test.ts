@@ -34,12 +34,12 @@ describe("E-09 Bloco 5b guardas de ligação (e09Bloco5bWiring)", () => {
 
     it("Repete todo ano: switchRow com paddingVertical e o <Switch> centrado", () => {
       expect(holiday).toMatch(/switchRow: \{[^}]*minHeight: minTouch,[^}]*paddingVertical: space\.sm,[^}]*\}/);
-      expect(holiday).toMatch(/<Switch accessibilityLabel=\{t\("holiday\.every_year"\)\} style=\{\{ alignSelf: "center" \}\}/);
+      expect(holiday).toMatch(/<NbSwitch accessibilityLabel=\{t\("holiday\.every_year"\)\} value=\{recurring\} onValueChange=\{setRecurring\}/);
     });
 
     it("Circular: switchRow com paddingVertical e o <Switch> centrado", () => {
       expect(edit).toMatch(/switchRow: \{[^}]*minHeight: minTouch, paddingVertical: space\.sm,[^}]*\}/);
-      expect(edit).toMatch(/<Switch accessibilityLabel=\{t\("line_create\.circular"\)\} style=\{\{ alignSelf: "center" \}\}/);
+      expect(edit).toMatch(/<NbSwitch accessibilityLabel=\{t\("line_create\.circular"\)\} value=\{state\.isCircular\} onValueChange=/);
     });
 
     it("Avisos em Ajustes: switchRow com o <NbSwitch>", () => {

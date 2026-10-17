@@ -14,7 +14,7 @@
 import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Switch, Text, View, useWindowDimensions } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   type SharedValue,
@@ -58,6 +58,7 @@ import { minTouch, radius, space, type, useTheme } from "../theme";
 import { Chip } from "../ui/Chip";
 import { CrossGlyph, DragHandleGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
+import { NbSwitch } from "../ui/NbSwitch";
 import { PickerModal } from "../ui/PickerModal";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets, useStopPick } from "./SheetsContext";
@@ -518,13 +519,10 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                   <Text style={[type.body, { color: colors.text, flex: 1 }]}>
                     {t("line_create.circular")}
                   </Text>
-                  <Switch
+                  <NbSwitch
                     accessibilityLabel={t("line_create.circular")}
-                    style={{ alignSelf: "center" }}
                     value={state.isCircular}
                     onValueChange={(val) => setState((prev) => ({ ...prev, isCircular: val }))}
-                    trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                    thumbColor={colors.surface}
                   />
                 </View>
 
