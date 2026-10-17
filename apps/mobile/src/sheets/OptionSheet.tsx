@@ -505,12 +505,11 @@ export function OptionSheet({
                 aria-checked={kind === "bus"}
                 accessibilityRole="button"
                 onPress={() => setKind("bus")}
-                style={[
+                style={({ pressed }) => [
                   styles.kindButton,
                   kind === "bus"
                     ? { backgroundColor: colors.accent }
-                    : { backgroundColor: colors.fill },
-                ]}
+                    : { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text
                   style={[
@@ -527,12 +526,11 @@ export function OptionSheet({
                 aria-checked={kind === "walk"}
                 accessibilityRole="button"
                 onPress={() => setKind("walk")}
-                style={[
+                style={({ pressed }) => [
                   styles.kindButton,
                   kind === "walk"
                     ? { backgroundColor: colors.accent }
-                    : { backgroundColor: colors.fill },
-                ]}
+                    : { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text
                   style={[
@@ -569,11 +567,10 @@ export function OptionSheet({
                             setBoardPatternStopId("");
                             setAlightPatternStopId("");
                           }}
-                          hitSlop={{ ...hitSlopToMinTouch(28), top: 2, bottom: 2, left: 2, right: 2 }}
-                          style={[
+                          hitSlop={{ ...hitSlopToMinTouch(28), top: space.xs, bottom: space.xs, left: space.xs, right: space.xs }}
+                          style={({ pressed }) => [
                             styles.lineOption,
-                            isSelected && { borderColor: colors.accent, borderWidth: 2 },
-                          ]}
+                            isSelected && { borderColor: colors.accent, borderWidth: 2 }, pressedStyle(pressed)]}
                         >
                           <LineBadge code={lInfo.code} color={lInfo.color} />
                         </Pressable>
@@ -591,7 +588,7 @@ export function OptionSheet({
                     accessibilityRole="button"
                     accessibilityLabel={`${t("option.field.boarding")}: ${boardStopName || t("option.pick_boarding.placeholder")}`}
                     onPress={handlePickBoarding}
-                    style={[styles.pickerButton, { backgroundColor: colors.fill }]}
+                    style={({ pressed }) => [styles.pickerButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                   >
                     <Text
                       style={[
@@ -614,11 +611,10 @@ export function OptionSheet({
                     accessibilityLabel={`${t("option.field.alight")}: ${alightStopName || t("option.pick_alight.placeholder")}`}
                     disabled={!boardInfo}
                     onPress={handlePickAlight}
-                    style={[
+                    style={({ pressed }) => [
                       styles.pickerButton,
                       { backgroundColor: colors.fill },
-                      !boardInfo && { opacity: 0.5 },
-                    ]}
+                      !boardInfo && { opacity: 0.5 }, pressedStyle(pressed, !boardInfo)]}
                   >
                     <Text
                       style={[
@@ -647,7 +643,7 @@ export function OptionSheet({
                         }
                       }}
                       hitSlop={hitSlopToMinTouch(28)}
-                      style={[styles.rangeToggleBtn, { backgroundColor: colors.fill }]}
+                      style={({ pressed }) => [styles.rangeToggleBtn, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                     >
                       <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
                         {walkToMax === null ? t("option.walk.range_button") : t("option.walk.no_range_button")}
@@ -661,7 +657,7 @@ export function OptionSheet({
                         target: t("option.walk_to"),
                       })}
                       onPress={() => setWalkToMin((m) => Math.max(0, m - 1))}
-                      style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
+                      style={({ pressed }) => [styles.stepperBtn, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                     >
                       <MinusGlyph color={colors.text} />
                     </Pressable>
@@ -684,7 +680,7 @@ export function OptionSheet({
                           return next;
                         });
                       }}
-                      style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
+                      style={({ pressed }) => [styles.stepperBtn, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                     >
                       <PlusGlyph color={colors.text} />
                     </Pressable>
@@ -701,7 +697,7 @@ export function OptionSheet({
                           })}
                           onPress={() => setWalkToMax((max) => (max !== null ? Math.max(walkToMin, max - 1) : walkToMin))}
                           hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }}
-                          style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
+                          style={({ pressed }) => [styles.stepperBtnSmall, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <MinusGlyph color={colors.text} />
                         </Pressable>
@@ -712,7 +708,7 @@ export function OptionSheet({
                           })}
                           onPress={() => setWalkToMax((max) => (max !== null ? max + 1 : walkToMin + 1))}
                           hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }}
-                          style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
+                          style={({ pressed }) => [styles.stepperBtnSmall, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <PlusGlyph color={colors.text} />
                         </Pressable>
@@ -741,7 +737,7 @@ export function OptionSheet({
                         }
                       }}
                       hitSlop={hitSlopToMinTouch(28)}
-                      style={[styles.rangeToggleBtn, { backgroundColor: colors.fill }]}
+                      style={({ pressed }) => [styles.rangeToggleBtn, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                     >
                       <Text style={[type.caption, { color: colors.accent, fontWeight: "600" }]}>
                         {walkFromMax === null ? t("option.walk.range_button") : t("option.walk.no_range_button")}
@@ -763,7 +759,7 @@ export function OptionSheet({
                         setWalkFromMin((m) => Math.max(0, m - 1));
                         setWalkFromEdited(true);
                       }}
-                      style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
+                      style={({ pressed }) => [styles.stepperBtn, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                     >
                       <MinusGlyph color={colors.text} />
                     </Pressable>
@@ -787,7 +783,7 @@ export function OptionSheet({
                         });
                         setWalkFromEdited(true);
                       }}
-                      style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
+                      style={({ pressed }) => [styles.stepperBtn, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                     >
                       <PlusGlyph color={colors.text} />
                     </Pressable>
@@ -807,7 +803,7 @@ export function OptionSheet({
                             setWalkFromEdited(true);
                           }}
                           hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }}
-                          style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
+                          style={({ pressed }) => [styles.stepperBtnSmall, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <MinusGlyph color={colors.text} />
                         </Pressable>
@@ -821,7 +817,7 @@ export function OptionSheet({
                             setWalkFromEdited(true);
                           }}
                           hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }}
-                          style={[styles.stepperBtnSmall, { backgroundColor: colors.fill }]}
+                          style={({ pressed }) => [styles.stepperBtnSmall, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <PlusGlyph color={colors.text} />
                         </Pressable>
@@ -846,7 +842,7 @@ export function OptionSheet({
                       target: t("common.walking"),
                     })}
                     onPress={() => setWalkMinutes((m) => Math.max(1, m - 1))}
-                    style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
+                    style={({ pressed }) => [styles.stepperBtn, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                   >
                     <MinusGlyph color={colors.text} />
                   </Pressable>
@@ -859,7 +855,7 @@ export function OptionSheet({
                       target: t("common.walking"),
                     })}
                     onPress={() => setWalkMinutes((m) => m + 1)}
-                    style={[styles.stepperBtn, { backgroundColor: colors.fill }]}
+                    style={({ pressed }) => [styles.stepperBtn, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                   >
                     <PlusGlyph color={colors.text} />
                   </Pressable>
@@ -980,7 +976,7 @@ const styles = StyleSheet.create({
   linesRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: space.xs,
+    gap: space.sm,
   },
   lineOption: {
     borderRadius: radius.sm,

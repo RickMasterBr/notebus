@@ -49,7 +49,7 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
   describe("Item 2 · feedback de pressionado na lista fechada", () => {
     const esperado: Record<string, number> = {
       "sheets/PlaceSheet.tsx": 2,
-      "sheets/OptionSheet.tsx": 3,
+      "sheets/OptionSheet.tsx": 20,
       "sheets/LineEditSheet.tsx": 2,
       "sheets/StopEditSheet.tsx": 2,
       "sheets/SettingsSheet.tsx": 4,
@@ -59,7 +59,7 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
       "sheets/LineDetailSheet.tsx": 1,
       "sheets/NetworkSheet.tsx": 1,
       "sheets/PlacesSheet.tsx": 1,
-      "sheets/RecordSheet.tsx": 1,
+      "sheets/RecordSheet.tsx": 11,
       "sheets/RouteSheet.tsx": 1,
       "sheets/VerifySheet.tsx": 1,
       "sheets/WhySheet.tsx": 1,
@@ -75,18 +75,18 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
   describe("Item 3 · hitSlop até 44 pt, tamanho medido no estilo", () => {
     const count = (code: string, piece: string) => code.split(piece).length - 1;
     const casos: [string, string, number][] = [
-      ["sheets/OptionSheet.tsx", "hitSlop={hitSlopToMinTouch(28)} style={[styles.rangeToggleBtn", 2],
-      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }} style={[styles.stepperBtnSmall", 2],
-      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }} style={[styles.stepperBtnSmall", 2],
+      ["sheets/OptionSheet.tsx", "hitSlop={hitSlopToMinTouch(28)} style={({ pressed }) => [styles.rangeToggleBtn", 2],
+      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), right: 3 }} style={({ pressed }) => [styles.stepperBtnSmall", 2],
+      ["sheets/OptionSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(36), left: 3 }} style={({ pressed }) => [styles.stepperBtnSmall", 2],
       [
         "sheets/OptionSheet.tsx",
-        "hitSlop={{ ...hitSlopToMinTouch(28), top: 2, bottom: 2, left: 2, right: 2 }} style={[ styles.lineOption,",
+        "hitSlop={{ ...hitSlopToMinTouch(28), top: space.xs, bottom: space.xs, left: space.xs, right: space.xs }} style={({ pressed }) => [ styles.lineOption,",
         1,
       ],
-      ["sheets/RecordSheet.tsx", "hitSlop={hitSlopToMinTouch(20)} style={styles.alightLink}", 1],
-      ["sheets/RecordSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(24), left: 4, right: 4 }} style={[ styles.modeButton,", 2],
+      ["sheets/RecordSheet.tsx", "hitSlop={hitSlopToMinTouch(20)} style={({ pressed }) => [styles.alightLink, pressedStyle(pressed)]}", 1],
+      ["sheets/RecordSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(24), left: 4, right: 4 }} style={({ pressed }) => [ styles.modeButton,", 2],
       ["sheets/PlaceSheet.tsx", "hitSlop={hitSlopToMinTouch(24)} style={[styles.cancelOriginButton]}", 1],
-      ["sheets/GotoSheet.tsx", "hitSlop={hitSlopToMinTouch(28)} style={[styles.originSelector,", 1],
+      ["sheets/GotoSheet.tsx", "hitSlop={hitSlopToMinTouch(28)} style={({ pressed }) => [styles.originSelector,", 1],
     ];
     for (const [rel, piece, n] of casos) {
       it(`${rel}: ${n}x ${piece}`, () => {

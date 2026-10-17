@@ -17,6 +17,7 @@ import { motion, radius, space, type, useTheme } from "../theme";
 import { useReduceMotion } from "../sheets/useReduceMotion";
 import { LineBadge } from "./LineBadge";
 import { shouldStackTripButtons } from "./stackFontScale";
+import { pressedStyle } from "./pressed";
 
 const DROP = 12;
 
@@ -74,7 +75,7 @@ export function TripCard({
         accessibilityHint={canList ? t("home.trip.a11y.open_list") : undefined}
         disabled={!canList}
         onPress={canList ? onOpenList : undefined}
-        style={styles.head}
+        style={({ pressed }) => [styles.head, pressedStyle(pressed, !canList)]}
       >
         {card.line ? <LineBadge code={card.line.code} color={card.line.color} /> : null}
         <View style={styles.titles}>
@@ -91,7 +92,7 @@ export function TripCard({
           <Pressable
             accessibilityRole="button"
             onPress={onAlight}
-            style={({ pressed }) => [styles.alight, stacked && styles.alightStacked, { backgroundColor: colors.accent }, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.alight, stacked && styles.alightStacked, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
           >
             <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("home.trip.alight_button")}</Text>
           </Pressable>
@@ -131,7 +132,7 @@ function TextAction({ label, color, onPress }: { label: string; color: string; o
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.textAction, pressedStyle(pressed)]}
     >
       <Text style={[type.subtitle, { color }]}>{label}</Text>
     </Pressable>
@@ -151,5 +152,4 @@ const styles = StyleSheet.create({
   alightStacked: { flex: 0 },
   spacer: { flex: 1 },
   textAction: { minHeight: 44, paddingHorizontal: 10, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  pressed: { opacity: 0.6 },
 });

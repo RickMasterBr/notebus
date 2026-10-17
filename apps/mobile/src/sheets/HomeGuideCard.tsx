@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { CrossGlyph } from "../ui/Glyphs";
+import { pressedStyle } from "../ui/pressed";
 
 export interface HomeGuideCardProps {
   kind: "line" | "register" | "mobilis";
@@ -49,7 +50,7 @@ export function HomeGuideCard({ kind, dismissible, onAction, onDismiss }: HomeGu
             accessibilityRole="button"
             accessibilityLabel={t("common.close")}
             onPress={onDismiss}
-            style={styles.closeButton}
+            style={({ pressed }) => [styles.closeButton, pressedStyle(pressed)]}
             hitSlop={space.xs}
           >
             <CrossGlyph color={colors.textSecondary} />
@@ -64,7 +65,7 @@ export function HomeGuideCard({ kind, dismissible, onAction, onDismiss }: HomeGu
         style={({ pressed }) => [
           styles.actionButton,
           { backgroundColor: colors.accent },
-          pressed && { opacity: 0.6 },
+          pressedStyle(pressed),
         ]}
       >
         <Text style={[type.bodyStrong, { color: colors.onAccent, textAlign: "center" }]}>

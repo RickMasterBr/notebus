@@ -78,6 +78,7 @@ import {
 } from "../data/alarmsUi";
 import { hasShownAlarmFocusHint, markAlarmFocusHintShown } from "../db/appState";
 import { hitSlopToMinTouch } from "../ui/touch";
+import { pressedStyle } from "../ui/pressed";
 
 const START_INDEX = 0;
 const LAST_INDEX = 2;
@@ -500,7 +501,7 @@ export function GotoSheet({
           accessibilityRole="button"
           accessibilityLabel={a11yLabel}
           onPress={() => openAhead(card.tripId, boardPos)}
-          style={({ pressed }) => [styles.cardTop, pressed && { opacity: 0.8 }]}
+          style={({ pressed }) => [styles.cardTop, pressedStyle(pressed)]}
         >
           <View style={styles.cardMain}>
             {/* Cabeçalho do cartão: Linha + sair às + chegada */}
@@ -550,7 +551,7 @@ export function GotoSheet({
               isAlarmOn
                 ? { backgroundColor: colors.accent }
                 : { borderColor: colors.divider, borderWidth: 1, backgroundColor: "transparent" },
-              pressed && { opacity: 0.7 },
+              pressedStyle(pressed),
             ]}
           >
             <Text style={[type.label, { color: isAlarmOn ? colors.onAccent : colors.text }]}>
@@ -570,7 +571,7 @@ export function GotoSheet({
                   sheet: { kind: "repeat", alarmId: cardAlarm.id },
                 })
               }
-              style={styles.repeatButton}
+              style={({ pressed }) => [styles.repeatButton, pressedStyle(pressed)]}
             >
               <Text style={[type.body, { color: colors.textSecondary }]}>
                 {alarmSummary(cardAlarm.weekdays, cardAlarm.validTo)}
@@ -655,7 +656,7 @@ export function GotoSheet({
                 accessibilityLabel={`${t("sheet_goto.origin_change")}: ${originPlace?.name ?? ""}`}
                 onPress={() => setIsChoosingOrigin((v) => !v)}
                 hitSlop={hitSlopToMinTouch(28)}
-                style={[styles.originSelector, { backgroundColor: colors.fill }]}
+                style={({ pressed }) => [styles.originSelector, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <PlaceIconGlyph icon={originPlace?.icon} color={colors.accent} size={16} />
                 <Text style={[type.body, { color: colors.text }]}>
@@ -677,9 +678,10 @@ export function GotoSheet({
                       key={p.id}
                       accessibilityRole="button"
                       onPress={() => void handleSelectOrigin(p.id)}
-                      style={[
+                      style={({ pressed }) => [
                         styles.originMenuItem,
                         isSelected && { backgroundColor: colors.fill },
+                        pressedStyle(pressed),
                       ]}
                     >
                       <PlaceIconGlyph icon={p.icon} color={colors.accent} size={18} />
@@ -726,7 +728,7 @@ export function GotoSheet({
                         });
                       }
                     }}
-                    style={[styles.addOptionButton, { backgroundColor: colors.fill }]}
+                    style={({ pressed }) => [styles.addOptionButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                   >
                     <PlusGlyph color={colors.text} />
                     <Text style={[type.bodyStrong, { color: colors.text }]}>

@@ -371,7 +371,7 @@ function RecordSheetLoaded({
                       dispatch({ type: "push", sheet: { kind: "record", observationId: pairedAlightRow.id } });
                     }}
                     hitSlop={hitSlopToMinTouch(20)}
-                    style={styles.alightLink}
+                    style={({ pressed }) => [styles.alightLink, pressedStyle(pressed)]}
                   >
                     <Text numberOfLines={1} style={[type.bodyStrong, { color: colors.accent, flex: 1 }]}>
                       {pairedAlightStopName} · {hhmm(lisbonWallClock(pairedAlightRow.observedAt).minute)}
@@ -395,12 +395,11 @@ function RecordSheetLoaded({
                 aria-checked={draft.kind === "boarded"}
                 accessibilityRole="button"
                 onPress={() => setDraft((curr) => ({ ...curr, kind: "boarded" }))}
-                style={[
+                style={({ pressed }) => [
                   styles.kindButton,
                   draft.kind === "boarded"
                     ? { backgroundColor: colors.accent }
-                    : { backgroundColor: colors.fill },
-                ]}
+                    : { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text
                   style={[
@@ -417,12 +416,11 @@ function RecordSheetLoaded({
                 aria-checked={draft.kind === "passed"}
                 accessibilityRole="button"
                 onPress={() => setDraft((curr) => ({ ...curr, kind: "passed" }))}
-                style={[
+                style={({ pressed }) => [
                   styles.kindButton,
                   draft.kind === "passed"
                     ? { backgroundColor: colors.accent }
-                    : { backgroundColor: colors.fill },
-                ]}
+                    : { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text
                   style={[
@@ -448,10 +446,9 @@ function RecordSheetLoaded({
                   aria-checked={draft.precision === "exact"}
                   onPress={() => setDraft((curr) => applyPrecision(curr, "exact"))}
                   hitSlop={{ ...hitSlopToMinTouch(24), left: 4, right: 4 }}
-                  style={[
+                  style={({ pressed }) => [
                     styles.modeButton,
-                    draft.precision === "exact" ? { backgroundColor: colors.surface } : null,
-                  ]}
+                    draft.precision === "exact" ? { backgroundColor: colors.surface } : null, pressedStyle(pressed)]}
                 >
                   <Text
                     style={[
@@ -470,10 +467,9 @@ function RecordSheetLoaded({
                   aria-checked={draft.precision === "range"}
                   onPress={() => setDraft((curr) => applyPrecision(curr, "range"))}
                   hitSlop={{ ...hitSlopToMinTouch(24), left: 4, right: 4 }}
-                  style={[
+                  style={({ pressed }) => [
                     styles.modeButton,
-                    draft.precision === "range" ? { backgroundColor: colors.surface } : null,
-                  ]}
+                    draft.precision === "range" ? { backgroundColor: colors.surface } : null, pressedStyle(pressed)]}
                 >
                   <Text
                     style={[
@@ -495,7 +491,7 @@ function RecordSheetLoaded({
               accessibilityRole="button"
               accessibilityLabel={t("sheet_record.time.aria", { time: timeLabel })}
               onPress={() => setShowPicker(true)}
-              style={[styles.timeDisplay, { backgroundColor: colors.fill }]}
+              style={({ pressed }) => [styles.timeDisplay, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
             >
               <View style={styles.timeDisplayInner}>
                 <Text
@@ -530,7 +526,7 @@ function RecordSheetLoaded({
                         styles.chip,
                         { backgroundColor: colors.fill },
                         isDisabled && { opacity: 0.35 },
-                        pressed && !isDisabled && { opacity: 0.7 },
+                        pressedStyle(pressed, isDisabled),
                       ]}
                     >
                       <Text style={[type.bodyStrong, styles.num, { color: colors.text }]}>{label}</Text>
@@ -552,7 +548,7 @@ function RecordSheetLoaded({
                         {
                           backgroundColor: isSelected ? colors.accent : colors.fill,
                         },
-                        pressed && { opacity: 0.7 },
+                        pressedStyle(pressed),
                       ]}
                     >
                       <Text
@@ -592,7 +588,7 @@ function RecordSheetLoaded({
             accessibilityRole="switch"
             accessibilityState={{ checked: draft.memory }}
             onPress={() => setDraft((curr) => ({ ...curr, memory: !curr.memory }))}
-            style={styles.switchRow}
+            style={({ pressed }) => [styles.switchRow, pressedStyle(pressed)]}
           >
             <View style={styles.switchLabels}>
               <Text style={[type.bodyStrong, { color: colors.text }]}>
@@ -635,7 +631,7 @@ function RecordSheetLoaded({
             onPress={handleDelete}
             style={({ pressed }) => [
               styles.deleteButton,
-              pressed && { opacity: 0.6 },
+              pressedStyle(pressed),
             ]}
           >
             <Text style={[type.bodyStrong, { color: colors.danger }]}>
