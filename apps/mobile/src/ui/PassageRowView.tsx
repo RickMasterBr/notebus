@@ -104,5 +104,4 @@ const styles = StyleSheet.create({
   right: { alignItems: "flex-end", gap: 2 },
   num: { fontVariant: ["tabular-nums"] },
   // Retorno de toque da linha de lista (4.4 §5.12, `nb-row`: opacidade), o mesmo valor do chip.
-  pressed: { opacity: 0.6 },
 });

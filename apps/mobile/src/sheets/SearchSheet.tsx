@@ -170,7 +170,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
             accessibilityRole="button"
             accessibilityLabel={t("search.recent.clear.a11y")}
             onPress={clearRecents}
-            style={styles.clearRecents}
+            style={({ pressed }) => [styles.clearRecents, pressedStyle(pressed)]}
           >
             <Text style={[type.label, { color: colors.accent }]}>{t("search.recent.clear")}</Text>
           </Pressable>
@@ -309,7 +309,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
                 setTerm("");
                 input.current?.focus();
               }}
-              style={styles.clear}
+              style={({ pressed }) => [styles.clear, pressedStyle(pressed)]}
             >
               <CrossGlyph color={colors.textSecondary} />
             </Pressable>

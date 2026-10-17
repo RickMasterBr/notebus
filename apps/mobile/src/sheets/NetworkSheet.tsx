@@ -784,9 +784,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: space.sm,
   },
-  rowPressed: {
-    opacity: 0.7,
-  },
   rowContent: {
     flex: 1,
     gap: 2,

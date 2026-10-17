@@ -138,7 +138,4 @@ const styles = StyleSheet.create({
   secondaryLabel: {
     textAlign: "center",
   },
-  pressed: {
-    opacity: 0.8,
-  },
 });

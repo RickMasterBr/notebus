@@ -11,6 +11,7 @@ import { applyStopUndo, undoForStopLocation } from "../data/mapPick";
 import { t } from "../i18n";
 import { MapPicker } from "../screens/MapPicker";
 import { minTouch, type, useTheme } from "../theme";
+import { pressedStyle } from "../ui/pressed";
 
 export function StopMapPick({ stopId }: { stopId: string }) {
   const { colors } = useTheme();
@@ -64,7 +65,7 @@ export function StopMapPick({ stopId }: { stopId: string }) {
         accessibilityRole="button"
         accessibilityLabel={t("map_pick.open.stop.a11y")}
         onPress={() => setPickerOpen(true)}
-        style={({ pressed }) => [styles.button, pressed && { opacity: 0.6 }]}
+        style={({ pressed }) => [styles.button, pressedStyle(pressed)]}
       >
         <Text style={[type.subtitle, { color: colors.accent }]}>
           {t("map_pick.open")}

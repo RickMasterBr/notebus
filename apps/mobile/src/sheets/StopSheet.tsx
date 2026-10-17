@@ -52,6 +52,7 @@ import { StopLocationOffer } from "./StopLocationOffer";
 import { StopMapPick } from "./StopMapPick";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { type Detent, activeSheet } from "./stack";
+import { pressedStyle } from "../ui/pressed";
 
 const DAY_TYPES: readonly DayTypeCode[] = ["weekday", "saturday", "sunday_holiday"];
 /** Detent em que a folha abre. P-09 §1: o pequeno é a resposta imediata, sem rolar. */
@@ -219,7 +220,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
                 accessibilityRole="button"
                 accessibilityLabel={t("declare.button")}
                 onPress={() => dispatch({ type: "push", sheet: { kind: "declare", stopId } })}
-                style={({ pressed }) => [styles.declareButton, { backgroundColor: colors.fill }, pressed && { opacity: 0.6 }]}
+                style={({ pressed }) => [styles.declareButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.accent }]}>{t("declare.button")}</Text>
               </Pressable>
@@ -229,7 +230,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
                 accessibilityRole="button"
                 accessibilityLabel={t("stop_edit.button")}
                 onPress={() => dispatch({ type: "push", sheet: { kind: "stopEdit", stopId } })}
-                style={({ pressed }) => [styles.declareButton, { backgroundColor: colors.fill }, pressed && { opacity: 0.6 }]}
+                style={({ pressed }) => [styles.declareButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.accent }]}>{t("stop_edit.button")}</Text>
               </Pressable>
@@ -282,7 +283,7 @@ export function StopSheet({ id, stopId, name }: { id: number; stopId: string; na
           <Pressable
             accessibilityRole="button"
             onPress={() => dispatch({ type: "push", sheet: { kind: "board", stopId } })}
-            style={({ pressed }) => [styles.registerButton, { backgroundColor: colors.accent }, pressed && { opacity: 0.6 }]}
+            style={({ pressed }) => [styles.registerButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
           >
             <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("sheet_stop.register_here")}</Text>
           </Pressable>

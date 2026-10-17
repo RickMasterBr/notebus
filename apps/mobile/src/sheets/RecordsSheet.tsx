@@ -212,7 +212,7 @@ const TripCardView = memo(function TripCardView({
         styles.tripCardContainer,
         {
           backgroundColor: isNow ? colors.highlight : colors.surface,
-          borderColor: isNow ? colors.accent : colors.divider,
+          borderColor: isNow ? colors.accent : colors.divider,
         },
         pressedStyle(pressed),
       ]}
@@ -447,7 +447,7 @@ const LineItemView = memo(function LineItemView({
           styles.lineItemContainer,
           {
             backgroundColor: colors.surface,
-            borderBottomColor: colors.divider,
+            borderBottomColor: colors.divider,
           },
           pressedStyle(pressed),
         ]}

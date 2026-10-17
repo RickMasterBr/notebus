@@ -118,7 +118,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  pressed: {
-    opacity: 0.6,
-  },
 });

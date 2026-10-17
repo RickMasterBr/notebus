@@ -43,6 +43,7 @@ import { STACK_FONT_SCALE } from "../ui/stackFontScale";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 /** Canvas: hora de 60 px (Item 7), ponto de 14, trilho de 4; o trilho passa pelo centro da coluna do ponto. */
 const TIME_WIDTH = AHEAD_TIME_WIDTH;
@@ -316,7 +317,7 @@ function GapRow({ count, open, stacked, onPress }: { count: number; open: boolea
       accessibilityLabel={t("terminal_detail.gap.a11y", { count })}
       accessibilityState={{ expanded: open }}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, styles.gapRow, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.row, styles.gapRow, pressedStyle(pressed)]}
     >
       {stacked ? null : <View style={{ width: TIME_WIDTH }} />}
       <View style={styles.dotColumn} />
@@ -343,7 +344,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: GAP, minHeight: 38 },
   gapRow: { minHeight: minTouch },
   // Retorno de toque da linha de lista (4.4 §5.12, `nb-row`: opacidade), o mesmo do `ListRow`.
-  pressed: { opacity: 0.6 },
   time: { width: TIME_WIDTH },
   dotColumn: { width: DOT_COLUMN, alignItems: "center" },
   dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3 },

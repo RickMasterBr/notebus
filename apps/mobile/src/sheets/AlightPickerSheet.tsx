@@ -167,6 +167,7 @@ export function AlightPickerSheet({
                       styles.row,
                       { borderBottomColor: colors.divider },
                       pressed && { backgroundColor: colors.fill },
+                      pressedStyle(pressed),
                     ]}
                   >
                     <View style={styles.rowText}>

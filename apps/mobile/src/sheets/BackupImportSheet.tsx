@@ -12,6 +12,7 @@ import { useBackup } from "../data/BackupProvider";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { StackedSheet, useCloseSheet } from "./StackedSheet";
+import { pressedStyle } from "../ui/pressed";
 
 export function BackupImportSheet({ id }: { id: number }) {
   return (
@@ -73,12 +74,12 @@ function Content() {
             confirmImport();
             close();
           }}
-          style={({ pressed }) => [styles.button, { backgroundColor: colors.accent }, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.button, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("backup.preview.import")}</Text>
         </Pressable>
       ) : null}
-      <Pressable accessibilityRole="button" onPress={cancel} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" onPress={cancel} style={({ pressed }) => [styles.textButton, pressedStyle(pressed)]}>
         <Text style={[type.subtitle, { color: colors.accent }]}>{t("backup.preview.cancel")}</Text>
       </Pressable>
     </View>
@@ -90,5 +91,4 @@ const styles = StyleSheet.create({
   text: { paddingBottom: space.sm },
   button: { minHeight: minTouch, borderRadius: radius.full, alignItems: "center", justifyContent: "center", paddingHorizontal: space.lg, marginTop: space.md },
   textButton: { minHeight: minTouch, alignItems: "center", justifyContent: "center", marginTop: space.xs },
-  pressed: { opacity: 0.6 },
 });

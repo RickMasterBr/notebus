@@ -40,6 +40,7 @@ import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { activeSheet } from "./stack";
 import { useSheets } from "./SheetsContext";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -189,7 +190,7 @@ function PastOverrideRow({
             swipeableMethods.close();
             onDelete();
           }}
-          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+          style={({ pressed }) => [styles.deleteButton, { backgroundColor: colors.danger }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
             {t("alarms.delete")}

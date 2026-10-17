@@ -33,6 +33,7 @@ import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -209,7 +210,7 @@ export function DeclareSheet({ id, stopId }: { id: number; stopId: string }) {
                       accessibilityRole="button"
                       accessibilityLabel={timeText ? t("declare.time.a11y", { time: timeText }) : t("declare.time.a11y_empty")}
                       onPress={openPicker}
-                      style={({ pressed }) => [styles.pickerRow, { backgroundColor: colors.fill, borderColor: colors.divider }, pressed && styles.pressed]}
+                      style={({ pressed }) => [styles.pickerRow, { backgroundColor: colors.fill, borderColor: colors.divider }, pressedStyle(pressed)]}
                     >
                       <Text
                         style={[timeText ? type.timeMd : type.body, styles.num, { color: timeText ? colors.text : colors.textSecondary }]}
@@ -276,7 +277,7 @@ export function DeclareSheet({ id, stopId }: { id: number; stopId: string }) {
                             accessibilityRole="button"
                             accessibilityLabel={t("declare.remove.a11y", { time: row.timeText, line: row.lineCode })}
                             onPress={() => void handleRemove(row)}
-                            style={({ pressed }) => [styles.removeButton, { backgroundColor: colors.fill }, pressed && { opacity: 0.6 }]}
+                            style={({ pressed }) => [styles.removeButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                           >
                             <Text style={[type.bodyStrong, { color: colors.danger }]}>{t("declare.remove.button")}</Text>
                           </Pressable>
@@ -301,12 +302,7 @@ export function DeclareSheet({ id, stopId }: { id: number; stopId: string }) {
               accessibilityState={{ disabled: !canSave }}
               disabled={!canSave}
               onPress={() => void handleSave()}
-              style={({ pressed }) => [
-                styles.saveButton,
-                { backgroundColor: colors.accent },
-                !canSave && styles.disabled,
-                pressed && canSave && styles.pressed,
-              ]}
+              style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.accent }, !canSave && styles.disabled, pressedStyle(pressed, !canSave)]}
             >
               <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("common.save")}</Text>
             </Pressable>
@@ -377,5 +373,4 @@ const styles = StyleSheet.create({
   saveButton: { minHeight: minTouch, borderRadius: radius.md, alignItems: "center", justifyContent: "center", paddingHorizontal: space.md },
   partialHint: { textAlign: "center" },
   disabled: { opacity: 0.4 },
-  pressed: { opacity: 0.6 },
 });

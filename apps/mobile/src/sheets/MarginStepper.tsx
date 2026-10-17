@@ -11,6 +11,7 @@ import { usePreferences } from "../data/PreferencesProvider";
 import { marginLimits } from "../data/settingsView";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
+import { pressedStyle } from "../ui/pressed";
 
 const DEBOUNCE_MS = 500;
 
@@ -76,12 +77,7 @@ export const MarginStepper = memo(function MarginStepper() {
           accessibilityLabel={t("settings.margin.less")}
           disabled={limits.atMin}
           onPress={() => handleStepMargin(-1)}
-          style={({ pressed }) => [
-            styles.stepperButton,
-            { backgroundColor: colors.fill },
-            limits.atMin && { opacity: 0.3 },
-            pressed && !limits.atMin && { opacity: 0.7 },
-          ]}
+          style={({ pressed }) => [styles.stepperButton, { backgroundColor: colors.fill }, limits.atMin && { opacity: 0.3 }, pressedStyle(pressed, limits.atMin)]}
         >
           <Text style={[type.title, { color: colors.text }]}>−</Text>
         </Pressable>
@@ -93,12 +89,7 @@ export const MarginStepper = memo(function MarginStepper() {
           accessibilityLabel={t("settings.margin.more")}
           disabled={limits.atMax}
           onPress={() => handleStepMargin(1)}
-          style={({ pressed }) => [
-            styles.stepperButton,
-            { backgroundColor: colors.fill },
-            limits.atMax && { opacity: 0.3 },
-            pressed && !limits.atMax && { opacity: 0.7 },
-          ]}
+          style={({ pressed }) => [styles.stepperButton, { backgroundColor: colors.fill }, limits.atMax && { opacity: 0.3 }, pressedStyle(pressed, limits.atMax)]}
         >
           <Text style={[type.title, { color: colors.text }]}>+</Text>
         </Pressable>

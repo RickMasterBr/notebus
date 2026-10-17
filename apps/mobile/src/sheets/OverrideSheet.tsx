@@ -36,6 +36,7 @@ import { PickerModal } from "../ui/PickerModal";
 import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -160,11 +161,7 @@ export function OverrideSheet({ id }: { id: number }) {
                 accessibilityRole="button"
                 accessibilityLabel={`${t("override.date")}: ${formatOverrideDate(dateString)}`}
                 onPress={() => setShowDatePicker(true)}
-                style={({ pressed }) => [
-                  styles.pickerRow,
-                  { backgroundColor: colors.fill, borderColor: colors.divider },
-                  pressed && { opacity: 0.7 },
-                ]}
+                style={({ pressed }) => [styles.pickerRow, { backgroundColor: colors.fill, borderColor: colors.divider }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.text }]}>
                   {formatOverrideDate(dateString)}
@@ -232,12 +229,7 @@ export function OverrideSheet({ id }: { id: number }) {
                 accessibilityLabel={t("override.save")}
                 disabled={selectedDayType === null || isSaving}
                 onPress={() => void handleSave()}
-                style={({ pressed }) => [
-                  styles.saveButton,
-                  { backgroundColor: colors.accent },
-                  (selectedDayType === null || isSaving) && { opacity: 0.4 },
-                  pressed && selectedDayType !== null && !isSaving && { opacity: 0.8 },
-                ]}
+                style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.accent }, (selectedDayType === null || isSaving) && { opacity: 0.4 }, pressedStyle(pressed, selectedDayType === null || isSaving || !(selectedDayType !== null && !isSaving))]}
               >
                 <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
                   {t("override.save")}
