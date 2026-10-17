@@ -22,6 +22,6 @@ describe("E-09 bloco 31: o efeito de revelação passa o motivo ao repairStep", 
   it('repairStep recebe o motivo como 2º argumento: reason ?? "posicao"', () => {
     const repair = calls.filter((c) => c.name === "repairStep");
     expect(repair).toHaveLength(1);
-    expect(repair[0].node.arguments.map(text)).toEqual(["attempt", 'reason ?? "posicao"']);
+    expect(repair[0]!.node.arguments.map(text)).toEqual(["attempt", 'reason ?? "posicao"']);
   });
 });

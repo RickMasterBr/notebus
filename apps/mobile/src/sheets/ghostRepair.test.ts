@@ -22,7 +22,7 @@ describe("isGhostSuspect", () => {
 
 describe("repairStep", () => {
   it("sequência: snap, remount, stop", () => {
-    expect([0, 1, 2, 3].map(repairStep)).toEqual(["snap", "remount", "stop", "stop"]);
+    expect([0, 1, 2, 3].map((n) => repairStep(n))).toEqual(["snap", "remount", "stop", "stop"]);
   });
 });
 
