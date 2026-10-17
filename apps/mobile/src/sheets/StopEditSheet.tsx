@@ -56,6 +56,7 @@ import { afterCreateActions, showUndoAfterSave } from "../data/stopCreateFlow";
 import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { useKeyboardHeight } from "./useKeyboardHeight";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -381,7 +382,7 @@ export function StopEditSheet({
                   accessibilityRole="button"
                   accessibilityLabel={t("common.close")}
                   onPress={close}
-                  style={styles.closeHitTarget}
+                  style={({ pressed }) => [styles.closeHitTarget, pressedStyle(pressed)]}
                 >
                   <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
                     <CrossGlyph color={colors.textSecondary} />
@@ -623,9 +624,10 @@ export function StopEditSheet({
               disabled={!view.canSave}
               accessibilityState={{ disabled: !view.canSave }}
               onPress={() => void handleSave()}
-              style={[
+              style={({ pressed }) => [
                 styles.saveButton,
                 { backgroundColor: colors.accent, opacity: !view.canSave ? 0.4 : 1 },
+                pressedStyle(pressed, !view.canSave),
               ]}
             >
               <Text style={[type.bodyStrong, { color: colors.onAccent }]}>

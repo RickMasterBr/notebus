@@ -14,7 +14,7 @@
 import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Switch, Text, View, useWindowDimensions } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   type SharedValue,
@@ -58,6 +58,7 @@ import { minTouch, radius, space, type, useTheme } from "../theme";
 import { Chip } from "../ui/Chip";
 import { CrossGlyph, DragHandleGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
+import { NbSwitch } from "../ui/NbSwitch";
 import { PickerModal } from "../ui/PickerModal";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets, useStopPick } from "./SheetsContext";
@@ -67,6 +68,7 @@ import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { useKeyboardHeight } from "./useKeyboardHeight";
 import type { DayTypeCode } from "@notebus/domain";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -382,7 +384,7 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                   accessibilityRole="button"
                   accessibilityLabel={t("common.close")}
                   onPress={close}
-                  style={styles.closeHitTarget}
+                  style={({ pressed }) => [styles.closeHitTarget, pressedStyle(pressed)]}
                 >
                   <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
                     <CrossGlyph color={colors.textSecondary} />
@@ -518,13 +520,10 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
                   <Text style={[type.body, { color: colors.text, flex: 1 }]}>
                     {t("line_create.circular")}
                   </Text>
-                  <Switch
+                  <NbSwitch
                     accessibilityLabel={t("line_create.circular")}
-                    style={{ alignSelf: "center" }}
                     value={state.isCircular}
                     onValueChange={(val) => setState((prev) => ({ ...prev, isCircular: val }))}
-                    trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                    thumbColor={colors.surface}
                   />
                 </View>
 
@@ -771,9 +770,10 @@ export function LineEditSheet({ id, initialStop }: { id: number; initialStop?: L
               disabled={!view.canSave}
               accessibilityState={{ disabled: !view.canSave }}
               onPress={() => void handleCreate()}
-              style={[
+              style={({ pressed }) => [
                 styles.saveButton,
                 { backgroundColor: colors.accent, opacity: !view.canSave ? 0.4 : 1 },
+                pressedStyle(pressed, !view.canSave),
               ]}
             >
               <Text style={[type.bodyStrong, { color: colors.onAccent }]}>

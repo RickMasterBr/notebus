@@ -23,6 +23,7 @@ import { useSkeletonVisible } from "../ui/useSkeletonVisible";
 import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -113,7 +114,7 @@ export function WhySheet({
                     accessibilityRole="button"
                     accessibilityLabel={t("common.close")}
                     onPress={close}
-                    style={styles.closeHitTarget}
+                    style={({ pressed }) => [styles.closeHitTarget, pressedStyle(pressed)]}
                   >
                     <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
                       <CrossGlyph color={colors.textSecondary} />

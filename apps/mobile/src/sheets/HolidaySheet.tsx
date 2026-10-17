@@ -12,7 +12,6 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -30,6 +29,7 @@ import { createSubmitGuard } from "../data/submitGuard";
 import { useToast } from "../data/ToastProvider";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
+import { NbSwitch } from "../ui/NbSwitch";
 import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
@@ -190,13 +190,10 @@ export function HolidaySheet({ id }: { id: number }) {
                 <Text style={[type.body, { color: colors.text, flex: 1 }]}>
                   {t("holiday.every_year")}
                 </Text>
-                <Switch
+                <NbSwitch
                   accessibilityLabel={t("holiday.every_year")}
-                  style={{ alignSelf: "center" }}
                   value={recurring}
                   onValueChange={setRecurring}
-                  trackColor={{ true: colors.accent, false: colors.switchTrackOff }}
-                  thumbColor={colors.surface}
                 />
               </View>
             </View>

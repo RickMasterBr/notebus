@@ -53,6 +53,8 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
+import { hitSlopToMinTouch } from "../ui/touch";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -301,7 +303,7 @@ function RecordSheetLoaded({
                 accessibilityRole="button"
                 accessibilityLabel={t("common.close")}
                 onPress={close}
-                style={styles.closeHitTarget}
+                style={({ pressed }) => [styles.closeHitTarget, pressedStyle(pressed)]}
               >
                 <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
                   <CrossGlyph color={colors.textSecondary} />
@@ -368,6 +370,7 @@ function RecordSheetLoaded({
                     onPress={() => {
                       dispatch({ type: "push", sheet: { kind: "record", observationId: pairedAlightRow.id } });
                     }}
+                    hitSlop={hitSlopToMinTouch(20)}
                     style={styles.alightLink}
                   >
                     <Text numberOfLines={1} style={[type.bodyStrong, { color: colors.accent, flex: 1 }]}>
@@ -444,6 +447,7 @@ function RecordSheetLoaded({
                   role="radio"
                   aria-checked={draft.precision === "exact"}
                   onPress={() => setDraft((curr) => applyPrecision(curr, "exact"))}
+                  hitSlop={{ ...hitSlopToMinTouch(24), left: 4, right: 4 }}
                   style={[
                     styles.modeButton,
                     draft.precision === "exact" ? { backgroundColor: colors.surface } : null,
@@ -465,6 +469,7 @@ function RecordSheetLoaded({
                   role="radio"
                   aria-checked={draft.precision === "range"}
                   onPress={() => setDraft((curr) => applyPrecision(curr, "range"))}
+                  hitSlop={{ ...hitSlopToMinTouch(24), left: 4, right: 4 }}
                   style={[
                     styles.modeButton,
                     draft.precision === "range" ? { backgroundColor: colors.surface } : null,
