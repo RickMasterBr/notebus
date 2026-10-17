@@ -4,6 +4,7 @@ import type { ReactNode, Ref } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { subline } from "../data/rowSubline";
 import { minTouch, space, type, useTheme } from "../theme";
+import { pressedStyle } from "./pressed";
 
 /**
  * Componente que renderiza uma linha padronizada de lista.
@@ -48,7 +49,7 @@ export function ListRow({
       style={({ pressed }) => [
         styles.row,
         { borderBottomColor: colors.divider },
-        pressed && onPress ? { opacity: 0.6 } : null,
+        pressedStyle(pressed, !onPress),
       ]}
     >
       {leading}

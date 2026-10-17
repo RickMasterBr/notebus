@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTestClock } from "../data/TestClockProvider";
 import { bannerA11yText, bannerText } from "../data/testClockPicker";
 import { type, useTheme } from "../theme";
+import { pressedStyle } from "./pressed";
 
 const BAND_HEIGHT = 28;
 
@@ -21,11 +22,7 @@ export function TestClockBanner() {
       accessibilityRole="button"
       accessibilityLabel={bannerA11yText(chosen)}
       onPress={turnOff}
-      style={({ pressed }) => [
-        styles.band,
-        { backgroundColor: colors.danger, minHeight: insets.top + BAND_HEIGHT, paddingTop: insets.top },
-        pressed && { opacity: 0.6 },
-      ]}
+      style={({ pressed }) => [styles.band, { backgroundColor: colors.danger, minHeight: insets.top + BAND_HEIGHT, paddingTop: insets.top }, pressedStyle(pressed)]}
     >
       <Text style={[type.label, styles.text, { color: colors.onAccent }]}>{bannerText(chosen)}</Text>
     </Pressable>

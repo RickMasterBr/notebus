@@ -14,6 +14,7 @@ import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { ConfidenceSeal } from "./ConfidenceSeal";
 import { LineBadge } from "./LineBadge";
+import { pressedStyle } from "./pressed";
 
 export function StopCardView({
   card,
@@ -57,7 +58,7 @@ export function StopCardView({
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, { borderColor: colors.divider }, pressed && { opacity: 0.6 }]}
+      style={({ pressed }) => [styles.card, { borderColor: colors.divider }, pressedStyle(pressed)]}
     >
       {body}
     </Pressable>

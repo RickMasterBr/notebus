@@ -41,14 +41,14 @@ export function pressablesWithoutFeedback(file: string, code = readFileSync(file
 const rel = (file: string) => relative(SRC, file).replace(/\\/g, "/");
 
 /** Exceções do bloco 32: cortina ou Pressable que já envolve componente com feedback próprio. Cada uma com motivo. */
-export const EXEMPT: { file: string; count: number; reason: string }[] = [];
+export const EXEMPT: { file: string; count: number; reason: string }[] = [
+  { file: "ui/NbSwitch.tsx", count: 1, reason: "interruptor tem animação própria (trilho e botão)" },
+  { file: "ui/RegisterButton.tsx", count: 1, reason: "feedback próprio especificado: encolhe para 96% (4.5 §2.5)" },
+  { file: "ui/PickerModal.tsx", count: 1, reason: "cortina: fundo invisível que só fecha a folha" },
+];
 
 /** Arquivos que o bloco 33 ainda cobre, com a quantidade de botões sem feedback (medição do bloco 32). Só pode descer; zero sai da lista. */
 export const PENDING_BLOCO_33: Record<string, number> = {
-  "screens/FirstRun.tsx": 2,
-  "screens/MapBackdrop.tsx": 1,
-  "screens/MapPicker.tsx": 2,
-  "screens/SettingsButton.tsx": 1,
   "sheets/AboutPage.tsx": 1,
   "sheets/AheadSheet.tsx": 1,
   "sheets/AlarmIntroSheet.tsx": 4,
@@ -80,17 +80,6 @@ export const PENDING_BLOCO_33: Record<string, number> = {
   "sheets/StopMapPick.tsx": 1,
   "sheets/StopSheet.tsx": 3,
   "sheets/VerifySheet.tsx": 4,
-  "ui/Chip.tsx": 1,
-  "ui/EmptyState.tsx": 2,
-  "ui/ListRow.tsx": 1,
-  "ui/NbSwitch.tsx": 1,
-  "ui/OfflineMapCard.tsx": 1,
-  "ui/PassageRowView.tsx": 2,
-  "ui/PickerModal.tsx": 2,
-  "ui/RegisterButton.tsx": 1,
-  "ui/SearchPill.tsx": 1,
-  "ui/StopCardView.tsx": 1,
-  "ui/TestClockBanner.tsx": 1,
 };
 
 describe("Feedback de toque em todo botão (bloco 32 e 33)", () => {

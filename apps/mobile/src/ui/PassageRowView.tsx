@@ -14,6 +14,7 @@ import { passageNotes, rowA11y, rowRangeText, rowTimeText } from "../data/stopDa
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { ConfidenceSeal } from "./ConfidenceSeal";
+import { pressedStyle } from "./pressed";
 
 /** Confiança alta ou média: horário em destaque (600); baixa ou só estimado: mais leve e em cinza (500). */
 const strong = (confidence: PassageRow["confidence"]) => confidence === "high" || confidence === "medium";
@@ -46,7 +47,7 @@ export function PassageRowView({
         accessibilityLabel={rowA11y(line, row)}
         accessibilityHint={t("sheet_stop.a11y.open_ahead")}
         onPress={onPress}
-        style={({ pressed }) => [styles.next, { backgroundColor: colors.highlight }, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.next, { backgroundColor: colors.highlight }, pressedStyle(pressed)]}
       >
         <View style={styles.middle}>
           <Text style={[type.timeMd, { color: colors.text }]}>{rowTimeText(row)}</Text>
@@ -75,11 +76,7 @@ export function PassageRowView({
       accessibilityLabel={rowA11y(line, row)}
       accessibilityHint={t("sheet_stop.a11y.open_ahead")}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        !last && { borderBottomColor: colors.divider, borderBottomWidth: StyleSheet.hairlineWidth },
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.row, !last && { borderBottomColor: colors.divider, borderBottomWidth: StyleSheet.hairlineWidth }, pressedStyle(pressed)]}
     >
       <View style={styles.middle}>
         <Text style={[type.timeMd, { color: timeColor, fontWeight: strong(row.confidence) ? "600" : "500" }]}>{rowTimeText(row)}</Text>

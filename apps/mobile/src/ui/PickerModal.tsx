@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
+import { pressedStyle } from "./pressed";
 
 export function PickerModal({
   visible,
@@ -37,7 +38,7 @@ export function PickerModal({
             accessibilityRole="button"
             accessibilityLabel={doneLabel}
             onPress={onDone}
-            style={[styles.doneButton, { backgroundColor: colors.fill }]}
+            style={({ pressed }) => [styles.doneButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
           >
             <Text style={[type.bodyStrong, { color: colors.text }]}>{doneLabel}</Text>
           </Pressable>

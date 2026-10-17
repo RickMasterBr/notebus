@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 import { t } from "../i18n";
 import { radius, space, type, useTheme } from "../theme";
+import { pressedStyle } from "../ui/pressed";
 
 /** O que o cartão mostra antes de o arquivo ser escolhido (a TL-13 da 4.5: "9 linhas … 01/09/2026"). */
 const MOBILIS_DETAIL = { count: 9, date: "01/09/2026" };
@@ -65,11 +66,7 @@ export function FirstRun({
           accessibilityRole="button"
           accessibilityState={{ busy: importing !== null }}
           onPress={startImport}
-          style={({ pressed }) => [
-            styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.accent, borderWidth: 1.5 },
-            pressed && { opacity: 0.6 },
-          ]}
+          style={({ pressed }) => [styles.card, { backgroundColor: colors.surface, borderColor: colors.accent, borderWidth: 1.5 }, pressedStyle(pressed)]}
         >
           <Text style={[type.caption, { color: colors.textSecondary }]}>{t("first_run.recommended")}</Text>
           <Text style={[type.bodyStrong, { color: colors.text }]}>{t("first_run.import_mobilis")}</Text>
@@ -93,11 +90,7 @@ export function FirstRun({
           accessibilityRole="button"
           accessibilityState={{ busy: starting }}
           onPress={startEmpty}
-          style={({ pressed }) => [
-            styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.divider, borderWidth: 1 },
-            pressed && { opacity: 0.6 },
-          ]}
+          style={({ pressed }) => [styles.card, { backgroundColor: colors.surface, borderColor: colors.divider, borderWidth: 1 }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: colors.text }]}>{t("first_run.start_empty")}</Text>
           <Text style={[type.caption, { color: colors.textSecondary }]}>{t("first_run.start_empty.detail")}</Text>

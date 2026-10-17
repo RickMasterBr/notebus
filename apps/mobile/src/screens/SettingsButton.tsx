@@ -11,6 +11,7 @@ import { useSheets } from "../sheets/SheetsContext";
 import { t } from "../i18n";
 import { minTouch, space, useTheme } from "../theme";
 import { GearGlyph } from "../ui/Glyphs";
+import { pressedStyle } from "../ui/pressed";
 
 /** A faixa vermelha cobre os 28 pt de cima (mais a área segura): a engrenagem desce para não ficar embaixo dela. */
 const BANNER_BAND = 28;
@@ -47,7 +48,7 @@ export function SettingsButton() {
         openedHere.current = true;
         dispatch({ type: "push", sheet: { kind: "settings" } });
       }}
-      style={({ pressed }) => [styles.button, { top: insets.top + space.sm + (chosen === null ? 0 : BANNER_BAND) }, pressed && { opacity: 0.6 }]}
+      style={({ pressed }) => [styles.button, { top: insets.top + space.sm + (chosen === null ? 0 : BANNER_BAND) }, pressedStyle(pressed)]}
     >
       <GearGlyph color={colors.textSecondary} />
     </Pressable>
