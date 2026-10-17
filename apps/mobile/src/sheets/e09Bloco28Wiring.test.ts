@@ -94,4 +94,23 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
       });
     }
   });
+  describe("Item 4 · locais salvos no topo da Busca", () => {
+    const search = squash(read("sheets/SearchSheet.tsx"));
+
+    it("savedPlacesOnSearch recebe term, pick, places.status e places.shortcuts.length", () => {
+      expect(search).toContain(
+        'savedPlacesOnSearch({ term, pick, placesReady: places.status === "ready", shortcutCount: places.shortcuts.length, })',
+      );
+    });
+
+    it("o resultado é consumido por .show ? e os atalhos vêm antes do corpo da busca", () => {
+      expect(search).toContain("{saved.show ? ( <View>");
+      expect(search.indexOf("{saved.show ? ( <View>")).toBeLessThan(search.indexOf("{saved.show ? <View"));
+    });
+
+    it("o toque abre o destino como no Início, com o mesmo ícone", () => {
+      expect(search).toContain("onPress={() => void openGotoOrNewOption(dispatch, places, place.id)}");
+      expect(search).toContain("<PlaceIconGlyph icon={place.icon}");
+    });
+  });
 });

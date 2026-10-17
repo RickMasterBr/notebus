@@ -7,15 +7,18 @@
 import { BottomSheetScrollView, BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { searchLines, searchStops } from "@notebus/domain";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePlaces } from "../data/PlacesProvider";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useToast } from "../data/ToastProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
 import { NEW_STOP_ID } from "../data/stopEdit";
 import { searchEmpty } from "../data/emptyStates";
+import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { matchedAlias } from "../data/matchedAlias";
+import { savedPlacesOnSearch } from "../data/savedPlacesOnSearch";
 import { searchPanel } from "../data/searchPanel";
 import { searchView } from "../data/searchResults";
 import type { StopEntry } from "../data/stopIndex";
@@ -25,9 +28,10 @@ import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import { minTouch, opacity, space, type, useTheme } from "../theme";
 import { EmptyState } from "../ui/EmptyState";
-import { CrossGlyph, SearchGlyph } from "../ui/Glyphs";
+import { CrossGlyph, PlaceIconGlyph, SearchGlyph } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { ListRow } from "../ui/ListRow";
+import { pressedStyle } from "../ui/pressed";
 import { pillStyles } from "../ui/SearchPill";
 import { Skeleton } from "../ui/Skeleton";
 import { useReorderTransition } from "../ui/useReorderTransition";
@@ -49,6 +53,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
   const toast = useToast();
   const index = useStopIndex();
   const recent = useRecentStops();
+  const places = usePlaces();
   const keyboard = useKeyboardHeight();
   const layout = useReorderTransition();
   const input = useRef<React.ComponentRef<typeof BottomSheetTextInput>>(null);
@@ -91,6 +96,12 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
     return recent.ids.flatMap((id) => byId.get(id) ?? []);
   }, [index, recent.ids]);
   const panel = searchPanel(term, recents.length);
+  const saved = savedPlacesOnSearch({
+    term,
+    pick,
+    placesReady: places.status === "ready",
+    shortcutCount: places.shortcuts.length,
+  });
   const lineResults = useMemo(() => searchLines(lines, term), [lines, term]);
   const view = searchView({
     term,
@@ -268,7 +279,7 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
   }
 
 
-  const isCentered = empty !== null || panel === "prompt";
+  const isCentered = (empty !== null || panel === "prompt") && !loading;
 
   return (
     <StackedSheet id={id} tall>
@@ -309,10 +320,39 @@ export function SearchSheet({ id, pick = false }: { id: number; pick?: boolean }
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
             { paddingBottom: Math.max(keyboard, insets.bottom) + space.md },
-            isCentered && !loading ? styles.centered : null,
+            saved.show ? styles.grow : isCentered ? styles.centered : null,
           ]}
         >
-          {body}
+          {saved.show ? (
+            <View>
+              <Text accessibilityRole="header" style={[type.label, styles.group, { color: colors.textSecondary }]}>
+                {t("places.title")}
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shortcutsStrip}>
+                {places.shortcuts.map((place) => (
+                  <Pressable
+                    key={place.id}
+                    accessibilityRole="button"
+                    accessibilityLabel={place.name}
+                    onPress={() => void openGotoOrNewOption(dispatch, places, place.id)}
+                    style={({ pressed }) => [styles.shortcutItem, pressedStyle(pressed)]}
+                  >
+                    <View style={[styles.shortcutCircle, { backgroundColor: colors.fill }]}>
+                      <PlaceIconGlyph icon={place.icon} color={colors.accent} size={24} />
+                    </View>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={[type.caption, { color: colors.text, fontWeight: "500", textAlign: "center" }]}
+                    >
+                      {place.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+          {saved.show ? <View style={isCentered ? styles.centered : null}>{body}</View> : body}
         </BottomSheetScrollView>
       </View>
     </StackedSheet>
@@ -332,5 +372,10 @@ const styles = StyleSheet.create({
   empty: { paddingHorizontal: space.md, paddingVertical: space.md },
   // Meio da área de resultados (a rolagem ocupa a folha toda; o conteúdo cresce até preencher e centraliza).
   centered: { flexGrow: 1, justifyContent: "center" },
+  grow: { flexGrow: 1 },
+  // Atalhos de lugares no topo (mesmas medidas da faixa do Início).
+  shortcutsStrip: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.md, paddingBottom: space.sm },
+  shortcutItem: { width: 68, alignItems: "center", gap: 6 },
+  shortcutCircle: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
   prompt: { textAlign: "center", paddingHorizontal: space.lg },
 });
