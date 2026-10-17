@@ -6,6 +6,14 @@ appId: com.rickmasterbr.notebus
 - launchApp:
     clearState: true
 
+# Espera o app abrir e a folha assentar antes do primeiro toque
+- extendedWaitUntil:
+    visible:
+      text: "Registrar.*"
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
+
 # Toca no atalho Facul
 - tapOn:
     text: "Facul"

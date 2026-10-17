@@ -10,7 +10,14 @@ const maestroDir = new URL("../../../../.maestro/", import.meta.url);
 const catalog = readFileSync(new URL("../i18n/pt-BR.ts", import.meta.url), "utf8");
 
 /** Nomes do seed de teste (rede mínima inventada, `testSeed`): não vêm do catálogo. */
-const SEED_TEXTS = ["Arrabalde", "Facul", "Casa", "Linha 1"];
+const SEED_TEXTS = [
+  "Arrabalde",
+  "Facul",
+  "Casa",
+  "Linha 1",
+  // Amostra de rótulo composto da linha de passagem (rowA11y)
+  "Linha 1, para Casa, às 10:00",
+];
 /** Amostras para os `{{nome}}` do catálogo. */
 const SAMPLES = ["Facul", "Arrabalde", "Casa", "Linha 1", "10:00"];
 

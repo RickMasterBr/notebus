@@ -36,8 +36,16 @@ appId: com.rickmasterbr.notebus
 - takeScreenshot: "02-ponto"
 
 # 3. TL-05 Daqui para a frente
+# A folha do ponto abre pequena: sobe a folha para a linha de passagem aparecer
+- swipe:
+    start: 50%, 68%
+    end: 50%, 20%
+- extendedWaitUntil:
+    visible:
+      text: "Linha 1, para Casa, .*"
+    timeout: 8000
 - tapOn:
-    text: ".*Linha 1.*"
+    text: "Linha 1, para Casa, .*"
 - assertVisible:
     text: "Daqui para a frente"
 - takeScreenshot: "03-daqui-para-a-frente"

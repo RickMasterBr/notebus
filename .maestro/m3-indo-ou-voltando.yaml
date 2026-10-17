@@ -6,6 +6,14 @@ appId: com.rickmasterbr.notebus
 - launchApp:
     clearState: true
 
+# Espera o app abrir e a folha assentar antes do primeiro toque
+- extendedWaitUntil:
+    visible:
+      text: "Registrar.*"
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
+
 # Sobe a folha da Início para revelar o cartão Arrabalde abaixo da dobra
 - swipe:
     start: 50%, 65%
@@ -23,9 +31,16 @@ appId: com.rickmasterbr.notebus
 - assertVisible:
     text: "Arrabalde.*"
 
-# Toca na viagem da Linha 1 no ponto
+# A folha do ponto abre pequena: sobe a folha para a linha de passagem aparecer
+- swipe:
+    start: 50%, 68%
+    end: 50%, 20%
+- extendedWaitUntil:
+    visible:
+      text: "Linha 1, para Casa, .*"
+    timeout: 8000
 - tapOn:
-    text: ".*Linha 1.*"
+    text: "Linha 1, para Casa, .*"
 
 # Confere a TL-05 aberta
 - assertVisible:
