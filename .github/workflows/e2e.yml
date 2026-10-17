@@ -46,9 +46,15 @@ jobs:
       - name: Inicializar Simulador iOS e Instalar App
         run: |
           # Inicializa o primeiro simulador disponível ou cria/inicia iPhone padrão
-          DEVICE_UDID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | awk -F '[()]' '{print $(NF-1)}')
+          DEVICE_UDID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | grep -oE '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}' | head -1)
+          if [ -z "$DEVICE_UDID" ]; then
+            echo "Nenhum simulador iPhone disponível encontrado. Simuladores disponíveis:"
+            xcrun simctl list devices available | head -n 40
+            exit 1
+          fi
           echo "Booting device: $DEVICE_UDID"
           xcrun simctl boot "$DEVICE_UDID" || true
+          xcrun simctl bootstatus "$DEVICE_UDID" -b
           APP_BUNDLE=$(find apps/mobile/ios/build/Build/Products/Release-iphonesimulator -name "*.app" | head -1)
           echo "Installing: $APP_BUNDLE"
           xcrun simctl install booted "$APP_BUNDLE"
