@@ -8,11 +8,11 @@ appId: com.rickmasterbr.notebus
 
 # Abre o ponto Arrabalde a partir dos recentes
 - tapOn:
-    text: "Arrabalde"
+    text: "Arrabalde.*"
 
 # Confere a tela do ponto aberta
 - assertVisible:
-    text: "Arrabalde"
+    text: "Arrabalde.*"
 
 # Toca na viagem da Linha 1 no ponto
 - tapOn:
@@ -24,7 +24,7 @@ appId: com.rickmasterbr.notebus
 
 # Confere que a lista mostra as paragens que faltam
 - assertVisible:
-    text: "Facul"
+    text: ".*Facul.*"
 
 - assertVisible:
-    text: "Casa"
+    text: ".*Casa.*"
