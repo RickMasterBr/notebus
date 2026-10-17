@@ -14,7 +14,7 @@ const SEED_TEXTS = ["Arrabalde", "Facul", "Casa", "Linha 1"];
 /** Amostras para os `{{nome}}` do catálogo. */
 const SAMPLES = ["Facul", "Arrabalde", "Casa", "Linha 1", "10:00"];
 
-const catalogValues = [...catalog.matchAll(/^\s*"[\w.]+":\s*"((?:[^"\\]|\\.)*)"/gm)].map((m) => m[1].replace(/\\"/g, '"'));
+const catalogValues = [...catalog.matchAll(/^\s*"[\w.]+":\s*"((?:[^"\\]|\\.)*)"/gm)].flatMap((m) => (m[1] === undefined ? [] : [m[1].replace(/\\"/g, '"')]));
 const candidates = [
   ...SEED_TEXTS,
   ...catalogValues.flatMap((value) =>
@@ -27,7 +27,7 @@ const isRegex = (value: string) => /[.*+?^${}()|[\]\\]/.test(value);
 const flows = readdirSync(maestroDir).filter((name) => name.endsWith(".yaml"));
 const texts = flows.flatMap((flow) => {
   const yaml = readFileSync(new URL(flow, maestroDir), "utf8").replace(/\r\n/g, "\n");
-  return [...yaml.matchAll(/^\s*(?:-\s*)?text:\s*"(.*)"\s*$/gm)].map((m) => ({ flow, value: m[1] }));
+  return [...yaml.matchAll(/^\s*(?:-\s*)?text:\s*"(.*)"\s*$/gm)].flatMap((m) => (m[1] === undefined ? [] : [{ flow, value: m[1] }]));
 });
 
 describe("E-09 bloco 26: textos dos fluxos Maestro", () => {
