@@ -567,7 +567,7 @@ export function OptionSheet({
                             setBoardPatternStopId("");
                             setAlightPatternStopId("");
                           }}
-                          hitSlop={{ ...hitSlopToMinTouch(28), top: 2, bottom: 2, left: 2, right: 2 }}
+                          hitSlop={{ ...hitSlopToMinTouch(28), top: space.xs, bottom: space.xs, left: space.xs, right: space.xs }}
                           style={({ pressed }) => [
                             styles.lineOption,
                             isSelected && { borderColor: colors.accent, borderWidth: 2 }, pressedStyle(pressed)]}
@@ -976,7 +976,7 @@ const styles = StyleSheet.create({
   linesRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: space.xs,
+    gap: space.sm,
   },
   lineOption: {
     borderRadius: radius.sm,
