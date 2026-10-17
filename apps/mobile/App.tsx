@@ -25,6 +25,7 @@ import { pickAndImport } from "./src/db/importFromFile";
 import { expoBackupStore, expoImportDb, openNotebusDb } from "./src/db/open";
 import { setSharedDb } from "./src/db/sharedDb";
 import { ensureUserNetwork, startEmpty } from "./src/db/startEmpty";
+import { isTestSeedEnabled } from "./src/db/testSeed";
 import { useAlarmLifecycle } from "./src/notifications/useAlarmLifecycle";
 import appJson from "./app.json";
 import { FirstRun } from "./src/screens/FirstRun";
@@ -42,6 +43,7 @@ export default function App() {
   const [db, setDb] = useState<Db | null>(null);
   const [phase, setPhase] = useState<Phase>("loading");
   const [migrationFailed, setMigrationFailed] = useState(false);
+  const [migrationDetail, setMigrationDetail] = useState<string | undefined>(undefined);
   const { fontScale } = useWindowDimensions();
   const [fontScaleState, setFontScaleState] = useState({ scale: fontScale, key: 0 });
   if (fontScaleState.scale !== fontScale) {
@@ -55,6 +57,7 @@ export default function App() {
       setDb(opened);
       if (migration.status === "failed") {
         setMigrationFailed(true);
+        setMigrationDetail(migration.error.message);
         // Instalação nova (versão 0): o banco voltou vazio, sem tabelas para ler. Só o aviso.
         if (migration.error.fromVersion === 0) return setPhase("read_only_empty");
       }
@@ -76,7 +79,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        {migrationFailed ? <MigrationNotice /> : null}
+        {migrationFailed ? <MigrationNotice detail={isTestSeedEnabled() ? migrationDetail : undefined} /> : null}
         {phase === "read_only_empty" ? null : phase === "first_run" ? (
           <FirstRun
             onImport={async (onCount) => {
