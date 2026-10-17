@@ -18,7 +18,7 @@ import { useSheets } from "./SheetsContext";
 import { activeSheet } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
-import { REVEAL_CHECK_MS, isGhostSuspect, repairStep, settledIndex } from "./ghostRepair";
+import { REVEAL_CHECK_MS, ghostReason, repairStep, settledIndex } from "./ghostRepair";
 import { realNow } from "../data/clock";
 
 const OPEN_MS = motion.normal; // 250
@@ -170,12 +170,13 @@ export function StackedSheet({
       const position = animatedPosition.value;
       const index = animatedIndex.value;
       const decide = (measured: { top: number; height: number } | null) => {
-        const suspect = isGhostSuspect({ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex, measured });
+        const reason = ghostReason({ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex, measured });
+        const suspect = reason !== null;
         if (DIAG_SCROLL) recordDiagEvent(`revela #${id} pos=${Math.round(position)} idx=${index} tela=${Math.round(screenHeight)} medido=${measured ? `top:${Math.round(measured.top)} h:${Math.round(measured.height)}` : "indisponivel"} suspeita=${suspect ? "sim" : "nao"}`);
         if (!suspect) return;
-        const step = repairStep(attempt);
+        const step = repairStep(attempt, reason ?? "posicao");
         attempt += 1;
-        if (DIAG_SCROLL) recordDiagEvent(`reparo #${id} ${step === "stop" ? "parou" : step}`);
+        if (DIAG_SCROLL) recordDiagEvent(`reparo #${id} ${step === "stop" ? "parou" : step} motivo=${reason}`);
         if (step === "snap") ref.current?.snapToIndex(expectedIndex, openConfig);
         else if (step === "remount") {
           settledIndexRef.current = detents?.initialIndex ?? 0;
