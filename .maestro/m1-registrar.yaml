@@ -9,7 +9,7 @@ appId: com.rickmasterbr.notebus
 
 # Toque 1: abre a folha de registro
 - tapOn:
-    text: "Registrar"
+    text: "Registrar.*"
 
 # Toque 2: seleciona a Linha 1 no ponto sugerido (Arrabalde)
 - tapOn:

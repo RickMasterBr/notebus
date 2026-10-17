@@ -10,6 +10,7 @@ import type { ImportDb } from "./importMobilis";
 import { testMigrationsFor } from "./testMigration";
 import { type BackupStore, type MigrationResult, migrateProtected } from "./migrate";
 import * as schema from "./schema";
+import { isTestSeedEnabled, seedTestDatabase } from "./testSeed";
 
 export const DB_NAME = "notebus.db";
 /** Lista das cópias (o expo-sqlite não lista arquivos). Arquivo à parte: restaurar o banco não o apaga. */
@@ -36,6 +37,13 @@ export async function openNotebusDb(): Promise<{
     // Só com a variável de build de teste (A6/A7); em build normal é lista vazia.
     migrations: [...migrations, ...testMigrationsFor(process.env.EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION)],
   });
+  if (migration.status !== "failed" && isTestSeedEnabled()) {
+    try {
+      await seedTestDatabase({ execAsync: (sql) => sqlite.execAsync(sql) });
+    } catch (err) {
+      console.warn("Falha ao rodar testSeed:", err);
+    }
+  }
   return { db: drizzle(sqlite, { schema }), migration };
 }
 

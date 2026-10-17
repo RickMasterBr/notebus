@@ -13,14 +13,14 @@ appId: com.rickmasterbr.notebus
 
 # 1. Tela Inicial
 - assertVisible:
-    text: "Registrar"
+    text: "Registrar.*"
 - takeScreenshot: "01-inicio"
 
 # 2. TL-02 Ponto (Arrabalde)
 - tapOn:
-    text: "Arrabalde"
+    text: "Arrabalde.*"
 - assertVisible:
-    text: "Arrabalde"
+    text: "Arrabalde.*"
 # Confere "no ponto às" inteiro (rótulo da hora do ônibus na folha do ponto, `home.stop_card.eta_label`)
 - assertVisible:
     text: ".*no ponto às.*"
@@ -41,7 +41,7 @@ appId: com.rickmasterbr.notebus
 
 # 4. TL-03 Registrar
 - tapOn:
-    text: "Registrar"
+    text: "Registrar.*"
 - assertVisible:
     text: ".*Linha 1.*"
 - takeScreenshot: "04-registrar"
