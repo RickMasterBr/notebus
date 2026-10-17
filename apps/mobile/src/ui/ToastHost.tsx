@@ -16,6 +16,7 @@ import { toastBottom } from "../data/toastPosition";
 import { useKeyboardHeight } from "../sheets/useKeyboardHeight";
 import { useReduceMotion } from "../sheets/useReduceMotion";
 import { CrossGlyph } from "./Glyphs";
+import { pressedStyle } from "./pressed";
 
 const RISE = 16;
 
@@ -80,7 +81,7 @@ export function ToastHost() {
             <Pressable
               accessibilityRole="button"
               onPress={press}
-              style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+              style={({ pressed }) => [styles.action, pressedStyle(pressed)]}
             >
               <Text style={[type.subtitle, { color: colors.toastAction }]}>{toast.action.label}</Text>
             </Pressable>
@@ -89,7 +90,7 @@ export function ToastHost() {
             <Pressable
               accessibilityRole="button"
               onPress={pressSecondary}
-              style={({ pressed }) => [styles.action, pressed && { opacity: 0.6 }]}
+              style={({ pressed }) => [styles.action, pressedStyle(pressed)]}
             >
               <Text style={[type.subtitle, { color: colors.toastAction }]}>{toast.secondaryAction.label}</Text>
             </Pressable>
@@ -99,7 +100,7 @@ export function ToastHost() {
               accessibilityRole="button"
               accessibilityLabel={t("toast.dismiss.a11y")}
               onPress={dismiss}
-              style={({ pressed }) => [styles.closeAction, pressed && { opacity: 0.6 }]}
+              style={({ pressed }) => [styles.closeAction, pressedStyle(pressed)]}
             >
               <CrossGlyph color={colors.toastText} />
             </Pressable>

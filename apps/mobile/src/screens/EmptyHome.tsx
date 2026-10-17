@@ -9,6 +9,7 @@ import { useSheets } from "../sheets/SheetsContext";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { PlaceIconGlyph, PlusGlyph } from "../ui/Glyphs";
+import { pressedStyle } from "../ui/pressed";
 
 export function EmptyHome() {
   const { colors } = useTheme();
@@ -23,7 +24,7 @@ export function EmptyHome() {
             accessibilityRole="button"
             accessibilityLabel={t("empty_home.dashed_casa")}
             onPress={() => dispatch({ type: "push", sheet: { kind: "place", initialName: t("empty_home.dashed_casa") } })}
-            style={({ pressed }) => [styles.shortcutItem, pressed && { opacity: 0.6 }]}
+            style={({ pressed }) => [styles.shortcutItem, pressedStyle(pressed)]}
           >
             <View style={[styles.shortcutCircle, { borderColor: colors.accent }]}>
               <PlaceIconGlyph icon="casa" color={colors.accent} size={24} />
@@ -37,7 +38,7 @@ export function EmptyHome() {
             accessibilityRole="button"
             accessibilityLabel={t("home.shortcut.add")}
             onPress={() => dispatch({ type: "push", sheet: { kind: "place" } })}
-            style={({ pressed }) => [styles.shortcutItem, pressed && { opacity: 0.6 }]}
+            style={({ pressed }) => [styles.shortcutItem, pressedStyle(pressed)]}
           >
             <View style={[styles.shortcutCircle, { borderColor: colors.textSecondary }]}>
               <PlusGlyph color={colors.textSecondary} />
@@ -56,7 +57,7 @@ export function EmptyHome() {
             accessibilityRole="button"
             accessibilityLabel={t("home.empty.action")}
             onPress={() => dispatch({ type: "push", sheet: { kind: "stopEdit", stopId: NEW_STOP_ID } })}
-            style={({ pressed }) => [styles.button, { backgroundColor: colors.accent }, pressed && { opacity: 0.6 }]}
+            style={({ pressed }) => [styles.button, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
           >
             <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("home.empty.action")}</Text>
           </Pressable>

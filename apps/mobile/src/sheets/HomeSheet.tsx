@@ -64,6 +64,7 @@ import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 import { containerHeightOf, detentMetrics, snapHeight } from "./scrollInset";
 import { detentFromIndex } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
+import { pressedStyle } from "../ui/pressed";
 
 const LAST_INDEX = 2;
 /** Altura do detent pequeno até a primeira medida (handle + pílula + margem de baixo). */
@@ -432,7 +433,7 @@ export function HomeSheet() {
                         accessibilityRole="button"
                         accessibilityLabel={place.name}
                         onPress={() => void openGotoOrNewOption(dispatch, places, place.id)}
-                        style={({ pressed }) => [styles.shortcutItem, pressed && { opacity: 0.6 }]}
+                        style={({ pressed }) => [styles.shortcutItem, pressedStyle(pressed)]}
                       >
                         <View style={[styles.shortcutCircle, { backgroundColor: colors.fill }]}>
                           <PlaceIconGlyph icon={place.icon} color={colors.accent} size={24} />
@@ -450,7 +451,7 @@ export function HomeSheet() {
                       accessibilityRole="button"
                       accessibilityLabel={t("home.shortcut.add")}
                       onPress={() => dispatch({ type: "push", sheet: { kind: "place" } })}
-                      style={({ pressed }) => [styles.shortcutItem, pressed && { opacity: 0.6 }]}
+                      style={({ pressed }) => [styles.shortcutItem, pressedStyle(pressed)]}
                     >
                       <View style={[styles.shortcutCircle, styles.addShortcutCircle, { borderColor: colors.textSecondary }]}>
                         <PlusGlyph color={colors.textSecondary} />
@@ -526,7 +527,7 @@ export function HomeSheet() {
                   }
                   style={({ pressed }) => [
                     styles.pendingRow,
-                    pressed && { opacity: 0.6 },
+                    pressedStyle(pressed),
                   ]}
                 >
                   <Text style={[type.body, { color: colors.textSecondary }]}>{pendingInfo.text}</Text>
@@ -548,7 +549,7 @@ export function HomeSheet() {
                   }
                   style={({ pressed }) => [
                     styles.allRecordsRow,
-                    pressed && { opacity: 0.6 },
+                    pressedStyle(pressed),
                   ]}
                 >
                   <Text style={[type.body, { color: colors.textSecondary }]}>{t("home.section.all_records")}</Text>
