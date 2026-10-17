@@ -18,16 +18,16 @@ describe("E-09 bloco 23: folha fantasma (FN-14)", () => {
     expect(checkBlock.length).toBeGreaterThan(0);
     expect(/timer = setTimeout\(check, REVEAL_CHECK_MS\);/.test(stripped)).toBe(true);
   });
-  it("isGhostSuspect recebe isTop e as leituras de animatedPosition/animatedIndex, dentro do callback", () => {
+  it("ghostReason recebe isTop e as leituras de animatedPosition/animatedIndex, dentro do callback", () => {
     expect(
-      /const suspect = isGhostSuspect\(\{ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex, measured \}\);/.test(checkBlock),
+      /const reason = ghostReason\(\{ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex, measured \}\);/.test(checkBlock),
     ).toBe(true);
     expect(checkBlock.includes("const position = animatedPosition.value;")).toBe(true);
     expect(checkBlock.includes("const index = animatedIndex.value;")).toBe(true);
     expect(checkBlock.includes("if (!suspect) return;")).toBe(true);
   });
   it("o resultado de repairStep manda: snap reabre pela biblioteca, remount troca a key", () => {
-    expect(checkBlock.includes("const step = repairStep(attempt);")).toBe(true);
+    expect(checkBlock.includes('const step = repairStep(attempt, reason ?? "posicao");')).toBe(true);
     expect(checkBlock.includes('if (step === "snap") ref.current?.snapToIndex(expectedIndex, openConfig);')).toBe(true);
     expect(
       checkBlock.includes(
@@ -82,7 +82,7 @@ describe("E-09 bloco 23: folha fantasma (FN-14)", () => {
     expect(write).toBeLessThan(handle.indexOf("onChange?.(index)"));
     const decl = checkBlock.indexOf("const expectedIndex = settledIndexRef.current;");
     expect(decl, "leitura em check").toBeGreaterThan(0);
-    expect(decl).toBeLessThan(checkBlock.indexOf("const suspect = isGhostSuspect("));
+    expect(decl).toBeLessThan(checkBlock.indexOf("const reason = ghostReason("));
     expect(/const expectedIndex = detents/.test(stripped)).toBe(false);
     expect(stripped.includes("const settledIndexRef = useRef(detents?.initialIndex ?? 0);")).toBe(true);
     expect(stripped.match(/settledIndexRef\.current = /g)?.length).toBe(2);
