@@ -75,6 +75,7 @@ import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
 import { useReduceMotion } from "./useReduceMotion";
 import { pressedStyle } from "../ui/pressed";
+import { hitSlopToMinTouch } from "../ui/touch";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -300,7 +301,12 @@ const PendingCardView = memo(function PendingCardView({
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.pendingCardContainer, { borderColor: colors.accent, backgroundColor: colors.highlight }]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${t("sheet_records.pending.check")}, ${row.stop.name}, ${row.time}`}
+      onPress={() => onCheck(row)}
+      style={({ pressed }) => [styles.pendingCardContainer, { borderColor: colors.accent, backgroundColor: colors.highlight }, pressedStyle(pressed)]}
+    >
       <View style={styles.pendingCardHeader}>
         <LineBadge code={row.line.code} color={row.line.color} />
         <View style={styles.pendingCardInfo}>
@@ -316,6 +322,7 @@ const PendingCardView = memo(function PendingCardView({
         <Pressable
           accessibilityRole="button"
           onPress={() => onCheck(row)}
+          hitSlop={hitSlopToMinTouch(36)}
           style={({ pressed }) => [styles.pendingButtonCheck, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
@@ -325,6 +332,7 @@ const PendingCardView = memo(function PendingCardView({
         <Pressable
           accessibilityRole="button"
           onPress={() => onDismiss(row)}
+          hitSlop={hitSlopToMinTouch(36)}
           style={({ pressed }) => [styles.pendingButtonUnsure, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: colors.accent }]}>
@@ -332,7 +340,7 @@ const PendingCardView = memo(function PendingCardView({
           </Text>
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 });
 
@@ -1164,14 +1172,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pendingButtonCheck: {
-    flex: 1,
-    height: minTouch,
+    height: 36,
+    paddingHorizontal: space.lg,
     borderRadius: radius.full,
     alignItems: "center",
     justifyContent: "center",
   },
   pendingButtonUnsure: {
-    height: minTouch,
+    height: 36,
     paddingHorizontal: space.md,
     borderRadius: radius.full,
     alignItems: "center",
