@@ -44,6 +44,7 @@ jobs:
             build
 
       - name: Inicializar Simulador iOS e Instalar App
+        id: sim
         run: |
           # Inicializa o primeiro simulador disponível ou cria/inicia iPhone padrão
           DEVICE_UDID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | grep -oE '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}' | head -1)
@@ -60,15 +61,19 @@ jobs:
           xcrun simctl install booted "$APP_BUNDLE"
 
       - name: M-1 (T-92) Registrar L1 na Arrabalde
+        if: ${{ !cancelled() && steps.sim.outcome == 'success' }}
         run: maestro test .maestro/m1-registrar.yaml
 
       - name: M-2 (T-93) Atalho Facul
+        if: ${{ !cancelled() && steps.sim.outcome == 'success' }}
         run: maestro test .maestro/m2-facul.yaml
 
       - name: M-3 (T-94) Está indo ou voltando?
+        if: ${{ !cancelled() && steps.sim.outcome == 'success' }}
         run: maestro test .maestro/m3-indo-ou-voltando.yaml
 
       - name: Dynamic Type (T-95) em 5 tamanhos
+        if: ${{ !cancelled() && steps.sim.outcome == 'success' }}
         run: |
           mkdir -p screenshots
           # 5 tamanhos requeridos: padrão do iOS (large), extra-large, accessibility-medium (AX1), accessibility-extra-large (AX3) e accessibility-extra-extra-extra-large (AX5)
@@ -82,6 +87,18 @@ jobs:
             # Move capturas geradas para a pasta do respectivo tamanho
             mv *.png "screenshots/$size/" 2>/dev/null || true
           done
+
+      - name: Copiar depuração do Maestro
+        if: always()
+        run: mkdir -p maestro-debug; cp -R ~/.maestro/tests/. maestro-debug/ 2>/dev/null || true
+
+      - name: Salvar depuração do Maestro como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-debug
+          path: maestro-debug/
+          if-no-files-found: ignore
 
       - name: Salvar capturas de tela como artefato
         if: always()
