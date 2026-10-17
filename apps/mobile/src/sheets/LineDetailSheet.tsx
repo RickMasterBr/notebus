@@ -231,11 +231,7 @@ export function LineDetailSheet({ id, lineId }: { id: number; lineId: string }) 
                             accessibilityRole="button"
                             accessibilityLabel={t("net.stop.a11y", { name: stop.name })}
                             onPress={() => handleStopPress(stop.stopId, stop.name)}
-                            style={({ pressed }) => [
-                              styles.stopRow,
-                              { borderBottomColor: colors.divider },
-                              pressed && styles.rowPressed,
-                            ]}
+                            style={({ pressed }) => [styles.stopRow, { borderBottomColor: colors.divider }, pressedStyle(pressed)]}
                           >
                             <Text
                               style={[
@@ -421,9 +417,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: space.sm,
-  },
-  rowPressed: {
-    opacity: 0.7,
   },
   stopNameRow: {
     flex: 1,

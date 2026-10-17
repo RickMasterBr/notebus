@@ -14,6 +14,7 @@ import { useToast } from "../data/ToastProvider";
 import { locationOffer, toStopLocationRecords } from "../data/stopLocationOffer";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
+import { pressedStyle } from "../ui/pressed";
 
 export function StopLocationOffer({ stopId }: { stopId: string }) {
   const { colors } = useTheme();
@@ -84,7 +85,7 @@ export function StopLocationOffer({ stopId }: { stopId: string }) {
           accessibilityRole="button"
           accessibilityLabel={t("stop.location_offer.save.a11y")}
           onPress={save}
-          style={({ pressed }) => [styles.button, pressed && { opacity: 0.6 }]}
+          style={({ pressed }) => [styles.button, pressedStyle(pressed)]}
         >
           <Text style={[type.subtitle, { color: colors.accent }]}>{t("stop.location_offer.save")}</Text>
         </Pressable>
@@ -92,7 +93,7 @@ export function StopLocationOffer({ stopId }: { stopId: string }) {
           accessibilityRole="button"
           accessibilityLabel={t("stop.location_offer.later.a11y")}
           onPress={later}
-          style={({ pressed }) => [styles.button, pressed && { opacity: 0.6 }]}
+          style={({ pressed }) => [styles.button, pressedStyle(pressed)]}
         >
           <Text style={[type.subtitle, { color: colors.textSecondary }]}>{t("stop.location_offer.later")}</Text>
         </Pressable>

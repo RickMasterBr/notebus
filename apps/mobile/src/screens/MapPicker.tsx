@@ -55,6 +55,7 @@ import {
   type,
   useTheme,
 } from "../theme";
+import { pressedStyle } from "../ui/pressed";
 
 export interface MapPickerProps {
   visible: boolean;
@@ -276,11 +277,7 @@ function MapPickerContent({
             accessibilityRole="button"
             accessibilityLabel={t("map_pick.cancel.a11y")}
             onPress={onCancel}
-            style={({ pressed }) => [
-              styles.button,
-              { backgroundColor: colors.fill },
-              pressed && { opacity: 0.6 },
-            ]}
+            style={({ pressed }) => [styles.button, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
           >
             <Text style={[type.bodyStrong, { color: colors.text }]}>
               {t("common.cancel")}
@@ -293,12 +290,7 @@ function MapPickerContent({
             accessibilityState={{ disabled: hasNoPin }}
             accessibilityHint={hasNoPin ? t("map_pick.confirm.needs_tap.a11y") : undefined}
             onPress={handleConfirm}
-            style={({ pressed }) => [
-              styles.button,
-              { backgroundColor: colors.accent },
-              hasNoPin && { opacity: opacity.muted },
-              pressed && !hasNoPin && { opacity: 0.6 },
-            ]}
+            style={({ pressed }) => [styles.button, { backgroundColor: colors.accent }, hasNoPin && { opacity: opacity.muted }, pressedStyle(pressed, hasNoPin)]}
           >
             <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
               {t("map_pick.confirm")}

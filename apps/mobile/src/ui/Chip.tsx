@@ -7,6 +7,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { type, useTheme } from "../theme";
+import { pressedStyle } from "./pressed";
 
 export function Chip({
   label,
@@ -36,13 +37,7 @@ export function Chip({
       accessibilityLabel={accessibilityLabel}
       hitSlop={{ top: 4, bottom: 4 }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
-        children ? styles.compact : null,
-        minWidth !== undefined && { minWidth },
-        { backgroundColor: filled ? colors.accent : colors.fill, borderColor: tone === "ring" && selected ? colors.text : "transparent" },
-        pressed && { opacity: 0.6 },
-      ]}
+      style={({ pressed }) => [styles.chip, children ? styles.compact : null, minWidth !== undefined && { minWidth }, { backgroundColor: filled ? colors.accent : colors.fill, borderColor: tone === "ring" && selected ? colors.text : "transparent" }, pressedStyle(pressed)]}
     >
       {label !== undefined ? (
         <Text style={[type.label, { color: filled ? colors.onAccent : colors.text }]}>{label}</Text>

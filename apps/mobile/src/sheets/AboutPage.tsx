@@ -13,6 +13,7 @@ import { getSharedDb } from "../db/sharedDb";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { ChevronRightGlyph } from "../ui/Glyphs";
+import { pressedStyle } from "../ui/pressed";
 
 const APP_VERSION = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? t("settings.about.build_unknown")})`;
 
@@ -130,11 +131,7 @@ function LinkRow({
       accessibilityHint={accessibilityHint}
       accessibilityState={expanded === undefined ? undefined : { expanded }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.link,
-        !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
-        pressed && { opacity: 0.6 },
-      ]}
+      style={({ pressed }) => [styles.link, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider }, pressedStyle(pressed)]}
     >
       <Text style={[type.body, styles.linkTitle, { color: colors.text }]}>{title}</Text>
       <ChevronRightGlyph color={colors.textSecondary} />

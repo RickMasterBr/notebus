@@ -16,6 +16,7 @@ import { minTouch, radius, space, type, useTheme } from "../theme";
 import { Chip } from "../ui/Chip";
 import { StackedSheet } from "./StackedSheet";
 import { useSheets } from "./SheetsContext";
+import { pressedStyle } from "../ui/pressed";
 
 const UNITS: { unit: PickerUnit; label: "test_clock.day" | "test_clock.hour" | "test_clock.minute" }[] = [
   { unit: "day", label: "test_clock.day" },
@@ -75,7 +76,7 @@ export function ClockPickerSheet({ id }: { id: number }) {
           clock.turnOn(wall);
           dispatch({ type: "close", id });
         }}
-        style={({ pressed }) => [styles.button, { backgroundColor: colors.accent, marginBottom: insets.bottom + space.md }, pressed && { opacity: 0.6 }]}
+        style={({ pressed }) => [styles.button, { backgroundColor: colors.accent, marginBottom: insets.bottom + space.md }, pressedStyle(pressed)]}
       >
         <Text style={[type.bodyStrong, { color: colors.onAccent }]}>{t("test_clock.turn_on")}</Text>
       </Pressable>

@@ -33,6 +33,7 @@ import { NbSwitch } from "../ui/NbSwitch";
 import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -167,11 +168,7 @@ export function HolidaySheet({ id }: { id: number }) {
                 accessibilityRole="button"
                 accessibilityLabel={`${t("holiday.date")}: ${formatOverrideDate(dateString)}`}
                 onPress={() => setShowDatePicker(true)}
-                style={({ pressed }) => [
-                  styles.pickerRow,
-                  { backgroundColor: colors.fill, borderColor: colors.divider },
-                  pressed && { opacity: 0.7 },
-                ]}
+                style={({ pressed }) => [styles.pickerRow, { backgroundColor: colors.fill, borderColor: colors.divider }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.text }]}>
                   {formatOverrideDate(dateString)}
@@ -205,12 +202,7 @@ export function HolidaySheet({ id }: { id: number }) {
                 accessibilityLabel={t("holiday.save")}
                 disabled={isSaving}
                 onPress={() => void handleSave()}
-                style={({ pressed }) => [
-                  styles.saveButton,
-                  { backgroundColor: colors.accent },
-                  isSaving && { opacity: 0.4 },
-                  pressed && !isSaving && { opacity: 0.8 },
-                ]}
+                style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.accent }, isSaving && { opacity: 0.4 }, pressedStyle(pressed, isSaving)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
                   {t("holiday.save")}
@@ -248,7 +240,7 @@ export function HolidaySheet({ id }: { id: number }) {
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => setShowDatePicker(false)}
-                    style={[styles.modalDoneButton, { backgroundColor: colors.fill }]}
+                    style={({ pressed }) => [styles.modalDoneButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                   >
                     <Text style={[type.bodyStrong, { color: colors.text }]}>
                       {t("alarm.repeat.done")}

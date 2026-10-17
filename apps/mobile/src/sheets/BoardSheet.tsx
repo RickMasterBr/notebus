@@ -36,6 +36,7 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets, useStopPick } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -148,11 +149,7 @@ export function BoardSheet({ id, stopId: initialStopId }: { id: number; stopId: 
               accessibilityRole="button"
               accessibilityLabel={stopName ? `${stopName}, ${t("sheet_board.change_stop.a11y")}` : t("sheet_board.pick_stop")}
               onPress={pickStop}
-              style={({ pressed }) => [
-                styles.stopBox,
-                { backgroundColor: colors.fill },
-                pressed && { opacity: 0.8 },
-              ]}
+              style={({ pressed }) => [styles.stopBox, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
             >
               <PinGlyph color={colors.accent} />
               {stopName ? (
@@ -216,7 +213,7 @@ function ChoiceRow({ choice, onPress }: { choice: BoardChoice; onPress: () => vo
         choice.highlighted
           ? { backgroundColor: colors.highlight, borderColor: colors.accent, borderWidth: 1.5 }
           : { borderColor: colors.divider, borderWidth: 1 },
-        pressed && { opacity: 0.6 },
+        pressedStyle(pressed),
       ]}
     >
       <LineBadge code={choice.code} color={choice.color} />

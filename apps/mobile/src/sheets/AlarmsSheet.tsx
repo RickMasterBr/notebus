@@ -56,6 +56,7 @@ import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { activeSheet } from "./stack";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -300,11 +301,7 @@ export function AlarmsSheet({ id }: { id: number }) {
                 accessibilityRole="button"
                 accessibilityLabel={t("alarms.test_button")}
                 onPress={() => void handleTestAlarm()}
-                style={({ pressed }) => [
-                  styles.testButton,
-                  { backgroundColor: colors.fill },
-                  pressed && { opacity: 0.7 },
-                ]}
+                style={({ pressed }) => [styles.testButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.text }]}>
                   {t("alarms.test_button")}
@@ -437,7 +434,7 @@ function AlarmListItem({
             swipeableMethods.close();
             onDelete();
           }}
-          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+          style={({ pressed }) => [styles.deleteButton, { backgroundColor: colors.danger }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
             {t("alarms.delete")}
@@ -455,11 +452,7 @@ function AlarmListItem({
           }
         }}
         onPress={onPress}
-        style={({ pressed }) => [
-          styles.alarmRow,
-          { borderBottomColor: colors.divider, backgroundColor: colors.bg },
-          pressed && { opacity: 0.7 },
-        ]}
+        style={({ pressed }) => [styles.alarmRow, { borderBottomColor: colors.divider, backgroundColor: colors.bg }, pressedStyle(pressed)]}
       >
         <Text style={[type.body, { color: colors.text, flex: 1 }]}>{lineText}</Text>
         <ChevronRightGlyph color={colors.textSecondary} />

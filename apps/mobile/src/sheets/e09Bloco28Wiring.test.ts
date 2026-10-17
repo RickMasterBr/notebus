@@ -48,20 +48,20 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
   });
   describe("Item 2 · feedback de pressionado na lista fechada", () => {
     const esperado: Record<string, number> = {
-      "sheets/PlaceSheet.tsx": 2,
+      "sheets/PlaceSheet.tsx": 11,
       "sheets/OptionSheet.tsx": 20,
-      "sheets/LineEditSheet.tsx": 2,
-      "sheets/StopEditSheet.tsx": 2,
-      "sheets/SettingsSheet.tsx": 4,
-      "sheets/RecordsSheet.tsx": 6,
+      "sheets/LineEditSheet.tsx": 11,
+      "sheets/StopEditSheet.tsx": 6,
+      "sheets/SettingsSheet.tsx": 10,
+      "sheets/RecordsSheet.tsx": 12,
       "sheets/SheetHandle.tsx": 1,
-      "sheets/AlightPickerSheet.tsx": 1,
-      "sheets/LineDetailSheet.tsx": 1,
-      "sheets/NetworkSheet.tsx": 1,
-      "sheets/PlacesSheet.tsx": 1,
+      "sheets/AlightPickerSheet.tsx": 2,
+      "sheets/LineDetailSheet.tsx": 2,
+      "sheets/NetworkSheet.tsx": 10,
+      "sheets/PlacesSheet.tsx": 4,
       "sheets/RecordSheet.tsx": 11,
-      "sheets/RouteSheet.tsx": 1,
-      "sheets/VerifySheet.tsx": 1,
+      "sheets/RouteSheet.tsx": 4,
+      "sheets/VerifySheet.tsx": 5,
       "sheets/WhySheet.tsx": 1,
     };
     for (const [rel, n] of Object.entries(esperado)) {
@@ -85,7 +85,7 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
       ],
       ["sheets/RecordSheet.tsx", "hitSlop={hitSlopToMinTouch(20)} style={({ pressed }) => [styles.alightLink, pressedStyle(pressed)]}", 1],
       ["sheets/RecordSheet.tsx", "hitSlop={{ ...hitSlopToMinTouch(24), left: 4, right: 4 }} style={({ pressed }) => [ styles.modeButton,", 2],
-      ["sheets/PlaceSheet.tsx", "hitSlop={hitSlopToMinTouch(24)} style={[styles.cancelOriginButton]}", 1],
+      ["sheets/PlaceSheet.tsx", "hitSlop={hitSlopToMinTouch(24)} style={({ pressed }) => [styles.cancelOriginButton, pressedStyle(pressed)]}", 1],
       ["sheets/GotoSheet.tsx", "hitSlop={hitSlopToMinTouch(28)} style={({ pressed }) => [styles.originSelector,", 1],
     ];
     for (const [rel, piece, n] of casos) {

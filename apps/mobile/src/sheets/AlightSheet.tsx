@@ -23,6 +23,7 @@ import { LineBadge } from "../ui/LineBadge";
 import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -163,7 +164,7 @@ function StopChoice({
         highlighted
           ? { backgroundColor: colors.highlight, borderColor: colors.accent, borderWidth: 1.5 }
           : { borderColor: colors.divider, borderWidth: 1 },
-        pressed && { opacity: 0.6 },
+        pressedStyle(pressed),
       ]}
     >
       <View style={styles.rowText}>

@@ -46,6 +46,7 @@ import { CheckGlyph } from "../ui/Glyphs";
 import { SheetHandle } from "./SheetHandle";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -247,11 +248,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
                     accessibilityState={{ selected: p.selected }}
                     accessibilityLabel={p.label}
                     onPress={() => void handleSelectPreset(p.key)}
-                    style={({ pressed }) => [
-                      styles.presetRow,
-                      { borderBottomColor: colors.divider },
-                      pressed && { opacity: 0.7 },
-                    ]}
+                    style={({ pressed }) => [styles.presetRow, { borderBottomColor: colors.divider }, pressedStyle(pressed)]}
                   >
                     <Text style={[type.body, { color: colors.text, flex: 1 }]}>{p.label}</Text>
                     {p.selected ? <CheckGlyph color={colors.accent} /> : null}
@@ -265,7 +262,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
                   accessibilityRole="button"
                   accessibilityLabel={t("alarm.repeat.back")}
                   onPress={() => setCustomMode(false)}
-                  style={({ pressed }) => [styles.backRow, pressed && { opacity: 0.7 }]}
+                  style={({ pressed }) => [styles.backRow, pressedStyle(pressed)]}
                 >
                   <Text style={[type.label, { color: colors.accent }]}>
                     {`← ${t("alarm.repeat.back")}`}
@@ -308,11 +305,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
                     accessibilityState={{ selected: alarm.validTo === null }}
                     accessibilityLabel={t("alarm.repeat.until_none")}
                     onPress={() => void handleUntilNone()}
-                    style={({ pressed }) => [
-                      styles.presetRow,
-                      { borderBottomColor: colors.divider },
-                      pressed && { opacity: 0.7 },
-                    ]}
+                    style={({ pressed }) => [styles.presetRow, { borderBottomColor: colors.divider }, pressedStyle(pressed)]}
                   >
                     <Text style={[type.body, { color: colors.text, flex: 1 }]}>
                       {t("alarm.repeat.until_none")}
@@ -330,11 +323,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
                         : t("alarm.repeat.until_date")
                     }
                     onPress={() => setShowDatePicker(true)}
-                    style={({ pressed }) => [
-                      styles.presetRow,
-                      { borderBottomColor: colors.divider },
-                      pressed && { opacity: 0.7 },
-                    ]}
+                    style={({ pressed }) => [styles.presetRow, { borderBottomColor: colors.divider }, pressedStyle(pressed)]}
                   >
                     <Text style={[type.body, { color: colors.text, flex: 1 }]}>
                       {alarm.validTo !== null
@@ -353,11 +342,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
                 accessibilityRole="button"
                 accessibilityLabel={t("alarm.repeat.done")}
                 onPress={close}
-                style={({ pressed }) => [
-                  styles.doneButton,
-                  { backgroundColor: colors.accent },
-                  pressed && { opacity: 0.8 },
-                ]}
+                style={({ pressed }) => [styles.doneButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
                   {t("alarm.repeat.done")}
@@ -396,7 +381,7 @@ export function RepeatSheet({ id, alarmId }: { id: number; alarmId: string }) {
                   <Pressable
                     accessibilityRole="button"
                     onPress={() => setShowDatePicker(false)}
-                    style={[styles.modalDoneButton, { backgroundColor: colors.fill }]}
+                    style={({ pressed }) => [styles.modalDoneButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                   >
                     <Text style={[type.bodyStrong, { color: colors.text }]}>
                       {t("alarm.repeat.done")}

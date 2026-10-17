@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { t } from "../i18n";
 import { radius, space, type, useTheme } from "../theme";
 import { useOfflineMap } from "../data/OfflineMapProvider";
+import { pressedStyle } from "./pressed";
 
 export function OfflineMapCard() {
   const { colors } = useTheme();
@@ -88,7 +89,7 @@ function TextAction({
       accessibilityRole="button"
       accessibilityLabel={a11yLabel ?? label}
       onPress={onPress}
-      style={({ pressed }) => [styles.textAction, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.textAction, pressedStyle(pressed)]}
     >
       <Text style={[type.subtitle, { color }]}>{label}</Text>
     </Pressable>
@@ -116,8 +117,5 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-  },
-  pressed: {
-    opacity: 0.6,
   },
 });

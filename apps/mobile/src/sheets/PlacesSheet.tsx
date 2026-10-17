@@ -126,11 +126,7 @@ function ShortcutCardItem({
           }
         }}
         onPress={onPress}
-        style={({ pressed }) => [
-          styles.card,
-          { backgroundColor: colors.fill },
-          pressed && { opacity: 0.8 },
-        ]}
+        style={({ pressed }) => [styles.card, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
       >
         <View style={styles.cardLeft}>
           <GestureDetector gesture={pan}>
@@ -204,11 +200,7 @@ export function PlacesSheet({ id }: { id: number }) {
         accessibilityRole="button"
         accessibilityLabel={`${place.name}, ${t("places.routes_to", { count: routesCount })}`}
         onPress={() => dispatch({ type: "push", sheet: { kind: "place", placeId: place.id } })}
-        style={({ pressed }) => [
-          styles.card,
-          { backgroundColor: colors.fill },
-          pressed && { opacity: 0.8 },
-        ]}
+        style={({ pressed }) => [styles.card, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
       >
         <View style={styles.cardLeft}>
           <PlaceIconGlyph icon={place.icon} color={colors.accent} size={22} />
@@ -298,7 +290,7 @@ export function PlacesSheet({ id }: { id: number }) {
                   accessibilityRole="button"
                   accessibilityLabel={t("places.new")}
                   onPress={() => dispatch({ type: "push", sheet: { kind: "place" } })}
-                  style={[styles.newButton, { backgroundColor: colors.fill }]}
+                  style={({ pressed }) => [styles.newButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                 >
                   <PlusGlyph color={colors.text} />
                   <Text style={[type.bodyStrong, { color: colors.text }]}>

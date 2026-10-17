@@ -123,7 +123,7 @@ const OptionRowItem = memo(function OptionRowItem({
             swipeableMethods.close();
             onDelete(option.id);
           }}
-          style={[styles.deleteButton, { backgroundColor: colors.danger }]}
+          style={({ pressed }) => [styles.deleteButton, { backgroundColor: colors.danger }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: "#FFFFFF" }]}>
             {t("option.delete")}
@@ -134,11 +134,7 @@ const OptionRowItem = memo(function OptionRowItem({
       <Pressable
         accessibilityRole="button"
         onPress={onPress}
-        style={({ pressed }) => [
-          styles.optionCard,
-          { backgroundColor: colors.fill },
-          pressed && { opacity: 0.8 },
-        ]}
+        style={({ pressed }) => [styles.optionCard, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
       >
         {option.kind === "bus" ? (
           <>
@@ -395,7 +391,7 @@ export function RouteSheet({ id, routeId }: { id: number; routeId: string }) {
                   sheet: { kind: "option", routeId: route.id },
                 });
               }}
-              style={[styles.addButton, { backgroundColor: colors.fill }]}
+              style={({ pressed }) => [styles.addButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
             >
               <PlusGlyph color={colors.text} />
               <Text style={[type.bodyStrong, { color: colors.text }]}>

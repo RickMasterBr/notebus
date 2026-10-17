@@ -5,6 +5,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { minTouch, radius, space, type, useTheme } from "../theme";
+import { pressedStyle } from "./pressed";
 
 export interface EmptyStateAction {
   label: string;
@@ -56,11 +57,7 @@ export function EmptyState({
           accessibilityRole="button"
           accessibilityLabel={action.label}
           onPress={action.onPress}
-          style={({ pressed }) => [
-            styles.actionButton,
-            { backgroundColor: colors.accent },
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.actionButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
         >
           <Text
             style={[type.bodyStrong, styles.actionLabel, { color: colors.onAccent }]}
@@ -75,10 +72,7 @@ export function EmptyState({
           accessibilityRole="button"
           accessibilityLabel={secondary.label}
           onPress={secondary.onPress}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            pressed && styles.pressed,
-          ]}
+          style={({ pressed }) => [styles.secondaryButton, pressedStyle(pressed)]}
         >
           <Text
             style={[type.bodyStrong, styles.secondaryLabel, { color: colors.accent }]}
@@ -143,8 +137,5 @@ const styles = StyleSheet.create({
   },
   secondaryLabel: {
     textAlign: "center",
-  },
-  pressed: {
-    opacity: 0.8,
   },
 });

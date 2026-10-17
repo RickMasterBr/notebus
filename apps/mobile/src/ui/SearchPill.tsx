@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-na
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
 import { SearchGlyph } from "./Glyphs";
+import { pressedStyle } from "./pressed";
 
 /** `ref` aponta para o botão: ao fechar a Busca, o foco do VoiceOver volta para ele. */
 export function SearchPill({ onPress, ref }: { onPress: () => void; ref?: Ref<View> }) {
@@ -20,7 +21,7 @@ export function SearchPill({ onPress, ref }: { onPress: () => void; ref?: Ref<Vi
         onPress={onPress}
         onPressIn={() => (scale.value = withTiming(0.96, { duration: 100 }))}
         onPressOut={() => (scale.value = withTiming(1, { duration: 100 }))}
-        style={[pillStyles.pill, { backgroundColor: colors.fill }]}
+        style={({ pressed }) => [pillStyles.pill, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
       >
         <SearchGlyph color={colors.textSecondary} />
         <Text style={[type.body, pillStyles.text, { color: colors.textSecondary }]}>{t("home.search_placeholder")}</Text>

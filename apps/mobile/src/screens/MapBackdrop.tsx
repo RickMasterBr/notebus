@@ -55,6 +55,7 @@ import { useReduceMotion } from "../sheets/useReduceMotion";
 import { elevation, minTouch, radius, space, useTheme } from "../theme";
 import { TargetGlyph } from "../ui/Glyphs";
 import type { MapOpening } from "@notebus/domain";
+import { pressedStyle } from "../ui/pressed";
 
 /** A faixa vermelha cobre 28 pt no topo (mais safe area). */
 const BANNER_BAND = 28;
@@ -475,15 +476,11 @@ export function MapBackdrop() {
           accessibilityRole="button"
           accessibilityLabel={t("map.locate.a11y")}
           onPress={handleLocate}
-          style={({ pressed }) => [
-            styles.locateButton,
-            {
+          style={({ pressed }) => [styles.locateButton, {
               top: insets.top + space.sm + bannerOffset + minTouch + space.sm,
               backgroundColor: colors.surface,
               borderColor: colors.divider,
-            },
-            pressed && { opacity: 0.6 },
-          ]}
+            }, pressedStyle(pressed)]}
         >
           <TargetGlyph color={colors.textSecondary} />
         </Pressable>
