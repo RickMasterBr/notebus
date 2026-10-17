@@ -74,6 +74,7 @@ export function TripCard({
         accessibilityLabel={headLabel}
         accessibilityHint={canList ? t("home.trip.a11y.open_list") : undefined}
         disabled={!canList}
+        hitSlop={{ top: 4, bottom: 4 }}
         onPress={canList ? onOpenList : undefined}
         style={({ pressed }) => [styles.head, pressedStyle(pressed, !canList)]}
       >
