@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { StyleSheet } from "react-native";
-import Animated, { interpolateColor, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { DIAG_SCROLL } from "../sheets/diagScroll";
 import { useReduceMotion } from "../sheets/useReduceMotion";
 import { useTheme } from "../theme";
-import { markSwitchDone, markSwitchEffect } from "./switchDiag";
+import { markSwitchEffect } from "./switchDiag";
 
 export const SWITCH_ANIM_MS = 180;
 export const SWITCH_THUMB_TRAVEL = 20;
@@ -17,11 +17,7 @@ export function AnimatedSwitchVisual({ on, offColor, diagLabel }: { on: boolean;
   useEffect(() => {
     const diag = DIAG_SCROLL && diagLabel ? diagLabel : null;
     if (diag) markSwitchEffect(diag);
-    progress.value = withTiming(
-      on ? 1 : 0,
-      { duration: reduceMotion ? 0 : SWITCH_ANIM_MS },
-      diag ? () => runOnJS(markSwitchDone)(diag, reduceMotion) : undefined,
-    );
+    progress.value = withTiming(on ? 1 : 0, { duration: reduceMotion ? 0 : SWITCH_ANIM_MS });
   }, [on, reduceMotion, progress, diagLabel]);
   const track = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(progress.value, [0, 1], [offColor ?? colors.divider, colors.accent]),

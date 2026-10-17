@@ -4,23 +4,24 @@ import { recordDiagEvent } from "../sheets/diagScroll";
 type Marks = { tap: number; render?: number; effect?: number };
 const marks = new Map<string, Marks>();
 
-/** Medição do toque até a animação do interruptor (E-09 bloco 29, item 1a). Só é chamada com DIAG_SCROLL. */
+/** Medição do toque até o efeito do interruptor (E-09 bloco 29, item 1a; bloco 30: sem callback de animação). Só é chamada com DIAG_SCROLL. */
 export function markSwitchTap(label: string) {
   marks.set(label, { tap: realNow() });
 }
 export function markSwitchRender(label: string) {
   const m = marks.get(label);
   if (m && m.render === undefined) m.render = realNow();
+  flushIfComplete(label);
 }
 export function markSwitchEffect(label: string) {
   const m = marks.get(label);
   if (m && m.effect === undefined) m.effect = realNow();
+  flushIfComplete(label);
 }
-// O efeito do visual (filho) roda antes do efeito do hook (pai) no mesmo commit: Y pode sair levemente negativo, então vai a 0.
-export function markSwitchDone(label: string, reduceMotion: boolean) {
+// O efeito do filho pode rodar antes do render do hook: a linha sai quando as duas marcas existem, em qualquer ordem.
+function flushIfComplete(label: string) {
   const m = marks.get(label);
   if (!m || m.render === undefined || m.effect === undefined) return;
   marks.delete(label);
-  const anim = reduceMotion ? 0 : realNow() - m.effect;
-  recordDiagEvent(`sw ${label} resumo toque>render=${m.render - m.tap}ms render>efeito=${Math.max(0, m.effect - m.render)}ms anim=${anim}ms`);
+  recordDiagEvent(`sw ${label} resumo toque>render=${m.render - m.tap}ms toque>efeito=${m.effect - m.tap}ms`);
 }
