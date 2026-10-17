@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type GhostInput, REVEAL_CHECK_MS, isGhostSuspect, repairStep, settledIndex } from "./ghostRepair";
+import { type GhostInput, REVEAL_CHECK_MS, ghostReason, isGhostSuspect, repairStep, settledIndex } from "./ghostRepair";
 
 const base: GhostInput = { isTop: true, hasBeenCovered: true, position: 300, index: 0, screenHeight: 800, expectedIndex: 0 };
 
@@ -22,7 +22,7 @@ describe("isGhostSuspect", () => {
 
 describe("repairStep", () => {
   it("sequência: snap, remount, stop", () => {
-    expect([0, 1, 2, 3].map(repairStep)).toEqual(["snap", "remount", "stop", "stop"]);
+    expect([0, 1, 2, 3].map((n) => repairStep(n))).toEqual(["snap", "remount", "stop", "stop"]);
   });
 });
 
@@ -56,5 +56,26 @@ describe("isGhostSuspect com medida (E-09 bloco 29)", () => {
     ["medida ruim, mas nunca coberta: nunca suspeita", { hasBeenCovered: false, measured: { top: 844, height: 0 } }, false],
   ])("%s", (_nome, patch, esperado) => {
     expect(isGhostSuspect({ ...base, ...patch })).toBe(esperado);
+  });
+});
+
+describe("ghostReason e repairStep com motivo (E-09 bloco 31)", () => {
+  const iphone: GhostInput = { ...base, position: 190, screenHeight: 844 };
+  it("só a medida acusa (caso do iPhone): medida", () => {
+    expect(ghostReason({ ...iphone, measured: { top: 935, height: 610 } })).toBe("medida");
+  });
+  it("posição fora da tela, mesmo com a medida acusando: posicao", () => {
+    expect(ghostReason({ ...iphone, position: 840, measured: { top: 935, height: 610 } })).toBe("posicao");
+  });
+  it("medida normal: null", () => {
+    expect(ghostReason({ ...iphone, measured: { top: 234, height: 610 } })).toBeNull();
+  });
+  it("medida: remount e depois stop, sem snap", () => {
+    expect(repairStep(0, "medida")).toBe("remount");
+    expect(repairStep(1, "medida")).toBe("stop");
+  });
+  it("sem motivo ou com posicao: snap primeiro", () => {
+    expect(repairStep(0)).toBe("snap");
+    expect(repairStep(0, "posicao")).toBe("snap");
   });
 });

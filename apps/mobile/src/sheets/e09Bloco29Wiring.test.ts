@@ -22,10 +22,10 @@ describe("E-09 bloco 29, item 1: interruptor de Feriados adia a gravação", () 
 });
 
 describe("E-09 bloco 29, item 2: o detector mede o que está na tela", () => {
-  it("o check mede a ref e o resultado alimenta isGhostSuspect({ measured })", () => {
+  it("o check mede a ref e o resultado alimenta ghostReason({ measured })", () => {
     expect(stacked).toMatch(/contentView\.measureInWindow\(\(_x, y, _w, height\) =>/);
     expect(stacked).toMatch(/\{ top: y, height \}/);
-    expect(stacked).toMatch(/isGhostSuspect\(\{[^}]*\bmeasured\b[^}]*\}\)/);
+    expect(stacked).toMatch(/ghostReason\(\{[^}]*\bmeasured\b[^}]*\}\)/);
   });
   it("a ref está nos dois ramos do conteúdo", () => {
     expect(stacked).toContain("<View ref={contentRef} collapsable={false}");
