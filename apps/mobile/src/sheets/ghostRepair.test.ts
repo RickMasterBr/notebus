@@ -43,3 +43,18 @@ describe("REVEAL_CHECK_MS", () => {
     expect(REVEAL_CHECK_MS).toBe(350);
   });
 });
+
+describe("isGhostSuspect com medida (E-09 bloco 29)", () => {
+  it.each<[string, Partial<GhostInput>, boolean]>([
+    ["posição normal e medida normal: não suspeita", { measured: { top: 190, height: 654 } }, false],
+    ["posição normal e medida fora da tela (caso do iPhone): suspeita", { measured: { top: 844, height: 654 } }, true],
+    ["posição normal e altura 0: suspeita", { measured: { top: 190, height: 0 } }, true],
+    ["topo a 50 px do fim da tela: suspeita", { measured: { top: 750, height: 50 } }, true],
+    ["topo a 51 px do fim da tela: não suspeita", { measured: { top: 749, height: 50 } }, false],
+    ["sem medida: como antes", {}, false],
+    ["medida null: como antes", { measured: null }, false],
+    ["medida ruim, mas nunca coberta: nunca suspeita", { hasBeenCovered: false, measured: { top: 844, height: 0 } }, false],
+  ])("%s", (_nome, patch, esperado) => {
+    expect(isGhostSuspect({ ...base, ...patch })).toBe(esperado);
+  });
+});

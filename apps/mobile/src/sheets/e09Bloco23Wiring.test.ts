@@ -20,7 +20,7 @@ describe("E-09 bloco 23: folha fantasma (FN-14)", () => {
   });
   it("isGhostSuspect recebe isTop e as leituras de animatedPosition/animatedIndex, dentro do callback", () => {
     expect(
-      /const suspect = isGhostSuspect\(\{ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex \}\);/.test(checkBlock),
+      /const suspect = isGhostSuspect\(\{ isTop, hasBeenCovered: true, position, index, screenHeight, expectedIndex, measured \}\);/.test(checkBlock),
     ).toBe(true);
     expect(checkBlock.includes("const position = animatedPosition.value;")).toBe(true);
     expect(checkBlock.includes("const index = animatedIndex.value;")).toBe(true);
