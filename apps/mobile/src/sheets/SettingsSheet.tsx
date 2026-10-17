@@ -96,6 +96,7 @@ import { useKeyboardHeight } from "./useKeyboardHeight";
 import { useOptimisticSwitch } from "../ui/useOptimisticSwitch";
 import { useReduceMotion } from "./useReduceMotion";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
+import { pressedStyle } from "../ui/pressed";
 
 const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_SHA ?? t("settings.about.build_unknown")})`;
 
@@ -563,7 +564,7 @@ export function SettingsSheet({ id }: { id: number }) {
                     accessibilityRole="button"
                     accessibilityLabel={t("settings.back.a11y")}
                       onPress={handleBack}
-                      style={styles.backButton}
+                      style={({ pressed }) => [styles.backButton, pressedStyle(pressed)]}
                     >
                       <View style={{ transform: [{ rotate: "180deg" }] }}>
                         <ChevronRightGlyph color={colors.accent} />
@@ -625,7 +626,7 @@ export function SettingsSheet({ id }: { id: number }) {
                           accessibilityRole="button"
                           accessibilityLabel={t("settings.name.save")}
                           onPress={handleSaveName}
-                          style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+                          style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
                         >
                           <Text style={[type.bodyStrong, { color: colors.onAccent, fontSize: 17 }]}>
                             {t("settings.name.save")}
@@ -862,7 +863,7 @@ export function SettingsSheet({ id }: { id: number }) {
                           accessibilityRole="button"
                           accessibilityLabel={t("settings.export_backup.a11y", { last: backupDays.text })}
                           onPress={backup.exportNow}
-                          style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+                          style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
                         >
                           <Text style={[type.bodyStrong, { color: colors.onAccent, fontSize: 17 }]}>
                             {t("settings.export_backup")}
@@ -877,7 +878,7 @@ export function SettingsSheet({ id }: { id: number }) {
                               if (picked) dispatch({ type: "push", sheet: { kind: "backupImport" } });
                             })
                           }
-                          style={[styles.fillButton, { backgroundColor: colors.fill }]}
+                          style={({ pressed }) => [styles.fillButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                         >
                           <Text style={[type.bodyStrong, { color: colors.text, fontSize: 17 }]}>
                             {t("settings.import_backup")}

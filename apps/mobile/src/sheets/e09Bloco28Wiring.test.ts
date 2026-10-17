@@ -46,4 +46,30 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
       expect(offenders).toEqual([]);
     });
   });
+  describe("Item 2 · feedback de pressionado na lista fechada", () => {
+    const esperado: Record<string, number> = {
+      "sheets/PlaceSheet.tsx": 2,
+      "sheets/OptionSheet.tsx": 3,
+      "sheets/LineEditSheet.tsx": 2,
+      "sheets/StopEditSheet.tsx": 2,
+      "sheets/SettingsSheet.tsx": 4,
+      "sheets/RecordsSheet.tsx": 6,
+      "sheets/SheetHandle.tsx": 1,
+      "sheets/AlightPickerSheet.tsx": 1,
+      "sheets/LineDetailSheet.tsx": 1,
+      "sheets/NetworkSheet.tsx": 1,
+      "sheets/PlacesSheet.tsx": 1,
+      "sheets/RecordSheet.tsx": 1,
+      "sheets/RouteSheet.tsx": 1,
+      "sheets/VerifySheet.tsx": 1,
+      "sheets/WhySheet.tsx": 1,
+    };
+    for (const [rel, n] of Object.entries(esperado)) {
+      it(`${rel} tem ${n} botão(ões) com pressedStyle`, () => {
+        const code = read(rel);
+        expect(code).toContain('import { pressedStyle } from "../ui/pressed";');
+        expect(code.match(/\(\{ pressed \}\) => \[[^]*?pressedStyle\(pressed[,)]/g)?.length).toBe(n);
+      });
+    }
+  });
 });

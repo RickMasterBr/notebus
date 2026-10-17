@@ -42,6 +42,7 @@ import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
 import { useKeyboardHeight } from "./useKeyboardHeight";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -463,7 +464,7 @@ export function NetworkSheet({ id }: { id: number }) {
               accessibilityRole="button"
               accessibilityLabel={t("common.close")}
               onPress={handleClose}
-              style={styles.closeHitTarget}
+              style={({ pressed }) => [styles.closeHitTarget, pressedStyle(pressed)]}
             >
               <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
                 <CrossGlyph color={colors.textSecondary} />

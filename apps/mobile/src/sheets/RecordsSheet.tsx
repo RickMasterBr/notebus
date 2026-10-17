@@ -74,6 +74,7 @@ import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
 import { useReduceMotion } from "./useReduceMotion";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -315,7 +316,7 @@ const PendingCardView = memo(function PendingCardView({
         <Pressable
           accessibilityRole="button"
           onPress={() => onCheck(row)}
-          style={[styles.pendingButtonCheck, { backgroundColor: colors.accent }]}
+          style={({ pressed }) => [styles.pendingButtonCheck, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
             {t("sheet_records.pending.check")}
@@ -324,7 +325,7 @@ const PendingCardView = memo(function PendingCardView({
         <Pressable
           accessibilityRole="button"
           onPress={() => onDismiss(row)}
-          style={styles.pendingButtonUnsure}
+          style={({ pressed }) => [styles.pendingButtonUnsure, pressedStyle(pressed)]}
         >
           <Text style={[type.bodyStrong, { color: colors.accent }]}>
             {t("sheet_records.pending.unsure")}
@@ -765,7 +766,7 @@ export function RecordsSheet({ id }: { id: number }) {
                   accessibilityRole="button"
                   accessibilityLabel={t("common.close")}
                   onPress={handleClose}
-                  style={styles.closeHitTarget}
+                  style={({ pressed }) => [styles.closeHitTarget, pressedStyle(pressed)]}
                 >
                   <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
                     <CrossGlyph color={colors.textSecondary} />
@@ -832,7 +833,7 @@ export function RecordsSheet({ id }: { id: number }) {
                         accessibilityRole="button"
                         accessibilityLabel={t("sheet_records.back.a11y")}
                         onPress={handleBack}
-                        style={styles.backButton}
+                        style={({ pressed }) => [styles.backButton, pressedStyle(pressed)]}
                       >
                         <View style={{ transform: [{ rotate: "180deg" }] }}>
                           <ChevronRightGlyph color={colors.accent} />
@@ -1027,7 +1028,7 @@ export function RecordsSheet({ id }: { id: number }) {
                               sheet: { kind: "verify", observationId: tripModel.verifyId! },
                             })
                           }
-                          style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+                          style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
                         >
                           <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
                             {t("sheet_records.pending.check")}
@@ -1039,7 +1040,7 @@ export function RecordsSheet({ id }: { id: number }) {
                       <Pressable
                         accessibilityRole="button"
                         onPress={handleDeleteFromPage}
-                        style={[styles.deleteTripButton, { backgroundColor: colors.fill }]}
+                        style={({ pressed }) => [styles.deleteTripButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
                       >
                         <Text style={[type.bodyStrong, { color: colors.danger }]}>
                           {t("sheet_records.page.delete")}

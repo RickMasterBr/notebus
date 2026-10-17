@@ -28,6 +28,7 @@ import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet
 import { placeFooterHeight, placeSheetFrame } from "./placeFrame";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
 import type { SheetContent } from "./stack";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -220,7 +221,7 @@ export function PlaceSheet({
                 accessibilityRole="button"
                 accessibilityLabel={t("common.close")}
                 onPress={close}
-                style={styles.closeHitTarget}
+                style={({ pressed }) => [styles.closeHitTarget, pressedStyle(pressed)]}
               >
                 <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
                   <CrossGlyph color={colors.textSecondary} />
@@ -479,7 +480,7 @@ export function PlaceSheet({
             <Pressable
               accessibilityRole="button"
               onPress={handleSave}
-              style={[styles.saveButton, { backgroundColor: colors.accent }]}
+              style={({ pressed }) => [styles.saveButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
             >
               <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
                 {t("common.save")}

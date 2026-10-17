@@ -9,6 +9,7 @@ import { t } from "../i18n";
 import { minTouch, space, useTheme } from "../theme";
 import { CrossGlyph } from "../ui/Glyphs";
 import type { Detent } from "./stack";
+import { pressedStyle } from "../ui/pressed";
 
 type Props =
   | {
@@ -85,7 +86,7 @@ function CloseButton({ onPress }: { onPress: () => void }) {
       accessibilityLabel={t("common.close")}
       hitSlop={space.xs}
       onPress={onPress}
-      style={styles.closeButton}
+      style={({ pressed }) => [styles.closeButton, pressedStyle(pressed)]}
     >
       <CrossGlyph color={colors.textSecondary} />
     </Pressable>

@@ -32,6 +32,7 @@ import { SheetHandle } from "./SheetHandle";
 import { useAlightPick, useSheets, useStopPick } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
+import { pressedStyle } from "../ui/pressed";
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
@@ -488,7 +489,7 @@ export function OptionSheet({
                 accessibilityRole="button"
                 accessibilityLabel={t("common.close")}
                 onPress={close}
-                style={styles.closeHitTarget}
+                style={({ pressed }) => [styles.closeHitTarget, pressedStyle(pressed)]}
               >
                 <View style={[styles.closeIconCircle, { backgroundColor: colors.fill }]}>
                   <CrossGlyph color={colors.textSecondary} />
@@ -892,7 +893,7 @@ export function OptionSheet({
               <Pressable
                 accessibilityRole="button"
                 onPress={handleSave}
-                style={[styles.primaryButton, { backgroundColor: colors.accent }]}
+                style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
               >
                 <Text style={[type.bodyStrong, { color: colors.onAccent }]}>
                   {t("common.save")}
@@ -903,7 +904,7 @@ export function OptionSheet({
                 <Pressable
                   accessibilityRole="button"
                   onPress={handleDelete}
-                  style={[styles.deleteButton]}
+                  style={({ pressed }) => [styles.deleteButton, pressedStyle(pressed)]}
                 >
                   <Text style={[type.bodyStrong, { color: colors.danger }]}>
                     {t("option.delete")}
