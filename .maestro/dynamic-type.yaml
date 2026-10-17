@@ -16,6 +16,15 @@ appId: com.rickmasterbr.notebus
     text: "Registrar.*"
 - takeScreenshot: "01-inicio"
 
+# Sobe a folha da Início para revelar o cartão Arrabalde abaixo da dobra
+- swipe:
+    start: 50%, 65%
+    end: 50%, 20%
+- extendedWaitUntil:
+    visible:
+      text: "Arrabalde.*"
+    timeout: 8000
+
 # 2. TL-02 Ponto (Arrabalde)
 - tapOn:
     text: "Arrabalde.*"
