@@ -11,7 +11,7 @@ App pessoal de caderno de horários de ônibus (MOBILIS, Leiria). iPhone primeir
 
 ## Toda sessão começa assim
 
-1. Ler **só** o bloco de inicialização de `docs/estado_diario_v1.md` (entre `<!-- BOOT_START -->` e `<!-- BOOT_END -->`; ex.: `sed -n '/BOOT_START/,/BOOT_END/p' docs/estado_diario_v1.md`). Não ler esse arquivo inteiro nem os V0 congelados (`docs/v0/ESTADO-ATUAL.md`, `docs/v0/diario.md`).
+1. Ler **só** o bloco de inicialização de `docs/estado_diario_v1.md` (entre `<!-- BOOT_START -->` e `<!-- BOOT_END -->`; ex.: `sed -n '/^<!-- BOOT_START -->/,/^<!-- BOOT_END -->/p' docs/estado_diario_v1.md`). Não ler esse arquivo inteiro nem os V0 congelados (`docs/v0/ESTADO-ATUAL.md`, `docs/v0/diario.md`).
 2. Ler o plano da etapa em curso: `docs/v0/planos/E-xx-*.md`.
 3. Ler o prompt do bloco: `docs/v0/fase-6/prompts/E-xx-bloco-N.md`.
 4. Ler `docs/banco-de-ideias-distribuicao.md` e listar as ideias cujo destino é a etapa em curso. Cada uma entra no plano ou fica fora com o motivo. Ideia nova vai para `docs/banco-de-ideias.md`, nunca direto para o código.
