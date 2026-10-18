@@ -1,6 +1,6 @@
 # AGENTS.md — NoteBus (regras para qualquer agente de código)
 
-Este arquivo vale para Antigravity, Codex ou qualquer ferramenta que não seja o Claude Code. As regras completas do projeto estão em `notebus-docs/docs/fase-6/CLAUDE.md`; leia-o também.
+Este arquivo vale para Antigravity, Codex ou qualquer ferramenta que não seja o Claude Code. As regras completas do projeto estão em `notebus-docs/docs/v0/fase-6/CLAUDE.md`; leia-o também.
 
 ## O projeto
 
@@ -55,10 +55,10 @@ Tabela por item: causa → arquivos mudados → teste → **como saber que passo
 
 ## Multiagente (Teamwork e /boost)
 
-Antes de pedir ou aceitar um Teamwork, leia `docs/ai/modos-de-execucao.md` (quando usar, orçamento, modelo de prompt). Ponto de partida de leitura: `docs/ai/mapa-para-agentes.md`. Teamwork e /boost seguem todas as regras acima. Agentes especialistas ficam em `.agents/agents/` e são só leitura, salvo pedido explícito.
+Antes de pedir ou aceitar um Teamwork, leia `docs/v0/ai/modos-de-execucao.md` (quando usar, orçamento, modelo de prompt). Ponto de partida de leitura: `docs/v0/ai/mapa-para-agentes.md`. Teamwork e /boost seguem todas as regras acima. Agentes especialistas ficam em `.agents/agents/` e são só leitura, salvo pedido explícito.
 
-Em Teamwork de implementação: edite **só** os arquivos da sua frente; arquivo compartilhado é do Lead; área protegida e teste existente não se mexem; não faça push, tag nem workflow `ios`; se precisar de algo fora da sua lista, pare e relate. O relatório segue o formato desta página. Regras completas: `docs/ai/modos-de-execucao.md`.
+Em Teamwork de implementação: edite **só** os arquivos da sua frente; arquivo compartilhado é do Lead; área protegida e teste existente não se mexem; não faça push, tag nem workflow `ios`; se precisar de algo fora da sua lista, pare e relate. O relatório segue o formato desta página. Regras completas: `docs/v0/ai/modos-de-execucao.md`.
 
 ## Modo Argon
 
-Se o bloco disser "Você é o Gemini 4 Argon" (o modelo não sabe sozinho qual é, só o bloco diz), leia e siga `docs/ai/modo-argon.md` antes de qualquer outra coisa: saída de no máximo 40 linhas, nunca despejar JSON ou arquivo inteiro no contexto, uma pergunta por bloco, relatório de no máximo 120 linhas.
+Se o bloco disser "Você é o Gemini 4 Argon" (o modelo não sabe sozinho qual é, só o bloco diz), leia e siga `docs/v0/ai/modo-argon.md` antes de qualquer outra coisa: saída de no máximo 40 linhas, nunca despejar JSON ou arquivo inteiro no contexto, uma pergunta por bloco, relatório de no máximo 120 linhas.
