@@ -1,85 +1,54 @@
-# NoteBus
+# NoteBus: Caderno Pessoal de Ônibus
+v0 (MVP) concluída
 
-## Visão Geral e Motivação
-O **NoteBus** é um caderno pessoal de horários de ônibus. O projeto nasceu da necessidade de gerenciar horários de transporte em intercâmbio em Leiria (Portugal). Inicialmente, o controle era feito através de anotações no WhatsApp para saber a que horas ir ao ponto nas semanas seguintes, devido às imprecisões e falta de edição dos aplicativos de transporte padrão.
+## O que é e por que existe
+O NoteBus nasceu para substituir anotações manuais no WhatsApp durante um intercâmbio. Ele é um aplicativo focado em permitir que o autor registre quando o ônibus passou e saiba rapidamente a que horas deve estar no ponto nos próximos dias.
 
-O NoteBus transforma essa necessidade em um aplicativo focado em três camadas:
-1. **Registrar:** Com um toque, registrar o momento exato em que o ônibus passou.
-2. **Aprender:** Calcular o horário real esperado a partir do histórico de registros.
-3. **Decidir:** Responder à pergunta "quero ir para X agora, qual a melhor opção", focando na instrução "esteja no ponto às HH:MM".
+## O que a v0 faz
+- **Registrar passagem:** anota o horário real em que o ônibus passou no ponto.
+- **Horário esperado:** calcula e exibe a expectativa com base nos registros passados.
+- **Ir para X:** seleção de locais salvos e apresentação das opções de trajetos.
+- **Aviso de saída:** notificações locais agendadas para alertar o horário de sair.
+- **Mapa e localização:** mapa offline com suporte à localização do usuário.
+- **Ajustes:** configurações gerais do aplicativo.
+- **Backup e Restauração:** exportação e importação de dados em formato JSON.
+- **Importação da semente:** carrega dados iniciais de um arquivo gerado separadamente.
+- **Tema:** suporte a tema claro e escuro.
 
-## Estado Atual
-O projeto concluiu o planejamento (Fases 0 a 5) e a etapa de fundação técnica (E-01). A base do aplicativo, incluindo configuração de banco de dados, migrações seguras, esquema de cores/tema e importador de dados via JSON estão prontos.
-As funcionalidades de produto finais (como "registrar passagem", "horário esperado", "ir para X" e "avisos") são etapas futuras e **não** estão implementadas no momento. Estão presentes apenas no roteiro. A validação em um iPhone físico é a próxima etapa imediata.
+## O que fica fora da v0
+- Versão Web (planejado)
+- Compartilhamento em rede/comunitário (planejado)
+- Sideload para Android publicado fora do CI (planejado)
 
-## Stack e Tecnologias
-O projeto adota uma arquitetura de monorepo (usando npm workspaces) contendo os seguintes módulos e tecnologias:
-- **Linguagem:** TypeScript
-- **App (Mobile):** React Native com Expo (SDK 57)
-- **Banco de Dados (Mobile):** Drizzle ORM e expo-sqlite (SQLite local)
-- **Testes:** Vitest (para domínio) e Maestro (para fluxos - TODO: confirmar implementação de testes Maestro no código base)
-- **CI/CD:** GitHub Actions para compilação (iOS sem assinatura e Android .apk) e execução de testes.
+## Como rodar
+**Pré-requisitos:** Node.js (versão 22) e npm.
+- `npm ci` para instalar as dependências.
+- `npm run typecheck` para validação de tipos em todo o projeto.
+- `npm run test` para rodar os testes.
+- `npm run start --workspace @notebus/mobile` para iniciar o Expo.
+- Para instalar no iOS, utilize a compilação gerada pelo CI e instale via SideStore.
 
-## Decisões Técnicas
-- **Independência de Interface:** As regras de negócio (domínio) vivem em um pacote TypeScript puro (`packages/domain`), independente do app (UI/React).
-- **Banco Local e Offline:** O aplicativo funciona totalmente offline. O banco de dados é SQLite (via `expo-sqlite` e Drizzle), sem a necessidade de um servidor de backend. Seus dados ficam armazenados localmente no seu aparelho.
-- **Migrações Seguras:** Há uma estrutura implementada para cópia de segurança antes de aplicar migrações e rollback para um "modo leitura" em caso de falha.
-- **Notificações:** O app terá notificações locais agendadas para avisos de saída, e incluirá um botão para registrar o embarque diretamente pela notificação (funcionalidade futura).
-- **Mapas:** Futuramente haverá integração com MapLibre e tiles do OpenFreeMap.
-- **Distribuição (Mobile):** 
-  - *iOS:* Distribuído por sideload via SideStore (o GitHub Actions gera um `.ipa` não assinado, sendo assinado no aparelho).
-  - *Android:* O CI compila um arquivo `.apk` desde o início (apenas como artefato gerado no CI).
-  - *Web:* Planejado para o futuro.
-- **Backup e Restauração:** O backup é feito através de um arquivo JSON de formato legível. A importação une os registros sem sobrepor destrutivamente.
+## Estrutura do repositório
+- `apps/mobile/` — Código do aplicativo (Expo/React Native).
+- `packages/domain/` — Domínio e regras de negócio em TypeScript puro.
+- `tools/mobilis-seed/` — Ferramenta para gerar a semente inicial de dados.
 
-## Estrutura do Repositório
-A organização principal do repositório reflete os workspaces configurados:
-- `apps/mobile/` — Código do aplicativo, utilizando Expo e React Native. Inclui as lógicas de banco (migrations, queries Drizzle), UI (telas, componentes, i18n, e temas claro/escuro).
-- `packages/domain/` — Domínio e regras em TypeScript puro (IDs, validações, formatos de semente e regras de tempo), testados de forma isolada com Vitest.
-- `tools/mobilis-seed/` — Ferramenta para gerar e validar o arquivo inicial de dados (semente) consumido pelo aplicativo.
-- `.github/workflows/` — Workflows de CI do GitHub Actions (`ios.yml`, `android.yml`, `test.yml`).
+## Arquitetura
+O NoteBus separa a interface da regra de negócio. O domínio (`packages/domain`) é escrito em TypeScript puro e independe de frameworks visuais. O relógio e o controle de tempo são lidos em um único ponto para garantir consistência em testes e produção. O armazenamento é local, usando SQLite via expo-sqlite e Drizzle, com um sistema de proteção (cópia de segurança) para migrações do banco de dados, ativando um modo leitura em caso de falha. A navegação baseia-se numa pilha de folhas (bottom sheets) que se sobrepõem.
 
-## Pré-requisitos
-- Node.js (versão 22)
-- npm
+## Testes e CI
+O projeto conta com 349 arquivos de teste (esta contagem refere-se a arquivos e não ao número de testes unitários passados).
+Existem workflows configurados no GitHub Actions:
+- **ios:** Compila um `.ipa` sem assinatura para distribuição via SideStore no iOS.
+- **android:** Gera um arquivo `.apk` como artefato para fins de verificação.
+- **test:** Executa verificação de tipos, roda os testes base e confirma se a geração das migrações não produz alterações não commitadas.
+- **e2e:** Executa testes guiados por interface (Maestro) e gera capturas do Dynamic Type num simulador iOS.
 
-## Como Rodar Localmente
+## Dados e Privacidade
+O aplicativo é totalmente offline e não requer criação de conta; os dados ficam armazenados exclusivamente no dispositivo sem envio para servidores externos. Todos os dados originais da rede MOBILIS são mantidos fora do repositório público, e apenas exemplos fictícios são usados no código para testes.
 
-1. **Instalação das dependências (na raiz):**
-```bash
-npm ci
-```
+## Trabalho com Agentes
+O desenvolvimento assistido por agentes de IA é orientado pelos arquivos localizados na pasta `.agents/` e pelas instruções nos arquivos `AGENTS.md` e `CLAUDE.md`. Eles detalham as regras do projeto, padrões de código e diretrizes comportamentais na interação com o código do NoteBus.
 
-2. **Validação de tipos em todo o projeto:**
-```bash
-npm run typecheck
-```
-
-3. **Rodar os testes em todo o projeto:**
-```bash
-npm run test
-```
-
-4. **Para iniciar o App (Expo):**
-```bash
-npm run start --workspace @notebus/mobile
-```
-
-5. **Para gerar migrações do banco (App Mobile):**
-```bash
-npm run db:generate --workspace @notebus/mobile
-```
-
-*Nota: Em workflows (`.github/workflows/ios.yml`) é utilizada a variável de ambiente `EXPO_PUBLIC_NOTEBUS_TEST_MIGRATION` (`nenhuma`, `add_column`, `fail`) para testes de resiliência das migrações do banco.*
-
-## Roteiro (Roadmap)
-1. **MVP:** Foco no caderno pessoal com usabilidade voltada para o autor, focando apenas no iPhone.
-2. **v1:** O app atuando como um sistema inteligente solo, providenciando rastreio dos horários, calculando tempo de caminhada até o ponto e sugestões de rotas otimizadas.
-3. **v2:** Abertura para uso comunitário: versão Web, versão consolidada no Android e mecanismos para compartilhamento de dados/dados de rede.
-4. **Futuro:** Expansão de ferramentas.
-
-## Observações sobre os Dados
-Os dados pessoais (histórico e roteiro diário do autor) e a documentação completa de planejamento vivem isolados em um repositório privado separado. 
-Além disso, **os dados operacionais reais da rede de ônibus da operadora (MOBILIS) não fazem parte deste repositório público**.
-
-Qualquer menção ou dado inserido em testes, *seeds* e demonstrações neste repositório será composto apenas por exemplos fictícios. Nenhum dado sensível de uso particular faz parte do escopo público do **NoteBus**.
+## Licença
+A definir.
