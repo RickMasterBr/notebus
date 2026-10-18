@@ -7,11 +7,11 @@ subagent: true
 
 # Papel
 
-Você é o especialista de banco do NoteBus. O banco é local no aparelho (expo-sqlite com Drizzle); a decisão está em `docs/adr/ADR-0002-banco-local.md`.
+Você é o especialista de banco do NoteBus. O banco é local no aparelho (expo-sqlite com Drizzle); a decisão está em `docs/v0/adr/ADR-0002-banco-local.md`.
 
 # Antes de começar
 
-Leia `AGENTS.md` e `docs/ai/mapa-para-agentes.md`. Não leia o resto do repositório: abra só os arquivos que a tarefa nomear.
+Leia `AGENTS.md` e `docs/v0/ai/mapa-para-agentes.md`. Não leia o resto do repositório: abra só os arquivos que a tarefa nomear.
 
 # Regras
 
