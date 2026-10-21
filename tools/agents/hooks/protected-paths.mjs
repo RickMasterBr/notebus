@@ -64,6 +64,46 @@ const globCasa = (rel, entry) => {
   const b = entry.split('/');
   return Array.from({ length: Math.min(a.length, b.length) }, (_, i) => globParte(a[i], b[i])).every(Boolean);
 };
+// R5: tokens do segmento sem aspas; flag so vale pelo valor depois de = ou :
+const tokensDe = (seg) =>
+  seg
+    .trim()
+    .split(/\s+/)
+    .map((t) => {
+      const i = t.startsWith('-') ? t.search(/[=:]/) : -1;
+      if (t.startsWith('-') && i < 0) return '';
+      return t.slice(i + 1).replace(/^['"]+|['"]+$/g, '').replace(/,$/, '');
+    })
+    .filter(Boolean);
+
+// R6: caminho relativo a raiz, com . e .. colapsados; null = fora da pista (ignorar o token)
+const resolverToken = (tok, cwdRel, rootN) => {
+  const t = norm(tok);
+  let base;
+  if (/^[a-z]:\//.test(t) || t.startsWith('/')) {
+    if (t !== rootN && !t.startsWith(rootN + '/')) return null;
+    base = t.slice(rootN.length);
+  } else if (cwdRel === null) return null;
+  else base = cwdRel + '/' + t;
+  const partes = [];
+  for (const p of base.split('/')) {
+    if (p === '..') {
+      if (!partes.length) return null;
+      partes.pop();
+    } else if (p && p !== '.') partes.push(p);
+  }
+  return partes.join('/');
+};
+
+// R7: primeira entrada que o caminho resolvido cita (literal: isUnder; curinga: globCasa)
+const citaResolvido = (seg, cwdRel, rootN, alvos) => {
+  for (const tok of tokensDe(seg)) {
+    const rel = resolverToken(tok, cwdRel, rootN);
+    if (rel === null) continue;
+    const hit = alvos.find((e) => (/[*?[]/.test(rel) ? globCasa(rel, e) : isUnder(rel, e)));
+    if (hit) return hit;
+  }
+};
 const escreve = (seg) => seg.includes('>') || /\btee\b/i.test(seg) || seg.includes('--output');
 
 // devolve { negar, motivo, alvo }; qualquer excecao sobe para o chamador, que nega
@@ -83,18 +123,16 @@ export const decidir = (input, { areas = path.join(HERE, 'protected-paths.json')
   if (typeof command === 'string') {
     const cwdRel = relToRoot(args.Cwd ?? cwd, root, root);
     const emCwd = cwdRel === null ? undefined : lista.find((e) => isUnder(cwdRel, e) && !liberado(cwdRel));
+    const rootN = norm(root);
     const alvos = [...lista.map(stripSlash).filter((e) => !liberado(e)), ...CONTROLE.filter((c) => c !== 'autorizacao.json').map(stripSlash)];
     for (const seg of semInofensivos(command).split(/;|&&|\|\||\||&|\r?\n/)) {
       if (!seg.trim()) continue;
-      if (cwdRel !== null && !eLeitura(seg)) {
-        for (const tok of seg.trim().split(/\s+/).filter((t) => !t.startsWith('-') && /[*?[]/.test(t))) {
-          const rel = relToRoot(tok, root, path.join(root, cwdRel));
-          const hit = rel === null ? undefined : alvos.find((e) => globCasa(rel, e));
-          if (hit) return negar(hit);
-        }
-      }
       const texto = norm(seg);
-      const citado = CONTROLE.find((c) => texto.includes(c)) ?? lista.find((e) => texto.includes(stripSlash(e)) && !liberado(stripSlash(e)));
+      // R5-R7 (resolucao) em OU com a checagem por texto, que fica como segunda rede
+      const citado =
+        citaResolvido(seg, cwdRel, rootN, alvos) ??
+        CONTROLE.find((c) => texto.includes(c)) ??
+        lista.find((e) => texto.includes(stripSlash(e)) && !liberado(stripSlash(e)));
       if (citado ? !eLeitura(seg) || escreve(seg) : emCwd && !eLeitura(seg)) return negar(citado ?? emCwd);
     }
     return { negar: false, alvo: command };

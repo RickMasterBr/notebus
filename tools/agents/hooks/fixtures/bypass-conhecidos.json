@@ -22,5 +22,17 @@
     "cwd": ".",
     "por_que_passa": "pushd em etapas: mesmo caso do cd relativo, o Cwd do comando continua sendo a raiz",
     "quem_fecha": "gate"
+  },
+  {
+    "comando": "New-Item PACKAG~1/domain/x.ts",
+    "cwd": ".",
+    "por_que_passa": "[hipotese, nao testado no Windows] nome curto 8.3 do Windows: o texto nao casa com packages",
+    "quem_fecha": "gate"
+  },
+  {
+    "comando": "New-Item packages./domain/x.ts",
+    "cwd": ".",
+    "por_que_passa": "[hipotese, nao testado] o Windows ignora ponto no fim do nome da pasta",
+    "quem_fecha": "gate"
   }
 ]

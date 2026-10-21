@@ -251,10 +251,69 @@ test('a2 R4: curinga fora do alcance, leitura e area autorizada passam', () => {
 // a2, limites conhecidos
 test('limites conhecidos (nao sao garantia)', () => {
   const lista = JSON.parse(readFileSync(path.join(HERE, 'fixtures', 'bypass-conhecidos.json'), 'utf8'));
-  assert.equal(lista.length, 4);
+  assert.equal(lista.length, 6);
   const r = mkRoot();
   for (const item of lista) {
     assert.deepEqual(Object.keys(item).sort(), ['comando', 'cwd', 'por_que_passa', 'quem_fecha']);
     assert.ok(passa(claudeBash(r, item.comando, path.resolve(r, item.cwd))), item.comando);
   }
+});
+
+// a3
+test('a3 criterio 1: caminho resolvido (., .., barras, aspas, curinga, valor de flag) nega com Cwd na raiz', () => {
+  const r = mkRoot();
+  for (const c of [
+    'New-Item packages/./domain/x.ts',
+    'New-Item packages/x/../domain/x.ts',
+    'New-Item packages\\.\\domain\\x.ts',
+    'New-Item "packages/domain/x.ts"',
+    "New-Item 'packages\\domain\\x.ts'",
+    "Remove-Item 'pack*/domain/a.ts'",
+    'Remove-Item "pack*/domain/a.ts"',
+    'Remove-Item -Path:pack*/domain/a.ts',
+    'Remove-Item -LiteralPath:packages/./domain/a.ts',
+    'rm --file=pack*/domain/a.ts',
+  ]) {
+    assert.ok(nega(claudeBash(r, c)), c);
+  }
+});
+test('a3 criterio 2: com Cwd em apps/mobile, caminho relativo a area nega', () => {
+  const r = mkRoot();
+  const cwd = path.join(r, 'apps/mobile');
+  for (const c of ['Set-Content src/db/schema.ts a', 'Set-Content src/db/backup.ts a', 'Set-Content src/sheets/stack.ts a', 'Set-Content src/data/noDirectClock.test.ts a', 'Remove-Item ../../packages/domain/x.ts', 'Set-Content src/db/sch*.ts a']) {
+    assert.ok(nega(claudeBash(r, c, cwd)), c);
+    assert.ok(nega(agyCmd(r, c, cwd)), c);
+  }
+});
+test('a3 criterio 3: com Cwd em apps/mobile, fora das areas e leitura passam', () => {
+  const r = mkRoot();
+  const cwd = path.join(r, 'apps/mobile');
+  for (const c of ['Set-Content src/data/x.ts a', 'New-Item src/screens/x.ts', 'ls src/db/schema.ts', 'Get-Content src/db/schema.ts', 'git diff src/db/schema.ts']) {
+    assert.ok(passa(claudeBash(r, c, cwd)), c);
+  }
+});
+test('a3 criterio 4: outros comandos passam', () => {
+  const r = mkRoot();
+  assert.ok(passa(claudeBash(r, 'New-Item apps/mobile/src/data/novo.ts')));
+  assert.ok(passa(claudeBash(r, 'git commit -m "mensagem"')));
+  assert.ok(passa(claudeBash(r, 'Set-Content ../../../fora.txt a', path.join(r, 'apps/mobile'))));
+  assert.ok(passa(claudeBash(r, 'npx vitest run packages/domain/src/a.test.ts')));
+});
+test('a3 criterio 5: Cwd fora da pista; curinga passa (nao alcanca a pista), literal nega (checagem por texto)', () => {
+  const r = mkRoot();
+  const fora = tmp();
+  assert.ok(passa(agyCmd(r, 'Remove-Item pack*/domain/a.ts', fora)));
+  assert.ok(nega(agyCmd(r, 'Remove-Item packages/domain/a.ts', fora)));
+});
+test('a3 criterio 6 (R8): edicao com . e .. resolve e nega, nos dois formatos', () => {
+  const r = mkRoot();
+  for (const f of ['packages/./domain/src/x.ts', 'packages/x/../domain/src/x.ts']) {
+    assert.ok(nega(claudeEdit(r, path.join(r, f))), f);
+    assert.ok(nega(agyEdit(r, path.join(r, f))), f);
+  }
+});
+test('a3: caminho absoluto dentro da pista nega; fora da pista passa', () => {
+  const r = mkRoot();
+  assert.ok(nega(agyCmd(r, `Set-Content ${path.join(r, 'apps/mobile/src/db/schema.ts')} a`, tmp())));
+  assert.ok(passa(claudeBash(r, `Set-Content ${path.join(tmp(), 'x.ts')} a`)));
 });
