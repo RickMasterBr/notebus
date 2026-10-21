@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cabecalho de contrato de tarefa NoteBus v1",
+  "description": "Bloco ```json contrato no topo do contrato (ideia 116, D-281). Lido pelo dispatch e pelo gate (M2). Usa so as palavras que tools/agents/lib/schema.mjs suporta. Caminhos: relativos a raiz do repositorio do app, com /; pasta termina em /; .agent/ e implicito e nao se lista.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "modo", "executor", "base", "pista", "arquivos_permitidos", "comandos_validacao", "limites", "criterios"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "Identificador da tarefa; nome do registro em v1/registros/." },
+    "modo": { "type": "string", "enum": ["agente normal", "boost", "outro"] },
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["harness", "modelo"],
+      "properties": {
+        "harness": { "type": "string", "enum": ["claude", "agy", "opencode"] },
+        "modelo": { "type": "string", "minLength": 1 }
+      }
+    },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch", "commit"],
+      "properties": {
+        "branch": { "type": "string", "minLength": 1 },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
+      }
+    },
+    "pista": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$", "description": "Nome da pasta da worktree, sem caminho." },
+    "arquivos_permitidos": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "arquivos_de_outro_worker": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "areas_autorizadas": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "comandos_validacao": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "limites": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["turnos", "minutos"],
+      "properties": {
+        "turnos": { "type": "integer", "minimum": 1, "maximum": 200 },
+        "minutos": { "type": "integer", "minimum": 1, "maximum": 240 }
+      }
+    },
+    "criterios": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Um por criterio de aceitacao; o gate exige um item do relatorio para cada." },
+    "ideias": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+  }
+}

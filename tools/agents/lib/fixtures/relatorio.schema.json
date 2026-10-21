@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Relatorio de tarefa NoteBus v1",
+  "description": "Escrito pelo worker em .agent/report.json na worktree; validado pelo gate. Numeros vem do script, nao da prosa. Prosa so em duvidas. Base: A2 §11 e _spk08/relatorio.schema.json (D-227).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tarefa", "branch", "commit", "arquivos_mudados", "fora_do_pedido", "comandos", "testes_novos_por_arquivo", "itens", "resultado", "duvidas", "ideias_novas"],
+  "properties": {
+    "tarefa": { "type": "string" },
+    "branch": { "type": "string" },
+    "commit": { "type": "string" },
+    "arquivos_mudados": { "type": "array", "items": { "type": "string" } },
+    "fora_do_pedido": { "type": "array", "items": { "type": "string" }, "description": "Arquivos tocados que nao estavam na lista do contrato (deve ser vazio)." },
+    "comandos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["comando", "duracao_s", "codigo_saida", "resumo"],
+        "properties": {
+          "comando": { "type": "string" },
+          "duracao_s": { "type": "number", "minimum": 0 },
+          "codigo_saida": { "type": "integer" },
+          "resumo": { "type": "string", "description": "Uma linha. Saida de teste: so as falhas." }
+        }
+      }
+    },
+    "testes_novos_por_arquivo": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+    "itens": {
+      "type": "array",
+      "description": "Um por criterio de aceitacao do contrato.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterio", "status", "evidencia"],
+        "properties": {
+          "criterio": { "type": "string" },
+          "status": { "type": "string", "enum": ["provado_por_teste", "hipotese_aparelho", "nao_feito"] },
+          "evidencia": { "type": "string", "description": "Comando colado, arquivo e linha. Vazio so se status = nao_feito." }
+        }
+      }
+    },
+    "resultado": { "type": "string", "enum": ["ok", "falhou", "parcial"] },
+    "duvidas": { "type": "array", "items": { "type": "string" } },
+    "ideias_novas": { "type": "array", "items": { "type": "string" } }
+  }
+}

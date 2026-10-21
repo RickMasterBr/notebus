@@ -1,0 +1,37 @@
+{
+  "tarefa": "m2-a3-hook-resolucao",
+  "branch": "infra/m2",
+  "commit": "e3be0a8",
+  "arquivos_mudados": [
+    "tools/agents/hooks/protected-paths.mjs",
+    "tools/agents/hooks/protected-paths.test.mjs",
+    "tools/agents/hooks/fixtures/bypass-conhecidos.json"
+  ],
+  "fora_do_pedido": [],
+  "comandos": [
+    { "comando": "node --test tools/agents/hooks/protected-paths.test.mjs", "duracao_s": 1.35, "codigo_saida": 0, "resumo": "39 testes, 39 passam, 0 falham, 0 pulados (Windows)" },
+    { "comando": "git status --short", "duracao_s": 0.12, "codigo_saida": 0, "resumo": "antes do commit: 3 arquivos de tools/agents/hooks/ + .agent/; depois: so .agent/" },
+    { "comando": "git diff --name-only 487d1c0", "duracao_s": 0.12, "codigo_saida": 0, "resumo": "depois do commit: so os 3 arquivos do §5" }
+  ],
+  "testes_novos_por_arquivo": { "tools/agents/hooks/protected-paths.test.mjs": 7 },
+  "itens": [
+    { "criterio": "1 negam com Cwd na raiz (10 comandos)", "status": "provado_por_teste", "evidencia": "teste 'a3 criterio 1'" },
+    { "criterio": "2 negam com Cwd em apps/mobile (6 comandos)", "status": "provado_por_teste", "evidencia": "teste 'a3 criterio 2', nos formatos claude e agy" },
+    { "criterio": "3 passam com Cwd em apps/mobile (5 comandos)", "status": "provado_por_teste", "evidencia": "teste 'a3 criterio 3'" },
+    { "criterio": "4 passam (outros, 4 comandos)", "status": "provado_por_teste", "evidencia": "teste 'a3 criterio 4'" },
+    { "criterio": "5 Cwd fora da pista: curinga passa, literal nega", "status": "provado_por_teste", "evidencia": "teste 'a3 criterio 5' (formato agy, porque no formato claude o cwd tambem localiza a raiz)" },
+    { "criterio": "6 R8 edicao com . e ..", "status": "provado_por_teste", "evidencia": "teste 'a3 criterio 6 (R8)', 2 caminhos x 2 formatos" },
+    { "criterio": "7 nada regrediu", "status": "provado_por_teste", "evidencia": "39 = 32 antigos + 7 novos (criterios 1,2,3,4,5,6 = 6 testes, + 1 de caminho absoluto dentro/fora da pista). Unica alteracao em teste antigo: 'limites conhecidos' de 4 para 6 objetos, exigida pelo item 3 do §7" },
+    { "criterio": "8 limites conhecidos", "status": "provado_por_teste", "evidencia": "bypass-conhecidos.json com 6 objetos (PACKAG~1 e packages. marcados como hipotese nao testada); teste confirma que os 6 passam" },
+    { "criterio": "9 mutacoes", "status": "provado_por_teste", "evidencia": "i: '✖ a3 criterio 1: caminho resolvido (., .., barras, aspas, curinga, valor de flag) nega com Cwd na raiz'; ii: mesma linha; iii: mesma linha; iv: '✖ a2 R4: curinga que alcanca area nega'; v: '✖ a3 criterio 5: Cwd fora da pista; curinga passa (nao alcanca a pista), literal nega (checagem por texto)'; vi: '✖ a3 criterio 1: ...'. Todas restauradas (39/39 depois)" },
+    { "criterio": "10 estado final", "status": "provado_por_teste", "evidencia": "status so .agent/; diff 487d1c0 so arquivos do §5; fora_do_pedido vazio; sem push" }
+  ],
+  "resultado": "ok",
+  "duvidas": [
+    "Troca em teste existente: 'limites conhecidos' passou de length 4 para 6. O §2 diz 'nenhuma troca', o §7 item 3 manda o teste cobrir os 6; segui o item 3.",
+    "Mutacoes i, ii, iii e vi caem todas no mesmo teste (criterio 1), que agrupa os 10 comandos; cada uma falha por um comando diferente, mas o nome do teste e o mesmo.",
+    "Teste do criterio 5 usa o formato agy: no formato claude o cwd e tambem o que localiza a raiz, entao um cwd fora da pista nao acha raiz e o hook nega por falha fechada.",
+    "Token com espaco dentro de aspas continua partido pelo split em espaco (R5 manda separar por espaco)."
+  ],
+  "ideias_novas": []
+}
