@@ -1,0 +1,8 @@
+[
+  "packages/domain/",
+  "apps/mobile/src/sheets/StackedSheet.tsx",
+  "apps/mobile/src/sheets/stack.ts",
+  "apps/mobile/src/data/noDirectClock.test.ts",
+  "apps/mobile/src/db/schema.ts",
+  "apps/mobile/src/db/backup.ts"
+]
