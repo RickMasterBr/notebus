@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -47,7 +47,7 @@ for (const item of AREAS) {
     assert.ok(nega(agyEdit(r, path.join(r, item))));
   });
 }
-test('2: barra invertida, maiuscula trocada e caminho relativo negam', () => {
+test('2: barra invertida, maiuscula trocada e caminho relativo negam', { skip: process.platform !== 'win32' }, () => {
   const r = mkRoot();
   assert.ok(nega(claudeEdit(r, r + '\\PACKAGES\\Domain\\src\\x.ts')));
   assert.ok(nega(agyEdit(r, r + '\\Apps\\Mobile\\SRC\\DB\\Schema.ts')));
@@ -149,12 +149,22 @@ test('10: falha fechada (entrada quebrada, sem cwd, --areas inexistente)', () =>
   assert.match(JSON.parse(semAreas.stdout).reason, FALHOU);
 });
 
-// criterio 11: formato das entradas reais do SPK-08 (campo raw), com a raiz trocada por uma pista temporaria
-const CLAUDE_REAL = (root, file) => JSON.stringify({ session_id: '0a87555c', cwd: root, permission_mode: 'default', hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: file, content: 'x' }, tool_use_id: 'toolu_01' });
-const AGY_REAL = (root, file) => JSON.stringify({ conversationId: '3248', modelName: 'gemini-4-argon-medium', stepIdx: 2, toolCall: { args: { CodeContent: 'x', Overwrite: true, TargetFile: file, toolAction: 'Creating', toolSummary: 'Create' }, name: 'write_to_file' }, workspacePaths: [root.replace(/\\/g, '/')] });
+// criterio 11 (a2): entradas reais do SPK-08 (campo raw), so com a raiz da pista trocada por __RAIZ__
+const fixture = (nome, root, file) =>
+  JSON.parse(readFileSync(path.join(HERE, 'fixtures', nome), 'utf8'), (k, v) => (typeof v === 'string' ? v.replaceAll('__RAIZ__', root) : v));
+const CLAUDE_REAL = (root, file) => {
+  const o = fixture('entrada-claude.json', root);
+  if (file) o.tool_input.file_path = file;
+  return JSON.stringify(o);
+};
+const AGY_REAL = (root, file) => {
+  const o = fixture('entrada-agy.json', root);
+  if (file) o.toolCall.args.TargetFile = file;
+  return JSON.stringify(o);
+};
 test('11: claude pela linha de comando (permitir e negar)', () => {
   const r = mkRoot();
-  const ok = run('claude', CLAUDE_REAL(r, path.join(r, 'apps/mobile/src/__spike__/livre.test.ts')));
+  const ok = run('claude', CLAUDE_REAL(r));
   assert.equal(ok.stdout, '');
   assert.equal(ok.status, 0);
   const no = run('claude', CLAUDE_REAL(r, path.join(r, 'packages/domain/a.ts')));
@@ -163,15 +173,23 @@ test('11: claude pela linha de comando (permitir e negar)', () => {
 });
 test('11: agy pela linha de comando (permitir e negar)', () => {
   const r = mkRoot();
-  const ok = run('agy', AGY_REAL(r, path.join(r, 'apps/mobile/src/__spike__/livre.test.ts')));
+  const ok = run('agy', AGY_REAL(r));
   assert.deepEqual(JSON.parse(ok.stdout), { decision: 'allow' });
   assert.equal(ok.status, 0);
   const no = run('agy', AGY_REAL(r, path.join(r, 'packages/domain/a.ts')));
   assert.equal(no.status, 0);
   assert.equal(JSON.parse(no.stdout).decision, 'deny');
 });
+test('11: fixtures usam __RAIZ__ no lugar da pista', () => {
+  for (const nome of ['entrada-claude.json', 'entrada-agy.json']) {
+    const t = readFileSync(path.join(HERE, 'fixtures', nome), 'utf8');
+    assert.ok(t.includes('__RAIZ__'), nome);
+    assert.ok(!/spk08-(claude|agy)/.test(t.replaceAll('C--Users-User-Desktop-Projetos-NoteBus-pistas-spk08-claude', '')), nome);
+  }
+});
 
 // criterio 12
+const lista = (d) => readdirSync(d).sort().join('|');
 test('12: --log grava uma linha JSON por decisao; sem --log nada e gravado', () => {
   const r = mkRoot();
   const log = path.join(tmp(), 'hook.log');
@@ -182,6 +200,61 @@ test('12: --log grava uma linha JSON por decisao; sem --log nada e gravado', () 
   assert.equal(linhas[0].tool, 'Write');
   assert.equal(linhas[0].decisao, 'negar');
   assert.ok(linhas[0].t && linhas[0].alvo);
-  run('claude', CLAUDE_REAL(r, path.join(r, 'a.ts')));
-  assert.equal(existsSync(path.join(process.cwd(), 'hook.log')), false);
+  const vazio = tmp();
+  const antes = [lista(vazio), lista(HERE)];
+  spawnSync('node', [SCRIPT, 'claude'], { input: CLAUDE_REAL(r, path.join(r, 'packages/domain/a.ts')), cwd: vazio, encoding: 'utf8' });
+  assert.deepEqual([lista(vazio), lista(HERE)], antes);
+});
+
+// a2, R3
+test('a2 R3: redirecionamento inofensivo passa, outro > continua negando', () => {
+  const r = mkRoot();
+  for (const c of ['npx vitest run packages/domain/src/a.test.ts 2>&1', 'git diff packages/domain 2>$null', 'git log packages/domain 2>&1 | Select-String x', 'git diff packages/domain 2>NUL']) {
+    assert.ok(passa(claudeBash(r, c)), c);
+  }
+  for (const c of ['git diff packages/domain > fora.patch', 'echo a 2>&1 > packages/domain/x.ts']) assert.ok(nega(claudeBash(r, c)), c);
+});
+
+// a2, R1
+test('a2 R1: vitest com -u, --update ou --outputFile nega', () => {
+  const r = mkRoot();
+  for (const c of ['npx vitest run packages/domain -u', 'npx vitest run packages/domain --update', 'npx vitest run packages/domain --outputFile=packages/domain/r.json']) {
+    assert.ok(nega(claudeBash(r, c)), c);
+  }
+  assert.ok(passa(claudeBash(r, 'npx vitest run packages/domain/src/a.test.ts')));
+});
+
+// a2, R2
+test('a2 R2: tsc so e leitura com --noEmit e sem flag que emite', () => {
+  const r = mkRoot();
+  for (const c of ['npx tsc -p packages/domain', 'npx tsc --noEmit -b packages/domain', 'npx tsc --noEmit -p packages/domain --outDir packages/domain/dist']) {
+    assert.ok(nega(claudeBash(r, c)), c);
+  }
+  assert.ok(passa(claudeBash(r, 'npx tsc --noEmit -p packages/domain')));
+});
+
+// a2, R4
+test('a2 R4: curinga que alcanca area nega', () => {
+  const r = mkRoot();
+  for (const c of ['Remove-Item pack*/domain/src/a.ts', 'Remove-Item pack*', 'Remove-Item *']) assert.ok(nega(claudeBash(r, c)), c);
+  assert.ok(nega(claudeBash(r, 'Remove-Item src/db/sch*.ts', path.join(r, 'apps/mobile'))));
+  assert.ok(nega(agyCmd(r, 'Remove-Item pack*')));
+});
+test('a2 R4: curinga fora do alcance, leitura e area autorizada passam', () => {
+  const r = mkRoot();
+  assert.ok(passa(claudeBash(r, 'ls pack*')));
+  assert.ok(passa(claudeBash(r, 'Remove-Item *.log')));
+  assert.ok(passa(claudeBash(r, 'Remove-Item src/d*/x', path.join(r, 'apps/mobile'))));
+  assert.ok(passa(claudeBash(r, 'Remove-Item pack*'), { autorizacao: mkAuth(['packages/domain/']) }));
+});
+
+// a2, limites conhecidos
+test('limites conhecidos (nao sao garantia)', () => {
+  const lista = JSON.parse(readFileSync(path.join(HERE, 'fixtures', 'bypass-conhecidos.json'), 'utf8'));
+  assert.equal(lista.length, 4);
+  const r = mkRoot();
+  for (const item of lista) {
+    assert.deepEqual(Object.keys(item).sort(), ['comando', 'cwd', 'por_que_passa', 'quem_fecha']);
+    assert.ok(passa(claudeBash(r, item.comando, path.resolve(r, item.cwd))), item.comando);
+  }
 });

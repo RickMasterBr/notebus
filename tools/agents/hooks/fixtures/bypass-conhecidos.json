@@ -1,0 +1,26 @@
+[
+  {
+    "comando": "cd packages; cd domain; New-Item x.ts",
+    "cwd": ".",
+    "por_que_passa": "cd relativo em etapas: nenhum segmento cita a area, e bloquear cd quebraria cd apps/mobile",
+    "quem_fecha": "gate"
+  },
+  {
+    "comando": "New-Item -Path packages -Name domain/x.ts",
+    "cwd": ".",
+    "por_que_passa": "-Path e -Name separados: o caminho da area nunca aparece inteiro no texto",
+    "quem_fecha": "gate"
+  },
+  {
+    "comando": "$p = 'pack' + 'ages'; New-Item \"$p/domain/x.ts\"",
+    "cwd": ".",
+    "por_que_passa": "caminho montado por variavel ou concatenacao: o hook so ve texto, nao avalia",
+    "quem_fecha": "gate"
+  },
+  {
+    "comando": "pushd packages; pushd domain; Set-Content x.ts a",
+    "cwd": ".",
+    "por_que_passa": "pushd em etapas: mesmo caso do cd relativo, o Cwd do comando continua sendo a raiz",
+    "quem_fecha": "gate"
+  }
+]

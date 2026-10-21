@@ -42,9 +42,27 @@ const lerAutorizacao = (file) => {
   }
 };
 
+const TSC_PROIBIDO = ['-b', '--build', '--incremental', '--tsbuildinfofile', '--outdir', '--outfile', '--declarationdir', '--emitdeclarationonly'];
+const flagEm = (tokens, lista) => tokens.some((t) => lista.some((f) => t === f || t.startsWith(f + '=')));
 const eLeitura = (seg) => {
   const s = seg.trim().toLowerCase();
-  return LEITURA.some((c) => s === c || s.startsWith(c + ' ') || s.startsWith(c + '\t'));
+  const cmd = LEITURA.find((c) => s === c || s.startsWith(c + ' ') || s.startsWith(c + '\t'));
+  if (!cmd) return false;
+  const tokens = s.split(/\s+/);
+  if (cmd === 'npx vitest') return !flagEm(tokens, ['-u', '--update', '--outputfile', '--output-file']);
+  if (cmd === 'npx tsc') return tokens.includes('--noemit') && !flagEm(tokens, TSC_PROIBIDO);
+  return true;
+};
+// R3: redirecionamentos que nao escrevem em arquivo
+const semInofensivos = (c) => c.replace(/\d*>&\d+/g, '').replace(/\d*>>?\s*(\$null|nul|\/dev\/null)\b/gi, '');
+
+// R4: o token (relativo a base) casa com a entrada nas primeiras min(partes) partes
+const globParte = (g, parte) =>
+  new RegExp('^' + g.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$', 'i').test(parte);
+const globCasa = (rel, entry) => {
+  const a = rel.split('/').filter(Boolean);
+  const b = entry.split('/');
+  return Array.from({ length: Math.min(a.length, b.length) }, (_, i) => globParte(a[i], b[i])).every(Boolean);
 };
 const escreve = (seg) => seg.includes('>') || /\btee\b/i.test(seg) || seg.includes('--output');
 
@@ -65,8 +83,16 @@ export const decidir = (input, { areas = path.join(HERE, 'protected-paths.json')
   if (typeof command === 'string') {
     const cwdRel = relToRoot(args.Cwd ?? cwd, root, root);
     const emCwd = cwdRel === null ? undefined : lista.find((e) => isUnder(cwdRel, e) && !liberado(cwdRel));
-    for (const seg of command.split(/;|&&|\|\||\||&|\r?\n/)) {
+    const alvos = [...lista.map(stripSlash).filter((e) => !liberado(e)), ...CONTROLE.filter((c) => c !== 'autorizacao.json').map(stripSlash)];
+    for (const seg of semInofensivos(command).split(/;|&&|\|\||\||&|\r?\n/)) {
       if (!seg.trim()) continue;
+      if (cwdRel !== null && !eLeitura(seg)) {
+        for (const tok of seg.trim().split(/\s+/).filter((t) => !t.startsWith('-') && /[*?[]/.test(t))) {
+          const rel = relToRoot(tok, root, path.join(root, cwdRel));
+          const hit = rel === null ? undefined : alvos.find((e) => globCasa(rel, e));
+          if (hit) return negar(hit);
+        }
+      }
       const texto = norm(seg);
       const citado = CONTROLE.find((c) => texto.includes(c)) ?? lista.find((e) => texto.includes(stripSlash(e)) && !liberado(stripSlash(e)));
       if (citado ? !eLeitura(seg) || escreve(seg) : emCwd && !eLeitura(seg)) return negar(citado ?? emCwd);
