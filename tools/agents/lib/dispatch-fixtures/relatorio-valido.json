@@ -1,0 +1,13 @@
+{
+  "tarefa": "exemplo",
+  "branch": "tarefa/exemplo",
+  "commit": "abc1234",
+  "arquivos_mudados": ["feito.txt"],
+  "fora_do_pedido": [],
+  "comandos": [{ "comando": "node --test", "duracao_s": 1, "codigo_saida": 0, "resumo": "ok" }],
+  "testes_novos_por_arquivo": { "x.test.mjs": 1 },
+  "itens": [{ "criterio": "C1 um", "status": "provado_por_teste", "evidencia": "teste" }],
+  "resultado": "ok",
+  "duvidas": [],
+  "ideias_novas": []
+}
