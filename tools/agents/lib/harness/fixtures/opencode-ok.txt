@@ -1,0 +1,3 @@
+# SINTETICO: nao e saida real do opencode
+Implementei o bloco.
+Commit criado e relatorio gravado em .agent/report.json.
