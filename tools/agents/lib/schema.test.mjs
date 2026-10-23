@@ -115,3 +115,42 @@ test('C4 mutacoes do relatorio caem com codigo e caminho', () => {
   assert.deepEqual(mut((r) => (r.comandos[0].codigo_saida = 1.5)), ['type:/comandos/0/codigo_saida']);
   assert.deepEqual(mut((r) => (r.itens[0].status = 'talvez')), ['enum:/itens/0/status']);
 });
+
+const palavra = (schema, valor, p) => {
+  try {
+    validar(schema, valor);
+  } catch (e) {
+    assert.ok(e instanceof SchemaNaoSuportado, String(e));
+    assert.equal(e.palavra, p);
+    return;
+  }
+  assert.fail(`nao lancou: ${JSON.stringify(schema)}`);
+};
+
+test('D1 required, properties e type so olham chaves proprias', () => {
+  assert.deepEqual(cods(validar({ type: 'object', required: ['toString'] }, {})), ['required:/toString']);
+  const s = { type: 'object', additionalProperties: false, properties: { a: {} } };
+  assert.deepEqual(cods(validar(s, JSON.parse('{"constructor":1}'))), ['additional:/constructor']);
+  assert.deepEqual(cods(validar(s, JSON.parse('{"__proto__":1}'))), ['additional:/__proto__']);
+  palavra({ type: 'toString' }, 1, 'type');
+  palavra({ type: 'constructor' }, 1, 'type');
+  assert.deepEqual(cods(validar({ type: 'object', properties: { a: { type: 'string' } } }, { a: 1 })), ['type:/a']);
+});
+
+test('D2 argumento invalido de palavra suportada lanca com o nome da palavra', () => {
+  const casos = [
+    [{ enum: 'abc' }, 'enum'], [{ enum: [] }, 'enum'], [{ enum: [{}] }, 'enum'], [{ const: {} }, 'const'],
+    [{ required: 'abc' }, 'required'], [{ required: [1] }, 'required'], [{ properties: [] }, 'properties'],
+    [{ additionalProperties: 'x' }, 'additionalProperties'], [{ items: [] }, 'items'],
+    [{ pattern: 5 }, 'pattern'], [{ pattern: '(' }, 'pattern'], [{ minLength: '5' }, 'minLength'],
+    [{ maxLength: -1 }, 'maxLength'], [{ minItems: 1.5 }, 'minItems'], [{ maxItems: '2' }, 'maxItems'],
+    [{ minimum: '1' }, 'minimum'], [{ maximum: Infinity }, 'maximum'],
+  ];
+  for (const [s, p] of casos) palavra(s, 5, p);
+});
+
+test('D2 argumentos validos e schemas reais passam', () => {
+  assert.equal(validar({ enum: ['a', 1, true, null] }, 'a').ok, true);
+  assert.equal(validar({ const: null, minLength: 0, title: 'x', description: 'y' }, null).ok, true);
+  assert.equal(validar(fx('relatorio.schema.json'), fx('relatorio-valido.json')).ok, true);
+});

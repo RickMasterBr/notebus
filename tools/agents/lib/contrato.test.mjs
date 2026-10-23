@@ -121,3 +121,35 @@ test('C10 este contrato e valido de ponta a ponta', () => {
   assert.equal(c.arquivos_permitidos.length, 3);
   assert.equal(c.criterios.length, 11);
 });
+
+test('D3 cabecalho que nao e objeto da ContratoErro e nao TypeError', () => {
+  for (const v of ['null', '5', '"x"', '[]', 'true']) {
+    const f = path.join(tmp, `c${n++}.md`);
+    writeFileSync(f, '```json contrato\n' + v + '\n```\n');
+    const erros = erra(() => lerContrato(f, { schemaPath }));
+    assert.equal(erros.length, 1);
+    assert.equal(erros[0].codigo, 'SCHEMA');
+    assert.equal(erros[0].caminho, '');
+    assert.match(erros[0].mensagem, /^type/);
+  }
+});
+
+test('D4 segmento ponto ou terminado em ponto ou espaco e invalido', () => {
+  for (const p of ['./apps/', '.', 'apps/./x', 'apps./x', 'apps /x', 'a/b.', './.agent/x']) {
+    assert.deepEqual(codigos(erra(() => lerMut({ arquivos_permitidos: [p] }))), ['CAMINHO_INVALIDO'], p);
+  }
+  for (const p of ['.github/', 'a.b/c.ts', 'apps/mobile/', 'README.md']) {
+    assert.deepEqual(lerMut({ arquivos_permitidos: [p] }).arquivos_permitidos, [p], p);
+  }
+  for (const p of ['.agent', '.agent/x']) {
+    assert.deepEqual(codigos(erra(() => lerMut({ arquivos_permitidos: [p] }))), ['CAMINHO_RESERVADO'], p);
+  }
+  assert.deepEqual(codigos(erra(() => lerMut({ arquivos_permitidos: ['./a', '.agent'] }))), ['CAMINHO_INVALIDO', 'CAMINHO_RESERVADO']);
+});
+
+test('D7 este contrato e valido de ponta a ponta', () => {
+  const c = lerFx('contrato-m2-b1b.md');
+  assert.equal(c.id, 'm2-b1b-ajustes-schema');
+  assert.equal(c.arquivos_permitidos.length, 3);
+  assert.equal(c.criterios.length, 8);
+});

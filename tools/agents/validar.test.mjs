@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, mkdtempSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,4 +52,21 @@ test('C9 uso errado, arquivo ou schema inexistente, JSON quebrado, schema nao su
   const r = rodar('relatorio', fx('relatorio-valido.json'), '--schema', s);
   assert.equal(r.code, 2);
   assert.match(r.err, /oneOf/);
+});
+
+test('D5 tipo herdado do Object da codigo 2 sem TypeError', () => {
+  for (const t of ['toString', 'constructor', '__proto__', 'hasOwnProperty']) {
+    const r = rodar(t, fx('relatorio-valido.json'));
+    assert.equal(r.code, 2, t);
+    assert.match(r.err, /^argumentos invalidos/);
+    assert.doesNotMatch(r.err, /TypeError/);
+  }
+});
+
+test('D5 JSON com BOM: relatorio, --schema e schema do contrato', () => {
+  const bom = (arq) => '﻿' + readFileSync(fx(arq), 'utf8');
+  const rel = escreve('rel-bom.json', bom('relatorio-valido.json'));
+  assert.deepEqual(rodar('relatorio', rel, ...RS), { code: 0, out: 'OK', err: '' });
+  assert.deepEqual(rodar('relatorio', fx('relatorio-valido.json'), '--schema', escreve('rs-bom.json', bom('relatorio.schema.json'))), { code: 0, out: 'OK', err: '' });
+  assert.deepEqual(rodar('contrato', fx('contrato-valido.md'), '--schema', escreve('cs-bom.json', bom('contrato.schema.json'))), { code: 0, out: 'OK', err: '' });
 });

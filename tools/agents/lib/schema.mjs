@@ -5,7 +5,7 @@ const SUPORTADAS = [
   'minLength', 'maxLength', 'pattern', 'minimum', 'maximum', 'enum', 'const',
 ];
 
-export class SchemaNaoSuportado extends Error {
+export class SchemaNaoSuportado extends SyntaxError {
   constructor(palavra, caminho) {
     super(`palavra de schema nao suportada: "${palavra}" em ${caminho || '(raiz)'}`);
     this.name = 'SchemaNaoSuportado';
@@ -26,13 +26,41 @@ const TIPOS = {
 
 const ehObjeto = TIPOS.object;
 
+const tem = Object.hasOwn;
+const primitivo = (v) => v === null || ['string', 'number', 'boolean'].includes(typeof v);
+const inteiro = (v) => Number.isInteger(v) && v >= 0;
+const compila = (v) => {
+  if (typeof v !== 'string') return false;
+  try {
+    new RegExp(v);
+    return true;
+  } catch {
+    return false;
+  }
+};
+// argumento valido de cada palavra; o que nao esta aqui (anotacoes) nao e conferido
+const ARGUMENTO = {
+  type: (v) => typeof v === 'string' && tem(TIPOS, v),
+  required: (v) => Array.isArray(v) && v.every((x) => typeof x === 'string'),
+  properties: (v) => ehObjeto(v) && Object.values(v).every(ehObjeto),
+  additionalProperties: (v) => typeof v === 'boolean' || ehObjeto(v),
+  items: (v) => ehObjeto(v),
+  enum: (v) => Array.isArray(v) && v.length > 0 && v.every(primitivo),
+  const: primitivo,
+  pattern: compila,
+  minLength: inteiro,
+  maxLength: inteiro,
+  minItems: inteiro,
+  maxItems: inteiro,
+  minimum: (v) => Number.isFinite(v),
+  maximum: (v) => Number.isFinite(v),
+};
+
 const conferirSchema = (schema, ondeSchema) => {
   if (!ehObjeto(schema)) throw new SchemaNaoSuportado('(schema que nao e objeto)', ondeSchema);
   for (const k of Object.keys(schema)) {
     if (!SUPORTADAS.includes(k) && !ANOTACOES.includes(k)) throw new SchemaNaoSuportado(k, ondeSchema);
-  }
-  if ('type' in schema && !(typeof schema.type === 'string' && schema.type in TIPOS)) {
-    throw new SchemaNaoSuportado('type', ondeSchema);
+    if (tem(ARGUMENTO, k) && !ARGUMENTO[k](schema[k])) throw new SchemaNaoSuportado(k, ondeSchema);
   }
 };
 
@@ -63,12 +91,12 @@ const walk = (schema, valor, caminho, ondeSchema, erros) => {
   }
   if (ehObjeto(valor)) {
     for (const k of schema.required ?? []) {
-      if (!(k in valor)) erro('required', `chave obrigatoria ausente: ${k}`, `${caminho}/${k}`);
+      if (!tem(valor, k)) erro('required', `chave obrigatoria ausente: ${k}`, `${caminho}/${k}`);
     }
     const props = schema.properties ?? {};
     const extra = schema.additionalProperties ?? true;
     for (const [k, v] of Object.entries(valor)) {
-      if (k in props) walk(props[k], v, `${caminho}/${k}`, `${ondeSchema}/properties/${k}`, erros);
+      if (tem(props, k)) walk(props[k], v, `${caminho}/${k}`, `${ondeSchema}/properties/${k}`, erros);
       else if (extra === false) erro('additional', `chave nao permitida: ${k}`, `${caminho}/${k}`);
       else if (extra !== true) walk(extra, v, `${caminho}/${k}`, `${ondeSchema}/additionalProperties`, erros);
     }

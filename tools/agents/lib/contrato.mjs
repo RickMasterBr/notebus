@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { validar } from './schema.mjs';
+import { lerJson } from './json.mjs';
 
 export class ContratoErro extends Error {
   constructor(erros) {
@@ -49,6 +50,7 @@ export const casa = (lista, rel) => {
 };
 
 const CAMINHOS = ['arquivos_permitidos', 'arquivos_de_outro_worker', 'areas_autorizadas'];
+const ehObjeto = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 const strings = (x) => (Array.isArray(x) ? x : []);
 
 const regras = (c) => {
@@ -59,7 +61,7 @@ const regras = (c) => {
       if (typeof p !== 'string') return;
       const n = p.replace(/\\/g, '/');
       const onde = `/${campo}/${i}`;
-      if (n.startsWith('/') || /^[a-z]:/i.test(n) || n.split('/').includes('..') || !n.replace(/\/+/g, '').trim()) {
+      if (n.startsWith('/') || /^[a-z]:/i.test(n) || n.split('/').some((seg) => seg === '..' || /[. ]$/.test(seg)) || !n.replace(/\/+/g, '').trim()) {
         add('CAMINHO_INVALIDO', onde, `caminho invalido: ${p}`);
       } else if (n.toLowerCase().split('/')[0] === '.agent') {
         add('CAMINHO_RESERVADO', onde, `.agent e implicito, nao se lista: ${p}`);
@@ -84,11 +86,10 @@ const regras = (c) => {
 
 export const lerContrato = (caminhoArquivo, { schemaPath }) => {
   const { cabecalho } = extrairCabecalho(readFileSync(caminhoArquivo, 'utf8'));
-  const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
-  const erros = [
-    ...validar(schema, cabecalho).erros.map((e) => ({ codigo: 'SCHEMA', caminho: e.caminho, mensagem: `${e.codigo}: ${e.mensagem}` })),
-    ...regras(cabecalho),
-  ];
+  const schema = lerJson(schemaPath);
+  const doSchema = validar(schema, cabecalho).erros.map((e) => ({ codigo: 'SCHEMA', caminho: e.caminho, mensagem: `${e.codigo}: ${e.mensagem}` }));
+  // regras() assume objeto; cabecalho de outro tipo so tem o erro do schema
+  const erros = [...doSchema, ...(ehObjeto(cabecalho) ? regras(cabecalho) : [])];
   if (erros.length) throw new ContratoErro(erros);
   const ajusta = (l) => strings(l).map((p) => p.replace(/\\/g, '/'));
   return {

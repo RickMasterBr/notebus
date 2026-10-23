@@ -1,6 +1,7 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { lerJson } from './lib/json.mjs';
 import { validar } from './lib/schema.mjs';
 import { lerContrato, ContratoErro } from './lib/contrato.mjs';
 
@@ -13,7 +14,7 @@ const uso = (msg) => {
 };
 
 const [tipo, arquivo, ...resto] = process.argv.slice(2);
-if (!(tipo in PADRAO) || !arquivo) uso('argumentos invalidos');
+if (!Object.hasOwn(PADRAO, tipo) || !arquivo) uso('argumentos invalidos');
 const i = resto.indexOf('--schema');
 if (resto.length !== (i < 0 ? 0 : 2) || (i >= 0 && !resto[i + 1])) uso('argumentos invalidos');
 const schemaPath = i < 0 ? path.join(RAIZ, 'docs', 'v1', 'infra', 'modelos', PADRAO[tipo]) : resto[i + 1];
@@ -33,8 +34,7 @@ try {
     lerContrato(arquivo, { schemaPath });
     imprime([]);
   }
-  const relatorio = JSON.parse(readFileSync(arquivo, 'utf8'));
-  imprime(validar(JSON.parse(readFileSync(schemaPath, 'utf8')), relatorio).erros);
+  imprime(validar(lerJson(schemaPath), lerJson(arquivo)).erros);
 } catch (e) {
   if (e instanceof ContratoErro) imprime(e.erros);
   uso(`${e.name}: ${e.message}`);
