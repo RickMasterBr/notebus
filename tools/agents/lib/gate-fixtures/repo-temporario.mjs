@@ -148,6 +148,17 @@ export const criarRepo = ({ modo = 'manual', contrato: sobre = {} } = {}) => {
       tem: (id, codigo, status) => achar(id, codigo).some((v) => (status ? v.status === status : true)),
     };
   };
+  // diff.external e textconv apontam para um script que grava um marcador FORA do repositorio; devolve o caminho do marcador
+  t.armadilha = () => {
+    const marcador = path.join(T, 'marcador-armadilha');
+    const script = path.join(T, 'marca.cjs');
+    writeFileSync(script, `require('fs').writeFileSync(${JSON.stringify(marcador)}, 'rodou');\n`);
+    const cmd = `node ${script.replace(/\\/g, '/')}`;
+    sh(repo, 'config', 'diff.external', cmd);
+    sh(repo, 'config', 'diff.x.textconv', cmd);
+    escreve(pista, '.gitattributes', '* diff=x\n');
+    return marcador;
+  };
   t.limpar = () => {
     try {
       rmdirSync(path.join(pista, 'node_modules'));

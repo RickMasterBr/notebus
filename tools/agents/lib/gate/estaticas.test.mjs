@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { appendFileSync, mkdirSync, rmdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { g00, g01, g02, g03, g04, g05, g06, g07, g08, g11, g13, g14, g15 } from './estaticas.mjs';
 import { BRANCH, criarRepo } from '../gate-fixtures/repo-temporario.mjs';
 
@@ -368,4 +370,54 @@ test('C9 G15: escrita no repositorio principal, exclude, config local e config.w
   const m = novo();
   assert.deepEqual(avisos(tudo(m, g15)), ['SEM_RETRATO']);
   m.limpar();
+});
+
+test('C7 D2 G14: linha de 1 MB sem @ nao e quadratica; contato real continua acusando', () => {
+  for (const [nome, unidade] of [['a', 'a'], ['espaco', ' '], ['a ponto', 'a.']]) {
+    const t = novo({ arquivos_permitidos: ['src/alvo/'] });
+    t.commitar({ 'src/alvo/linha.ts': unidade.repeat((1024 * 1024) / unidade.length) + '\n' });
+    const ini = Date.now();
+    const itens = tudo(t, g14);
+    assert.ok(Date.now() - ini < 3000, `${nome}: ${Date.now() - ini} ms`);
+    assert.equal(com(itens, 'CONTATO_NO_DIFF'), undefined, nome);
+    t.limpar();
+  }
+  const n = novo({ arquivos_permitidos: ['src/alvo/'] });
+  n.commitar({ 'src/alvo/e.ts': '// joao@exemplo.com\n', 'src/alvo/f.ts': '// +351 912 345 678\n' });
+  assert.deepEqual(com(tudo(n, g14), 'CONTATO_NO_DIFF').evidencia.sort(), ['src/alvo/e.ts', 'src/alvo/f.ts']);
+  n.limpar();
+});
+
+test('C7 D3 G07: excecao com pasta nao libera', () => {
+  const r = g07de({ excecoes_gate: [{ verificacao: 'G07', caminho: 'src/', motivo: 'x' }] }, apaga);
+  assert.deepEqual(falhas(r), ['TESTE_AFROUXADO']);
+  assert.deepEqual(avisos(r), []);
+});
+
+test('C7 D3 G08: excecao com pasta nao libera', () => {
+  const t = novo({ arquivos_permitidos: ['src/alvo/'], excecoes_gate: [{ verificacao: 'G08', caminho: 'pasta/', motivo: 'x' }] });
+  t.commitar({ 'pasta/package.json': '{}\n' });
+  const r = tudo(t, g08);
+  assert.deepEqual(falhas(r), ['CONFIGURACAO']);
+  assert.ok(!avisos(r).includes('EXCECAO_G08'));
+  t.limpar();
+});
+
+test('C7 D3 G14: excecao com pasta nao libera', () => {
+  const t = novo({ arquivos_permitidos: ['src/alvo/'], excecoes_gate: [{ verificacao: 'G14', caminho: 'pasta/', motivo: 'x' }] });
+  t.commitar({ 'pasta/t.csv': 'a,b\n' });
+  const r = tudo(t, g14);
+  assert.deepEqual(falhas(r), ['DADO_PROIBIDO']);
+  assert.ok(!avisos(r).includes('EXCECAO_G14'));
+  t.limpar();
+});
+
+// regex sincrona nao e interrompida pelo timeout do node:test, entao a medida e feita em processo filho com limite de 3 s
+test('C7 D2 G14: EMAIL e TELEFONE em linha de 1 MB terminam em menos de 3 s (processo filho)', () => {
+  const mod = fileURLToPath(new URL('./estaticas.mjs', import.meta.url));
+  for (const unidade of ['a', ' ', 'a.', '1 ', '+']) {
+    const fonte = `import { EMAIL, TELEFONE } from ${JSON.stringify(pathToFileURL(mod).href)}; const l = ${JSON.stringify(unidade)}.repeat(1048576 / ${unidade.length}); EMAIL.test(l); TELEFONE.test(l);`;
+    const r = spawnSync(process.execPath, ['--input-type=module', '-e', fonte], { timeout: 3000, encoding: 'utf8' });
+    assert.equal(r.status, 0, `${JSON.stringify(unidade)}: ${r.error?.code ?? r.stderr}`);
+  }
 });

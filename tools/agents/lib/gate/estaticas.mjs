@@ -266,8 +266,9 @@ export const g08 = (ctx) => {
   return out;
 };
 
-const EMAIL = /[\w.+-]+@[A-Za-z][\w-]*\.[A-Za-z]{2,}/;
-const TELEFONE = /(?:\+\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]\d{3,4}[\s.-]\d{3,4}/;
+// quantificadores limitados: sem limite, uma linha longa sem @ custa tempo quadratico
+export const EMAIL = /[\w.+-]{1,64}@[A-Za-z][\w-]{0,62}\.[A-Za-z]{2,}/;
+export const TELEFONE = /(?:\+\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]\d{3,4}[\s.-]\d{3,4}/;
 
 const tamanhos = (ctx, caminhos) => {
   const mapa = new Map();

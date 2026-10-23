@@ -220,3 +220,16 @@ test('C11 CLI: modo despacho le meta.json e grava na pasta do despacho', () => {
   assert.ok(t.rodar().tem('G13', 'SEM_META', 'aviso'));
   t.limpar();
 });
+
+test('C1 D1 CLI: o gate nao roda diff.external nem textconv da pista', () => {
+  const t = novo({ arquivos_permitidos: ['src/alvo/', '.gitattributes'] });
+  const marcador = t.armadilha();
+  t.commitar({ 'src/alvo/b.ts': 'export const b = 1;\n', '.gitattributes': '* diff=x\n' });
+  t.commitar({ 'src/alvo/b.ts': 'export const b = 2;\n' });
+  t.gravarContrato();
+  t.gravarRelatorio();
+  const r = t.rodar();
+  assert.ok(r.gate, r.stderr);
+  assert.equal(existsSync(marcador), false, 'o gate rodou programa da pista');
+  t.limpar();
+});

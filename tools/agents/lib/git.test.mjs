@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { git, parseZ, tenta } from './git.mjs';
@@ -42,4 +42,29 @@ test('C12 fontes: sem shell, sem exec e sem verbo de escrita nos modulos do gate
     // verbo de escrita como argumento: so aparece na lista de recusa de git.mjs? nao, nem la
     assert.doesNotMatch(src, /['"](?:add|commit|checkout|reset|clean|update-index|push|rebase|stash|restore|switch|rm|mv)['"]/, f);
   }
+});
+
+test('C1 D1 git: diff e show nao rodam diff.external, textconv nem GIT_EXTERNAL_DIFF', () => {
+  const t = criarRepo();
+  const marcador = t.armadilha();
+  t.commitar({ 'src/alvo/a.txt': 'um\n' });
+  const base = t.head();
+  t.commitar({ 'src/alvo/a.txt': 'dois\n' });
+  const head = t.head();
+  const diff = git(t.pista, ['diff', '-U0', '--no-color', '--no-renames', base, head]).toString();
+  assert.match(diff, /^\+dois$/m);
+  assert.equal(existsSync(marcador), false, 'diff rodou programa da pista');
+  assert.match(git(t.pista, ['show', `${head}:src/alvo/a.txt`]).toString(), /dois/);
+  assert.match(git(t.pista, ['show', '-U0', '--no-color', head]).toString(), /^\+dois$/m);
+  assert.equal(existsSync(marcador), false, 'show rodou programa da pista');
+  const antes = process.env.GIT_EXTERNAL_DIFF;
+  process.env.GIT_EXTERNAL_DIFF = `node ${path.join(t.T, 'marca.cjs').replace(/\\/g, '/')}`;
+  try {
+    git(t.pista, ['diff', '-U0', base, head]);
+    assert.equal(existsSync(marcador), false, 'GIT_EXTERNAL_DIFF rodou');
+  } finally {
+    if (antes === undefined) delete process.env.GIT_EXTERNAL_DIFF;
+    else process.env.GIT_EXTERNAL_DIFF = antes;
+  }
+  t.limpar();
 });

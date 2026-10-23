@@ -7,11 +7,14 @@ const CONFIG_LEITURA = ['--list', '-l', '--get'];
 export const git = (pista, args) => {
   if (!LEITURA.has(args[0])) throw new Error(`GIT_COMANDO_PROIBIDO: ${args[0]}`);
   if (args[0] === 'config' && !args.some((a) => CONFIG_LEITURA.includes(a))) throw new Error('GIT_COMANDO_PROIBIDO: config sem --list/--get');
+  // diff e show nao rodam programa da pista (diff.external, textconv): o worker pode mexer no config e no .gitattributes
+  const resto = args[0] === 'diff' || args[0] === 'show' ? [args[0], '--no-ext-diff', '--no-textconv', ...args.slice(1)] : args;
+  const { GIT_EXTERNAL_DIFF: _, ...env } = process.env;
   // fsmonitor off: um config da pista nao pode fazer o status rodar comando; sem lock opcional o status nao regrava o indice
-  return execFileSync('git', ['-c', 'core.fsmonitor=false', '-c', 'core.quotepath=off', '-C', pista, ...args], {
+  return execFileSync('git', ['-c', 'core.fsmonitor=false', '-c', 'core.quotepath=off', '-C', pista, ...resto], {
     stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: 1 << 28,
-    env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
+    env: { ...env, GIT_OPTIONAL_LOCKS: '0' },
   });
 };
 
