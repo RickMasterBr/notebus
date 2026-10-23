@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decidir } from './protected-paths.mjs';
+import { decidir, CONTROLE as CONTROLE_HOOK } from './protected-paths.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(HERE, 'protected-paths.mjs');
@@ -316,4 +316,14 @@ test('a3: caminho absoluto dentro da pista nega; fora da pista passa', () => {
   const r = mkRoot();
   assert.ok(nega(agyCmd(r, `Set-Content ${path.join(r, 'apps/mobile/src/db/schema.ts')} a`, tmp())));
   assert.ok(passa(claudeBash(r, `Set-Content ${path.join(tmp(), 'x.ts')} a`)));
+});
+
+test('A6 CONTROLE exportado: 6 entradas na ordem do arquivo', () => {
+  assert.deepEqual(CONTROLE_HOOK, ['.claude/settings.json', '.claude/settings.local.json', '.agents/hooks.json', 'opencode.json', 'autorizacao.json', 'tools/agents/hooks/']);
+});
+
+test('A6 importar o modulo nao executa o hook (sem ler stdin, sem process.exit)', () => {
+  const r = spawnSync(process.execPath, ['-e', `import(${JSON.stringify(new URL('./protected-paths.mjs', import.meta.url).href)}).then(() => console.log('importado'))`], { encoding: 'utf8', input: '', timeout: 15000 });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), 'importado');
 });

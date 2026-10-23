@@ -7,6 +7,7 @@ import { lerContrato, ContratoErro } from './lib/contrato.mjs';
 import { adaptador } from './lib/harness/index.mjs';
 import { planejar, montarPrompt } from './lib/despacho.mjs';
 import { adquirir } from './lib/trava.mjs';
+import { retrato } from './lib/retrato.mjs';
 
 class Falha extends Error {
   constructor(codigo, texto, saida, linhas = []) {
@@ -93,11 +94,11 @@ const executar = ({ exe, args }, { cwd, saida, stderr, timeout }) =>
 
 const imprimeErros = (erros) => erros.map((e) => `${e.caminho || '/'} ${e.codigo} ${e.mensagem}`);
 
-const rodar = async ({ plano, harness, comando, timeout, schemaRelatorio, falso }) => {
+const rodar = async ({ plano, harness, comando, timeout, schemaRelatorio, falso, repo }) => {
   const pista = plano.pista.caminho;
   const a = plano.arquivosDespacho;
   const reportPista = path.join(pista, '.agent', 'report.json');
-  const meta = { id: plano.id, harness: harness.nome, exe: comando.exe, harness_falso: falso, inicio: new Date().toISOString(), fim: null, duracao_s: null, codigo_saida: null, meta: null, validacao: null, avisos: [], erro: null };
+  const meta = { id: plano.id, harness: harness.nome, exe: comando.exe, harness_falso: falso, inicio: new Date().toISOString(), retrato: null, fim: null, duracao_s: null, codigo_saida: null, meta: null, validacao: null, avisos: [], erro: null };
   const t0 = Date.now();
   const grava = () => {
     meta.fim = new Date().toISOString();
@@ -109,6 +110,15 @@ const rodar = async ({ plano, harness, comando, timeout, schemaRelatorio, falso 
     grava();
     return new Falha(codigo, texto, saida, linhas);
   };
+
+  // antes do harness: o que ele mudar no repositorio principal aparece na comparacao do gate
+  try {
+    // DISPATCH_RETRATO_FALHA: gancho so de teste
+    if (process.env.DISPATCH_RETRATO_FALHA) throw new Error('retrato forcado a falhar');
+    meta.retrato = retrato({ repo });
+  } catch {
+    meta.avisos.push('RETRATO_FALHOU');
+  }
 
   const r = await executar(comando, { cwd: pista, saida: a.saida, stderr: a.stderr, timeout });
   if (r.erro) {
@@ -182,7 +192,7 @@ const principal = async (argv) => {
     const a = plano.arquivosDespacho;
     writeFileSync(a.autorizacao, JSON.stringify({ tarefa: plano.id, areas_autorizadas: contrato.areas_autorizadas, arquivos_permitidos: contrato.arquivos_permitidos }, null, 2));
     copyFileSync(schemaRelatorio, a.schema);
-    return await rodar({ plano, harness, comando, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']) });
+    return await rodar({ plano, harness, comando, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']), repo });
   } finally {
     trava.liberar();
   }

@@ -41,6 +41,20 @@
       }
     },
     "criterios": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Um por criterio de aceitacao; o gate exige um item do relatorio para cada." },
-    "ideias": { "type": "array", "items": { "type": "integer", "minimum": 1 } }
+    "ideias": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+    "excecoes_gate": {
+      "type": "array",
+      "description": "Unico jeito de liberar o que o gate reprova por padrao (G06, G07, G08, G14). Escrito pela coordenacao e aprovado pelo Rick. G06: caminho pode ser pasta (termina em /); G07, G08 e G14: arquivo exato.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["verificacao", "caminho", "motivo"],
+        "properties": {
+          "verificacao": { "type": "string", "enum": ["G06", "G07", "G08", "G14"] },
+          "caminho": { "type": "string", "minLength": 1 },
+          "motivo": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
   }
 }

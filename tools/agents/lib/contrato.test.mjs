@@ -153,3 +153,40 @@ test('D7 este contrato e valido de ponta a ponta', () => {
   assert.equal(c.arquivos_permitidos.length, 3);
   assert.equal(c.criterios.length, 8);
 });
+
+test('A1 excecoes_gate: cabecalho valido traz 4 itens; contratos antigos continuam validos', () => {
+  const c = lerFx('contrato-excecoes.md');
+  assert.deepEqual(c.excecoes_gate.map((x) => x.verificacao), ['G06', 'G07', 'G08', 'G14']);
+  assert.ok(c.excecoes_gate[0].caminho.endsWith('/'));
+  for (const antigo of ['contrato-valido.md', 'contrato-m2-b1.md', 'contrato-m2-b1b.md']) assert.equal(lerFx(antigo).excecoes_gate, undefined, antigo);
+});
+
+test('A1 excecoes_gate: cada cabecalho invalido da fixture da ContratoErro SCHEMA', () => {
+  const texto = readFileSync(fx('excecoes-invalidas.md'), 'utf8');
+  const blocos = texto.split(/(?=^```json contrato)/m).slice(1);
+  assert.equal(blocos.length, 6);
+  blocos.forEach((b, i) => {
+    const f = path.join(tmp, `inv${i}.md`);
+    writeFileSync(f, b);
+    const e = erra(() => lerContrato(f, { schemaPath }));
+    assert.ok(e.length > 0 && e.every((x) => x.codigo === 'SCHEMA' && x.caminho.startsWith('/excecoes_gate')), `caso ${i}: ${JSON.stringify(e)}`);
+  });
+});
+
+test('A1 a copia do schema traz properties.excecoes_gate igual ao bloco do contrato', () => {
+  const esperado = {
+    type: 'array',
+    description: 'Unico jeito de liberar o que o gate reprova por padrao (G06, G07, G08, G14). Escrito pela coordenacao e aprovado pelo Rick. G06: caminho pode ser pasta (termina em /); G07, G08 e G14: arquivo exato.',
+    items: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['verificacao', 'caminho', 'motivo'],
+      properties: {
+        verificacao: { type: 'string', enum: ['G06', 'G07', 'G08', 'G14'] },
+        caminho: { type: 'string', minLength: 1 },
+        motivo: { type: 'string', minLength: 1 },
+      },
+    },
+  };
+  assert.deepEqual(JSON.parse(readFileSync(schemaPath, 'utf8')).properties.excecoes_gate, esperado);
+});

@@ -252,3 +252,40 @@ test('P12 nada fora da pista e de _despacho; contrato deste bloco e valido', () 
   assert.equal(c.arquivos_permitidos.length, 7);
   assert.equal(c.criterios.length, 13);
 });
+
+// harness falso que escreve fora da pista (no repositorio principal) e depois age como o do agy
+const falsoQueSuja = (amb, repo) => {
+  const f = path.join(amb.tmp, 'harness-suja.mjs');
+  const base = new URL('./lib/dispatch-fixtures/harness-base.mjs', import.meta.url).href;
+  writeFileSync(f, `import { writeFileSync } from 'node:fs';
+import { relatorio, commitaArquivo } from ${JSON.stringify(base)};
+writeFileSync(${JSON.stringify(path.join(repo, 'sujeira.txt'))}, 'fora da pista');
+commitaArquivo();
+console.log(JSON.stringify({ conversation_id: 'x', status: 'SUCCESS', response: JSON.stringify(relatorio()) }));
+`);
+  return f;
+};
+
+test('A3 meta.json grava o retrato de ANTES do harness (que escreve fora da pista)', async () => {
+  const { retrato } = await import('./lib/retrato.mjs');
+  const amb = ambiente();
+  const esperado = retrato({ repo: amb.repo });
+  const arquivo = contratoMd(amb);
+  const r = spawnSync(process.execPath, [DISPATCH, arquivo, '--raiz', amb.raiz, '--repo', amb.repo, '--schemas', SCHEMAS, '--harness-falso', falsoQueSuja(amb, amb.repo)], { encoding: 'utf8', timeout: 60000 });
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  const meta = json(path.join(despacho(amb), 'meta.json'));
+  assert.deepEqual(meta.retrato, esperado);
+  assert.deepEqual(meta.avisos, []);
+  assert.notDeepEqual(retrato({ repo: amb.repo }), esperado); // a sujeira existe, so nao esta no retrato
+  limpa(amb);
+});
+
+test('A3 retrato que falha vira null + RETRATO_FALHOU e a saida continua 0', () => {
+  const amb = ambiente();
+  const r = rodar(amb, contratoMd(amb), [], { env: { ...process.env, DISPATCH_RETRATO_FALHA: '1' } });
+  assert.equal(r.code, 0, r.out);
+  const meta = json(path.join(despacho(amb), 'meta.json'));
+  assert.equal(meta.retrato, null);
+  assert.deepEqual(meta.avisos, ['RETRATO_FALHOU']);
+  limpa(amb);
+});

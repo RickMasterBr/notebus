@@ -9,8 +9,10 @@ const lerTrava = (arquivo) => {
   }
 };
 
-export const adquirir = ({ raiz, id, minutos, max, agora = Date.now() }) => {
-  const dir = path.join(raiz, '_despacho', '_trava');
+// antesDeCriar: gancho so de teste, roda entre a listagem e a criacao do arquivo
+export const adquirir = ({ raiz, id, minutos, max, agora = Date.now(), pasta = '_trava', antesDeCriar }) => {
+  if (!pasta || /[\\/]|\.\./.test(pasta)) throw Object.assign(new TypeError(`PASTA_INVALIDA: ${pasta}`), { code: 'PASTA_INVALIDA' });
+  const dir = path.join(raiz, '_despacho', pasta);
   mkdirSync(dir, { recursive: true });
   const ativos = [];
   for (const nome of readdirSync(dir).filter((n) => n.endsWith('.lock'))) {
@@ -23,6 +25,13 @@ export const adquirir = ({ raiz, id, minutos, max, agora = Date.now() }) => {
   if (ativos.includes(id)) return { ok: false, codigo: 'JA_EM_ANDAMENTO', ativos };
   if (ativos.length >= max) return { ok: false, codigo: 'TRAVA_CHEIA', ativos };
   const arquivo = path.join(dir, `${id}.lock`);
-  writeFileSync(arquivo, JSON.stringify({ id, pid: process.pid, inicio: agora, minutos }));
+  antesDeCriar?.(arquivo);
+  try {
+    // 'wx' fecha a janela entre checar e criar para o mesmo id
+    writeFileSync(arquivo, JSON.stringify({ id, pid: process.pid, inicio: agora, minutos }), { flag: 'wx' });
+  } catch (e) {
+    if (e.code === 'EEXIST') return { ok: false, codigo: 'JA_EM_ANDAMENTO', ativos: [...ativos, id] };
+    throw e;
+  }
   return { ok: true, liberar: () => rmSync(arquivo, { force: true }) };
 };

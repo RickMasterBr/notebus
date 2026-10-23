@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FILE_ARGS = ['file_path', 'notebook_path', 'path', 'TargetFile', 'AbsolutePath'];
 // nunca liberados por autorizacao; 'autorizacao.json' vale em qualquer pasta
-const CONTROLE = ['.claude/settings.json', '.claude/settings.local.json', '.agents/hooks.json', 'opencode.json', 'autorizacao.json', 'tools/agents/hooks/'];
+export const CONTROLE = ['.claude/settings.json', '.claude/settings.local.json', '.agents/hooks.json', 'opencode.json', 'autorizacao.json', 'tools/agents/hooks/'];
 const LEITURA = ['git diff', 'git log', 'git show', 'git status', 'get-content', 'cat', 'type', 'ls', 'dir', 'get-childitem', 'select-string', 'grep', 'rg', 'npx vitest', 'npx tsc'];
 
 const norm = (p) => p.replace(/\\/g, '/').replace(/\/+/g, '/').toLowerCase();
