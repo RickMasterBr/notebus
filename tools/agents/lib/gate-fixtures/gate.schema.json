@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gate.json v1 (schema de teste do c1, campos do parecer §5)",
+  "type": "object",
+  "required": ["versao", "tarefa", "contrato_sha256", "base", "head", "branch", "gate", "modo", "resultado", "exige_revisor", "verificacoes", "arquivos", "comandos", "testes", "divergencias", "avisos", "inicio", "fim", "duracao_s"],
+  "properties": {
+    "versao": { "const": 1 },
+    "tarefa": { "type": "string" },
+    "contrato_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "base": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "head": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "branch": { "type": "string" },
+    "gate": { "type": "object", "required": ["caminho", "commit"], "properties": { "caminho": { "type": "string" }, "commit": { "type": "string" } } },
+    "modo": { "enum": ["despacho", "manual"] },
+    "resultado": { "enum": ["aprovado", "reprovado", "inconclusivo"] },
+    "exige_revisor": { "type": "boolean" },
+    "verificacoes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "codigo", "mensagem", "evidencia"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^G[0-9]{2}$" },
+          "status": { "enum": ["ok", "falha", "aviso", "nao_rodou"] },
+          "codigo": { "type": "string" },
+          "mensagem": { "type": "string" },
+          "evidencia": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "arquivos": {
+      "type": "object",
+      "required": ["mudados", "fora_da_lista", "areas_tocadas", "controle_tocados"],
+      "properties": {
+        "mudados": { "type": "array", "items": { "type": "object", "required": ["caminho", "estado", "modo"], "properties": { "caminho": { "type": "string" }, "estado": { "type": "string" }, "modo": { "type": "string" } } } },
+        "fora_da_lista": { "type": "array", "items": { "type": "string" } },
+        "areas_tocadas": { "type": "array", "items": { "type": "string" } },
+        "controle_tocados": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "comandos": { "type": "array" },
+    "testes": { "type": "object", "required": ["novos_por_arquivo", "execucao"] },
+    "divergencias": { "type": "array" },
+    "avisos": { "type": "array", "items": { "type": "string" } },
+    "inicio": { "type": "string" },
+    "fim": { "type": "string" },
+    "duracao_s": { "type": "number", "minimum": 0 }
+  }
+}

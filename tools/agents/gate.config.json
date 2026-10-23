@@ -1,0 +1,23 @@
+{
+  "ignorados_permitidos": [".agent/", ".expo/", "dist/", "coverage/", "*.tsbuildinfo", ".DS_Store", "Thumbs.db"],
+  "limite_arquivo_bytes": 524288,
+  "extensoes_dados": [".csv", ".xlsx", ".xls", ".geojson", ".zip", ".gz", ".db", ".sqlite"],
+  "prefixos_dados": ["docs/", "dados/", "referencias/"],
+  "configuracao": [
+    "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lock", "bun.lockb",
+    ".npmrc", ".nvmrc", "tsconfig*", "vitest.config*", "babel.config*", "metro.config*",
+    "app.json", "app.config.*", "eas.json", ".gitignore", ".gitattributes", ".gitmodules",
+    ".eslintrc*", "eslint.config.*", ".prettierrc*", "prettier.config.*"
+  ],
+  "extensoes_codigo": [".ts", ".tsx", ".js", ".mjs", ".cjs", ".json"],
+  "minimo_por_prefixo": [
+    { "extensoes": [".ts", ".tsx"], "exceto": ["tools/agents/"], "comandos": ["npm run typecheck"] },
+    { "prefixo": "packages/domain/", "comandos": ["npm test -w packages/domain"] },
+    { "prefixo": "apps/mobile/", "comandos": ["npm test -w apps/mobile", "npx expo export --platform ios --output-dir {saida}/dist"] },
+    { "prefixo": "tools/mobilis-seed/", "comandos": ["npm test -w tools/mobilis-seed"] },
+    { "prefixo": "tools/mvp-report/", "comandos": ["npm test -w tools/mvp-report"] },
+    { "prefixo": "tools/licenses/", "comandos": ["npm test -w tools/licenses"] },
+    { "prefixo": "tools/agents/", "comandos": ["node --test \"tools/agents/**/*.test.mjs\""] }
+  ],
+  "tempo_limite_comando_s": 600
+}
