@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { retrato } from '../retrato.mjs';
 import { montar } from '../gate/contexto.mjs';
+import { lerJson } from '../json.mjs';
 
 const AGENTS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export { gateBin };
@@ -109,7 +110,10 @@ export const criarRepo = ({ modo = 'manual', contrato: sobre = {} } = {}) => {
   t.gravarRelatorio = (parcial = {}) => {
     const cab = t.cabecalho;
     const r = {
-      tarefa: ID, branch: BRANCH, commit: t.head().slice(0, 7), arquivos_mudados: [], fora_do_pedido: [], comandos: [],
+      tarefa: ID, branch: BRANCH, commit: t.head().slice(0, 7), fora_do_pedido: [],
+      // estado honesto: o que o git viu entre a base e o HEAD e os comandos do contrato com saida 0
+      arquivos_mudados: t.g('diff', '--name-only', '--no-renames', base, 'HEAD').split('\n').filter(Boolean),
+      comandos: cab.comandos_validacao.map((comando) => ({ comando, duracao_s: 0, codigo_saida: 0, resumo: 'ok' })),
       testes_novos_por_arquivo: {}, itens: cab.criterios.map((c) => ({ criterio: c, status: 'provado_por_teste', evidencia: 'teste x' })),
       resultado: 'ok', duvidas: [], ideias_novas: [], ...parcial,
     };
@@ -126,8 +130,13 @@ export const criarRepo = ({ modo = 'manual', contrato: sobre = {} } = {}) => {
     t.gravarRelatorio();
     if (despacho) t.gravarMeta();
   };
+  // config de teste: a real, sem o minimo do app (npm/expo nao rodam nos testes) e com tempo-limite curto
+  t.configPath = path.join(T, 'gate.config.json');
+  t.configurar = ({ minimo = [], tempo = 30 } = {}) =>
+    writeFileSync(t.configPath, JSON.stringify({ ...lerJson(path.join(AGENTS, 'gate.config.json')), minimo_por_prefixo: minimo, tempo_limite_comando_s: tempo }));
+  t.configurar();
   t.argv = (extra = []) => {
-    const args = [t.contratoPath, '--repo', repo, '--raiz', T];
+    const args = [t.contratoPath, '--repo', repo, '--raiz', T, '--config', t.configPath];
     if (!despacho) args.push('--pista', pista, '--relatorio', t.relatorioPath, '--branch', BRANCH, '--saida', t.saida);
     return [...args, ...extra];
   };

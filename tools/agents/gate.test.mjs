@@ -39,21 +39,19 @@ test('C1 CLI: uso errado sai 2 e nao escreve nada', () => {
   t.limpar();
 });
 
-test('C1 CLI: tudo estatico ok sai 3 inconclusivo, G09/G10/G12/G16 PENDENTE_C2, gate.json valido', () => {
+// X10 (substitui o C1 que afirmava PENDENTE_C2 e inconclusivo por pendencia): so o modo --so-estatico guarda isso
+test('C1 CLI: --so-estatico mantem G09/G10/G12/G16 PENDENTE_C2, sai 3 e nunca aprova', () => {
   const t = novo();
-  const r = t.rodar();
+  const r = t.rodar(['--so-estatico']);
   assert.deepEqual([r.codigo, r.stdout], [3, 'INCONCLUSIVO t-teste PENDENTE_C2']);
   assert.deepEqual(validar(SCHEMA_GATE, r.gate).erros, []);
-  assert.equal(r.gate.versao, 1);
   assert.equal(r.gate.resultado, 'inconclusivo');
   assert.equal(r.gate.head, t.head());
   assert.equal(r.gate.base, t.base);
   for (const id of ['G09', 'G10', 'G12', 'G16']) assert.ok(r.tem(id, 'PENDENTE_C2', 'nao_rodou'), id);
   assert.deepEqual(r.gate.verificacoes.filter((v) => v.status === 'falha'), []);
+  assert.deepEqual(r.gate.comandos, []);
   assert.deepEqual(r.gate.arquivos.mudados, [{ caminho: 'src/alvo/a.ts', estado: 'A', modo: '100644' }]);
-  // --so-estatico e --executar-sempre sao aceitas e nao mudam nada no c1
-  assert.equal(t.rodar(['--so-estatico']).codigo, 3);
-  assert.equal(t.rodar(['--executar-sempre']).codigo, 3);
   t.limpar();
 });
 
@@ -85,6 +83,136 @@ test('C2 G00 CLI: gate rodando de dentro da pista sai 2 GATE_DENTRO_DA_PISTA e n
   assert.deepEqual([r.codigo, /GATE_DENTRO_DA_PISTA/.test(r.stderr)], [2, true]);
   assert.equal(arvore(t.T), antes);
   assert.equal(existsSync(t.saida), false);
+  t.limpar();
+});
+
+// c2: comandos falsos node -e; o minimo vem de um --config de teste (t.configurar), sem npm nem expo
+// tempo-limite de 10 s: o pwsh leva 1 a 4 s para subir com a maquina carregada e os comandos que devem passar nao podem estourar
+const comMinimo = (t, comandos, tempo = 10) => t.configurar({ minimo: [{ prefixo: 'src/alvo/', comandos }], tempo });
+const OK = 'node -e "process.exit(0)"';
+const QUEBRA = 'node -e "console.error(\'erro: quebrou\');process.exit(1)"';
+const DORME = 'node -e "setTimeout(()=>{},60000)"';
+const AUSENTE = 'comando-que-nao-existe-xyz';
+const ESCREVE_RASTREADO = 'node -e "require(\'fs\').appendFileSync(\'package.json\',\' \')"';
+const CRIA_CACHE = 'node -e "require(\'fs\').mkdirSync(\'.expo\',{recursive:true});require(\'fs\').writeFileSync(\'.expo/c.txt\',\'x\')"';
+const COMMITA = 'git -c user.name=t -c user.email=t@t commit -q --allow-empty -m x';
+const MARCA = 'node -e "require(\'fs\').writeFileSync(\'../marca-x9.txt\',\'x\')"';
+
+test('X3 gate: comando que passa do tempo da inconclusivo COMANDO_SEM_TEMPO (3) e os seguintes rodam', () => {
+  const t = novo();
+  comMinimo(t, [DORME, OK]);
+  const r = t.rodar();
+  assert.deepEqual([r.codigo, r.stdout], [3, 'INCONCLUSIVO t-teste COMANDO_SEM_TEMPO']);
+  assert.deepEqual(r.gate.comandos.map((c) => c.status), ['sem_tempo', 'concluido', 'concluido']);
+  assert.deepEqual(r.gate.comandos.map((c) => c.codigo_saida), [null, 0, 0]);
+  t.limpar();
+});
+
+test('X3 gate: comando inexistente da inconclusivo FERRAMENTA_AUSENTE (3) e o seguinte roda', () => {
+  const t = novo();
+  comMinimo(t, [AUSENTE, OK]);
+  const r = t.rodar();
+  assert.deepEqual([r.codigo, r.stdout], [3, 'INCONCLUSIVO t-teste FERRAMENTA_AUSENTE']);
+  assert.deepEqual(r.gate.comandos.map((c) => c.status), ['ferramenta_ausente', 'concluido', 'concluido']);
+  t.limpar();
+});
+
+test('X4 G09: comando do contrato que falha reprova COMANDO_FALHOU (1) e o resumo traz so a falha', () => {
+  const t = novo({ comandos_validacao: [QUEBRA] });
+  t.gravarRelatorio({ comandos: [{ comando: QUEBRA, duracao_s: 0, codigo_saida: 1, resumo: 'erro' }] });
+  const r = t.rodar();
+  assert.deepEqual([r.codigo, r.stdout, r.falhas('G09')], [1, 'REPROVADO t-teste COMANDO_FALHOU', ['COMANDO_FALHOU']]);
+  assert.deepEqual(r.gate.comandos.map((c) => [c.origem, c.resumo]), [['contrato', 'erro: quebrou']]);
+  t.limpar();
+});
+
+test('X4 G09: comando do minimo que falha reprova; o comando do contrato acrescenta e nunca tira o minimo', () => {
+  const t = novo();
+  comMinimo(t, [QUEBRA]);
+  const r = t.rodar();
+  assert.deepEqual([r.codigo, r.falhas('G09')], [1, ['COMANDO_FALHOU']]);
+  assert.deepEqual(r.gate.comandos.map((c) => [c.origem, c.comando]), [['minimo', QUEBRA], ['contrato', 'node --version']]);
+  t.limpar();
+});
+
+test('X6 G10: relatorio sem um arquivo mudado reprova RELATORIO_OUTRO_ESTADO', () => {
+  const t = novo();
+  t.gravarRelatorio({ arquivos_mudados: [] });
+  const r = t.rodar();
+  assert.deepEqual([r.codigo, r.falhas('G10')], [1, ['RELATORIO_OUTRO_ESTADO']]);
+  assert.equal(r.gate.divergencias[0].efeito, 'falha');
+  t.limpar();
+});
+
+test('X6 G10: relatorio diz 0 onde o comando falha reprova RELATORIO_ESCONDE_FALHA', () => {
+  const t = novo({ comandos_validacao: [QUEBRA] });
+  const r = t.rodar();
+  assert.deepEqual([r.codigo, r.falhas('G09'), r.falhas('G10')], [1, ['COMANDO_FALHOU'], ['RELATORIO_ESCONDE_FALHA']]);
+  t.limpar();
+});
+
+test('X7 G12: contagem diferente do relatorio e so divergencia com efeito aviso; arquivo novo conta tudo', () => {
+  const t = novo();
+  t.commitar({ 'src/alvo/n.test.ts': "it('a', () => {});\nit('b', () => {});\nit('c', () => {});\n" });
+  t.gravarRelatorio({ testes_novos_por_arquivo: { 'src/alvo/n.test.ts': 2 } });
+  const r = t.rodar();
+  assert.equal(r.codigo, 0);
+  assert.deepEqual(r.gate.testes.novos_por_arquivo, { 'src/alvo/n.test.ts': 3 });
+  assert.deepEqual(r.gate.divergencias, [{ campo: 'testes_novos_por_arquivo', relatorio: { 'src/alvo/n.test.ts': 2 }, gate: { 'src/alvo/n.test.ts': 3 }, efeito: 'aviso' }]);
+  assert.ok(r.gate.avisos.includes('CONTAGEM_DIVERGENTE'));
+  t.gravarRelatorio({ testes_novos_por_arquivo: { 'src/alvo/n.test.ts': 3 } });
+  const certo = t.rodar();
+  assert.deepEqual([certo.codigo, certo.gate.divergencias], [0, []]);
+  t.limpar();
+});
+
+test('X8 G16: comando que reescreve arquivo rastreado reprova PISTA_MUDOU_NO_GATE (1)', () => {
+  const t = novo({ comandos_validacao: [ESCREVE_RASTREADO] });
+  const r = t.rodar();
+  assert.deepEqual([r.codigo, r.falhas('G16')], [1, ['PISTA_MUDOU_NO_GATE']]);
+  assert.match(r.gate.verificacoes.find((v) => v.id === 'G16').evidencia.join(), /package\.json/);
+  t.limpar();
+});
+
+test('X8 G16: HEAD mudado por comando e falha; cache novo dentro das excecoes e so aviso', () => {
+  const h = novo({ comandos_validacao: [COMMITA] });
+  assert.deepEqual([h.rodar().falhas('G16')], [['PISTA_MUDOU_NO_GATE']]);
+  h.limpar();
+  const c = novo({ comandos_validacao: [CRIA_CACHE] });
+  const r = c.rodar();
+  assert.deepEqual([r.codigo, r.falhas('G16'), r.tem('G16', 'CACHE_NOVO', 'aviso')], [0, [], true]);
+  c.limpar();
+});
+
+test('X9 gate: estatica reprovada pula G09/G10/G12/G16 sem executar nada; --executar-sempre executa', () => {
+  const t = novo({ comandos_validacao: [MARCA] });
+  t.escrever('src/exemplo.test.ts', 'sujo\n');
+  const marca = path.join(t.T, 'pistas', 'marca-x9.txt');
+  const r = t.rodar();
+  assert.equal(r.codigo, 1);
+  for (const id of ['G09', 'G10', 'G12', 'G16']) assert.ok(r.tem(id, 'PULADO_POR_FALHA_ESTATICA', 'nao_rodou'), id);
+  assert.deepEqual([r.gate.comandos, existsSync(marca)], [[], false]);
+  const forcado = t.rodar(['--executar-sempre']);
+  assert.equal(forcado.codigo, 1);
+  assert.equal(existsSync(marca), true);
+  assert.equal(forcado.gate.comandos.length, 1);
+  t.limpar();
+});
+
+test('X10 gate: tudo ok aprova (0) com APROVADO, comandos[], testes e gate-historico; a saida do comando fica so no arquivo', () => {
+  const t = novo();
+  // o marcador e montado no comando: o texto dele (que vai para o gate.json) nao contem a saida
+  comMinimo(t, ['node -e "console.log(\'primeira-\'+\'linha-xyz\');console.log(\'ultima\')"']);
+  const r = t.rodar();
+  assert.deepEqual([r.codigo, r.stdout], [0, `APROVADO t-teste ${t.head().slice(0, 7)}`]);
+  assert.equal(r.gate.resultado, 'aprovado');
+  assert.deepEqual(validar(SCHEMA_GATE, r.gate).erros, []);
+  assert.deepEqual(r.gate.comandos.map((c) => [c.origem, c.codigo_saida, c.resumo, c.saida]), [['minimo', 0, 'ultima', 'gate/1.txt'], ['contrato', 0, r.gate.comandos[1].resumo, 'gate/2.txt']]);
+  assert.ok(r.gate.comandos.every((c) => c.duracao_s >= 0 && c.comando));
+  assert.deepEqual(r.gate.testes, { novos_por_arquivo: {}, execucao: [] });
+  assert.match(readFileSync(path.join(t.saida, 'gate', '1.txt'), 'utf8'), /primeira-linha-xyz/);
+  assert.ok(!JSON.stringify(r.gate).includes('primeira-linha-xyz'));
+  assert.equal(readdirSync(path.join(t.saida, 'gate-historico')).length, 1);
   t.limpar();
 });
 
@@ -197,7 +325,7 @@ test('C11 CLI: gate rodando bloqueia o segundo com GATE_OCUPADO (2); a trava e l
   dono.liberar();
   const trava = path.join(t.T, '_despacho', '_trava-gate');
   const locks = () => readdirSync(trava).filter((n) => n.endsWith('.lock'));
-  assert.equal(t.rodar().codigo, 3);
+  assert.equal(t.rodar().codigo, 0);
   assert.deepEqual(locks(), []);
   // excecao depois da trava: --saida aponta para um arquivo, gravar falha
   const arquivo = path.join(t.T, 'arquivo.txt');
@@ -212,7 +340,7 @@ test('C11 CLI: gate rodando bloqueia o segundo com GATE_OCUPADO (2); a trava e l
 test('C11 CLI: modo despacho le meta.json e grava na pasta do despacho', () => {
   const t = novo({}, 'despacho');
   const r = t.rodar();
-  assert.equal(r.codigo, 3);
+  assert.equal(r.codigo, 0);
   assert.equal(r.gate.modo, 'despacho');
   assert.ok(existsSync(path.join(t.dirDespacho, 'gate.json')));
   assert.deepEqual(r.gate.verificacoes.filter((v) => ['G13', 'G15'].includes(v.id) && v.status !== 'ok'), []);
