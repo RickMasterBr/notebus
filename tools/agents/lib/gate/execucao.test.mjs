@@ -39,6 +39,7 @@ test('X3 execucao: tempo esgotado devolve sem_tempo e o filho (neto do shell) na
   const dir = tmp();
   const r = await roda('node -e "require(\'fs\').writeFileSync(\'pid.txt\',String(process.pid));setTimeout(()=>{},60000)"', { tempoLimiteS: 4, dir });
   assert.equal(r.status, 'sem_tempo');
+  assert.ok(r.duracao_s < 10, `esperou ${r.duracao_s.toFixed(1)} s: o limite e 4 s e o filho dorme 60 s, entao matar() nao foi chamado`);
   assert.ok(existsSync(path.join(dir, 'pid.txt')), 'o comando nem chegou a iniciar em 4 s');
   const pid = Number(readFileSync(path.join(dir, 'pid.txt'), 'utf8'));
   await new Promise((ok) => setTimeout(ok, 500));

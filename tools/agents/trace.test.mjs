@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync, execFileSync } from 'node:child_process';
-import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COLUNAS, ler } from './lib/csv.mjs';
 import { semanaIso } from './lib/resumo.mjs';
+import { removerJuncao } from './lib/juncao.mjs';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const TRACE = path.join(aqui, 'trace.mjs');
@@ -247,17 +248,62 @@ test('T9 resumo: --semana mal formada, csv ausente ou sem cabecalho: codigo 2 se
   assert.ok(!existsSync(saida));
 });
 
-test('T10 nada fora da lista: diff contra a base so tem arquivos do §5', () => {
-  const permitidos = ['tools/agents/trace.mjs', 'tools/agents/trace.test.mjs', 'tools/agents/lib/registro.mjs', 'tools/agents/lib/registro.test.mjs', 'tools/agents/lib/csv.mjs', 'tools/agents/lib/csv.test.mjs', 'tools/agents/lib/resumo.mjs', 'tools/agents/lib/resumo.test.mjs'];
-  const prefixo = 'tools/agents/lib/trace-fixtures/';
-  let nomes;
+// retrato de uma pasta: caminho relativo -> hash do conteudo
+const retrato = (dir) => Object.fromEntries(readdirSync(dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).map((e) => {
+  const f = path.join(e.parentPath, e.name);
+  return [path.relative(dir, f).split(path.sep).join('/'), sha(f)];
+}).sort());
+
+test('T10 trace, anotar e resumo so escrevem onde mandaram', () => {
+  const raiz = pasta();
+  cpSync(FX, raiz, { recursive: true });
+  const T = pasta();
+  const csv = path.join(T, 'reg', 'registro-execucao.csv');
+  const regs = path.join(T, 'registros');
+  const saida = path.join(T, 'resumo.md');
+  const antesRaiz = retrato(raiz);
+  assert.equal(rodar(COMPLETO, '--raiz', raiz, '--csv', csv, '--registros', regs).codigo, 0);
+  assert.equal(rodar('anotar', 'tarefa-completa', '--csv', csv, '--pct', '3').codigo, 0);
+  assert.equal(rodar('resumo', '--csv', csv, '--saida', saida).codigo, 0);
+  assert.deepEqual(retrato(raiz), antesRaiz);
+  assert.deepEqual(Object.keys(retrato(T)), ['registros/tarefa-completa.md', 'reg/registro-execucao.csv', 'resumo.md'].sort());
+  rmSync(raiz, { recursive: true, force: true });
+  rmSync(T, { recursive: true, force: true });
+});
+
+test('A2 resumo recusa --saida igual ao --csv, sem gravar', (t) => {
+  const T = pasta();
+  const csv = path.join(T, 'x.csv');
+  copyFileSync(CSV_RESUMO, csv);
+  const antes = sha(csv);
+  const formas = [csv, path.relative(process.cwd(), csv), `.${path.sep}${path.relative(process.cwd(), csv)}`];
+  const link = path.join(T, 'link.csv');
   try {
-    nomes = execFileSync('git', ['diff', '--name-only', '0b69545'], { cwd: aqui, encoding: 'utf8' }).split('\n').filter(Boolean);
+    symlinkSync(csv, link);
+    formas.push(link);
   } catch {
-    return; // fora de um clone (sem a base): nada a conferir
+    t.diagnostic('ambiente nao criou symlink de arquivo; vale a juncao da pasta');
   }
-  const fora = nomes.filter((n) => !permitidos.includes(n) && !n.startsWith(prefixo));
-  assert.deepEqual(fora, []);
+  // juncao de pasta nao pede privilegio no Windows e tambem exige realpath
+  const pastaLink = pasta();
+  const juncao = path.join(pastaLink, 'j');
+  symlinkSync(T, juncao, 'junction');
+  formas.push(path.join(juncao, 'x.csv'));
+  for (const saida of formas) {
+    const r = rodar('resumo', '--csv', csv, '--saida', saida);
+    assert.equal(r.codigo, 2, saida);
+    assert.match(r.err, /^FALHA SAIDA_IGUAL_CSV /);
+    assert.equal(sha(csv), antes, saida);
+  }
+  // --saida diferente grava e nao toca o csv
+  const outra = path.join(T, 'resumo.md');
+  const r = rodar('resumo', '--csv', csv, '--saida', outra);
+  assert.equal(r.codigo, 0, r.err);
+  assert.equal(readFileSync(outra, 'utf8'), r.out);
+  assert.equal(sha(csv), antes);
+  removerJuncao(juncao); // so o link; o alvo e T
+  rmSync(pastaLink, { recursive: true, force: true });
+  rmSync(T, { recursive: true, force: true });
 });
 
 test('T10 os testes nao deixam rastro: pastas temporarias isoladas do repositorio', () => {

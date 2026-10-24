@@ -73,9 +73,9 @@ const ambiente = () => {
 };
 
 const limpa = (amb) => rmSync(amb.tmp, { recursive: true, force: true });
-const rodar = (amb, extra = [], { destino = 'integ', arquivo = amb.contrato } = {}) => {
+const rodar = (amb, extra = [], { destino = 'integ', arquivo = amb.contrato, env } = {}) => {
   const args = [MERGE, arquivo, '--raiz', amb.raiz, '--repo', amb.repo, '--schemas', SCHEMAS, ...(destino ? ['--destino', destino] : []), ...extra];
-  const r = spawnSync(process.execPath, args, { encoding: 'utf8', timeout: 60000 });
+  const r = spawnSync(process.execPath, args, { encoding: 'utf8', timeout: 60000, ...(env && { env }) });
   return { code: r.status, out: `${r.stdout}${r.stderr}`, stdout: r.stdout };
 };
 
@@ -162,6 +162,29 @@ suite('M2 FALTA_REVISOR: recusa sem --revisado e passa com ele', (amb) => {
   assert.equal(r.code, 0, r.out);
 });
 
+suite('A3 FALTA_REVISOR: exige_revisor que nao e o booleano false recusa; --revisado e false passam', (amb) => {
+  for (const exige of ['true', 'false', null, 1, 'sim', undefined]) {
+    amb.gate({ exige_revisor: exige });
+    recusa(amb, 'FALTA_REVISOR');
+  }
+  const semCampo = JSON.parse(readFileSync(amb.gatePath, 'utf8'));
+  delete semCampo.exige_revisor;
+  writeFileSync(amb.gatePath, JSON.stringify(semCampo));
+  recusa(amb, 'FALTA_REVISOR');
+  // false booleano passa sem a flag
+  amb.gate({ exige_revisor: false });
+  const livre = rodar(amb, ['--confirmo']);
+  assert.equal(livre.code, 0, livre.out);
+});
+
+suite('A3 FALTA_REVISOR: --revisado libera gate sem o campo', (amb) => {
+  const semCampo = JSON.parse(readFileSync(amb.gatePath, 'utf8'));
+  delete semCampo.exige_revisor;
+  writeFileSync(amb.gatePath, JSON.stringify(semCampo));
+  const r = rodar(amb, ['--confirmo', '--revisado']);
+  assert.equal(r.code, 0, r.out);
+});
+
 suite('M2 REPO_SUJO: arquivo nao rastreado no repo', (amb) => {
   writeFileSync(path.join(amb.repo, 'sujeira.txt'), 's\n');
   recusa(amb, 'REPO_SUJO');
@@ -234,6 +257,31 @@ suite('M5 conflito: aborta, destino igual, pista e branch intactas', (amb) => {
   const r = rodar(amb, ['--confirmo']);
   assert.equal(r.code, 1, r.out);
   assert.match(r.out, /FALHA CONFLITO/);
+  assert.equal(tenta(amb.repo, 'rev-parse', '-q', '--verify', 'MERGE_HEAD'), null);
+  assert.equal(git(amb.repo, 'status', '--porcelain'), '');
+  assert.deepEqual(estado(amb), antes);
+});
+
+suite('A4 git sem identidade: MERGE_FALHOU (nao CONFLITO), tudo intacto', (amb) => {
+  git(amb.repo, 'config', '--unset', 'user.name');
+  git(amb.repo, 'config', '--unset', 'user.email');
+  const casa = path.join(amb.tmp, 'casa');
+  mkdirSync(casa);
+  const vazio = path.join(casa, 'gitconfig-vazio');
+  writeFileSync(vazio, '');
+  const env = {
+    ...process.env,
+    HOME: casa, USERPROFILE: casa, XDG_CONFIG_HOME: casa,
+    GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: vazio,
+    // sem isto o git tenta adivinhar nome e e-mail pelo usuario e pelo host
+    GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'user.useConfigOnly', GIT_CONFIG_VALUE_0: 'true',
+    EMAIL: '', GIT_AUTHOR_NAME: '', GIT_AUTHOR_EMAIL: '', GIT_COMMITTER_NAME: '', GIT_COMMITTER_EMAIL: '',
+  };
+  const antes = estado(amb);
+  const r = rodar(amb, ['--confirmo'], { env });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /FALHA MERGE_FALHOU /);
+  assert.doesNotMatch(r.out, /CONFLITO/);
   assert.equal(tenta(amb.repo, 'rev-parse', '-q', '--verify', 'MERGE_HEAD'), null);
   assert.equal(git(amb.repo, 'status', '--porcelain'), '');
   assert.deepEqual(estado(amb), antes);

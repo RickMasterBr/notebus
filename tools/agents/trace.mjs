@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { lerJson } from './lib/json.mjs';
 import { extrairCabecalho, ContratoErro } from './lib/contrato.mjs';
@@ -134,9 +134,18 @@ const anotar = (o) => {
   return `OK ${id} anotado: ${mudancas.map(([f, c]) => `${c}=${o[f]}`).join(' ')}`;
 };
 
+// realpath so quando o arquivo existe; o Windows nao distingue maiusculas
+const mesmoArquivo = (a, b) => {
+  const real = (f) => (existsSync(f) ? realpathSync(f) : f);
+  const [x, y] = [real(a), real(b)];
+  return process.platform === 'win32' ? x.toLowerCase() === y.toLowerCase() : x === y;
+};
+
 const resumo = (o) => {
   if (o['--semana'] !== undefined && !SEMANA_VALIDA.test(o['--semana'])) throw new Falha('USO', `--semana pede AAAA-Www: ${o['--semana']}`);
-  const { linhas } = lerCsv(path.resolve(o['--csv']));
+  const csvArq = path.resolve(o['--csv']);
+  const { linhas } = lerCsv(csvArq);
+  if (o['--saida'] && mesmoArquivo(csvArq, path.resolve(o['--saida']))) throw new Falha('SAIDA_IGUAL_CSV', `--saida e o proprio csv: ${csvArq}`);
   const { texto, avisos } = resumir(linhas, { semana: o['--semana'] });
   avisos.forEach((a) => console.error(`AVISO ${a.codigo} ${a.mensagem}`));
   if (o['--saida']) writeFileSync(path.resolve(o['--saida']), texto);

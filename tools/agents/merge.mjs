@@ -67,7 +67,7 @@ const preCondicoes = ({ o, arquivo, repo, plano }) => {
   if (branchHead !== null && gate.head !== branchHead) throw new Falha('GATE_DE_OUTRO_COMMIT', `gate aprovou ${gate.head}, a branch esta em ${branchHead}`, 2);
   const sha = createHash('sha256').update(readFileSync(arquivo)).digest('hex');
   if (gate.contrato_sha256 !== sha) throw new Falha('GATE_DE_OUTRO_CONTRATO', 'o contrato mudou depois do gate', 2);
-  if (gate.exige_revisor === true && !o.revisado) throw new Falha('FALTA_REVISOR', 'o gate pede revisor: confirme com --revisado', 2);
+  if (gate.exige_revisor !== false && !o.revisado) throw new Falha('FALTA_REVISOR', 'o gate pede revisor: confirme com --revisado', 2);
   if (git(repo, 'status', '--porcelain') !== '') throw new Falha('REPO_SUJO', `${repo} tem mudancas nao commitadas`, 2);
   const existe = tenta(repo, 'rev-parse', '--verify', '--quiet', `refs/heads/${o.destino}`) !== null;
   if (o.destino === 'main' && !o['permitir-main']) throw new Falha('DESTINO_PROIBIDO', 'destino main exige --permitir-main', 2);
@@ -84,8 +84,11 @@ const unir = ({ repo, plano, mensagem }) => {
   try {
     const r = rodarGit(repo, ['-c', `core.hooksPath=${vazia}`, 'merge', '--no-ff', '-m', mensagem, plano.branch]);
     if (r.status === 0) return;
+    // sem caminho em conflito a falha e outra (ex.: git sem identidade), e dizer CONFLITO engana
+    const emConflito = git(repo, 'ls-files', '-u') !== '';
     if (tenta(repo, 'rev-parse', '-q', '--verify', 'MERGE_HEAD') !== null) git(repo, 'merge', '--abort');
-    throw new Falha('CONFLITO', `merge desfeito: ${(r.stdout + r.stderr).trim().split('\n')[0]}`, 1);
+    if (emConflito) throw new Falha('CONFLITO', `merge desfeito: ${(r.stdout + r.stderr).trim().split('\n')[0]}`, 1);
+    throw new Falha('MERGE_FALHOU', `merge desfeito: ${(r.stderr || r.stdout || r.error?.message || '').trim().split('\n')[0]}`, 1);
   } finally {
     rmSync(vazia, { recursive: true, force: true });
   }
