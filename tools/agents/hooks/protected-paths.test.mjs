@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decidir, CONTROLE as CONTROLE_HOOK } from './protected-paths.mjs';
+import { decidir, FERRAMENTA_LEITURA, CONTROLE as CONTROLE_HOOK } from './protected-paths.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(HERE, 'protected-paths.mjs');
@@ -360,4 +360,71 @@ test('H3 formato antigo permitido vale; campo que nao e lista nega; a chave boa 
     assert.ok(nega(alvo, { autorizacao: mkAuthObj(ruim) }), JSON.stringify(ruim));
   }
   assert.ok(passa(alvo, { autorizacao: mkAuthObj({ areas_autorizadas: 7, permitido: ['packages/domain/'] }) }));
+});
+
+// m2-h2c: ferramenta de escrita desconhecida, leitura nunca negada, diagnostico
+const agyTool = (root, name, args) => ({ workspacePaths: [root], toolCall: { name, args } });
+const MOTIVO_HOJE = /^Area protegida: .*Esta tarefa nao tem autorizacao escrita\./;
+
+test('C1 leitura nunca e negada (agy e claude) e FERRAMENTA_LEITURA casa so leitura', () => {
+  const r = mkRoot();
+  for (const alvo of ['packages/domain/x.ts', '.agents/hooks.json']) {
+    const abs = path.join(r, alvo);
+    for (const [name, args] of [['read_file', { file_path: abs }], ['view_file', { AbsolutePath: abs }], ['list_dir', { DirectoryPath: abs }], ['grep_search', { SearchPath: abs }], ['find_by_name', { SearchDirectory: abs }]]) {
+      assert.equal(decidir(agyTool(r, name, args)).negar, false, name + alvo);
+    }
+    assert.equal(decidir({ cwd: r, tool_name: 'Read', tool_input: { file_path: abs } }).negar, false, 'Read' + alvo);
+  }
+  for (const n of ['read_file', 'view_file', 'list_dir', 'grep_search', 'find_by_name', 'search_web', 'Read', 'Glob', 'Grep']) assert.ok(FERRAMENTA_LEITURA.test(n), n);
+  for (const n of ['write_file', 'write_to_file', 'replace_file_content', 'multi_replace_file_content', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'invoke_subagent', 'finish', 'manage_task']) assert.ok(!FERRAMENTA_LEITURA.test(n), n);
+});
+
+test('C2 escrita com argumento desconhecido nega area protegida e controle, qualquer forma', () => {
+  const r = mkRoot();
+  const abs = (p) => path.join(r, p);
+  const formas = (p) => [
+    { FilePath: p },
+    { target: p.replaceAll('/', '\\') },
+    { edit: { alvo: p } },
+    { lista: ['a', [p]] },
+    { uri: 'file:///' + abs(p).replaceAll('\\', '/') },
+    { uri: 'file://' + abs(p).replaceAll('\\', '/') },
+    { alvo: abs(p) },
+  ];
+  for (const p of ['packages/domain/x.txt', '.agents/hooks.json', 'opencode.json']) {
+    for (const name of ['write_file', 'Edit', 'invoke_subagent']) {
+      for (const args of formas(p)) {
+        const d = decidir(agyTool(r, name, args));
+        assert.equal(d.negar, true, name + JSON.stringify(args));
+        assert.match(d.motivo, MOTIVO_HOJE);
+      }
+    }
+  }
+  assert.ok(passa(agyTool(r, 'write_file', { FilePath: 'fumaca/ok.txt' })));
+  assert.ok(passa(agyTool(r, 'write_file', { FilePath: 'packages/domain/x.txt' }), { autorizacao: mkAuth(['packages/domain/']) }));
+  assert.ok(passa(agyTool(r, 'write_file', { FilePath: path.join(tmp(), 'fora.txt') })));
+});
+
+test('C3 frase nao e caminho: espaco, varias linhas e valor com mais de 300 caracteres passam', () => {
+  const r = mkRoot();
+  assert.ok(passa(agyTool(r, 'finish', { summary: 'Nada foi tocado em packages/domain' })));
+  assert.ok(passa(agyTool(r, 'write_file', { file_path: 'fumaca/ok.txt', content: 'linha1\npackages/domain\nlinha3' })));
+  assert.ok(passa(agyTool(r, 'finish', { summary: 'packages/domain/x.ts foi lido' })));
+  assert.ok(passa(agyTool(r, 'write_file', { file_path: 'fumaca/ok.txt', content: 'packages/domain/x.ts\noutra' })));
+  assert.ok(passa(agyTool(r, 'write_file', { alvo: 'a'.repeat(400 - 'packages/domain/x'.length - 1) + '/packages/domain/x' })));
+});
+
+test('C4 chaves em ferramenta de escrita sem caminho achado; o main as grava no hook.log', () => {
+  const r = mkRoot();
+  const d = decidir(agyTool(r, 'write_file', { foo: 'ok', bar: 3 }));
+  assert.equal(d.negar, false);
+  assert.deepEqual(d.chaves, ['bar', 'foo']);
+  assert.equal('chaves' in decidir(agyTool(r, 'write_file', { foo: 'fumaca/ok.txt' })), false);
+  assert.equal('chaves' in decidir(agyCmd(r, 'git status')), false);
+  const log = path.join(tmp(), 'hook.log');
+  run('agy', JSON.stringify(agyTool(r, 'write_file', { foo: 'ok', bar: 3 })), '--log', log);
+  run('agy', JSON.stringify(agyTool(r, 'write_file', { foo: 'fumaca/ok.txt' })), '--log', log);
+  const [a, b] = readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(a.chaves, ['bar', 'foo']);
+  assert.equal('chaves' in b, false);
 });

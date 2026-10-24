@@ -109,6 +109,20 @@ const citaResolvido = (seg, cwdRel, rootN, alvos) => {
 };
 const escreve = (seg) => seg.includes('>') || /\btee\b/i.test(seg) || seg.includes('--output');
 
+export const FERRAMENTA_LEITURA = /^(?:[Rr]ead|[Vv]iew|[Ll]ist|[Ll]s|[Gg]rep|[Gg]lob|[Ff]ind|[Ss]earch|[Gg]et)(?:$|[_A-Z0-9])/;
+
+// textos de qualquer chave, em objetos e listas aninhados: profundidade 4, 200 valores no maximo
+const valoresTexto = (args) => {
+  const out = [];
+  const anda = (v, d) => {
+    if (out.length >= 200) return;
+    if (typeof v === 'string') out.push(v);
+    else if (v && typeof v === 'object' && d < 4) for (const x of Object.values(v)) anda(x, d + 1);
+  };
+  for (const v of Object.values(args)) anda(v, 1);
+  return out;
+};
+
 // devolve { negar, motivo, alvo }; qualquer excecao sobe para o chamador, que nega
 export const decidir = (input, { areas = path.join(HERE, 'protected-paths.json'), autorizacao } = {}) => {
   const call = input.toolCall ?? { name: input.tool_name, args: input.tool_input };
@@ -140,13 +154,27 @@ export const decidir = (input, { areas = path.join(HERE, 'protected-paths.json')
     }
     return { negar: false, alvo: command };
   }
+  const primeiro = FILE_ARGS.map((k) => args[k]).find((v) => typeof v === 'string');
+  // leitura nunca e negada, qualquer que seja o argumento
+  if (FERRAMENTA_LEITURA.test(call.name ?? '')) return { negar: false, alvo: primeiro ?? Object.values(args).find((v) => typeof v === 'string') };
   for (const k of FILE_ARGS) {
     if (typeof args[k] !== 'string') continue;
     const rel = relToRoot(args[k], root, cwd);
     const alvo = rel === null ? undefined : protegido(rel);
     if (alvo) return negar(rel);
   }
-  return { negar: false, alvo: FILE_ARGS.map((k) => args[k]).find((v) => typeof v === 'string') };
+  // ferramenta de escrita com argumento de nome desconhecido: qualquer valor-caminho conta
+  let achou = false;
+  for (const v of valoresTexto(args)) {
+    if (/\s/.test(v) || v.length < 1 || v.length > 300) continue;
+    const limpo = v.replace(/^file:\/\//i, '').replace(/^\/(?=[a-z]:)/i, '');
+    const rel = relToRoot(limpo, root, cwd);
+    if (rel === null) continue;
+    // palavra solta ("ok") resolve para dentro da pista mas nao e caminho achado: so conta quem tem separador
+    if (/[\\/]/.test(limpo)) achou = true;
+    if (protegido(rel)) return negar(rel);
+  }
+  return { negar: false, alvo: primeiro, ...(achou ? {} : { chaves: Object.keys(args).sort() }) };
 };
 
 export const resposta = (harness, r) => {
@@ -174,7 +202,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const log = opt('--log');
   if (log) {
     try {
-      appendFileSync(log, JSON.stringify({ t: new Date().toISOString(), harness, tool, alvo: r.alvo, decisao: r.negar ? 'negar' : 'permitir' }) + '\n');
+      appendFileSync(log, JSON.stringify({ t: new Date().toISOString(), harness, tool, alvo: r.alvo, decisao: r.negar ? 'negar' : 'permitir', ...(r.chaves ? { chaves: r.chaves } : {}) }) + '\n');
     } catch {}
   }
   process.stdout.write(resposta(harness, r));

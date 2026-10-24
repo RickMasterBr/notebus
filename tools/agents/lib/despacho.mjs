@@ -88,7 +88,7 @@ export const montarPermissoesOpencode = (contrato, { areas, controle }) => {
   for (const e of areas.filter((a) => !cobre(autorizadas, a))) poe(edit, glob(e), 'deny');
   for (const e of controle) poe(edit, e === 'autorizacao.json' ? '**/autorizacao.json' : glob(e), 'deny');
   const bash = { '*': 'deny' };
-  for (const c of ['git status', 'git status *', 'git diff *', 'git log *', 'git add *', 'git commit *', ...(contrato.comandos_validacao ?? [])]) poe(bash, c, 'allow');
+  for (const c of ['git status', 'git status *', 'git diff *', 'git log *', 'git add *', 'git commit *', 'git rev-parse *', 'git branch --show-current', ...(contrato.comandos_validacao ?? [])]) poe(bash, c, 'allow');
   poe(bash, 'git push *', 'deny');
   return {
     $schema: 'https://opencode.ai/config.json',

@@ -158,3 +158,11 @@ test('P2 prompt: fixo, com id, contrato.md e regra de um comando', () => {
   assert.notEqual(outro, p);
   assert.equal(outro.replaceAll('outra', 'tarefa-um'), p);
 });
+
+test('C5 montarPermissoesOpencode: git rev-parse e git branch --show-current liberados, git push * segue ultimo e deny', () => {
+  const b = permissoes().permission.bash;
+  assert.equal(b['git rev-parse *'], 'allow');
+  assert.equal(b['git branch --show-current'], 'allow');
+  assert.equal(Object.keys(b).at(-1), 'git push *');
+  assert.equal(b['git push *'], 'deny');
+});
