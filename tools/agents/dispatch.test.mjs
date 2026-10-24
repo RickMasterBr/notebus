@@ -30,6 +30,10 @@ const ambiente = () => {
   git(repo, 'add', '.');
   git(repo, 'commit', '-q', '-m', 'base');
   mkdirSync(path.join(repo, 'node_modules'));
+  // fora do commit: so o repo precisa do script do hook (a pista nao ganha arquivo novo)
+  mkdirSync(path.join(repo, 'tools/agents/hooks'), { recursive: true });
+  writeFileSync(path.join(repo, 'tools/agents/hooks/protected-paths.mjs'), '');
+  writeFileSync(path.join(repo, '.git/info/exclude'), 'tools/\n');
   const base = git(repo, 'rev-parse', '--short', 'HEAD');
   return { tmp, repo, raiz, base };
 };
@@ -354,5 +358,50 @@ test('H6 a autorizacao que o dispatch gravou libera a area no hook; sem areas ne
   assert.equal(hookCli(com, path.join(pistaTmp, '.claude/settings.local.json'), pistaTmp), 'deny');
   const sem = autorizar({ areas: [] }, 'sem-area');
   assert.equal(hookCli(sem, path.join(pistaTmp, 'packages/domain/x.ts'), pistaTmp), 'deny');
+  limpa(amb);
+});
+
+// m2-h1b: sem o script do hook no repo o claude ficaria sem hook em silencio
+const semHook = (amb) => rmSync(path.join(amb.repo, 'tools/agents/hooks/protected-paths.mjs'));
+const estado = (amb) => ({ raiz: readdirSync(amb.raiz, { recursive: true }).sort(), branches: git(amb.repo, 'branch', '--list'), pistas: git(amb.repo, 'worktree', 'list') });
+
+test('B1 sem o script do hook no repo o dispatch recusa o claude com HOOK_AUSENTE, codigo 2', () => {
+  const amb = ambiente();
+  semHook(amb);
+  const r = rodar(amb, contratoMd(amb, { harness: 'claude' }));
+  assert.equal(r.code, 2, r.out);
+  assert.ok(r.out.includes('HOOK_AUSENTE'), r.out);
+  assert.ok(r.out.includes(path.join(amb.repo, 'tools/agents/hooks/protected-paths.mjs')), r.out);
+  limpa(amb);
+});
+
+test('B2 a recusa vem antes de criar despacho, pista, branch e trava', () => {
+  const amb = ambiente();
+  semHook(amb);
+  const antes = estado(amb);
+  assert.equal(rodar(amb, contratoMd(amb, { harness: 'claude' })).code, 2);
+  assert.deepEqual(estado(amb), antes);
+  assert.ok(!existsSync(despacho(amb)) && !existsSync(pistaDe(amb)) && !/tarefa\/tarefa-x/.test(estado(amb).branches));
+  limpa(amb);
+});
+
+test('B3 vale no dry-run; agy e opencode nao sao afetados', () => {
+  const amb = ambiente();
+  semHook(amb);
+  assert.equal(rodar(amb, contratoMd(amb, { harness: 'claude' }), ['--dry-run'], { usaFalso: null }).code, 2);
+  for (const harness of ['agy', 'opencode']) {
+    const r = rodar(amb, contratoMd(amb, { harness }), ['--dry-run'], { usaFalso: null });
+    assert.equal(r.code, 0, r.out);
+    assert.equal(JSON.parse(r.stdout.slice(0, r.stdout.lastIndexOf('}') + 1)).plano.hook.ligado, false);
+  }
+  limpa(amb);
+});
+
+test('B4 com o script presente o dry-run do claude devolve o plano de sempre', () => {
+  const amb = ambiente();
+  const r = rodar(amb, contratoMd(amb, { harness: 'claude' }), ['--dry-run'], { usaFalso: null });
+  assert.equal(r.code, 0, r.out);
+  const { plano } = JSON.parse(r.stdout.slice(0, r.stdout.lastIndexOf('}') + 1));
+  assert.deepEqual(plano.hook, { ligado: true, settings: path.join(despacho(amb), 'hooks-claude.json') });
   limpa(amb);
 });

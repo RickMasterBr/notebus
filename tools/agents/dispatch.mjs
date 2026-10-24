@@ -172,6 +172,8 @@ const principal = async (argv) => {
     throw e;
   }
   const plano = planejar(contrato, { raiz, repo });
+  const scriptHook = path.join(repo, 'tools/agents/hooks/protected-paths.mjs');
+  if (plano.hook.ligado && !existsSync(scriptHook)) throw new Falha('HOOK_AUSENTE', `${scriptHook} nao existe: o hook ficaria desligado (hook que falha nao bloqueia); confira o --repo`, 2);
   const harness = adaptador(contrato.executor.harness);
   let comando = harness.montarComando(contrato, { prompt: montarPrompt(contrato), schemaTexto: readFileSync(schemaRelatorio, 'utf8'), schemaCaminho: plano.arquivosDespacho.schema, settingsCaminho: plano.hook.ligado ? plano.hook.settings : undefined });
   if (o['harness-falso']) comando = { exe: process.execPath, args: [path.resolve(o['harness-falso']), ...comando.args] };
