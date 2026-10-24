@@ -3,7 +3,7 @@ const ehObjeto = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
 const textoValido = (v) => typeof v === 'string' && v.length > 0;
 const PERMITIDAS = ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash(git status*)', 'Bash(git diff*)', 'Bash(git log*)', 'Bash(git add*)', 'Bash(git commit*)'];
 
-export const montarComando = (contrato, { prompt, schemaTexto } = {}) => {
+export const montarComando = (contrato, { prompt, schemaTexto, settingsCaminho } = {}) => {
   if (!textoValido(prompt)) throw new Error('prompt vazio');
   if (!textoValido(schemaTexto)) throw new Error('schemaTexto vazio');
   if (!contrato?.limites) throw new Error('contrato sem limites');
@@ -12,7 +12,7 @@ export const montarComando = (contrato, { prompt, schemaTexto } = {}) => {
   // --allowedTools engole o que vem depois: tem de ser a ultima
   return {
     exe: 'claude',
-    args: ['-p', prompt, '--output-format', 'json', '--json-schema', schemaTexto, '--model', contrato.executor.modelo, '--max-turns', String(contrato.limites.turnos), '--allowedTools', ...permitidas],
+    args: ['-p', prompt, '--output-format', 'json', '--json-schema', schemaTexto, '--model', contrato.executor.modelo, '--max-turns', String(contrato.limites.turnos), ...(textoValido(settingsCaminho) ? ['--settings', settingsCaminho] : []), '--allowedTools', ...permitidas],
   };
 };
 

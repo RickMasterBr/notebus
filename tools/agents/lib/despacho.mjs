@@ -24,9 +24,29 @@ export const planejar = (contrato, { raiz, repo }) => {
       stderr: dentro('stderr.txt'),
       relatorio: dentro('relatorio.json'),
       meta: dentro('meta.json'),
+      hooks: dentro('hooks-claude.json'),
+      hookLog: dentro('hook.log'),
     },
+    // so o claude tem hook ligado; agy e opencode ficam para o bloco h2
+    hook: contrato.executor?.harness === 'claude'
+      ? { ligado: true, settings: dentro('hooks-claude.json') }
+      : { ligado: false, motivo: 'harness sem hook ligado (h2)' },
   };
 };
+
+const barra = (p) => p.replace(/\\/g, '/');
+
+// o script do hook vem do repo, nunca da pista; caminhos com / e entre aspas (o shell do Claude Code os le)
+export const montarHooksClaude = ({ repo, autorizacao, log }) => ({
+  hooks: {
+    PreToolUse: [
+      {
+        matcher: 'Edit|Write|MultiEdit|Bash',
+        hooks: [{ type: 'command', command: `node "${barra(path.join(repo, 'tools/agents/hooks/protected-paths.mjs'))}" claude --autorizacao "${barra(autorizacao)}" --log "${barra(log)}"` }],
+      },
+    ],
+  },
+});
 
 // ASCII e sem aspas duplas: o PowerShell 5.1 quebra os dois ao repassar argumentos
 export const montarPrompt = (contrato) =>

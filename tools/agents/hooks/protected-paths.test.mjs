@@ -327,3 +327,37 @@ test('A6 importar o modulo nao executa o hook (sem ler stdin, sem process.exit)'
   assert.equal(r.status, 0, r.stderr);
   assert.equal(r.stdout.trim(), 'importado');
 });
+
+// m2-h1: o hook le o formato que o dispatch grava (areas_autorizadas) e ignora arquivos_permitidos
+const mkAuthObj = (obj) => {
+  const f = path.join(tmp(), 'autorizacao.json');
+  writeFileSync(f, typeof obj === 'string' ? obj : JSON.stringify(obj));
+  return f;
+};
+test('H1 areas_autorizadas libera a area (claude, agy, Bash) e nao libera controle nem outra area', () => {
+  const r = mkRoot();
+  const autorizacao = mkAuthObj({ tarefa: 't', areas_autorizadas: ['packages/domain/'], arquivos_permitidos: [] });
+  assert.ok(passa(claudeEdit(r, path.join(r, 'packages/domain/x.ts')), { autorizacao }));
+  assert.ok(passa(agyEdit(r, path.join(r, 'packages/domain/x.ts')), { autorizacao }));
+  assert.ok(passa(claudeBash(r, 'echo oi > packages/domain/x.ts'), { autorizacao }));
+  for (const c of ['.claude/settings.local.json', '.agents/hooks.json', 'opencode.json', 'autorizacao.json', 'tools/agents/hooks/x']) {
+    assert.ok(nega(claudeEdit(r, path.join(r, c)), { autorizacao }), c);
+    assert.ok(nega(agyEdit(r, path.join(r, c)), { autorizacao }), c);
+  }
+  assert.ok(nega(claudeEdit(r, path.join(r, 'apps/mobile/src/db/schema.ts')), { autorizacao }));
+});
+test('H2 arquivos_permitidos sozinho nao libera nada', () => {
+  const r = mkRoot();
+  const autorizacao = mkAuthObj({ tarefa: 't', arquivos_permitidos: ['packages/domain/src/x.ts', 'packages/domain/'] });
+  assert.ok(nega(claudeEdit(r, path.join(r, 'packages/domain/src/x.ts')), { autorizacao }));
+  assert.ok(nega(agyEdit(r, path.join(r, 'packages/domain/src/x.ts')), { autorizacao }));
+});
+test('H3 formato antigo permitido vale; campo que nao e lista nega; a chave boa sobrevive a chave ruim', () => {
+  const r = mkRoot();
+  const alvo = claudeEdit(r, path.join(r, 'packages/domain/src/x.ts'));
+  assert.ok(passa(alvo, { autorizacao: mkAuthObj({ permitido: ['packages/domain/'] }) }));
+  for (const ruim of [{ areas_autorizadas: 'packages/domain/' }, { areas_autorizadas: [1] }, { permitido: { a: 1 } }, { areas_autorizadas: null }, 'null', '{quebrado']) {
+    assert.ok(nega(alvo, { autorizacao: mkAuthObj(ruim) }), JSON.stringify(ruim));
+  }
+  assert.ok(passa(alvo, { autorizacao: mkAuthObj({ areas_autorizadas: 7, permitido: ['packages/domain/'] }) }));
+});

@@ -60,6 +60,19 @@ test('H2 claude: montarComando', () => {
   assert.equal(new Set(permitidas).size, permitidas.length);
 });
 
+test('H5 claude: --settings antes de --allowedTools, que segue por ultimo; sem ele a saida e a de antes', () => {
+  const sem = claude.montarComando(contrato, entrada);
+  assert.deepEqual(sem.args, ['-p', 'faca', '--output-format', 'json', '--json-schema', '{"type":"object"}', '--model', 'sonnet', '--max-turns', '12', '--allowedTools', 'Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash(git status*)', 'Bash(git diff*)', 'Bash(git log*)', 'Bash(git add*)', 'Bash(git commit*)', 'Bash(node --test x.mjs*)', 'Bash(npx vitest run*)']); // resultado de antes do h1
+  for (const settingsCaminho of [undefined, '']) assert.deepEqual(claude.montarComando(contrato, { ...entrada, settingsCaminho }), sem);
+  const com = claude.montarComando(contrato, { ...entrada, settingsCaminho: 'C:/d/hooks-claude.json' });
+  const i = com.args.indexOf('--settings');
+  assert.equal(com.args[i + 1], 'C:/d/hooks-claude.json');
+  assert.ok(i < com.args.indexOf('--allowedTools'));
+  const sup = sem.args.indexOf('--allowedTools');
+  assert.deepEqual(com.args.slice(sup + 2), sem.args.slice(sup)); // tudo de --allowedTools em diante e igual: ele continua o ultimo
+  assert.deepEqual(com.args.filter((_, j) => j !== i && j !== i + 1), sem.args);
+});
+
 test('H2 claude: entradas invalidas lancam', () => {
   assert.throws(() => claude.montarComando(contrato, { ...entrada, prompt: '' }));
   assert.throws(() => claude.montarComando(contrato, { ...entrada, schemaTexto: '' }));

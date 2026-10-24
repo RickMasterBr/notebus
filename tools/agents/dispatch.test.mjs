@@ -289,3 +289,70 @@ test('A3 retrato que falha vira null + RETRATO_FALHOU e a saida continua 0', () 
   assert.deepEqual(meta.avisos, ['RETRATO_FALHOU']);
   limpa(amb);
 });
+
+// m2-h1: contrato com areas_autorizadas e os arquivos que o dispatch grava para ligar o hook
+const HOOK = aqui('./hooks/protected-paths.mjs');
+const contratoArea = (amb, { harness = 'claude', areas = ['packages/domain/'], id = 'tarefa-x' } = {}) => {
+  const arquivo = contratoMd(amb, { id, harness, pista: id });
+  const c = JSON.parse(readFileSync(arquivo, 'utf8').split('```json contrato\n')[1].split('\n```')[0]);
+  c.areas_autorizadas = areas;
+  c.arquivos_permitidos = ['packages/domain/x.ts'];
+  writeFileSync(arquivo, `# c\n\n\`\`\`json contrato\n${JSON.stringify(c, null, 2)}\n\`\`\`\n`);
+  return arquivo;
+};
+const hookCli = (autorizacao, file_path, cwd) => {
+  const r = spawnSync(process.execPath, [HOOK, 'claude', '--autorizacao', autorizacao], { input: JSON.stringify({ cwd, tool_name: 'Write', tool_input: { file_path } }), encoding: 'utf8' });
+  return r.stdout ? JSON.parse(r.stdout).hookSpecificOutput?.permissionDecision : undefined;
+};
+
+test('H4 dispatch grava hooks-claude.json fora da pista, sem BOM, e a pista fica sem arquivo novo', () => {
+  const amb = ambiente();
+  const r = rodar(amb, contratoArea(amb), [], { usaFalso: 'harness-opencode.mjs' });
+  assert.equal(r.code, 0, r.out);
+  const bruto = readFileSync(path.join(despacho(amb), 'hooks-claude.json'));
+  assert.notEqual(bruto[0], 0xef);
+  const h = JSON.parse(bruto.toString('utf8'));
+  const cmd = h.hooks.PreToolUse[0].hooks[0].command;
+  const f = (x) => x.replaceAll(path.sep, '/');
+  assert.ok(cmd.includes(`"${f(path.join(amb.repo, 'tools/agents/hooks/protected-paths.mjs'))}"`), cmd);
+  assert.ok(cmd.includes(`--autorizacao "${f(path.join(despacho(amb), 'autorizacao.json'))}"`), cmd);
+  assert.ok(!cmd.includes(f(pistaDe(amb, 'tarefa-x'))), cmd);
+  const pista = pistaDe(amb, 'tarefa-x');
+  assert.equal(git(pista, 'status', '--short').split('\n').filter((l) => l && !l.includes('.agent/')).join(''), '');
+  assert.ok(!readdirSync(pista, { recursive: true }).some((x) => /settings|hooks|opencode\.json/.test(x) && !x.includes('node_modules')));
+  limpa(amb);
+});
+
+test('H5 dispatch passa --settings so para o claude (visivel no --dry-run); H7 plano.hook por harness', () => {
+  for (const [harness, ligado] of [['claude', true], ['agy', false], ['opencode', false]]) {
+    const amb = ambiente();
+    const r = rodar(amb, contratoMd(amb, { harness }), ['--dry-run'], { usaFalso: null });
+    assert.equal(r.code, 0, r.out);
+    const { plano, comando } = JSON.parse(r.stdout.slice(0, r.stdout.lastIndexOf('}') + 1));
+    assert.equal(comando.args.includes('--settings'), ligado);
+    if (ligado) {
+      assert.deepEqual(plano.hook, { ligado: true, settings: path.join(despacho(amb), 'hooks-claude.json') });
+      assert.equal(comando.args[comando.args.indexOf('--settings') + 1], plano.hook.settings);
+      assert.ok(comando.args.indexOf('--settings') < comando.args.indexOf('--allowedTools'));
+    } else assert.deepEqual(plano.hook, { ligado: false, motivo: 'harness sem hook ligado (h2)' });
+    assert.ok(!existsSync(despacho(amb)));
+    limpa(amb);
+  }
+});
+
+test('H6 a autorizacao que o dispatch gravou libera a area no hook; sem areas nega; controle nega', () => {
+  const amb = ambiente();
+  const pistaTmp = path.join(amb.tmp, 'pista-hook');
+  mkdirSync(pistaTmp);
+  writeFileSync(path.join(pistaTmp, '.git'), 'gitdir: x');
+  const autorizar = (opcoes, id) => {
+    assert.equal(rodar(amb, contratoArea(amb, { ...opcoes, id }), [], { usaFalso: 'harness-opencode.mjs' }).code, 0);
+    return path.join(despacho(amb, id), 'autorizacao.json');
+  };
+  const com = autorizar({}, 'com-area');
+  assert.notEqual(hookCli(com, path.join(pistaTmp, 'packages/domain/x.ts'), pistaTmp), 'deny');
+  assert.equal(hookCli(com, path.join(pistaTmp, '.claude/settings.local.json'), pistaTmp), 'deny');
+  const sem = autorizar({ areas: [] }, 'sem-area');
+  assert.equal(hookCli(sem, path.join(pistaTmp, 'packages/domain/x.ts'), pistaTmp), 'deny');
+  limpa(amb);
+});

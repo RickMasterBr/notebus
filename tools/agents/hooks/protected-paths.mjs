@@ -33,10 +33,13 @@ const relToRoot = (p, root, cwd) => {
 export const MOTIVO = (c) =>
   `Area protegida: ${c}. Esta tarefa nao tem autorizacao escrita. Pare e relate no campo duvidas; nao tente outro caminho.`;
 
-// ausente, ilegivel ou quebrado = nenhuma autorizacao
+// uniao de areas_autorizadas (formato do dispatch) e permitido (SPK-08); arquivos_permitidos e do gate (G05), nao daqui
+// ausente, ilegivel, quebrado ou chave que nao e lista de strings = nenhuma autorizacao daquela chave
+const lista = (v) => (Array.isArray(v) && v.every((s) => typeof s === 'string') ? v.map(norm) : []);
 const lerAutorizacao = (file) => {
   try {
-    return (JSON.parse(readFileSync(file, 'utf8')).permitido ?? []).map(norm);
+    const a = JSON.parse(readFileSync(file, 'utf8'));
+    return [...lista(a.areas_autorizadas), ...lista(a.permitido)];
   } catch {
     return [];
   }

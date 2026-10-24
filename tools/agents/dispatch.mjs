@@ -5,7 +5,7 @@ import { lerJson } from './lib/json.mjs';
 import { validar } from './lib/schema.mjs';
 import { lerContrato, ContratoErro } from './lib/contrato.mjs';
 import { adaptador } from './lib/harness/index.mjs';
-import { planejar, montarPrompt } from './lib/despacho.mjs';
+import { planejar, montarPrompt, montarHooksClaude } from './lib/despacho.mjs';
 import { adquirir } from './lib/trava.mjs';
 import { retrato } from './lib/retrato.mjs';
 
@@ -173,7 +173,7 @@ const principal = async (argv) => {
   }
   const plano = planejar(contrato, { raiz, repo });
   const harness = adaptador(contrato.executor.harness);
-  let comando = harness.montarComando(contrato, { prompt: montarPrompt(contrato), schemaTexto: readFileSync(schemaRelatorio, 'utf8'), schemaCaminho: plano.arquivosDespacho.schema });
+  let comando = harness.montarComando(contrato, { prompt: montarPrompt(contrato), schemaTexto: readFileSync(schemaRelatorio, 'utf8'), schemaCaminho: plano.arquivosDespacho.schema, settingsCaminho: plano.hook.ligado ? plano.hook.settings : undefined });
   if (o['harness-falso']) comando = { exe: process.execPath, args: [path.resolve(o['harness-falso']), ...comando.args] };
 
   if (o.dryRun) {
@@ -191,6 +191,7 @@ const principal = async (argv) => {
     mkdirSync(plano.despachoDir, { recursive: true });
     const a = plano.arquivosDespacho;
     writeFileSync(a.autorizacao, JSON.stringify({ tarefa: plano.id, areas_autorizadas: contrato.areas_autorizadas, arquivos_permitidos: contrato.arquivos_permitidos }, null, 2));
+    if (plano.hook.ligado) writeFileSync(a.hooks, JSON.stringify(montarHooksClaude({ repo, autorizacao: a.autorizacao, log: a.hookLog }), null, 2));
     copyFileSync(schemaRelatorio, a.schema);
     return await rodar({ plano, harness, comando, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']), repo });
   } finally {
