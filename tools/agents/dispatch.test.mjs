@@ -405,3 +405,27 @@ test('B4 com o script presente o dry-run do claude devolve o plano de sempre', (
   assert.deepEqual(plano.hook, { ligado: true, settings: path.join(despacho(amb), 'hooks-claude.json') });
   limpa(amb);
 });
+
+// harness falso criado no teste: sai com 1 e escreve (ou nao) no stderr
+const falhaComStderr = (amb, stderr) => {
+  const f = path.join(amb.tmp, 'harness-stderr.mjs');
+  writeFileSync(f, `${stderr === null ? '' : `process.stderr.write(${JSON.stringify(stderr)});`}process.exit(1);`);
+  return f;
+};
+const mensagemSemRelatorio = (stderr) => {
+  const amb = ambiente();
+  const f = falhaComStderr(amb, stderr);
+  const r = rodar(amb, contratoMd(amb), ['--harness-falso', f], { usaFalso: null });
+  limpa(amb);
+  assert.equal(r.code, 1, r.out);
+  return /FALHA SEM_RELATORIO (.*)/.exec(r.out)[1].trim();
+};
+
+test('C4 SEM_RELATORIO: stderr com conteudo entra na mensagem (primeira linha nao vazia, ate 200)', () => {
+  assert.match(mensagemSemRelatorio('\n  \nError: --json-schema invalido\nsegunda\n'), /^sem relatorio \(saida 1; SAIDA_INVALIDA; ENOENT\) \| stderr: Error: --json-schema invalido$/);
+  assert.ok(mensagemSemRelatorio(`${'x'.repeat(300)}\n`).endsWith(` | stderr: ${'x'.repeat(200)}`));
+});
+
+test('C5 SEM_RELATORIO: sem stderr (ou so em branco) a mensagem e a de antes', () => {
+  for (const s of [null, '', ' \n\n']) assert.equal(mensagemSemRelatorio(s), 'sem relatorio (saida 1; SAIDA_INVALIDA; ENOENT)');
+});

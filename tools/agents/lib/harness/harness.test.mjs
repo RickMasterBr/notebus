@@ -176,3 +176,25 @@ test('H9 este contrato e valido', () => {
   assert.equal(c.arquivos_permitidos.length, 1);
   assert.equal(c.criterios.length, 10);
 });
+
+const schemaProjeto = ler('../fixtures/relatorio.schema.json');
+const schemaDoClaude = (schemaTexto) => { const { args } = claude.montarComando(contrato, { ...entrada, schemaTexto }); return args[args.indexOf('--json-schema') + 1]; };
+
+test('C1 claude: o argumento de --json-schema nao leva $schema', () => {
+  assert.ok(schemaProjeto.includes('"$schema": "https://json-schema.org/draft/2020-12/schema"'));
+  assert.ok(!schemaDoClaude(schemaProjeto).includes('$schema'));
+});
+
+test('C2 claude: sem $schema, nao JSON e JSON que nao e objeto passam byte a byte', () => {
+  for (const t of ['{"type":"object"}', '{ "type" : "object" }', 'nao e json', '[{"$schema":"x"}]', '7', 'null']) assert.equal(schemaDoClaude(t), t);
+});
+
+test('C3 claude: o resto do schema fica igual; --settings antes de --allowedTools, que e o ultimo', () => {
+  const { $schema, ...esperado } = JSON.parse(schemaProjeto);
+  assert.deepEqual(JSON.parse(schemaDoClaude(schemaProjeto)), esperado);
+  assert.deepEqual(Object.keys(JSON.parse(schemaDoClaude(schemaProjeto))), Object.keys(esperado));
+  const { args } = claude.montarComando(contrato, { ...entrada, schemaTexto: schemaProjeto, settingsCaminho: 'C:/d/h.json' });
+  assert.ok(args.indexOf('--settings') < args.indexOf('--allowedTools'));
+  assert.ok(args.indexOf('--json-schema') < args.indexOf('--settings'));
+  assert.ok(args.slice(args.indexOf('--allowedTools') + 1).every((a) => a !== '--settings' && !a.startsWith('--')));
+});

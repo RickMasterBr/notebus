@@ -3,6 +3,18 @@ const ehObjeto = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
 const textoValido = (v) => typeof v === 'string' && v.length > 0;
 const PERMITIDAS = ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash(git status*)', 'Bash(git diff*)', 'Bash(git log*)', 'Bash(git add*)', 'Bash(git commit*)'];
 
+// o claude -p nao conhece o meta-schema 2020-12 e recusa o $schema; texto que nao e objeto JSON com $schema passa como veio
+const semMetaSchema = (texto) => {
+  try {
+    const obj = JSON.parse(texto);
+    if (!ehObjeto(obj) || !('$schema' in obj)) return texto;
+    const { $schema, ...resto } = obj;
+    return JSON.stringify(resto);
+  } catch {
+    return texto;
+  }
+};
+
 export const montarComando = (contrato, { prompt, schemaTexto, settingsCaminho } = {}) => {
   if (!textoValido(prompt)) throw new Error('prompt vazio');
   if (!textoValido(schemaTexto)) throw new Error('schemaTexto vazio');
@@ -12,7 +24,7 @@ export const montarComando = (contrato, { prompt, schemaTexto, settingsCaminho }
   // --allowedTools engole o que vem depois: tem de ser a ultima
   return {
     exe: 'claude',
-    args: ['-p', prompt, '--output-format', 'json', '--json-schema', schemaTexto, '--model', contrato.executor.modelo, '--max-turns', String(contrato.limites.turnos), ...(textoValido(settingsCaminho) ? ['--settings', settingsCaminho] : []), '--allowedTools', ...permitidas],
+    args: ['-p', prompt, '--output-format', 'json', '--json-schema', semMetaSchema(schemaTexto), '--model', contrato.executor.modelo, '--max-turns', String(contrato.limites.turnos), ...(textoValido(settingsCaminho) ? ['--settings', settingsCaminho] : []), '--allowedTools', ...permitidas],
   };
 };
 

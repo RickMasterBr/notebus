@@ -70,6 +70,15 @@ const matar = (filho) => {
   filho.kill('SIGKILL');
 };
 
+// a causa real de uma falha do harness costuma estar so no stderr
+const lerStderr = (caminho) => {
+  try {
+    return readFileSync(caminho, 'utf8').split(/\r?\n/).map((l) => l.trim()).find(Boolean)?.slice(0, 200) ?? '';
+  } catch {
+    return '';
+  }
+};
+
 const executar = ({ exe, args }, { cwd, saida, stderr, timeout }) =>
   new Promise((resolve) => {
     const fds = [openSync(saida, 'w'), openSync(stderr, 'w')];
@@ -137,7 +146,8 @@ const rodar = async ({ plano, harness, comando, timeout, schemaRelatorio, falso,
     try {
       relatorio = lerJson(reportPista);
     } catch (e) {
-      throw falha('SEM_RELATORIO', `sem relatorio (saida ${r.codigo}; ${lido.erro?.codigo ?? '-'}; ${e.code ?? e.name})`, 1);
+      const linha = lerStderr(a.stderr);
+      throw falha('SEM_RELATORIO', `sem relatorio (saida ${r.codigo}; ${lido.erro?.codigo ?? '-'}; ${e.code ?? e.name})${linha ? ` | stderr: ${linha}` : ''}`, 1);
     }
   }
   if (relatorio?.tarefa !== plano.id) meta.avisos.push('TAREFA_DIFERENTE');
