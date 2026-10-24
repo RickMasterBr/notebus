@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
@@ -311,4 +311,23 @@ test('T10 os testes nao deixam rastro: pastas temporarias isoladas do repositori
   trace(a);
   assert.ok(a.csv.startsWith(os.tmpdir()));
   rmSync(a.T, { recursive: true, force: true });
+});
+
+test('G4 resumo recusa --saida hardlink do csv, sem gravar', (t) => {
+  const T = pasta();
+  const csv = path.join(T, 'x.csv');
+  const hard = path.join(T, 'hard.csv');
+  copyFileSync(CSV_RESUMO, csv);
+  try {
+    linkSync(csv, hard);
+  } catch (e) {
+    rmSync(T, { recursive: true, force: true });
+    return t.skip(`ambiente nao criou hardlink: ${e.code}`);
+  }
+  const antes = sha(csv);
+  const r = rodar('resumo', '--csv', csv, '--saida', hard);
+  assert.equal(r.codigo, 2, r.err);
+  assert.match(r.err, /^FALHA SAIDA_IGUAL_CSV /);
+  assert.equal(sha(csv), antes);
+  rmSync(T, { recursive: true, force: true });
 });

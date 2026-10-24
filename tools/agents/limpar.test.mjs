@@ -245,3 +245,45 @@ test('L9 pwsh -File limpar.ps1 --repo da codigo 0', (t) => {
   const r = spawnSync('pwsh', ['-NoProfile', '-File', PS1, '--repo', e.repo, '--raiz', e.raiz], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
 });
+
+const heads = (cwd) => git(cwd, 'ls-remote', '--heads', 'origin');
+
+test('G1 limpar: --sim e --remotas sem --aplicar nao mudam nada', () => {
+  const casos = [
+    [['--sim'], ''],
+    [['--remotas', '--sim'], 's\ns\n'],
+    [['--remotas'], 's\ns\n'],
+  ];
+  for (const [args, input] of casos) {
+    const e = ambiente();
+    const antes = [refs(e.repo), worktrees(e.repo), heads(e.repo), refs(e.remoto)];
+    const r = rodar(e, args, input);
+    assert.equal(r.status, 0, `${args}: ${r.stderr}`);
+    assert.deepEqual([refs(e.repo), worktrees(e.repo), heads(e.repo), refs(e.remoto)], antes, args.join(' '));
+  }
+});
+
+test('G2 limpar: --aplicar --sim sem --remotas nao toca o remoto', () => {
+  const e = ambiente();
+  const antes = [refs(e.remoto), heads(e.repo)];
+  const r = rodar(e, ['--aplicar', '--sim'], 's\ns\n');
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!branches(e.repo).includes('mesclada'));
+  assert.deepEqual([refs(e.remoto), heads(e.repo)], antes);
+});
+
+test('G3 limpar: mesclada no destino mas nao no HEAD mantem o -d', () => {
+  const e = ambiente({ worktrees: false });
+  git(e.repo, 'checkout', '-q', '-b', 'outra');
+  git(e.repo, 'checkout', '-q', '-b', 'so-no-destino', 'main');
+  writeFileSync(path.join(e.repo, 'd.txt'), 'd\n');
+  git(e.repo, 'add', 'd.txt');
+  git(e.repo, 'commit', '-q', '-m', 'so-no-destino');
+  git(e.repo, 'checkout', '-q', 'outra');
+  git(e.repo, 'merge', '-q', '--no-ff', '-m', 'merge', 'so-no-destino');
+  git(e.repo, 'checkout', '-q', 'main');
+  const r = rodar(e, ['--aplicar', '--sim', '--destino', 'outra']);
+  assert.equal(r.status, 1, r.stderr);
+  assert.ok(branches(e.repo).includes('so-no-destino'));
+  assert.ok(r.json.falhas.some((f) => f.motivo === 'RAMO_NAO_APAGADO' && f.alvo === 'so-no-destino'), r.stdout);
+});

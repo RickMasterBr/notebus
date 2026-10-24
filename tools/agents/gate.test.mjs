@@ -361,3 +361,32 @@ test('C1 D1 CLI: o gate nao roda diff.external nem textconv da pista', () => {
   assert.equal(existsSync(marcador), false, 'o gate rodou programa da pista');
   t.limpar();
 });
+
+const PULA = "import { test } from 'node:test';\ntest.skip('pulado', () => {});\ntest('ok', () => {});\n";
+
+// o node --test do teste passa NODE_TEST_CONTEXT ao node --test que o gate roda e muda a saida dele
+const rodarLimpo = (t) => {
+  const ctx = process.env.NODE_TEST_CONTEXT;
+  delete process.env.NODE_TEST_CONTEXT;
+  try {
+    return t.rodar();
+  } finally {
+    if (ctx !== undefined) process.env.NODE_TEST_CONTEXT = ctx;
+  }
+};
+
+test('G5 gate: PULADO_EM_ARQUIVO_TOCADO so aparece quando o contrato toca arquivo de teste', () => {
+  // o pulo vem do TAP, que nao diz o arquivo: o aviso depende de haver arquivo *.test.* tocado
+  const toca = novo({ arquivos_permitidos: ['src/alvo/'], comandos_validacao: ['node --test src/alvo/pula.test.mjs'] });
+  toca.pronto({ 'src/alvo/pula.test.mjs': PULA });
+  const a = rodarLimpo(toca);
+  assert.ok(a.tem('G12', 'PULADO_EM_ARQUIVO_TOCADO', 'aviso'), a.stdout);
+  toca.limpar();
+
+  const nao = novo({ arquivos_permitidos: ['src/alvo/'], comandos_validacao: ['node --test src/alvo/pula.mjs'] });
+  nao.pronto({ 'src/alvo/pula.mjs': PULA });
+  const b = rodarLimpo(nao);
+  assert.ok(!b.tem('G12', 'PULADO_EM_ARQUIVO_TOCADO'), b.stdout);
+  assert.ok(b.gate.testes.execucao.some((x) => x.pulou > 0), 'o pulo tem que ter sido lido');
+  nao.limpar();
+});

@@ -65,3 +65,10 @@ test('V6: cada padrão proibido falha; a linha "Não leia" não', () => {
 test('V7: o módulo não importa node:fs', () => {
   assert.doesNotMatch(readFileSync(fileURLToPath(new URL('./agents-doc.mjs', import.meta.url)), 'utf8'), /node:fs|from 'fs'/);
 });
+
+test('G6 V4: área escrita com barra invertida no texto e na lista casa, sem AREA_FALTANDO', () => {
+  const invertido = BOM.replaceAll('packages/domain', 'packages\\domain');
+  assert.ok(invertido.includes('packages\\domain') && !invertido.includes('packages/domain'));
+  const areas = AREAS.map((a) => a.replaceAll('/', '\\'));
+  assert.ok(!codigos(rodar(invertido, CLAUDE, { areas })).includes('AREA_FALTANDO'));
+});

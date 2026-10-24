@@ -134,11 +134,14 @@ const anotar = (o) => {
   return `OK ${id} anotado: ${mudancas.map(([f, c]) => `${c}=${o[f]}`).join(' ')}`;
 };
 
-// realpath so quando o arquivo existe; o Windows nao distingue maiusculas
+// realpath so quando o arquivo existe; o Windows nao distingue maiusculas; hardlink: mesmo dev e ino
 const mesmoArquivo = (a, b) => {
   const real = (f) => (existsSync(f) ? realpathSync(f) : f);
   const [x, y] = [real(a), real(b)];
-  return process.platform === 'win32' ? x.toLowerCase() === y.toLowerCase() : x === y;
+  if (process.platform === 'win32' ? x.toLowerCase() === y.toLowerCase() : x === y) return true;
+  if (!existsSync(a) || !existsSync(b)) return false;
+  const [sa, sb] = [statSync(a), statSync(b)];
+  return sa.dev === sb.dev && sa.ino === sb.ino;
 };
 
 const resumo = (o) => {
