@@ -1,0 +1,9 @@
+{
+  "id": "tarefa-sem-gate",
+  "harness": "agy",
+  "exe": "agy",
+  "inicio": "2026-10-21T09:00:00.000Z",
+  "fim": "2026-10-21T09:01:00.000Z",
+  "duracao_s": 60,
+  "codigo_saida": 0
+}

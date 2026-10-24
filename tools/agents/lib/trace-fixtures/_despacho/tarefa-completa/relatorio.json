@@ -1,0 +1,18 @@
+{
+  "tarefa": "tarefa-completa",
+  "branch": "infra/m2",
+  "commit": "1a2b3c4",
+  "arquivos_mudados": ["tools/agents/a.mjs", "tools/agents/a.test.mjs"],
+  "fora_do_pedido": ["x|y.txt"],
+  "comandos": [
+    { "comando": "node --test a.test.mjs", "duracao_s": 1.5, "codigo_saida": 0, "resumo": "3 testes | 3 passam\nsegunda linha" },
+    { "comando": "git status --short", "duracao_s": 0.25, "codigo_saida": 0, "resumo": "limpo" }
+  ],
+  "testes_novos_por_arquivo": { "tools/agents/a.test.mjs": 3, "tools/agents/b.test.mjs": 2 },
+  "itens": [
+    { "criterio": "T1 a | b", "status": "provado_por_teste", "evidencia": "teste 'T1'" }
+  ],
+  "resultado": "ok",
+  "duvidas": ["uma duvida com | barra"],
+  "ideias_novas": []
+}

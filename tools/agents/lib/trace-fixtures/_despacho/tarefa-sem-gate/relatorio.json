@@ -1,0 +1,13 @@
+{
+  "tarefa": "tarefa-sem-gate",
+  "branch": "infra/m2",
+  "commit": "9z8y7x6",
+  "arquivos_mudados": ["tools/agents/c.mjs"],
+  "fora_do_pedido": [],
+  "comandos": [{ "comando": "node --test c.test.mjs", "duracao_s": 2, "codigo_saida": 1, "resumo": "1 falha" }],
+  "testes_novos_por_arquivo": {},
+  "itens": [],
+  "resultado": "parcial",
+  "duvidas": [],
+  "ideias_novas": []
+}

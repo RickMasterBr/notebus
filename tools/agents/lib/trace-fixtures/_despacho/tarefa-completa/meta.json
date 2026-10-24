@@ -1,0 +1,13 @@
+{
+  "id": "tarefa-completa",
+  "harness": "claude",
+  "exe": "claude",
+  "inicio": "2026-10-20T10:00:00.000Z",
+  "fim": "2026-10-20T10:05:30.500Z",
+  "duracao_s": 330.5,
+  "codigo_saida": 0,
+  "meta": null,
+  "validacao": "ok",
+  "avisos": [],
+  "retrato": null
+}

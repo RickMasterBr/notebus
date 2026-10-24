@@ -1,0 +1,17 @@
+{
+  "versao": 1,
+  "resultado": "reprovado",
+  "exige_revisor": true,
+  "verificacoes": [
+    { "id": "G01", "status": "ok", "codigo": "" },
+    { "id": "G04", "status": "falha", "codigo": "FORA_DA_LISTA" },
+    { "id": "G09", "status": "aviso", "codigo": "COMANDO_LENTO" },
+    { "id": "G10", "status": "falha", "codigo": "TESTE_FALHOU" }
+  ],
+  "divergencias": ["d1", "d2"],
+  "avisos": ["AVISO_A", "AVISO_B"],
+  "comandos": [],
+  "inicio": "2026-10-20T10:10:00.000Z",
+  "fim": "2026-10-20T10:10:20.000Z",
+  "duracao_s": 20
+}

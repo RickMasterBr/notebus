@@ -1,0 +1,7 @@
+tarefa,executor,modelo,inicio_despacho,fim_harness,inicio_gate,fim_gate,duracao_harness_s,comandos_s,rodadas_verificacao,resultado_gate,exige_revisor,avisos_gate,verificacoes_falhas,divergencias,arquivos_mudados,testes_novos,resultado_relatorio,pct_limite,mutantes_sobreviventes,retrabalho,intervencoes_rick
+a1,claude,sonnet,2026-10-05T09:00:00.000Z,,2026-10-05T09:10:00.000Z,2026-10-05T09:10:20.000Z,100,,1,aprovado,nao,,,0,1,1,ok,3,,0,1
+a2,claude,sonnet,2026-10-08T09:00:00.000Z,,2026-10-08T09:20:00.000Z,2026-10-08T09:20:40.000Z,200,,1,reprovado,sim,,G04,1,1,1,ok,,1,2,
+b1,claude,sonnet,2026-10-12T00:00:00.000Z,,2026-10-12T00:10:00.000Z,2026-10-12T00:10:20.000Z,60,,1,inconclusivo,sim,,,0,1,1,ok,2,,,
+b2,agy,gemini,2026-10-18T23:59:59.000Z,,,,30,,0,sem_gate,,,,,1,0,parcial,4,,1,
+b3,claude,sonnet,2026-10-14T12:00:00.000Z,,2026-10-14T12:10:00.000Z,2026-10-14T12:10:10.000Z,90,,1,aprovado,nao,,,0,1,1,ok,abc,,,
+c1,claude,sonnet,2026-10-19T00:00:00.000Z,,2026-10-19T00:10:00.000Z,2026-10-19T00:10:15.000Z,45.5,,1,aprovado,nao,,,0,1,1,ok,,,,
