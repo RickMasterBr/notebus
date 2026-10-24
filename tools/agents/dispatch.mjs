@@ -1,11 +1,13 @@
 import { spawn, execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { lerJson } from './lib/json.mjs';
 import { validar } from './lib/schema.mjs';
 import { lerContrato, ContratoErro } from './lib/contrato.mjs';
 import { adaptador } from './lib/harness/index.mjs';
-import { planejar, montarPrompt, montarHooksClaude } from './lib/despacho.mjs';
+import { planejar, montarPrompt, montarHooksClaude, montarHooksAgy, montarPermissoesOpencode } from './lib/despacho.mjs';
+import { CONTROLE } from './hooks/protected-paths.mjs';
 import { adquirir } from './lib/trava.mjs';
 import { retrato } from './lib/retrato.mjs';
 
@@ -103,11 +105,39 @@ const executar = ({ exe, args }, { cwd, saida, stderr, timeout }) =>
 
 const imprimeErros = (erros) => erros.map((e) => `${e.caminho || '/'} ${e.codigo} ${e.mensagem}`);
 
-const rodar = async ({ plano, harness, comando, timeout, schemaRelatorio, falso, repo }) => {
+// o arquivo ja esta na base: gravar por cima mudaria um arquivo rastreado
+const naBase = (repo, base, arquivo) => {
+  try {
+    git(repo, 'cat-file', '-e', `${base}:${arquivo}`);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// grava o hook do harness (e a copia do despacho, byte a byte) e devolve o que vai ao meta.json
+const gravarHook = ({ plano, contrato, repo }) => {
+  const { hook } = plano;
+  const a = plano.arquivosDespacho;
+  const texto = JSON.stringify(
+    hook.tipo === 'claude' ? montarHooksClaude({ repo, autorizacao: a.autorizacao, log: a.hookLog })
+    : hook.tipo === 'agy' ? montarHooksAgy({ repo, autorizacao: a.autorizacao, log: a.hookLog })
+    : montarPermissoesOpencode(contrato, { areas: lerJson(path.join(repo, 'tools/agents/hooks/protected-paths.json')), controle: CONTROLE }),
+    null,
+    2,
+  );
+  const arquivo = hook.arquivoPista ?? hook.settings;
+  mkdirSync(path.dirname(arquivo), { recursive: true });
+  writeFileSync(arquivo, texto);
+  if (hook.copia) writeFileSync(hook.copia, texto);
+  return { tipo: hook.tipo, arquivo, sha256: createHash('sha256').update(texto).digest('hex') };
+};
+
+const rodar = async ({ plano, harness, comando, timeout, schemaRelatorio, falso, repo, hook }) => {
   const pista = plano.pista.caminho;
   const a = plano.arquivosDespacho;
   const reportPista = path.join(pista, '.agent', 'report.json');
-  const meta = { id: plano.id, harness: harness.nome, exe: comando.exe, harness_falso: falso, inicio: new Date().toISOString(), retrato: null, fim: null, duracao_s: null, codigo_saida: null, meta: null, validacao: null, avisos: [], erro: null };
+  const meta = { id: plano.id, harness: harness.nome, exe: comando.exe, harness_falso: falso, inicio: new Date().toISOString(), hook, retrato: null, fim: null, duracao_s: null, codigo_saida: null, meta: null, validacao: null, avisos: [], erro: null };
   const t0 = Date.now();
   const grava = () => {
     meta.fim = new Date().toISOString();
@@ -182,8 +212,10 @@ const principal = async (argv) => {
     throw e;
   }
   const plano = planejar(contrato, { raiz, repo });
-  const scriptHook = path.join(repo, 'tools/agents/hooks/protected-paths.mjs');
-  if (plano.hook.ligado && !existsSync(scriptHook)) throw new Falha('HOOK_AUSENTE', `${scriptHook} nao existe: o hook ficaria desligado (hook que falha nao bloqueia); confira o --repo`, 2);
+  for (const f of ['protected-paths.mjs', 'protected-paths.json']) {
+    const arq = path.join(repo, 'tools/agents/hooks', f);
+    if (plano.hook.ligado && !existsSync(arq)) throw new Falha('HOOK_AUSENTE', `${arq} nao existe: o hook ficaria desligado (hook que falha nao bloqueia); confira o --repo`, 2);
+  }
   const harness = adaptador(contrato.executor.harness);
   let comando = harness.montarComando(contrato, { prompt: montarPrompt(contrato), schemaTexto: readFileSync(schemaRelatorio, 'utf8'), schemaCaminho: plano.arquivosDespacho.schema, settingsCaminho: plano.hook.ligado ? plano.hook.settings : undefined });
   if (o['harness-falso']) comando = { exe: process.execPath, args: [path.resolve(o['harness-falso']), ...comando.args] };
@@ -193,6 +225,11 @@ const principal = async (argv) => {
     return `OK ${plano.id} dry-run`;
   }
 
+  const { hook } = plano;
+  if (hook.arquivoPista) {
+    const rel = path.relative(plano.pista.caminho, hook.arquivoPista).replace(/\\/g, '/');
+    if (naBase(repo, plano.base, rel)) throw new Falha('HOOK_JA_EXISTE', `a base ${plano.base} ja tem ${rel}: o dispatch nao o sobrescreve`, 2);
+  }
   const trava = adquirir({ raiz, id: plano.id, minutos: contrato.limites.minutos, max: o.max ?? 2 });
   if (!trava.ok) throw new Falha(trava.codigo, `ativos: ${trava.ativos.join(', ') || '-'}`, 2);
   try {
@@ -203,9 +240,9 @@ const principal = async (argv) => {
     mkdirSync(plano.despachoDir, { recursive: true });
     const a = plano.arquivosDespacho;
     writeFileSync(a.autorizacao, JSON.stringify({ tarefa: plano.id, areas_autorizadas: contrato.areas_autorizadas, arquivos_permitidos: contrato.arquivos_permitidos }, null, 2));
-    if (plano.hook.ligado) writeFileSync(a.hooks, JSON.stringify(montarHooksClaude({ repo, autorizacao: a.autorizacao, log: a.hookLog }), null, 2));
+    const hookMeta = hook.ligado ? gravarHook({ plano, contrato, repo }) : null;
     copyFileSync(schemaRelatorio, a.schema);
-    return await rodar({ plano, harness, comando, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']), repo });
+    return await rodar({ plano, harness, comando, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']), repo, hook: hookMeta });
   } finally {
     trava.liberar();
   }

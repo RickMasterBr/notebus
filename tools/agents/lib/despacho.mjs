@@ -26,12 +26,19 @@ export const planejar = (contrato, { raiz, repo }) => {
       meta: dentro('meta.json'),
       hooks: dentro('hooks-claude.json'),
       hookLog: dentro('hook.log'),
+      hooksAgy: dentro('hooks-agy.json'),
+      opencodeConfig: dentro('opencode-config.json'),
     },
-    // so o claude tem hook ligado; agy e opencode ficam para o bloco h2
-    hook: contrato.executor?.harness === 'claude'
-      ? { ligado: true, settings: dentro('hooks-claude.json') }
-      : { ligado: false, motivo: 'harness sem hook ligado (h2)' },
+    // claude: settings fora da pista; agy e opencode: arquivo na pista (o G03 o confere contra a copia do despacho)
+    hook: hookDe(contrato.executor?.harness, pista.caminho, dentro),
   };
+};
+
+const hookDe = (harness, pista, dentro) => {
+  if (harness === 'claude') return { ligado: true, tipo: 'claude', settings: dentro('hooks-claude.json') };
+  if (harness === 'agy') return { ligado: true, tipo: 'agy', arquivoPista: path.join(pista, '.agents', 'hooks.json'), copia: dentro('hooks-agy.json') };
+  if (harness === 'opencode') return { ligado: true, tipo: 'opencode', arquivoPista: path.join(pista, 'opencode.json'), copia: dentro('opencode-config.json') };
+  return { ligado: false, motivo: 'harness sem hook ligado' };
 };
 
 const barra = (p) => p.replace(/\\/g, '/');
@@ -47,6 +54,57 @@ export const montarHooksClaude = ({ repo, autorizacao, log }) => ({
     ],
   },
 });
+
+// formato da doc do Antigravity [hipotese: a fumaca confirma]; matcher "*" porque o hook ja deixa passar o que nao cita caminho
+export const montarHooksAgy = ({ repo, autorizacao, log }) => ({
+  'area-protegida': {
+    PreToolUse: [
+      {
+        matcher: '*',
+        hooks: [{ type: 'command', command: `node "${barra(path.join(repo, 'tools/agents/hooks/protected-paths.mjs'))}" agy --autorizacao "${barra(autorizacao)}" --log "${barra(log)}"`, timeout: 10 }],
+      },
+    ],
+  },
+});
+
+const glob = (e) => (e.endsWith('/') ? `${e}**` : e);
+const cobre = (autorizadas, area) => autorizadas.some((a) => {
+  const x = area.toLowerCase();
+  const y = a.toLowerCase().replace(/\/+$/, '');
+  return x.replace(/\/+$/, '') === y || x.startsWith(`${y}/`);
+});
+
+// a ultima regra que casa vence [hipotese: a fumaca confirma]; por isso os deny vem por ultimo
+export const montarPermissoesOpencode = (contrato, { areas, controle }) => {
+  // apagar antes de pôr: uma chave repetida manteria a posicao do allow
+  const poe = (o, k, v) => {
+    delete o[k];
+    o[k] = v;
+  };
+  const autorizadas = contrato.areas_autorizadas ?? [];
+  const edit = { '*': 'deny' };
+  for (const e of [...contrato.arquivos_permitidos, '.agent/', ...autorizadas]) poe(edit, glob(e), 'allow');
+  for (const e of areas.filter((a) => !cobre(autorizadas, a))) poe(edit, glob(e), 'deny');
+  for (const e of controle) poe(edit, e === 'autorizacao.json' ? '**/autorizacao.json' : glob(e), 'deny');
+  const bash = { '*': 'deny' };
+  for (const c of ['git status', 'git status *', 'git diff *', 'git log *', 'git add *', 'git commit *', ...(contrato.comandos_validacao ?? [])]) poe(bash, c, 'allow');
+  poe(bash, 'git push *', 'deny');
+  return {
+    $schema: 'https://opencode.ai/config.json',
+    permission: {
+      '*': 'deny',
+      read: { '*': 'allow', '*.env': 'deny', '*.env.*': 'deny' },
+      glob: 'allow',
+      grep: 'allow',
+      list: 'allow',
+      edit,
+      bash,
+      skill: 'deny',
+      webfetch: 'deny',
+      external_directory: 'deny',
+    },
+  };
+};
 
 // ASCII e sem aspas duplas: o PowerShell 5.1 quebra os dois ao repassar argumentos
 export const montarPrompt = (contrato) =>

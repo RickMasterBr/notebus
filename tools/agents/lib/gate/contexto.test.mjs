@@ -40,3 +40,13 @@ test('C1 contexto: modo manual usa --pista e a base do contrato; despacho usa o 
   assert.equal(cd.meta.id, 't-teste');
   d.limpar();
 });
+
+test('C6 contexto: copiasHook aponta para as copias do despacho (mesmas do planejar)', () => {
+  const t = criarRepo({ modo: 'despacho' });
+  t.pronto();
+  assert.deepEqual(t.ctx().copiasHook, {
+    '.agents/hooks.json': path.join(t.dirDespacho, 'hooks-agy.json'),
+    'opencode.json': path.join(t.dirDespacho, 'opencode-config.json'),
+  });
+  t.limpar();
+});

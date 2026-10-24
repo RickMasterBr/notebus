@@ -421,3 +421,69 @@ test('C7 D2 G14: EMAIL e TELEFONE em linha de 1 MB terminam em menos de 3 s (pro
     assert.equal(r.status, 0, `${JSON.stringify(unidade)}: ${r.error?.code ?? r.stderr}`);
   }
 });
+
+// m2-h2: o G03 aceita so o hooks.json do agy e o opencode.json gerados pelo dispatch, com os bytes da copia do despacho
+const COPIA_DE = { '.agents/hooks.json': 'hooks-agy.json', 'opencode.json': 'opencode-config.json' };
+const hookGerado = (t, rel, naPista, naCopia = naPista) => {
+  t.escrever(rel, naPista);
+  if (naCopia !== null) t.escrever(COPIA_DE[rel], naCopia, t.dirDespacho);
+};
+
+test('C6 G03 (a)(b): hooks.json e opencode.json iguais a copia, nao rastreados, passam', () => {
+  for (const rel of Object.keys(COPIA_DE)) {
+    const t = novo();
+    hookGerado(t, rel, '{"a":1}');
+    assert.deepEqual(tudo(t, g03), [], rel);
+    t.limpar();
+  }
+});
+
+test('C6 G03 (c): conteudo diferente da copia e HOOK_ALTERADO, sem NAO_RASTREADO', () => {
+  for (const rel of Object.keys(COPIA_DE)) {
+    const t = novo();
+    hookGerado(t, rel, '{"a":1}', '{"a":2}');
+    const itens = tudo(t, g03);
+    assert.deepEqual(falhas(itens), ['HOOK_ALTERADO'], rel);
+    assert.deepEqual(com(itens, 'HOOK_ALTERADO').evidencia, [rel]);
+    t.limpar();
+  }
+});
+
+test('C6 G03 (d): sem copia (modo manual sem despacho) continua NAO_RASTREADO', () => {
+  for (const rel of Object.keys(COPIA_DE)) {
+    const t = novo();
+    hookGerado(t, rel, '{"a":1}', null);
+    assert.deepEqual(com(tudo(t, g03), 'NAO_RASTREADO').evidencia, [rel]);
+    t.limpar();
+  }
+});
+
+test('C6 G03 (e): so as duas chaves tem excecao; outros arquivos novos seguem NAO_RASTREADO', () => {
+  const t = novo();
+  hookGerado(t, '.agents/hooks.json', '{"a":1}');
+  hookGerado(t, 'opencode.json', '{"a":1}');
+  t.escrever('.agents/skills/x.md', 'x\n');
+  t.escrever('opencode.jsonc', '{}\n');
+  t.escrever('.agents/hooks.json.bak', '{"a":1}');
+  assert.deepEqual(com(tudo(t, g03), 'NAO_RASTREADO').evidencia.sort(), ['.agents/hooks.json.bak', '.agents/skills/x.md', 'opencode.jsonc']);
+  t.limpar();
+});
+
+test('C6 G03: arquivo de hook rastreado e modificado continua NAO_COMMITADO', () => {
+  const t = novo();
+  t.commitar({ 'opencode.json': '{"a":1}' });
+  t.escrever('opencode.json', '{"a":2}');
+  assert.deepEqual(com(tudo(t, g03), 'NAO_COMMITADO').evidencia, ['opencode.json']);
+  t.limpar();
+});
+
+test('C6 (f) hooks.json ou opencode.json commitado fora de arquivos_permitidos reprova no G04 e no G06', () => {
+  for (const rel of Object.keys(COPIA_DE)) {
+    const t = novo();
+    hookGerado(t, rel, '{"a":1}');
+    t.commitar({ [rel]: '{"a":1}' });
+    assert.deepEqual(com(tudo(t, g04), 'FORA_DA_LISTA').evidencia, [rel], rel);
+    assert.deepEqual(com(tudo(t, g06), 'CONTROLE').evidencia, [rel], rel);
+    t.limpar();
+  }
+});

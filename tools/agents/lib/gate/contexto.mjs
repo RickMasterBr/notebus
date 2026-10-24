@@ -129,6 +129,7 @@ export const montar = (argv, { gatePath }) => {
     schemaRelatorio: lerJson(path.join(schemas, 'relatorio.schema.json')),
     contratoPath, contratoSha: sha(bytes), contrato, contratoErros,
     id, branch, base, head, pista, repo, raiz, saida, relatorioPath, metaPath, meta, junctions,
+    copiasHook: { '.agents/hooks.json': plano?.arquivosDespacho.hooksAgy ?? null, 'opencode.json': plano?.arquivosDespacho.opencodeConfig ?? null },
     achados: { fora_da_lista: [], areas_tocadas: [], controle_tocados: [] },
     git: pistaGit,
     tenta: (args) => tenta(pista, args),

@@ -112,6 +112,7 @@ export const g03 = (ctx) => {
   const sujo = [];
   const suspeito = [];
   const outros = [];
+  const alterados = [];
   const partes = parseZ(ctx.git(['status', '--porcelain=v1', '-z', '--ignored=matching', '--untracked-files=all']));
   for (let i = 0; i < partes.length; i++) {
     const xy = partes[i].slice(0, 2);
@@ -119,7 +120,13 @@ export const g03 = (ctx) => {
     if (/[RC]/.test(xy)) i++; // o token seguinte e o nome de origem
     if (juncoes.has(semBarra(p))) continue;
     if (xy === '??') {
-      if (!p.startsWith('.agent/')) nao.push(p);
+      if (p.startsWith('.agent/')) continue;
+      // so os dois arquivos que o dispatch gera, e so se os bytes forem os da copia do despacho
+      const copia = Object.hasOwn(ctx.copiasHook ?? {}, p) ? ctx.copiasHook[p] : null;
+      if (copia && existsSync(copia)) {
+        const f = path.join(ctx.pista, p);
+        if (lstatSync(f).isSymbolicLink() || !readFileSync(f).equals(readFileSync(copia))) alterados.push(p);
+      } else nao.push(p);
     } else if (xy === '!!') {
       if (ignoradoPermitido(ctx.config.ignorados_permitidos, p)) continue;
       if (p.endsWith('/')) {
@@ -132,6 +139,7 @@ export const g03 = (ctx) => {
   const out = [];
   if (sujo.length) out.push(falha('NAO_COMMITADO', 'modificado ou apagado sem commit', sujo));
   if (nao.length) out.push(falha('NAO_RASTREADO', 'arquivo novo fora de .agent/ e sem commit', nao));
+  if (alterados.length) out.push(falha('HOOK_ALTERADO', 'arquivo de hook difere da copia do despacho', alterados));
   if (escondidos.length) out.push(falha('GIT_ESCONDENDO', 'assume-unchanged ou skip-worktree', escondidos));
   if (suspeito.length) out.push(falha('IGNORADO_SUSPEITO', 'codigo ignorado fora das excecoes', suspeito));
   if (outros.length) out.push(aviso('IGNORADO', 'ignorado de outro tipo fora das excecoes', outros));

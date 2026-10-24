@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,6 +34,7 @@ const ambiente = () => {
   // fora do commit: so o repo precisa do script do hook (a pista nao ganha arquivo novo)
   mkdirSync(path.join(repo, 'tools/agents/hooks'), { recursive: true });
   writeFileSync(path.join(repo, 'tools/agents/hooks/protected-paths.mjs'), '');
+  writeFileSync(path.join(repo, 'tools/agents/hooks/protected-paths.json'), '["packages/domain/", "outra/area.ts"]');
   writeFileSync(path.join(repo, '.git/info/exclude'), 'tools/\n');
   const base = git(repo, 'rev-parse', '--short', 'HEAD');
   return { tmp, repo, raiz, base };
@@ -248,7 +250,7 @@ test('P12 nada fora da pista e de _despacho; contrato deste bloco e valido', () 
   assert.equal(rodar(amb, contratoMd(amb)).code, 0);
   assert.equal(git(amb.repo, 'status', '--short'), '');
   assert.deepEqual(readdirSync(amb.raiz).sort(), ['_despacho', 'pistas']);
-  assert.deepEqual(readdirSync(despacho(amb)).sort(), ['autorizacao.json', 'meta.json', 'relatorio.json', 'relatorio.schema.json', 'saida.txt', 'stderr.txt']);
+  assert.deepEqual(readdirSync(despacho(amb)).sort(), ['autorizacao.json', 'hooks-agy.json', 'meta.json', 'relatorio.json', 'relatorio.schema.json', 'saida.txt', 'stderr.txt']);
   limpa(amb);
 
   const c = lerContrato(path.join(FIX, 'contrato-m2-b3.md'), { schemaPath: path.join(SCHEMAS, 'contrato.schema.json') });
@@ -328,17 +330,18 @@ test('H4 dispatch grava hooks-claude.json fora da pista, sem BOM, e a pista fica
 });
 
 test('H5 dispatch passa --settings so para o claude (visivel no --dry-run); H7 plano.hook por harness', () => {
-  for (const [harness, ligado] of [['claude', true], ['agy', false], ['opencode', false]]) {
+  for (const [harness, tipo] of [['claude', 'claude'], ['agy', 'agy'], ['opencode', 'opencode']]) {
     const amb = ambiente();
     const r = rodar(amb, contratoMd(amb, { harness }), ['--dry-run'], { usaFalso: null });
     assert.equal(r.code, 0, r.out);
     const { plano, comando } = JSON.parse(r.stdout.slice(0, r.stdout.lastIndexOf('}') + 1));
-    assert.equal(comando.args.includes('--settings'), ligado);
-    if (ligado) {
-      assert.deepEqual(plano.hook, { ligado: true, settings: path.join(despacho(amb), 'hooks-claude.json') });
+    assert.equal(comando.args.includes('--settings'), tipo === 'claude');
+    assert.equal(plano.hook.tipo, tipo);
+    if (tipo === 'claude') {
+      assert.deepEqual(plano.hook, { ligado: true, tipo: 'claude', settings: path.join(despacho(amb), 'hooks-claude.json') });
       assert.equal(comando.args[comando.args.indexOf('--settings') + 1], plano.hook.settings);
       assert.ok(comando.args.indexOf('--settings') < comando.args.indexOf('--allowedTools'));
-    } else assert.deepEqual(plano.hook, { ligado: false, motivo: 'harness sem hook ligado (h2)' });
+    } else assert.equal(plano.hook.ligado, true);
     assert.ok(!existsSync(despacho(amb)));
     limpa(amb);
   }
@@ -385,14 +388,15 @@ test('B2 a recusa vem antes de criar despacho, pista, branch e trava', () => {
   limpa(amb);
 });
 
-test('B3 vale no dry-run; agy e opencode nao sao afetados', () => {
+test('B3 vale no dry-run e, desde o h2, tambem para agy e opencode', () => {
   const amb = ambiente();
   semHook(amb);
   assert.equal(rodar(amb, contratoMd(amb, { harness: 'claude' }), ['--dry-run'], { usaFalso: null }).code, 2);
+  // desde o h2 o agy e o opencode tambem tem hook ligado: a recusa vale para os tres
   for (const harness of ['agy', 'opencode']) {
     const r = rodar(amb, contratoMd(amb, { harness }), ['--dry-run'], { usaFalso: null });
-    assert.equal(r.code, 0, r.out);
-    assert.equal(JSON.parse(r.stdout.slice(0, r.stdout.lastIndexOf('}') + 1)).plano.hook.ligado, false);
+    assert.equal(r.code, 2, r.out);
+    assert.ok(r.out.includes('HOOK_AUSENTE'), r.out);
   }
   limpa(amb);
 });
@@ -402,7 +406,7 @@ test('B4 com o script presente o dry-run do claude devolve o plano de sempre', (
   const r = rodar(amb, contratoMd(amb, { harness: 'claude' }), ['--dry-run'], { usaFalso: null });
   assert.equal(r.code, 0, r.out);
   const { plano } = JSON.parse(r.stdout.slice(0, r.stdout.lastIndexOf('}') + 1));
-  assert.deepEqual(plano.hook, { ligado: true, settings: path.join(despacho(amb), 'hooks-claude.json') });
+  assert.deepEqual(plano.hook, { ligado: true, tipo: 'claude', settings: path.join(despacho(amb), 'hooks-claude.json') });
   limpa(amb);
 });
 
@@ -428,4 +432,110 @@ test('C4 SEM_RELATORIO: stderr com conteudo entra na mensagem (primeira linha na
 
 test('C5 SEM_RELATORIO: sem stderr (ou so em branco) a mensagem e a de antes', () => {
   for (const s of [null, '', ' \n\n']) assert.equal(mensagemSemRelatorio(s), 'sem relatorio (saida 1; SAIDA_INVALIDA; ENOENT)');
+});
+
+// m2-h2: agy e opencode ganham o arquivo de hook na pista, com copia byte a byte no despacho
+const sha256 = (b) => createHash('sha256').update(b).digest('hex');
+const comNaBase = (rel) => {
+  const amb = ambiente();
+  mkdirSync(path.dirname(path.join(amb.repo, rel)), { recursive: true });
+  writeFileSync(path.join(amb.repo, rel), '{"ja":"existe"}');
+  git(amb.repo, 'add', '-f', rel);
+  git(amb.repo, 'commit', '-q', '-m', 'com o arquivo');
+  return { ...amb, base: git(amb.repo, 'rev-parse', '--short', 'HEAD') };
+};
+
+test('C4 dispatch com agy: .agents/hooks.json na pista igual byte a byte a hooks-agy.json do despacho', () => {
+  const amb = ambiente();
+  const r = rodar(amb, contratoArea(amb, { harness: 'agy' }));
+  assert.equal(r.code, 0, r.out);
+  const naPista = readFileSync(path.join(pistaDe(amb, 'tarefa-x'), '.agents', 'hooks.json'));
+  const copia = readFileSync(path.join(despacho(amb), 'hooks-agy.json'));
+  assert.ok(naPista.equals(copia));
+  const cmd = JSON.parse(naPista.toString('utf8'))['area-protegida'].PreToolUse[0].hooks[0].command;
+  assert.ok(cmd.includes(`"${path.join(amb.repo, 'tools/agents/hooks/protected-paths.mjs').replaceAll(path.sep, '/')}" agy`), cmd);
+  assert.ok(!existsSync(path.join(pistaDe(amb, 'tarefa-x'), 'opencode.json')));
+  limpa(amb);
+});
+
+test('C4 C5 HOOK_JA_EXISTE: arquivo ja na base, saida 2, nada gravado e trava liberada', () => {
+  for (const [harness, rel] of [['agy', '.agents/hooks.json'], ['opencode', 'opencode.json']]) {
+    const amb = comNaBase(rel);
+    const antes = estado(amb);
+    const r = rodar(amb, contratoMd(amb, { harness }));
+    assert.equal(r.code, 2, r.out);
+    assert.match(r.out, /FALHA HOOK_JA_EXISTE/);
+    assert.ok(r.out.includes(rel), r.out);
+    assert.deepEqual(estado(amb), antes);
+    assert.ok(!existsSync(despacho(amb)) && !existsSync(pistaDe(amb)));
+    assert.ok(!existsSync(path.join(amb.raiz, '_despacho')));
+    limpa(amb);
+  }
+});
+
+test('C4 C5 o arquivo de um harness na base nao barra o outro', () => {
+  const amb = comNaBase('opencode.json');
+  assert.equal(rodar(amb, contratoMd(amb, { harness: 'agy' })).code, 0);
+  limpa(amb);
+});
+
+test('C4 C5 HOOK_AUSENTE tambem para agy e opencode (script ou areas ausentes), sem criar nada', () => {
+  for (const harness of ['agy', 'opencode']) {
+    for (const f of ['protected-paths.mjs', 'protected-paths.json']) {
+      const amb = ambiente();
+      rmSync(path.join(amb.repo, 'tools/agents/hooks', f));
+      const antes = estado(amb);
+      const r = rodar(amb, contratoMd(amb, { harness }));
+      assert.equal(r.code, 2, `${harness} ${f}: ${r.out}`);
+      assert.ok(r.out.includes('HOOK_AUSENTE') && r.out.includes(f), r.out);
+      assert.deepEqual(estado(amb), antes);
+      limpa(amb);
+    }
+  }
+});
+
+test('C5 dispatch com opencode: opencode.json na pista igual byte a byte a opencode-config.json, com as permissoes do contrato', async () => {
+  const { montarPermissoesOpencode } = await import('./lib/despacho.mjs');
+  const { CONTROLE } = await import('./hooks/protected-paths.mjs');
+  const amb = ambiente();
+  const arquivo = contratoArea(amb, { harness: 'opencode' });
+  const r = rodar(amb, arquivo, [], { usaFalso: 'harness-opencode.mjs' });
+  assert.equal(r.code, 0, r.out);
+  const naPista = readFileSync(path.join(pistaDe(amb, 'tarefa-x'), 'opencode.json'));
+  assert.ok(naPista.equals(readFileSync(path.join(despacho(amb), 'opencode-config.json'))));
+  const c = lerContrato(arquivo, { schemaPath: path.join(SCHEMAS, 'contrato.schema.json') });
+  const esperado = montarPermissoesOpencode(c, { areas: ['packages/domain/', 'outra/area.ts'], controle: CONTROLE });
+  assert.deepEqual(JSON.parse(naPista.toString('utf8')), esperado);
+  assert.equal(esperado.permission.edit['outra/area.ts'], 'deny');
+  assert.equal(esperado.permission.edit['packages/domain/**'], 'allow');
+  assert.ok(!existsSync(path.join(pistaDe(amb, 'tarefa-x'), '.agents')));
+  limpa(amb);
+});
+
+test('C5 meta.json tem hook.tipo, hook.arquivo e hook.sha256 que confere com o arquivo gravado (os tres harness)', () => {
+  for (const [harness, arquivo] of [['claude', null], ['agy', ['.agents', 'hooks.json']], ['opencode', ['opencode.json']]]) {
+    const amb = ambiente();
+    const r = rodar(amb, contratoArea(amb, { harness }), [], { usaFalso: harness === 'agy' ? 'harness-agy.mjs' : 'harness-opencode.mjs' });
+    assert.equal(r.code, 0, `${harness}: ${r.out}`);
+    const { hook } = json(path.join(despacho(amb), 'meta.json'));
+    assert.equal(hook.tipo, harness);
+    const gravado = arquivo ? path.join(pistaDe(amb, 'tarefa-x'), ...arquivo) : path.join(despacho(amb), 'hooks-claude.json');
+    assert.equal(hook.arquivo, gravado);
+    assert.equal(hook.sha256, sha256(readFileSync(gravado)));
+    limpa(amb);
+  }
+});
+
+test('C5 nenhum dos tres harness falsos recebe OPENCODE_CONFIG_CONTENT', () => {
+  for (const harness of ['claude', 'agy', 'opencode']) {
+    const amb = ambiente();
+    const espiao = path.join(amb.tmp, 'espiao.mjs');
+    const saida = path.join(amb.tmp, 'env.txt');
+    writeFileSync(espiao, `import { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(saida)}, String('OPENCODE_CONFIG_CONTENT' in process.env));\n`);
+    const { OPENCODE_CONFIG_CONTENT, ...env } = process.env;
+    rodar(amb, contratoMd(amb, { harness }), ['--harness-falso', espiao], { usaFalso: null, env });
+    assert.equal(readFileSync(saida, 'utf8'), 'false', harness);
+    limpa(amb);
+  }
+  assert.doesNotMatch(readFileSync(DISPATCH, 'utf8'), /OPENCODE_CONFIG_CONTENT/);
 });
