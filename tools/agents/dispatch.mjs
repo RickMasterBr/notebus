@@ -10,6 +10,7 @@ import { planejar, montarPrompt, montarHooksClaude, montarHooksAgy, montarPermis
 import { CONTROLE } from './hooks/protected-paths.mjs';
 import { adquirir } from './lib/trava.mjs';
 import { retrato } from './lib/retrato.mjs';
+import { resolverExecutavel, comandoParaSpawn, ErroExecutavel } from './lib/executavel.mjs';
 
 class Falha extends Error {
   constructor(codigo, texto, saida, linhas = []) {
@@ -81,7 +82,7 @@ const lerStderr = (caminho) => {
   }
 };
 
-const executar = ({ exe, args }, { cwd, saida, stderr, timeout }) =>
+const executar = ({ exe, args, opcoes }, { cwd, saida, stderr, timeout }) =>
   new Promise((resolve) => {
     const fds = [openSync(saida, 'w'), openSync(stderr, 'w')];
     let timer;
@@ -94,7 +95,7 @@ const executar = ({ exe, args }, { cwd, saida, stderr, timeout }) =>
       fds.forEach(closeSync);
       resolve(r);
     };
-    const filho = spawn(exe, args, { cwd, stdio: ['ignore', ...fds], windowsHide: true });
+    const filho = spawn(exe, args, { cwd, stdio: ['ignore', ...fds], windowsHide: true, ...opcoes });
     timer = setTimeout(() => {
       estourou = true;
       matar(filho);
@@ -133,11 +134,11 @@ const gravarHook = ({ plano, contrato, repo }) => {
   return { tipo: hook.tipo, arquivo, sha256: createHash('sha256').update(texto).digest('hex') };
 };
 
-const rodar = async ({ plano, harness, comando, timeout, schemaRelatorio, falso, repo, hook }) => {
+const rodar = async ({ plano, harness, comando, exec, resolvido, timeout, schemaRelatorio, falso, repo, hook }) => {
   const pista = plano.pista.caminho;
   const a = plano.arquivosDespacho;
   const reportPista = path.join(pista, '.agent', 'report.json');
-  const meta = { id: plano.id, harness: harness.nome, exe: comando.exe, harness_falso: falso, inicio: new Date().toISOString(), hook, retrato: null, fim: null, duracao_s: null, codigo_saida: null, meta: null, validacao: null, avisos: [], erro: null };
+  const meta = { id: plano.id, harness: harness.nome, exe: comando.exe, exe_resolvido: resolvido?.caminho ?? null, harness_falso: falso, inicio: new Date().toISOString(), hook, retrato: null, fim: null, duracao_s: null, codigo_saida: null, meta: null, validacao: null, avisos: [], erro: null };
   const t0 = Date.now();
   const grava = () => {
     meta.fim = new Date().toISOString();
@@ -159,10 +160,9 @@ const rodar = async ({ plano, harness, comando, timeout, schemaRelatorio, falso,
     meta.avisos.push('RETRATO_FALHOU');
   }
 
-  const r = await executar(comando, { cwd: pista, saida: a.saida, stderr: a.stderr, timeout });
+  const r = await executar(exec, { cwd: pista, saida: a.saida, stderr: a.stderr, timeout });
   if (r.erro) {
     const nao = r.erro.code === 'ENOENT';
-    // hipotese (M3): shims .cmd do Windows podem exigir shell
     throw falha(nao ? 'EXECUTAVEL_NAO_ENCONTRADO' : 'EXECUCAO', nao ? `${comando.exe} nao esta no PATH` : r.erro.message, nao ? 2 : 1);
   }
   meta.codigo_saida = r.codigo ?? null;
@@ -220,12 +220,28 @@ const principal = async (argv) => {
   let comando = harness.montarComando(contrato, { prompt: montarPrompt(contrato), schemaTexto: readFileSync(schemaRelatorio, 'utf8'), schemaCaminho: plano.arquivosDespacho.schema, settingsCaminho: plano.hook.ligado ? plano.hook.settings : undefined });
   if (o['harness-falso']) comando = { exe: process.execPath, args: [path.resolve(o['harness-falso']), ...comando.args] };
 
+  // DISPATCH_RESOLVIDO_TESTE: gancho so de teste (JSON { caminho, tipo }), para exercitar o atalho .cmd fora do Windows
+  const resolvido = process.env.DISPATCH_RESOLVIDO_TESTE ? JSON.parse(process.env.DISPATCH_RESOLVIDO_TESTE) : resolverExecutavel(comando.exe);
+  let exec;
+  try {
+    exec = comandoParaSpawn(comando, { resolvido });
+  } catch (e) {
+    if (e instanceof ErroExecutavel) throw new Falha(e.codigo, e.message, 2);
+    throw e;
+  }
+
   if (o.dryRun) {
-    console.log(JSON.stringify({ plano, comando }, null, 2));
+    console.log(JSON.stringify({ plano, comando, execucao: { exe: resolvido?.caminho ?? comando.exe, tipo: resolvido?.tipo ?? 'exe' } }, null, 2));
     return `OK ${plano.id} dry-run`;
   }
 
   const { hook } = plano;
+  if (hook.tipo === 'agy') {
+    // o command do agy vai sem aspas: um espaco partiria o caminho em silencio
+    const { autorizacao, hookLog } = plano.arquivosDespacho;
+    const comEspaco = [path.join(repo, 'tools/agents/hooks/protected-paths.mjs'), autorizacao, hookLog].find((p) => /\s/.test(p));
+    if (comEspaco) throw new Falha('HOOK_CAMINHO_COM_ESPACO', `${comEspaco} tem espaco: o agy nao entende aspas no hook; use um caminho sem espaco (--repo/--raiz)`, 2);
+  }
   if (hook.arquivoPista) {
     const rel = path.relative(plano.pista.caminho, hook.arquivoPista).replace(/\\/g, '/');
     if (naBase(repo, plano.base, rel)) throw new Falha('HOOK_JA_EXISTE', `a base ${plano.base} ja tem ${rel}: o dispatch nao o sobrescreve`, 2);
@@ -242,7 +258,7 @@ const principal = async (argv) => {
     writeFileSync(a.autorizacao, JSON.stringify({ tarefa: plano.id, areas_autorizadas: contrato.areas_autorizadas, arquivos_permitidos: contrato.arquivos_permitidos }, null, 2));
     const hookMeta = hook.ligado ? gravarHook({ plano, contrato, repo }) : null;
     copyFileSync(schemaRelatorio, a.schema);
-    return await rodar({ plano, harness, comando, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']), repo, hook: hookMeta });
+    return await rodar({ plano, harness, comando, exec, resolvido, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']), repo, hook: hookMeta });
   } finally {
     trava.liberar();
   }

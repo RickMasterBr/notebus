@@ -17,10 +17,10 @@ const falso = (nome) => path.join(FIX, nome);
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 
 // repositorio temporario: raiz de despacho (vazia) ao lado do repo
-const ambiente = () => {
+const ambiente = ({ nomeRepo = 'repo', nomeRaiz = 'raiz' } = {}) => {
   const tmp = mkdtempSync(path.join(tmpdir(), 'dispatch-'));
-  const repo = path.join(tmp, 'repo');
-  const raiz = path.join(tmp, 'raiz');
+  const repo = path.join(tmp, nomeRepo);
+  const raiz = path.join(tmp, nomeRaiz);
   mkdirSync(repo);
   mkdirSync(raiz);
   git(repo, 'init', '-q');
@@ -453,7 +453,7 @@ test('C4 dispatch com agy: .agents/hooks.json na pista igual byte a byte a hooks
   const copia = readFileSync(path.join(despacho(amb), 'hooks-agy.json'));
   assert.ok(naPista.equals(copia));
   const cmd = JSON.parse(naPista.toString('utf8'))['area-protegida'].PreToolUse[0].hooks[0].command;
-  assert.ok(cmd.includes(`"${path.join(amb.repo, 'tools/agents/hooks/protected-paths.mjs').replaceAll(path.sep, '/')}" agy`), cmd);
+  assert.ok(cmd.includes(`node ${path.join(amb.repo, 'tools/agents/hooks/protected-paths.mjs').replaceAll(path.sep, '/')} agy`) && !cmd.includes('"'), cmd);
   assert.ok(!existsSync(path.join(pistaDe(amb, 'tarefa-x'), 'opencode.json')));
   limpa(amb);
 });
@@ -538,4 +538,70 @@ test('C5 nenhum dos tres harness falsos recebe OPENCODE_CONFIG_CONTENT', () => {
     limpa(amb);
   }
   assert.doesNotMatch(readFileSync(DISPATCH, 'utf8'), /OPENCODE_CONFIG_CONTENT/);
+});
+
+// m2-h2b: o agy roda o command sem shell (sem aspas), o opencode pode ser um atalho .cmd do npm
+test('C2 agy com espaco no caminho do repo ou da raiz: HOOK_CAMINHO_COM_ESPACO, saida 2, nada criado', () => {
+  for (const opcoes of [{ nomeRepo: 'repo com espaco' }, { nomeRaiz: 'raiz com espaco' }]) {
+    const amb = ambiente(opcoes);
+    const antes = estado(amb);
+    const r = rodar(amb, contratoMd(amb, { harness: 'agy' }));
+    assert.equal(r.code, 2, r.out);
+    assert.match(r.out, /FALHA HOOK_CAMINHO_COM_ESPACO/);
+    assert.match(r.out, /agy nao entende aspas/);
+    assert.deepEqual(estado(amb), antes);
+    assert.ok(!existsSync(despacho(amb)) && !existsSync(pistaDe(amb)) && !existsSync(path.join(amb.raiz, '_despacho')));
+    limpa(amb);
+  }
+});
+
+test('C2 o mesmo repo com espaco nao barra claude nem opencode', () => {
+  for (const harness of ['claude', 'opencode']) {
+    const amb = ambiente({ nomeRepo: 'repo com espaco' });
+    const r = rodar(amb, contratoMd(amb, { harness }), [], { usaFalso: 'harness-opencode.mjs' });
+    assert.equal(r.code, 0, `${harness}: ${r.out}`);
+    limpa(amb);
+  }
+});
+
+const CMD_FALSO = JSON.stringify({ caminho: 'C:/npm/opencode.cmd', tipo: 'cmd' });
+const comModelo = (arquivo, modelo) => writeFileSync(arquivo, readFileSync(arquivo, 'utf8').replace('"modelo": "m"', `"modelo": ${JSON.stringify(modelo)}`));
+
+test('C5 --dry-run mostra execucao com exe e tipo (atalho .cmd e exe comum)', () => {
+  const amb = ambiente();
+  const arquivo = contratoMd(amb, { harness: 'opencode' });
+  const r = rodar(amb, arquivo, ['--dry-run'], { usaFalso: null, env: { ...process.env, DISPATCH_RESOLVIDO_TESTE: CMD_FALSO } });
+  assert.equal(r.code, 0, r.out);
+  const saida = JSON.parse(r.stdout.slice(0, r.stdout.lastIndexOf('}') + 1));
+  assert.deepEqual(saida.execucao, { exe: 'C:/npm/opencode.cmd', tipo: 'cmd' });
+  assert.equal(saida.comando.exe, 'opencode');
+  const sem = rodar(amb, arquivo, ['--dry-run'], { usaFalso: null });
+  const { execucao } = JSON.parse(sem.stdout.slice(0, sem.stdout.lastIndexOf('}') + 1));
+  assert.deepEqual(Object.keys(execucao), ['exe', 'tipo']);
+  limpa(amb);
+});
+
+test('C5 ARGUMENTO_INSEGURO: saida 2, no dry-run e na execucao, sem criar nada', () => {
+  const amb = ambiente();
+  const arquivo = contratoMd(amb, { harness: 'opencode' });
+  comModelo(arquivo, 'a%PATH%');
+  const env = { ...process.env, DISPATCH_RESOLVIDO_TESTE: CMD_FALSO };
+  for (const extra of [['--dry-run'], []]) {
+    const r = rodar(amb, arquivo, extra, { usaFalso: null, env });
+    assert.equal(r.code, 2, r.out);
+    assert.match(r.out, /FALHA ARGUMENTO_INSEGURO/);
+    assert.ok(r.out.includes('a%PATH%'), r.out);
+  }
+  assert.deepEqual(readdirSync(amb.raiz), []);
+  limpa(amb);
+});
+
+test('C5 meta.json tem exe_resolvido (harness falso passa direto)', () => {
+  const amb = ambiente();
+  const r = rodar(amb, contratoMd(amb));
+  assert.equal(r.code, 0, r.out);
+  const meta = json(path.join(despacho(amb), 'meta.json'));
+  assert.equal(meta.exe_resolvido, process.execPath);
+  assert.equal(meta.exe, process.execPath);
+  limpa(amb);
 });

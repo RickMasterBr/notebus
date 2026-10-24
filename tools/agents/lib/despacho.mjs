@@ -55,13 +55,14 @@ export const montarHooksClaude = ({ repo, autorizacao, log }) => ({
   },
 });
 
-// formato da doc do Antigravity [hipotese: a fumaca confirma]; matcher "*" porque o hook ja deixa passar o que nao cita caminho
+// formato da doc do Antigravity (confirmado na fumaca); matcher "*" porque o hook ja deixa passar o que nao cita caminho
+// sem aspas: o agy divide o command em palavras e roda sem shell, aspas viram parte do argumento (o dispatch recusa caminho com espaco)
 export const montarHooksAgy = ({ repo, autorizacao, log }) => ({
   'area-protegida': {
     PreToolUse: [
       {
         matcher: '*',
-        hooks: [{ type: 'command', command: `node "${barra(path.join(repo, 'tools/agents/hooks/protected-paths.mjs'))}" agy --autorizacao "${barra(autorizacao)}" --log "${barra(log)}"`, timeout: 10 }],
+        hooks: [{ type: 'command', command: `node ${barra(path.join(repo, 'tools/agents/hooks/protected-paths.mjs'))} agy --autorizacao ${barra(autorizacao)} --log ${barra(log)}`, timeout: 10 }],
       },
     ],
   },

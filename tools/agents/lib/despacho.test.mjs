@@ -69,8 +69,18 @@ test('C2 montarHooksAgy: PreToolUse com matcher *, timeout 10, script do repo e 
   assert.equal(g.hooks[0].timeout, 10);
   const f = (x) => x.replace(/\\/g, '/');
   const cmd = g.hooks[0].command;
-  assert.equal(cmd, `node "${f(path.join(repo, 'tools/agents/hooks/protected-paths.mjs'))}" agy --autorizacao "${f(a.arquivosDespacho.autorizacao)}" --log "${f(a.arquivosDespacho.hookLog)}"`);
+  assert.equal(cmd, `node ${f(path.join(repo, 'tools/agents/hooks/protected-paths.mjs'))} agy --autorizacao ${f(a.arquivosDespacho.autorizacao)} --log ${f(a.arquivosDespacho.hookLog)}`);
   assert.ok(!cmd.includes('\\') && !cmd.includes(f(a.pista.caminho)), cmd);
+});
+
+test('C1 montarHooksAgy: command sem aspas, quebra em palavras nos argumentos certos; claude segue com aspas', () => {
+  const repo = path.resolve('repo-x');
+  const a = planejar({ ...contrato, executor: { harness: 'agy' } }, dirs).arquivosDespacho;
+  const f = (x) => x.replace(/\\/g, '/');
+  const cmd = montarHooksAgy({ repo, autorizacao: a.autorizacao, log: a.hookLog })['area-protegida'].PreToolUse[0].hooks[0].command;
+  assert.ok(!cmd.includes('"'), cmd);
+  assert.deepEqual(cmd.split(' '), ['node', f(path.join(repo, 'tools/agents/hooks/protected-paths.mjs')), 'agy', '--autorizacao', f(a.autorizacao), '--log', f(a.hookLog)]);
+  assert.ok(montarHooksClaude({ repo, autorizacao: a.autorizacao, log: a.hookLog }).hooks.PreToolUse[0].hooks[0].command.includes('"'));
 });
 
 const CONTRATO_OC = { arquivos_permitidos: ['tools/agents/lib/x.mjs', 'tools/agents/lib/dir/'], areas_autorizadas: ['packages/domain/'], comandos_validacao: ['node --test a.test.mjs', 'git status --short'] };
