@@ -254,6 +254,10 @@ export function buildTripsList(input: {
   for (const day of listModel.days) {
     const items: TripListItem[] = [];
     for (const row of day.rows) {
+      // Ideia 73 (D-220): a linha já está em "Para conferir"; não se repete no dia.
+      if (pendingIds.has(row.id)) {
+        continue;
+      }
       if (row.kind === "boarded") {
         if (nowCard && row.id === nowCard.boardingId) {
           continue;

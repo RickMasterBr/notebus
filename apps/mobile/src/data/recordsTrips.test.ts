@@ -647,4 +647,216 @@ describe("recordsTrips", () => {
     expect(model.days[0]!.items).toHaveLength(1);
     expect((model.days[0]!.items[0] as TripCardModel).boardingId).toBe("board-normal-day");
   });
+
+  it("m3-b C1 pendente sai dos itens do dia e fica em pending", () => {
+    const pendingBoard = makeRow({
+      id: "m3b-pend",
+      observedAt: lisbonMs(TODAY, "12:00"),
+      serviceDate: TODAY,
+      matchStatus: "orphan",
+      reviewDismissedAt: null,
+      rideId: null,
+    });
+    const normalBoard = makeRow({
+      id: "m3b-normal",
+      observedAt: lisbonMs(TODAY, "08:00"),
+      serviceDate: TODAY,
+      matchStatus: "auto",
+      rideId: "m3b-r-normal",
+    });
+    const normalAlight = makeRow({
+      id: "m3b-normal-alight",
+      kind: "alighted",
+      observedAt: lisbonMs(TODAY, "08:30"),
+      serviceDate: TODAY,
+      rideId: "m3b-r-normal",
+    });
+
+    const model = buildTripsList({
+      observations: [pendingBoard, normalBoard, normalAlight],
+      rides: [
+        makeRide({
+          id: "m3b-r-normal",
+          boardingObservationId: "m3b-normal",
+          alightingObservationId: "m3b-normal-alight",
+        }),
+      ],
+      snapshot,
+      now: NOW,
+    });
+
+    expect(model.days).toHaveLength(1);
+    const itemIds = model.days[0]!.items.map((i) => (i.kind === "trip" ? i.boardingId : i.id));
+    expect(itemIds).not.toContain("m3b-pend");
+    expect(itemIds).toContain("m3b-normal");
+    expect(model.pending.map((r) => r.id)).toEqual(["m3b-pend"]);
+  });
+
+  it("m3-b C2 dia com pendente e normal mantém só a normal, dia só com pendente some", () => {
+    const YESTERDAY = "2026-10-13";
+    const pendingYesterday = makeRow({
+      id: "m3b-pend-yest",
+      observedAt: lisbonMs(YESTERDAY, "12:00"),
+      serviceDate: YESTERDAY,
+      matchStatus: "ambiguous",
+      reviewDismissedAt: null,
+      rideId: null,
+    });
+    const pendingToday = makeRow({
+      id: "m3b-pend-today",
+      observedAt: lisbonMs(TODAY, "12:00"),
+      serviceDate: TODAY,
+      matchStatus: "orphan",
+      reviewDismissedAt: null,
+      rideId: null,
+    });
+    const normalToday = makeRow({
+      id: "m3b-normal-today",
+      observedAt: lisbonMs(TODAY, "08:00"),
+      serviceDate: TODAY,
+      matchStatus: "auto",
+      rideId: "m3b-r-today",
+    });
+    const normalTodayAlight = makeRow({
+      id: "m3b-normal-today-alight",
+      kind: "alighted",
+      observedAt: lisbonMs(TODAY, "08:30"),
+      serviceDate: TODAY,
+      rideId: "m3b-r-today",
+    });
+
+    const model = buildTripsList({
+      observations: [pendingYesterday, pendingToday, normalToday, normalTodayAlight],
+      rides: [
+        makeRide({
+          id: "m3b-r-today",
+          boardingObservationId: "m3b-normal-today",
+          alightingObservationId: "m3b-normal-today-alight",
+        }),
+      ],
+      snapshot,
+      now: NOW,
+    });
+
+    expect(model.days).toHaveLength(1);
+    expect(model.days[0]!.serviceDate).toBe(TODAY);
+    expect(model.days[0]!.items).toHaveLength(1);
+    expect((model.days[0]!.items[0] as TripCardModel).boardingId).toBe("m3b-normal-today");
+    expect(model.pending.map((r) => r.id)).toEqual(["m3b-pend-today", "m3b-pend-yest"]);
+  });
+
+  it("m3-b C3 pending mantém as linhas e allChecked continua false", () => {
+    const pendingBoard = makeRow({
+      id: "m3b-pend-c3",
+      observedAt: lisbonMs(TODAY, "12:00"),
+      serviceDate: TODAY,
+      matchStatus: "orphan",
+      reviewDismissedAt: null,
+      rideId: null,
+    });
+    const normalBoard = makeRow({
+      id: "m3b-normal-c3",
+      observedAt: lisbonMs(TODAY, "08:00"),
+      serviceDate: TODAY,
+      matchStatus: "auto",
+      rideId: "m3b-r-c3",
+    });
+    const normalAlight = makeRow({
+      id: "m3b-normal-c3-alight",
+      kind: "alighted",
+      observedAt: lisbonMs(TODAY, "08:30"),
+      serviceDate: TODAY,
+      rideId: "m3b-r-c3",
+    });
+
+    const model = buildTripsList({
+      observations: [pendingBoard, normalBoard, normalAlight],
+      rides: [
+        makeRide({
+          id: "m3b-r-c3",
+          boardingObservationId: "m3b-normal-c3",
+          alightingObservationId: "m3b-normal-c3-alight",
+        }),
+      ],
+      snapshot,
+      now: NOW,
+    });
+
+    expect(model.pending).toHaveLength(1);
+    expect(model.pending[0]!.id).toBe("m3b-pend-c3");
+    expect(model.pending[0]!.kind).toBe("boarded");
+    expect(model.pending[0]!.verifyState).toBe("pending");
+    expect(model.pending[0]!.time).toBe("12:00");
+    expect(model.allChecked).toBe(false);
+  });
+
+  it("m3-b C4 dispensado continua no dia com verifyState notVerified", () => {
+    const dismissedBoard = makeRow({
+      id: "m3b-dismissed",
+      observedAt: lisbonMs(TODAY, "09:00"),
+      serviceDate: TODAY,
+      matchStatus: "orphan",
+      reviewDismissedAt: NOW,
+      rideId: null,
+    });
+
+    const model = buildTripsList({
+      observations: [dismissedBoard],
+      rides: [],
+      snapshot,
+      now: NOW,
+    });
+
+    expect(model.pending).toHaveLength(0);
+    expect(model.days).toHaveLength(1);
+    const cards = model.days[0]!.items.filter((i): i is TripCardModel => i.kind === "trip");
+    expect(cards).toHaveLength(1);
+    expect(cards[0]!.boardingId).toBe("m3b-dismissed");
+    expect(cards[0]!.verifyState).toBe("notVerified");
+  });
+
+  it("m3-b C5 pendente de kind passed também sai do dia", () => {
+    const pendingPassed = makeRow({
+      id: "m3b-pend-passed",
+      kind: "passed",
+      observedAt: lisbonMs(TODAY, "11:00"),
+      serviceDate: TODAY,
+      matchStatus: "orphan",
+      reviewDismissedAt: null,
+      rideId: null,
+    });
+    const normalBoard = makeRow({
+      id: "m3b-normal-c5",
+      observedAt: lisbonMs(TODAY, "08:00"),
+      serviceDate: TODAY,
+      matchStatus: "auto",
+      rideId: "m3b-r-c5",
+    });
+    const normalAlight = makeRow({
+      id: "m3b-normal-c5-alight",
+      kind: "alighted",
+      observedAt: lisbonMs(TODAY, "08:30"),
+      serviceDate: TODAY,
+      rideId: "m3b-r-c5",
+    });
+
+    const model = buildTripsList({
+      observations: [pendingPassed, normalBoard, normalAlight],
+      rides: [
+        makeRide({
+          id: "m3b-r-c5",
+          boardingObservationId: "m3b-normal-c5",
+          alightingObservationId: "m3b-normal-c5-alight",
+        }),
+      ],
+      snapshot,
+      now: NOW,
+    });
+
+    expect(model.days).toHaveLength(1);
+    const itemIds = model.days[0]!.items.map((i) => (i.kind === "trip" ? i.boardingId : i.id));
+    expect(itemIds).not.toContain("m3b-pend-passed");
+    expect(itemIds).toContain("m3b-normal-c5");
+    expect(model.pending.map((r) => r.id)).toEqual(["m3b-pend-passed"]);
+  });
 });
