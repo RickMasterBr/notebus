@@ -353,6 +353,7 @@ describe("recordsTrips", () => {
       observedAt: lisbonMs(TODAY, "08:00"),
       matchStatus: "orphan",
       deviationMin: 5,
+      reviewDismissedAt: lisbonMs(TODAY, "12:00"),
       rideId: "ride-orphan",
     });
     const ambiguous = makeRow({
@@ -360,6 +361,7 @@ describe("recordsTrips", () => {
       observedAt: lisbonMs(TODAY, "09:00"),
       matchStatus: "ambiguous",
       deviationMin: 3,
+      reviewDismissedAt: lisbonMs(TODAY, "12:00"),
       rideId: "ride-ambig",
     });
 
