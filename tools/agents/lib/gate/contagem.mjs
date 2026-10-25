@@ -1,3 +1,7 @@
+// D-320: suite do app sob paralelismo total estoura o prazo fixo de 5 s do vitest
+const MAX_WORKERS_APP = 2;
+const TEST_TIMEOUT_APP_MS = 20000;
+
 const erro = (msg) => Object.assign(new Error(msg), { codigo: 'RESULTADO_ILEGIVEL' });
 
 // (?<![\w.$]) deixa de fora regex.test(x) e obj.it(x)
@@ -49,6 +53,9 @@ export const comContagem = (comando, arquivoVitest) => {
     return { executar: c.replace(/^node\s+--test\b/, 'node --test --test-reporter=tap'), leitor: 'tap', pacote: c };
   }
   const m = /^npm test -w (packages\/domain|apps\/mobile)$/.exec(c);
-  if (m) return { executar: `${c} -- --reporter=json --outputFile=${arquivoVitest}`, leitor: 'vitest', pacote: m[1] };
+  if (m) {
+    const folga = m[1] === 'apps/mobile' ? ` --maxWorkers=${MAX_WORKERS_APP} --testTimeout=${TEST_TIMEOUT_APP_MS}` : '';
+    return { executar: `${c} -- --reporter=json --outputFile=${arquivoVitest}${folga}`, leitor: 'vitest', pacote: m[1] };
+  }
   return { executar: comando, leitor: null, pacote: c };
 };

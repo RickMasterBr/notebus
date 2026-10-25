@@ -53,3 +53,18 @@ test('X5 contagem: comContagem pede TAP so ao node --test e json so aos dois pac
   assert.equal(comContagem('npm test -w tools/mvp-report', 'v.json').leitor, null);
   assert.equal(comContagem('git status --short', 'v.json').executar, 'git status --short');
 });
+
+test('m3-i2 C1 apps/mobile roda com --maxWorkers=2 e --testTimeout=20000', () => {
+  assert.equal(comContagem('npm test -w apps/mobile', 'v.json').executar, 'npm test -w apps/mobile -- --reporter=json --outputFile=v.json --maxWorkers=2 --testTimeout=20000');
+});
+
+test('m3-i2 C2 packages/domain continua sem as flags', () => {
+  assert.equal(comContagem('npm test -w packages/domain', 'v.json').executar, 'npm test -w packages/domain -- --reporter=json --outputFile=v.json');
+});
+
+test('m3-i2 C3 leitor e pacote do app iguais; comandos que nao casam voltam iguais', () => {
+  const r = comContagem('npm test -w apps/mobile', 'v.json');
+  assert.equal(r.leitor, 'vitest');
+  assert.equal(r.pacote, 'apps/mobile');
+  for (const c of ['npm test -w tools/licenses', 'npm run typecheck']) assert.equal(comContagem(c, 'v.json').executar, c);
+});
