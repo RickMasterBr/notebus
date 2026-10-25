@@ -88,7 +88,14 @@ export const montarPermissoesOpencode = (contrato, { areas, controle }) => {
   for (const e of areas.filter((a) => !cobre(autorizadas, a))) poe(edit, glob(e), 'deny');
   for (const e of controle) poe(edit, e === 'autorizacao.json' ? '**/autorizacao.json' : glob(e), 'deny');
   const bash = { '*': 'deny' };
-  for (const c of ['git status', 'git status *', 'git diff *', 'git log *', 'git add *', 'git commit *', 'git rev-parse *', 'git branch --show-current', ...(contrato.comandos_validacao ?? [])]) poe(bash, c, 'allow');
+  // o OpenCode nao casou o texto exato com a flag solta: libera tambem a flag entre aspas e o prefixo
+  const variantes = (c) => {
+    const m = /^npm run ([\w-]+)(?: |$)/.exec(c);
+    if (!m) return [c];
+    const aspas = c.split(' ').map((t) => (/^--[^=\s]+=\S+$/.test(t) ? `"${t}"` : t)).join(' ');
+    return [c, aspas, `npm run ${m[1]}`, `npm run ${m[1]} *`];
+  };
+  for (const c of ['git status', 'git status *', 'git diff *', 'git log *', 'git add *', 'git commit *', 'git rev-parse *', 'git branch --show-current', ...(contrato.comandos_validacao ?? []).flatMap(variantes)]) poe(bash, c, 'allow');
   poe(bash, 'git push *', 'deny');
   return {
     $schema: 'https://opencode.ai/config.json',

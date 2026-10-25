@@ -13,7 +13,7 @@
   "minimo_por_prefixo": [
     { "extensoes": [".ts", ".tsx"], "exceto": ["tools/agents/"], "comandos": ["npm run typecheck"] },
     { "prefixo": "packages/domain/", "comandos": ["npm test -w packages/domain"] },
-    { "prefixo": "apps/mobile/", "comandos": ["npm test -w apps/mobile", "npx expo export --platform ios --output-dir {saida}/dist"] },
+    { "prefixo": "apps/mobile/", "comandos": ["npm test -w apps/mobile", "npm exec -w apps/mobile -- expo export --platform ios --output-dir {saida}/dist"] },
     { "prefixo": "tools/mobilis-seed/", "comandos": ["npm test -w tools/mobilis-seed"] },
     { "prefixo": "tools/mvp-report/", "comandos": ["npm test -w tools/mvp-report"] },
     { "prefixo": "tools/licenses/", "comandos": ["npm test -w tools/licenses"] },

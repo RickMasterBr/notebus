@@ -166,3 +166,23 @@ test('C5 montarPermissoesOpencode: git rev-parse e git branch --show-current lib
   assert.equal(Object.keys(b).at(-1), 'git push *');
   assert.equal(b['git push *'], 'deny');
 });
+
+const NPM_RUN = { ...CONTRATO_OC, comandos_validacao: ['npm run typecheck --workspace=@notebus/mobile', 'npm run test --workspace=@notebus/mobile -- src/data/recordsTrips.test.ts', 'node --test a.test.mjs', 'git status --short'] };
+
+test('m3-i1 C3 montarPermissoesOpencode: npm run ganha texto exato, flag entre aspas e curingas por prefixo', () => {
+  const b = permissoes(NPM_RUN).permission.bash;
+  for (const c of ['npm run typecheck --workspace=@notebus/mobile', 'npm run typecheck "--workspace=@notebus/mobile"', 'npm run typecheck', 'npm run typecheck *',
+    'npm run test --workspace=@notebus/mobile -- src/data/recordsTrips.test.ts', 'npm run test "--workspace=@notebus/mobile" -- src/data/recordsTrips.test.ts', 'npm run test', 'npm run test *']) assert.equal(b[c], 'allow', c);
+});
+
+test('m3-i1 C4 montarPermissoesOpencode: curinga so para npm run e git push * segue ultimo e deny', () => {
+  const b = permissoes(NPM_RUN).permission.bash;
+  const base = Object.keys(permissoes().permission.bash);
+  const novas = Object.keys(b).filter((k) => !base.includes(k));
+  assert.ok(novas.every((k) => k.startsWith('npm run ')), novas.join('|'));
+  assert.equal(b['node --test *'], undefined);
+  assert.equal(b['git status --short *'], undefined);
+  assert.equal(b['npm *'], undefined);
+  assert.equal(Object.keys(b).at(-1), 'git push *');
+  assert.equal(b['git push *'], 'deny');
+});

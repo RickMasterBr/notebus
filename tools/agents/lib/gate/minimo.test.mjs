@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { selecionar } from './minimo.mjs';
 
 const TABELA = [
@@ -40,4 +41,12 @@ test('X1 minimo: entrada nao e alterada', () => {
   const copia = structuredClone(entradas);
   selecionar(...entradas);
   assert.deepEqual(entradas, copia);
+});
+
+test('m3-i1 C2 gate.config: o expo export roda no workspace do app, nunca npx na raiz', () => {
+  const { minimo_por_prefixo: tabela } = JSON.parse(readFileSync(new URL('../../gate.config.json', import.meta.url), 'utf8'));
+  const todos = tabela.flatMap((l) => l.comandos);
+  assert.ok(todos.every((c) => !/^npx expo export/.test(c)), 'npx expo export na raiz');
+  const mobile = tabela.find((l) => l.prefixo === 'apps/mobile/');
+  assert.ok(mobile.comandos.includes('npm exec -w apps/mobile -- expo export --platform ios --output-dir {saida}/dist'));
 });
