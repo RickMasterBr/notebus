@@ -34,6 +34,19 @@ export const planejar = (contrato, { raiz, repo }) => {
   };
 };
 
+// o gate roda por fora da pista: cwd = raiz, e acha pista, relatorio e saida pelo mesmo planejar
+export const montarComandoGate = (plano, { contrato, gate, repo, raiz, schemas, soEstatico }) => ({
+  exe: process.execPath,
+  args: [gate, contrato, '--repo', repo, '--raiz', raiz, ...(schemas ? ['--schemas', schemas] : []), ...(soEstatico ? ['--so-estatico'] : [])],
+  cwd: raiz,
+});
+
+export const gateDentroDe = (gate, pasta) => {
+  const g = path.resolve(gate).toLowerCase();
+  const p = path.resolve(pasta).toLowerCase();
+  return g === p || g.startsWith(p.endsWith(path.sep) ? p : p + path.sep);
+};
+
 const hookDe = (harness, pista, dentro) => {
   if (harness === 'claude') return { ligado: true, tipo: 'claude', settings: dentro('hooks-claude.json') };
   if (harness === 'agy') return { ligado: true, tipo: 'agy', arquivoPista: path.join(pista, '.agents', 'hooks.json'), copia: dentro('hooks-agy.json') };

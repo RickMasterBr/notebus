@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -604,4 +604,140 @@ test('C5 meta.json tem exe_resolvido (harness falso passa direto)', () => {
   assert.equal(meta.exe_resolvido, process.execPath);
   assert.equal(meta.exe, process.execPath);
   limpa(amb);
+});
+
+// m2-j1: --gate roda o gate (falso) de fora da pista, depois do relatorio
+const GATE_FALSO = falso('gate-falso.mjs');
+const comGate = (amb, extra = [], env = {}, opcoes = {}) => {
+  const log = path.join(amb.tmp, 'gate.log');
+  const e = { ...process.env, GATE_FALSO_LOG: log, GATE_FALSO_RELATORIO: path.join(despacho(amb), 'relatorio.json'), GATE_FALSO_TRAVA: path.join(amb.raiz, '_despacho', '_trava', 'tarefa-x.lock'), ...env };
+  const r = rodar(amb, contratoMd(amb), ['--gate', opcoes.gate ?? GATE_FALSO, ...extra], { env: e, ...opcoes.rodar });
+  const chamadas = existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l)) : [];
+  return { ...r, chamadas, log };
+};
+const ultima = (r) => r.out.split('\n').map((l) => l.trim()).filter((l) => /^(OK|FALHA) /.test(l)).at(-1);
+
+test('J1 sem --gate nada muda: meta.json sem campo gate e o gate falso nunca roda', () => {
+  const amb = ambiente();
+  const log = path.join(amb.tmp, 'gate.log');
+  const r = rodar(amb, contratoMd(amb), [], { env: { ...process.env, GATE_FALSO_LOG: log } });
+  assert.equal(r.code, 0, r.out);
+  assert.ok(!('gate' in json(path.join(despacho(amb), 'meta.json'))));
+  assert.ok(!existsSync(log));
+  limpa(amb);
+});
+
+test('J2 o gate roda uma vez, depois do relatorio, com cwd = raiz e os argumentos certos', () => {
+  const amb = ambiente();
+  const contrato = path.resolve(contratoMd(amb));
+  const r = comGate(amb);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.chamadas.length, 1);
+  const [c] = r.chamadas;
+  assert.equal(c.relatorio, true);
+  assert.equal(realpathSync(c.cwd), realpathSync(amb.raiz));
+  assert.deepEqual(c.argv, [contrato, '--repo', amb.repo, '--raiz', amb.raiz, '--schemas', SCHEMAS]);
+  limpa(amb);
+
+  const amb2 = ambiente();
+  const c2 = comGate(amb2, ['--gate-so-estatico']).chamadas[0].argv;
+  assert.deepEqual(c2.slice(5), ['--schemas', SCHEMAS, '--so-estatico']);
+  for (const proibida of ['--pista', '--relatorio', '--branch', '--saida']) assert.ok(!c2.includes(proibida));
+  limpa(amb2);
+});
+
+test('J3 o codigo de saida segue o veredito do gate, com uma linha final', () => {
+  for (const [codigo, saida, inicio] of [[0, 0, 'OK tarefa-x GATE aprovado'], [1, 1, 'FALHA GATE_REPROVADO'], [3, 3, 'FALHA GATE_INCONCLUSIVO'], [2, 2, 'FALHA GATE_USO'], [9, 2, 'FALHA GATE_USO']]) {
+    const amb = ambiente();
+    const r = comGate(amb, [], { GATE_FALSO_CODIGO: String(codigo) });
+    assert.equal(r.code, saida, `${codigo}: ${r.out}`);
+    assert.ok(ultima(r).startsWith(inicio), `${codigo}: ${r.out}`);
+    assert.equal(r.out.trim().split(/\r?\n/).filter((l) => /^(OK|FALHA) /.test(l)).length, 1, r.out);
+    limpa(amb);
+  }
+});
+
+test('J4 falha do dispatch antes do relatorio valido nao roda o gate', () => {
+  for (const [usaFalso, env, extra, codigo] of [['harness-falha.mjs', {}, [], 1], ['harness-agy.mjs', { RELATORIO: 'relatorio-invalido.json' }, [], 1], ['harness-lento.mjs', {}, ['--timeout-ms', '300'], 1]]) {
+    const amb = ambiente();
+    const r = comGate(amb, extra, { PID_ARQUIVO: path.join(amb.tmp, 'pid.txt'), ...env }, { rodar: { usaFalso } });
+    assert.equal(r.code, codigo, r.out);
+    assert.equal(r.chamadas.length, 0);
+    limpa(amb);
+  }
+});
+
+test('J5 gate ausente, na pista, so-estatico sozinho e gate que nao termina', () => {
+  const amb = ambiente();
+  const sem = (opcoes, extra = []) => rodar(amb, contratoMd(amb), extra.length ? extra : ['--gate', opcoes.gate]);
+  let r = sem({ gate: path.join(amb.tmp, 'nao-existe.mjs') });
+  assert.equal(r.code, 2, r.out);
+  assert.match(r.out, /FALHA GATE_AUSENTE/);
+  r = sem({ gate: path.join(pistaDe(amb), 'gate.mjs') });
+  assert.equal(r.code, 2, r.out);
+  assert.match(r.out, /FALHA GATE_NA_PISTA/);
+  r = sem({}, ['--gate-so-estatico']);
+  assert.equal(r.code, 2, r.out);
+  assert.deepEqual(readdirSync(amb.raiz), []);
+  limpa(amb);
+
+  const amb2 = ambiente();
+  const pid = path.join(amb2.tmp, 'gate.pid');
+  const t = comGate(amb2, ['--gate-timeout-ms', '300'], { GATE_FALSO_DORME: '1', GATE_FALSO_PID: pid });
+  assert.equal(t.code, 1, t.out);
+  assert.match(t.out, /FALHA GATE_TEMPO_ESGOTADO/);
+  assert.throws(() => process.kill(Number(readFileSync(pid, 'utf8')), 0), 'o gate ainda esta vivo');
+  assert.deepEqual(travas(amb2), []);
+  limpa(amb2);
+});
+
+test('J6 meta.json registra o gate e o aviso GATE_DO_REPO', () => {
+  const amb = ambiente();
+  const r = comGate(amb);
+  const meta = json(path.join(despacho(amb), 'meta.json'));
+  assert.equal(meta.gate.caminho, GATE_FALSO);
+  assert.equal(meta.gate.sha256, sha256(readFileSync(GATE_FALSO)));
+  assert.equal(meta.gate.codigo, 0);
+  assert.equal(meta.gate.veredito, 'aprovado');
+  assert.equal(typeof meta.gate.duracao_s, 'number');
+  assert.equal(path.dirname(meta.gate.gate_json), despacho(amb));
+  assert.deepEqual(meta.avisos, []);
+  assert.ok(!ultima(r).endsWith('[GATE_DO_REPO]'));
+  limpa(amb);
+
+  const amb2 = ambiente();
+  const dentro = path.join(amb2.repo, 'gate-no-repo.mjs');
+  copyFileSync(GATE_FALSO, dentro);
+  const r2 = comGate(amb2, [], {}, { gate: dentro });
+  assert.equal(r2.code, 0, r2.out);
+  assert.deepEqual(json(path.join(despacho(amb2), 'meta.json')).avisos, ['GATE_DO_REPO']);
+  assert.ok(ultima(r2).endsWith(' [GATE_DO_REPO]'), r2.out);
+  limpa(amb2);
+});
+
+test('J7 --dry-run mostra o comando do gate sem criar nada nem rodar', () => {
+  const amb = ambiente();
+  const log = path.join(amb.tmp, 'gate.log');
+  const env = { ...process.env, GATE_FALSO_LOG: log };
+  const r = rodar(amb, contratoMd(amb), ['--dry-run', '--gate', GATE_FALSO], { env });
+  assert.equal(r.code, 0, r.out);
+  const { gate } = JSON.parse(r.stdout.slice(0, r.stdout.lastIndexOf('}') + 1));
+  assert.equal(gate.exe, process.execPath);
+  assert.equal(gate.args[0], GATE_FALSO);
+  assert.equal(gate.cwd, amb.raiz);
+  assert.deepEqual(readdirSync(amb.raiz), []);
+  assert.ok(!existsSync(log));
+  const sem = rodar(amb, contratoMd(amb), ['--dry-run']);
+  assert.ok(!('gate' in JSON.parse(sem.stdout.slice(0, sem.stdout.lastIndexOf('}') + 1))));
+  limpa(amb);
+});
+
+test('J8 a trava existe enquanto o gate roda e some depois, mesmo se ele reprovar', () => {
+  for (const codigo of ['0', '1']) {
+    const amb = ambiente();
+    const r = comGate(amb, [], { GATE_FALSO_CODIGO: codigo });
+    assert.equal(r.chamadas[0].trava, true);
+    assert.deepEqual(travas(amb), []);
+    limpa(amb);
+  }
 });

@@ -1,12 +1,12 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { lerJson } from './lib/json.mjs';
 import { validar } from './lib/schema.mjs';
 import { lerContrato, ContratoErro } from './lib/contrato.mjs';
 import { adaptador } from './lib/harness/index.mjs';
-import { planejar, montarPrompt, montarHooksClaude, montarHooksAgy, montarPermissoesOpencode } from './lib/despacho.mjs';
+import { planejar, montarPrompt, montarHooksClaude, montarHooksAgy, montarPermissoesOpencode, montarComandoGate, gateDentroDe } from './lib/despacho.mjs';
 import { CONTROLE } from './hooks/protected-paths.mjs';
 import { adquirir } from './lib/trava.mjs';
 import { retrato } from './lib/retrato.mjs';
@@ -21,7 +21,7 @@ class Falha extends Error {
   }
 }
 
-const COM_VALOR = ['--raiz', '--repo', '--schemas', '--harness-falso', '--max-simultaneas', '--timeout-ms'];
+const COM_VALOR = ['--raiz', '--repo', '--schemas', '--harness-falso', '--max-simultaneas', '--timeout-ms', '--gate', '--gate-timeout-ms'];
 const inteiro = (nome, v) => {
   if (!/^[1-9]\d*$/.test(v ?? '')) throw new Falha('USO', `${nome} pede um inteiro positivo: ${v}`, 2);
   return Number(v);
@@ -32,13 +32,16 @@ const lerArgs = (argv) => {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') o.dryRun = true;
+    else if (a === '--gate-so-estatico') o.gateSoEstatico = true;
     else if (COM_VALOR.includes(a)) {
       if (argv[i + 1] === undefined) throw new Falha('USO', `${a} pede um valor`, 2);
       o[a.slice(2)] = argv[++i];
     } else if (a.startsWith('--')) throw new Falha('USO', `flag desconhecida: ${a}`, 2);
     else o.posicionais.push(a);
   }
-  if (o.posicionais.length !== 1) throw new Falha('USO', 'uso: node tools/agents/dispatch.mjs <contrato.md> [--dry-run] [--raiz <pasta>] [--repo <pasta>] [--schemas <pasta>] [--harness-falso <script.mjs>] [--max-simultaneas <n>] [--timeout-ms <n>]', 2);
+  if (o.posicionais.length !== 1) throw new Falha('USO', 'uso: node tools/agents/dispatch.mjs <contrato.md> [--dry-run] [--raiz <pasta>] [--repo <pasta>] [--schemas <pasta>] [--harness-falso <script.mjs>] [--max-simultaneas <n>] [--timeout-ms <n>] [--gate <gate.mjs> [--gate-so-estatico] [--gate-timeout-ms <n>]]', 2);
+  if (o.gateSoEstatico && o.gate === undefined) throw new Falha('USO', '--gate-so-estatico so vale com --gate', 2);
+  if (o['gate-timeout-ms'] !== undefined) o.gateTimeout = inteiro('--gate-timeout-ms', o['gate-timeout-ms']);
   if (o['max-simultaneas'] !== undefined) o.max = inteiro('--max-simultaneas', o['max-simultaneas']);
   if (o['timeout-ms'] !== undefined) o.timeout = inteiro('--timeout-ms', o['timeout-ms']);
   return o;
@@ -134,11 +137,31 @@ const gravarHook = ({ plano, contrato, repo }) => {
   return { tipo: hook.tipo, arquivo, sha256: createHash('sha256').update(texto).digest('hex') };
 };
 
-const rodar = async ({ plano, harness, comando, exec, resolvido, timeout, schemaRelatorio, falso, repo, hook }) => {
+// roda o gate de fora da pista, depois do relatorio; o veredito e o codigo de saida dele
+const rodarGate = async ({ plano, gate, meta, grava, falha }) => {
+  const gateJson = path.join(plano.despachoDir, 'gate.json');
+  const t0 = Date.now();
+  const r = await executar({ exe: gate.cmd.exe, args: gate.cmd.args }, { cwd: gate.cmd.cwd, saida: path.join(plano.despachoDir, 'gate-saida.txt'), stderr: path.join(plano.despachoDir, 'gate-stderr.txt'), timeout: gate.timeout });
+  meta.gate = { caminho: gate.caminho, sha256: gate.sha256, argumentos: gate.cmd.args.slice(1), codigo: r.codigo ?? null, veredito: null, duracao_s: (Date.now() - t0) / 1000, gate_json: gateJson };
+  if (r.erro) throw falha('GATE_EXECUCAO', r.erro.message, 1);
+  if (r.tempo) throw falha('GATE_TEMPO_ESGOTADO', `passou de ${gate.timeout} ms`, 1);
+  const veredito = { 0: 'aprovado', 1: 'reprovado', 3: 'inconclusivo' }[r.codigo];
+  meta.gate.veredito = veredito ?? 'uso';
+  const sufixo = gate.doRepo ? ' [GATE_DO_REPO]' : '';
+  if (r.codigo === 0) {
+    grava();
+    return `OK ${plano.id} GATE aprovado ${gateJson}${sufixo}`;
+  }
+  if (!veredito) throw falha('GATE_USO', `${plano.id} gate recusou os argumentos (saida ${r.codigo}): ${lerStderr(path.join(plano.despachoDir, 'gate-stderr.txt'))}${sufixo}`, 2);
+  throw falha(r.codigo === 1 ? 'GATE_REPROVADO' : 'GATE_INCONCLUSIVO', `${plano.id} ${gateJson}${sufixo}`, r.codigo);
+};
+
+const rodar = async ({ plano, harness, comando, exec, resolvido, timeout, schemaRelatorio, falso, repo, hook, gate }) => {
   const pista = plano.pista.caminho;
   const a = plano.arquivosDespacho;
   const reportPista = path.join(pista, '.agent', 'report.json');
   const meta = { id: plano.id, harness: harness.nome, exe: comando.exe, exe_resolvido: resolvido?.caminho ?? null, harness_falso: falso, inicio: new Date().toISOString(), hook, retrato: null, fim: null, duracao_s: null, codigo_saida: null, meta: null, validacao: null, avisos: [], erro: null };
+  if (gate?.doRepo) meta.avisos.push('GATE_DO_REPO');
   const t0 = Date.now();
   const grava = () => {
     meta.fim = new Date().toISOString();
@@ -190,6 +213,7 @@ const rodar = async ({ plano, harness, comando, exec, resolvido, timeout, schema
   writeFileSync(a.relatorio, JSON.stringify(relatorio, null, 2));
   if (doStdout) writeFileSync(reportPista, JSON.stringify(relatorio, null, 2));
   grava();
+  if (gate) return rodarGate({ plano, gate, meta, grava, falha });
   return `OK ${plano.id} relatorio valido em ${a.relatorio}`;
 };
 
@@ -230,8 +254,24 @@ const principal = async (argv) => {
     throw e;
   }
 
+  let gate;
+  if (o.gate) {
+    const caminho = path.resolve(o.gate);
+    const real = (p) => { try { return realpathSync(p); } catch { return path.resolve(p); } };
+    const dentro = (pasta) => [caminho, real(caminho)].some((g) => [pasta, real(pasta)].some((p) => gateDentroDe(g, p)));
+    // a pista ainda nao existe aqui: a recusa vem do caminho, antes do teste de existencia
+    if (dentro(plano.pista.caminho)) throw new Falha('GATE_NA_PISTA', `${caminho} esta dentro da pista ${plano.pista.caminho}: o worker poderia reescrever o gate`, 2);
+    if (!existsSync(caminho)) throw new Falha('GATE_AUSENTE', `gate nao encontrado: ${caminho}`, 2);
+    gate = {
+      caminho,
+      doRepo: dentro(repo),
+      timeout: o.gateTimeout ?? 3600000,
+      cmd: montarComandoGate(plano, { contrato: arquivo, gate: caminho, repo, raiz, schemas: o.schemas ? schemas : undefined, soEstatico: o.gateSoEstatico }),
+    };
+  }
+
   if (o.dryRun) {
-    console.log(JSON.stringify({ plano, comando, execucao: { exe: resolvido?.caminho ?? comando.exe, tipo: resolvido?.tipo ?? 'exe' } }, null, 2));
+    console.log(JSON.stringify({ plano, comando, execucao: { exe: resolvido?.caminho ?? comando.exe, tipo: resolvido?.tipo ?? 'exe' }, ...(gate && { gate: { exe: gate.cmd.exe, args: gate.cmd.args, cwd: gate.cmd.cwd } }) }, null, 2));
     return `OK ${plano.id} dry-run`;
   }
 
@@ -258,7 +298,8 @@ const principal = async (argv) => {
     writeFileSync(a.autorizacao, JSON.stringify({ tarefa: plano.id, areas_autorizadas: contrato.areas_autorizadas, arquivos_permitidos: contrato.arquivos_permitidos }, null, 2));
     const hookMeta = hook.ligado ? gravarHook({ plano, contrato, repo }) : null;
     copyFileSync(schemaRelatorio, a.schema);
-    return await rodar({ plano, harness, comando, exec, resolvido, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']), repo, hook: hookMeta });
+    if (gate) gate.sha256 = createHash('sha256').update(readFileSync(gate.caminho)).digest('hex');
+    return await rodar({ plano, harness, comando, exec, resolvido, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']), repo, hook: hookMeta, gate });
   } finally {
     trava.liberar();
   }

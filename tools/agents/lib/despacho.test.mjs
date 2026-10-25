@@ -186,3 +186,14 @@ test('m3-i1 C4 montarPermissoesOpencode: curinga so para npm run e git push * se
   assert.equal(Object.keys(b).at(-1), 'git push *');
   assert.equal(b['git push *'], 'deny');
 });
+
+test('J2 montarComandoGate: cwd = raiz, sem pista/relatorio/branch/saida; gateDentroDe', async () => {
+  const { montarComandoGate, gateDentroDe } = await import('./despacho.mjs');
+  const p = planejar(contrato, dirs);
+  const c = montarComandoGate(p, { contrato: 'c.md', gate: 'g.mjs', repo: dirs.repo, raiz: dirs.raiz });
+  assert.deepEqual(c, { exe: process.execPath, args: ['g.mjs', 'c.md', '--repo', dirs.repo, '--raiz', dirs.raiz], cwd: dirs.raiz });
+  const com = montarComandoGate(p, { contrato: 'c.md', gate: 'g.mjs', repo: dirs.repo, raiz: dirs.raiz, schemas: 's', soEstatico: true });
+  assert.deepEqual(com.args.slice(6), ['--schemas', 's', '--so-estatico']);
+  assert.equal(gateDentroDe(path.join(dirs.raiz, 'pistas', 'x', 'g.mjs'), path.join(dirs.raiz, 'pistas', 'x')), true);
+  assert.equal(gateDentroDe(path.join(dirs.raiz, 'pistas', 'xy', 'g.mjs'), path.join(dirs.raiz, 'pistas', 'x')), false);
+});
