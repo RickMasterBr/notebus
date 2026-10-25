@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { t } from "../i18n";
 import { matchNetworkOf } from "./records";
 import { buildTripCard } from "./rideView";
 import { THURSDAY, fixture, lineId, lisbon, stopId } from "./registroFixture";
@@ -53,6 +54,10 @@ describe("rideView: quando o cartão fica sem viagem (unmatched) e sem Desci aqu
     const late = await cardAt("09:13");
     expect(late.unmatched).toBe(true);
     expect(offersAlight(late)).toBe(false);
+  });
+
+  it("o texto do cartão sem casamento é o da ideia 70", () => {
+    expect(t("trip_card.unmatched")).toBe("Esse embarque não bate com a tabela");
   });
 
   it("o JSX do cartão só oferece o botão com viagem e sem unmatched", () => {

@@ -130,8 +130,8 @@ export const ptBR = {
   "home.register_button": "Registrar",
   "home.register_button.a11y": "Registrar embarque",
   "home.trip.title": "Em viagem → {{destination}}",
-  // texto provisório, Q-88
-  "trip_card.unmatched": "Sem viagem na tabela agora",
+  // texto da ideia 70 (era provisório, Q-88)
+  "trip_card.unmatched": "Esse embarque não bate com a tabela",
   "home.trip.subtitle": "embarcou {{time}} · {{stop_name}}",
   "home.trip.alight_button": "Desci aqui",
   "home.trip.dismiss_button": "Dispensar",
