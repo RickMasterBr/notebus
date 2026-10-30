@@ -1,8 +1,9 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { decidir } from './lib/limpeza.mjs';
 import { removerJuncao } from './lib/juncao.mjs';
+import { pergunta } from './lib/pergunta.mjs';
 
 class Falha extends Error {
   constructor(codigo, texto, saida) {
@@ -198,21 +199,8 @@ const principal = (argv) => {
     return 0;
   }
 
-  let linhas = null;
   // stdin fechado, vazio ou ilegivel = nao
-  const confirma = (pergunta) => {
-    if (linhas === null) {
-      let t = '';
-      try {
-        t = readFileSync(0, 'utf8');
-      } catch {
-        // sem stdin
-      }
-      linhas = t.split(/\r?\n/);
-    }
-    process.stderr.write(pergunta);
-    return ['s', 'S', 'sim'].includes((linhas.shift() ?? '').trim());
-  };
+  const confirma = (texto) => ['s', 'S', 'sim'].includes(pergunta(texto));
 
   const falhas = [];
   const avisos = [];

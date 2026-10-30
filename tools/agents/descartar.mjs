@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { classificar, formatarLista, ordemDeRemocao, sujeira } from './lib/descarte.mjs';
 import { removerJuncao } from './lib/juncao.mjs';
+import { pergunta } from './lib/pergunta.mjs';
 
 class Falha extends Error {
   constructor(codigo, texto, saida) {
@@ -133,20 +134,7 @@ const lerPistas = (repo, raiz, destino) => {
 };
 
 // stdin fechado, vazio ou ilegivel = nao
-let linhas = null;
-const proximaLinha = (pergunta) => {
-  if (linhas === null) {
-    let t = '';
-    try {
-      t = readFileSync(0, 'utf8');
-    } catch {
-      // sem stdin
-    }
-    linhas = t.split(/\r?\n/);
-  }
-  process.stderr.write(pergunta);
-  return (linhas.shift() ?? '').trim();
-};
+const proximaLinha = pergunta;
 
 const removerPista = (repo, p, falhas) => {
   // junction primeiro: se o git seguisse o link, o node_modules real iria junto
