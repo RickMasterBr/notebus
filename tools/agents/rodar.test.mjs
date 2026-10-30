@@ -228,11 +228,17 @@ const celula = (p, coluna) => {
 const arq = (p) => path.join(p.registros, 'arquivo');
 
 test('R1 depois do despacho existem o registro .md e a linha do csv', () => {
-  const p = pronto();
-  const r = registra(p);
+  // sem _despacho pre-criado: so o dispatch falso o cria, entao o registro so mostra 4242 se vier depois
+  const amb = ambiente();
+  contrato(amb);
+  const raiz = comGate(amb);
+  const p = { amb, raiz, csv: path.join(amb.tmp, 'reg.csv'), registros: path.join(amb.tmp, 'registros') };
+  assert.ok(!existsSync(path.join(raiz, '_despacho')));
+  const r = registra(p, [], { env: { RODAR_FALSO_GRAVA: '1' } });
   assert.equal(r.code, 0, r.out);
   assert.ok(existsSync(path.join(p.registros, 'tarefa-x.md')));
   assert.match(readFileSync(p.csv, 'utf8'), /^tarefa-x,/m);
+  assert.equal(celula(p, 'duracao_harness_s'), '4242');
   assert.match(r.stdout, /Registro: .*tarefa-x\.md/);
   limpa(p.amb);
 });
