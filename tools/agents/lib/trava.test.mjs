@@ -50,15 +50,18 @@ test('A4 corrida: arquivo criado por outro entre a listagem e a criacao nao e so
 test('A4 8 processos simultaneos no mesmo id com max 1: exatamente 1 ok (3 vezes)', async () => {
   const filho = path.join(mkdtempSync(path.join(tmpdir(), 'trava-f-')), 'filho.mjs');
   writeFileSync(filho, `import { adquirir } from ${JSON.stringify(new URL('./trava.mjs', import.meta.url).href)};
-process.on('message', ({ raiz }) => {
-  const r = adquirir({ raiz, id: 'mesmo', minutos: 5, max: 1 });
-  process.send({ ok: r.ok }, () => process.exit(0));
+// o filho so sai quando o teste manda 'sair': dono vivo nao perde a trava
+process.on('message', (m) => {
+  if (m.sair) return process.exit(0);
+  const r = adquirir({ raiz: m.raiz, id: 'mesmo', minutos: 5, max: 1 });
+  process.send({ ok: r.ok });
 });
 `);
   for (let rodada = 0; rodada < 3; rodada++) {
     const raiz = nova();
     const filhos = Array.from({ length: 8 }, () => fork(filho));
     const resultados = await Promise.all(filhos.map((f) => new Promise((res) => { f.on('message', res); f.send({ raiz }); })));
+    for (const f of filhos) f.send({ sair: true });
     assert.equal(resultados.filter((r) => r.ok).length, 1, `rodada ${rodada}`);
     rmSync(path.dirname(raiz), { recursive: true });
   }

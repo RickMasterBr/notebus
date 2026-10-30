@@ -47,6 +47,16 @@ test('L8 veredito pelos codigos', () => {
   assert.equal(veredito(2, false), 'USO ERRADO');
 });
 
+test('D9 resumoFinal mostra tokens como total e fonte, omite sem total e nunca imprime [object Object]', () => {
+  const com = resumoFinal({ meta: { tokens: { total: 1501397, fonte: 'claude usage' } } }, {}, 0, {});
+  assert.ok(com.includes('Tokens: 1501397 (claude usage)'));
+  for (const tokens of [{ total: null, fonte: 'x' }, undefined, {}]) {
+    const sem = resumoFinal({ meta: { turnos: 1, tokens } }, {}, 0, {});
+    assert.ok(!sem.includes('Tokens'));
+  }
+  assert.doesNotMatch(com, /\[object Object\]/);
+});
+
 test('L8 resumoFinal so mostra o que existe e nunca undefined, null ou NaN', () => {
   const meta = { duracao_s: 416.6, meta: { turnos: 27, custo_usd: 0.4, tokens: 1000 } };
   const cheio = resumoFinal(meta, {}, 0, { relatorio: '/d/relatorio.json', meta: '/d/meta.json' });
