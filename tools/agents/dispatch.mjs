@@ -10,7 +10,7 @@ import { TOKENS_STATS } from './lib/harness/opencode.mjs';
 import { devNull } from 'node:os';
 import { planejar, montarPrompt, montarHooksClaude, montarHooksAgy, montarPermissoesOpencode, montarComandoGate, gateDentroDe } from './lib/despacho.mjs';
 import { CONTROLE } from './hooks/protected-paths.mjs';
-import { adquirir } from './lib/trava.mjs';
+import { adquirir, registrarSaida } from './lib/trava.mjs';
 import { retrato } from './lib/retrato.mjs';
 import { resolverExecutavel, comandoParaSpawn, ErroExecutavel } from './lib/executavel.mjs';
 
@@ -310,6 +310,7 @@ const principal = async (argv) => {
   }
   const trava = adquirir({ raiz, id: plano.id, minutos: contrato.limites.minutos, max: o.max ?? 2 });
   if (!trava.ok) throw new Falha(trava.codigo, `ativos: ${trava.ativos.join(', ') || '-'}`, 2);
+  const soltarSaida = registrarSaida(process, trava.liberar, (codigo) => process.exit(codigo));
   try {
     if (existsSync(plano.pista.caminho)) throw new Falha('PISTA_EXISTE', plano.pista.caminho, 2);
     criarPista(plano, repo);
@@ -323,6 +324,7 @@ const principal = async (argv) => {
     if (gate) gate.sha256 = createHash('sha256').update(readFileSync(gate.caminho)).digest('hex');
     return await rodar({ plano, harness, comando, exec, resolvido, timeout: o.timeout ?? contrato.limites.minutos * 60000, schemaRelatorio, falso: Boolean(o['harness-falso']), repo, hook: hookMeta, gate });
   } finally {
+    soltarSaida();
     trava.liberar();
   }
 };
