@@ -1,5 +1,10 @@
-const SEM_META = { turnos: null, custo_usd: null, duracao_ms: null, sessao: null };
 const ehObjeto = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
+const inteiro = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
+const NULOS = { entrada: null, saida: null, raciocinio: null, cache_leitura: null, cache_criacao: null, total: null, fonte: 'agy usage' };
+const SEM_META = { turnos: null, custo_usd: null, duracao_ms: null, sessao: null, tokens: NULOS };
+
+// thinking_tokens ja esta dentro de output_tokens; o agy nao informa cache_criacao
+const tokensDe = (u) => (ehObjeto(u) ? { ...NULOS, entrada: inteiro(u.input_tokens), saida: inteiro(u.output_tokens), raciocinio: inteiro(u.thinking_tokens), cache_leitura: inteiro(u.cache_read_tokens), total: inteiro(u.total_tokens) } : NULOS);
 
 export const montarComando = (_contrato, { prompt, schemaCaminho } = {}) => {
   if (typeof prompt !== 'string' || !prompt) throw new Error('prompt vazio');
@@ -21,6 +26,7 @@ export const lerSaida = (texto) => {
   }
   if (!ehObjeto(saida)) return falha('SAIDA_INVALIDA', 'a saida nao e um objeto JSON');
   const meta = { ...SEM_META, sessao: saida.conversation_id ?? null };
+  if (saida.status === 'SUCCESS') meta.tokens = tokensDe(saida.usage);
   if (saida.status !== 'SUCCESS') return falha('AGY_STATUS', String(saida.status), meta);
   let relatorio = null;
   try {

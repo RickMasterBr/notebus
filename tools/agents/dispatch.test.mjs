@@ -741,3 +741,74 @@ test('J8 a trava existe enquanto o gate roda e some depois, mesmo se ele reprova
     limpa(amb);
   }
 });
+
+const STATS_TEXTO = 'today · all projects\n\nMODELS\nmodel                                 tokens       steps        cost\nopencode/deepseek-v4.1-flash-free…     12.2m         246       $0.00\n';
+const TOKENS_CHAVES = ['entrada', 'saida', 'raciocinio', 'cache_leitura', 'cache_criacao', 'total', 'fonte'];
+const comStats = (stats, extra = {}) => ({ ...process.env, ROD_STATS_FALSO: falso(stats), ...extra });
+const opencodeComStats = (amb, stats, env) => rodar(amb, contratoMd(amb, { harness: 'opencode' }), [], { usaFalso: 'harness-opencode.mjs', env: comStats(stats, env) });
+
+test('M3 opencode: os dois retratos brutos ao lado do meta.json, fonte cita os arquivos, numeros null', () => {
+  const amb = ambiente();
+  const r = opencodeComStats(amb, 'stats-falso.mjs');
+  assert.equal(r.code, 0, r.out);
+  const d = despacho(amb);
+  for (const n of ['opencode-stats-antes.txt', 'opencode-stats-depois.txt']) assert.equal(readFileSync(path.join(d, n), 'utf8'), STATS_TEXTO);
+  const { tokens } = json(path.join(d, 'meta.json')).meta;
+  assert.match(tokens.fonte, /opencode-stats-antes\.txt.*opencode-stats-depois\.txt/);
+  assert.ok(TOKENS_CHAVES.slice(0, 6).every((k) => tokens[k] === null));
+  assert.deepEqual(json(path.join(d, 'meta.json')).avisos, []);
+  limpa(amb);
+  const outro = ambiente();
+  const r2 = rodar(outro, contratoMd(outro), [], { env: comStats('stats-falso.mjs') });
+  assert.equal(r2.code, 0, r2.out);
+  assert.ok(!readdirSync(despacho(outro)).some((n) => n.startsWith('opencode-stats')));
+  limpa(outro);
+});
+
+test('M3 opencode com harness falso e sem ROD_STATS_FALSO nao roda o stats', () => {
+  const amb = ambiente();
+  const r = rodar(amb, contratoMd(amb, { harness: 'opencode' }), [], { usaFalso: 'harness-opencode.mjs' });
+  assert.equal(r.code, 0, r.out);
+  assert.ok(!readdirSync(despacho(amb)).some((n) => n.startsWith('opencode-stats')));
+  limpa(amb);
+});
+
+test('M4 stats que sai 1, que estoura o tempo e executavel ausente: aviso, mesmo codigo, sem atraso', () => {
+  for (const [stats, env] of [['stats-sai1.mjs', {}], ['stats-dorme.mjs', { ROD_STATS_TIMEOUT_MS: '500' }]]) {
+    const amb = ambiente();
+    const t0 = Date.now();
+    const r = opencodeComStats(amb, stats, env);
+    assert.equal(r.code, 0, r.out);
+    assert.ok(Date.now() - t0 < 20000);
+    const meta = json(path.join(despacho(amb), 'meta.json'));
+    assert.deepEqual(meta.avisos, ['OPENCODE_STATS_FALHOU', 'OPENCODE_STATS_FALHOU']);
+    assert.equal(meta.meta.tokens.total, null);
+    assert.deepEqual(travas(amb), []);
+    limpa(amb);
+  }
+  // executavel ausente (PATH so com o git): o despacho acaba como sempre, com o aviso
+  const amb = ambiente();
+  const gitDir = path.dirname(execFileSync(process.platform === 'win32' ? 'where.exe' : 'which', ['git'], { encoding: 'utf8' }).split(/\r?\n/)[0]);
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k.toLowerCase() !== 'path'));
+  const r = rodar(amb, contratoMd(amb, { harness: 'opencode' }), [], { usaFalso: null, env: { ...env, PATH: gitDir } });
+  assert.equal(r.code, 2, r.out);
+  assert.match(r.out, /FALHA EXECUTAVEL_NAO_ENCONTRADO/);
+  assert.ok(json(path.join(despacho(amb), 'meta.json')).avisos.includes('OPENCODE_STATS_FALHOU'));
+  limpa(amb);
+});
+
+test('M6 meta.tokens com as 7 chaves nos tres harness; campos antigos do meta.meta intactos', () => {
+  for (const [harness, falsoNome, fonte] of [['claude', 'harness-claude.mjs', 'claude usage'], ['agy', 'harness-agy.mjs', 'agy usage'], ['opencode', 'harness-opencode.mjs', '^opencode stats']]) {
+    const amb = ambiente();
+    const r = rodar(amb, contratoMd(amb, { harness }), [], { usaFalso: falsoNome });
+    assert.equal(r.code, 0, r.out);
+    const { tokens, ...antigos } = json(path.join(despacho(amb), 'meta.json')).meta;
+    assert.deepEqual(Object.keys(tokens), TOKENS_CHAVES, harness);
+    assert.deepEqual(Object.keys(antigos), ['turnos', 'custo_usd', 'duracao_ms', 'sessao']);
+    if (harness === 'claude') {
+      assert.deepEqual(tokens, { entrada: 10, saida: 20, raciocinio: 5, cache_leitura: 30, cache_criacao: 40, total: 100, fonte });
+      assert.deepEqual(antigos, { turnos: 3, custo_usd: 0.5, duracao_ms: null, sessao: 's' });
+    } else assert.match(tokens.fonte, new RegExp(fonte));
+    limpa(amb);
+  }
+});

@@ -1,5 +1,15 @@
-const SEM_META = { turnos: null, custo_usd: null, duracao_ms: null, sessao: null };
 const ehObjeto = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
+const inteiro = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
+const NULOS = { entrada: null, saida: null, raciocinio: null, cache_leitura: null, cache_criacao: null, total: null, fonte: 'claude usage' };
+const SEM_META = { turnos: null, custo_usd: null, duracao_ms: null, sessao: null, tokens: NULOS };
+
+// raciocinio ja esta dentro de saida: nao entra no total
+const tokensDe = (u) => {
+  if (!ehObjeto(u)) return NULOS;
+  const t = { ...NULOS, entrada: inteiro(u.input_tokens), saida: inteiro(u.output_tokens), raciocinio: inteiro(ehObjeto(u.output_tokens_details) ? u.output_tokens_details.thinking_tokens : null), cache_leitura: inteiro(u.cache_read_input_tokens), cache_criacao: inteiro(u.cache_creation_input_tokens) };
+  const parcelas = [t.entrada, t.saida, t.cache_leitura, t.cache_criacao];
+  return { ...t, total: parcelas.every((n) => n !== null) ? parcelas.reduce((a, b) => a + b, 0) : null };
+};
 const textoValido = (v) => typeof v === 'string' && v.length > 0;
 const PERMITIDAS = ['Read', 'Grep', 'Glob', 'Edit', 'Write', 'Bash(git status*)', 'Bash(git diff*)', 'Bash(git log*)', 'Bash(git add*)', 'Bash(git commit*)'];
 
@@ -40,7 +50,7 @@ export const lerSaida = (texto) => {
     return falha('SAIDA_INVALIDA', e.message);
   }
   if (!ehObjeto(saida)) return falha('SAIDA_INVALIDA', 'a saida nao e um objeto JSON');
-  const meta = { turnos: saida.num_turns ?? null, custo_usd: saida.total_cost_usd ?? null, duracao_ms: saida.duration_ms ?? null, sessao: saida.session_id ?? null };
+  const meta = { turnos: saida.num_turns ?? null, custo_usd: saida.total_cost_usd ?? null, duracao_ms: saida.duration_ms ?? null, sessao: saida.session_id ?? null, tokens: tokensDe(saida.usage) };
   if (saida.is_error) return falha('CLAUDE_ERRO', [saida.subtype, saida.result].filter(textoValido).join(': '), meta);
   let relatorio = ehObjeto(saida.structured_output) ? saida.structured_output : null;
   if (!relatorio && typeof saida.result === 'string') {

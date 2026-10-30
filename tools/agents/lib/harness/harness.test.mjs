@@ -198,3 +198,50 @@ test('C3 claude: o resto do schema fica igual; --settings antes de --allowedTool
   assert.ok(args.indexOf('--json-schema') < args.indexOf('--settings'));
   assert.ok(args.slice(args.indexOf('--allowedTools') + 1).every((a) => a !== '--settings' && !a.startsWith('--')));
 });
+
+const CHAVES = ['entrada', 'saida', 'raciocinio', 'cache_leitura', 'cache_criacao', 'total', 'fonte'];
+const claudeUsage = ler('./fixtures/claude-usage.json');
+const agyUsage = ler('./fixtures/agy-usage.json');
+const tokensClaude = (usage) => claude.lerSaida(JSON.stringify({ ...JSON.parse(claudeUsage), usage })).meta.tokens;
+const tokensAgy = (usage) => agy.lerSaida(JSON.stringify({ ...JSON.parse(agyUsage), response: '{}', usage })).meta.tokens;
+
+test('M1 claude: tokens normalizados a partir de usage; sem usage tudo null', () => {
+  assert.deepEqual(claude.lerSaida(claudeUsage).meta.tokens, { entrada: 38, saida: 6667, raciocinio: 321, cache_leitura: 949265, cache_criacao: 60536, total: 1016506, fonte: 'claude usage' });
+  const sem = claude.lerSaida(JSON.stringify({ ...JSON.parse(claudeUsage), usage: undefined })).meta.tokens;
+  assert.deepEqual(Object.keys(sem), CHAVES);
+  assert.ok(CHAVES.slice(0, 6).every((k) => sem[k] === null));
+  assert.equal(sem.fonte, 'claude usage');
+  assert.equal(claude.lerSaida('texto').meta.tokens.total, null);
+});
+
+test('M1 claude: total some so com os quatro campos; raciocinio fora da soma', () => {
+  const t = tokensClaude({ input_tokens: 1, output_tokens: 2, cache_read_input_tokens: 3, output_tokens_details: { thinking_tokens: 99 } });
+  assert.equal(t.total, null);
+  assert.equal(t.raciocinio, 99);
+  assert.equal(tokensClaude({ input_tokens: 1, output_tokens: 2, cache_read_input_tokens: 3, cache_creation_input_tokens: 4 }).total, 10);
+});
+
+test('M2 agy: tokens normalizados a partir de usage; status diferente de SUCCESS mantem null e o erro', () => {
+  const r = agy.lerSaida(agyUsage);
+  assert.deepEqual(r.meta.tokens, { entrada: 8891, saida: 55, raciocinio: 54, cache_leitura: 0, cache_criacao: null, total: 8946, fonte: 'agy usage' });
+  const st = agy.lerSaida(JSON.stringify({ ...JSON.parse(agyUsage), status: 'ERROR' }));
+  assert.equal(st.erro.codigo, 'AGY_STATUS');
+  assert.ok(CHAVES.slice(0, 6).every((k) => st.meta.tokens[k] === null));
+  assert.equal(st.meta.tokens.fonte, 'agy usage');
+});
+
+test('M5 usage invalido vira null, nunca 0, undefined ou NaN', () => {
+  for (const ruim of ['x', -1, 1.5, null, {}, [], true]) {
+    const c = tokensClaude({ input_tokens: ruim, output_tokens: ruim, cache_read_input_tokens: ruim, cache_creation_input_tokens: ruim, output_tokens_details: { thinking_tokens: ruim } });
+    const a = tokensAgy({ input_tokens: ruim, output_tokens: ruim, thinking_tokens: ruim, cache_read_tokens: ruim, total_tokens: ruim });
+    for (const t of [c, a]) assert.ok(CHAVES.slice(0, 6).every((k) => t[k] === null), JSON.stringify(ruim));
+  }
+  for (const u of [undefined, null, 'x', 7, [], {}]) {
+    for (const t of [tokensClaude(u), tokensAgy(u)]) {
+      assert.deepEqual(Object.keys(t), CHAVES);
+      assert.ok(CHAVES.slice(0, 6).every((k) => t[k] === null));
+      assert.doesNotMatch(JSON.stringify(t), /NaN|undefined|:0[,}]/);
+    }
+  }
+  assert.equal(tokensClaude({ output_tokens_details: 5 }).raciocinio, null);
+});
