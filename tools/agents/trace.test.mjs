@@ -31,13 +31,24 @@ const trace = (a, contrato = COMPLETO, ...extra) => rodar(contrato, '--raiz', FX
 const linhasDe = (csv) => ler(readFileSync(csv, 'utf8')).linhas;
 const arvore = (dir) => (existsSync(dir) ? readdirSync(dir, { recursive: true }).sort() : []);
 
-test('T2 CLI: despacho completo gera uma linha de 22 colunas e o esqueleto', () => {
+test('C5 cabecalho antigo de 22 colunas: CSV_CABECALHO e o arquivo fica byte a byte igual', () => {
+  const a = ambiente();
+  mkdirSync(path.dirname(a.csv), { recursive: true });
+  writeFileSync(a.csv, COLUNAS.slice(0, 22).join(',') + '\n');
+  const antes = readFileSync(a.csv);
+  const r = trace(a);
+  assert.equal(r.codigo, 2);
+  assert.match(r.err, /CSV_CABECALHO/);
+  assert.deepEqual(readFileSync(a.csv), antes);
+});
+
+test('T2 CLI: despacho completo gera uma linha de 25 colunas e o esqueleto', () => {
   const a = ambiente();
   const r = trace(a);
   assert.equal(r.codigo, 0, r.err);
   const [l, ...mais] = linhasDe(a.csv);
   assert.equal(mais.length, 0);
-  assert.equal(l.length, 22);
+  assert.equal(l.length, 25);
   assert.equal(col(l, 'modelo'), 'sonnet');
   assert.equal(col(l, 'rodadas_verificacao'), '2'); // dois arquivos em gate-historico
   assert.equal(col(l, 'verificacoes_falhas'), 'G04|G10');

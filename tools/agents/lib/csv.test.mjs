@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CABECALHO, COLUNAS, escapar, ler, linha } from './csv.mjs';
 
-test('T1 csv: cabecalho fixo com 22 colunas na ordem do contrato', () => {
-  assert.equal(COLUNAS.length, 22);
-  assert.equal(CABECALHO, 'tarefa,executor,modelo,inicio_despacho,fim_harness,inicio_gate,fim_gate,duracao_harness_s,comandos_s,rodadas_verificacao,resultado_gate,exige_revisor,avisos_gate,verificacoes_falhas,divergencias,arquivos_mudados,testes_novos,resultado_relatorio,pct_limite,mutantes_sobreviventes,retrabalho,intervencoes_rick\n');
+test('T1 csv: cabecalho fixo com 25 colunas na ordem do contrato', () => {
+  assert.equal(COLUNAS.length, 25);
+  assert.equal(CABECALHO, 'tarefa,executor,modelo,inicio_despacho,fim_harness,inicio_gate,fim_gate,duracao_harness_s,comandos_s,rodadas_verificacao,resultado_gate,exige_revisor,avisos_gate,verificacoes_falhas,divergencias,arquivos_mudados,testes_novos,resultado_relatorio,pct_limite,mutantes_sobreviventes,retrabalho,intervencoes_rick,turnos,custo_usd,tokens_total\n');
+  assert.deepEqual(COLUNAS.slice(0, 22), ['tarefa', 'executor', 'modelo', 'inicio_despacho', 'fim_harness', 'inicio_gate', 'fim_gate', 'duracao_harness_s', 'comandos_s', 'rodadas_verificacao', 'resultado_gate', 'exige_revisor', 'avisos_gate', 'verificacoes_falhas', 'divergencias', 'arquivos_mudados', 'testes_novos', 'resultado_relatorio', 'pct_limite', 'mutantes_sobreviventes', 'retrabalho', 'intervencoes_rick']);
 });
 
 test('T1 csv: escapa so o que precisa', () => {
