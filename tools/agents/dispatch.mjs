@@ -6,6 +6,8 @@ import { lerJson } from './lib/json.mjs';
 import { validar } from './lib/schema.mjs';
 import { lerContrato, ContratoErro } from './lib/contrato.mjs';
 import { adaptador } from './lib/harness/index.mjs';
+import { TOKENS_STATS } from './lib/harness/opencode.mjs';
+import { devNull } from 'node:os';
 import { planejar, montarPrompt, montarHooksClaude, montarHooksAgy, montarPermissoesOpencode, montarComandoGate, gateDentroDe } from './lib/despacho.mjs';
 import { CONTROLE } from './hooks/protected-paths.mjs';
 import { adquirir } from './lib/trava.mjs';
@@ -156,6 +158,19 @@ const rodarGate = async ({ plano, gate, meta, grava, falha }) => {
   throw falha(r.codigo === 1 ? 'GATE_REPROVADO' : 'GATE_INCONCLUSIVO', `${plano.id} ${gateJson}${sufixo}`, r.codigo);
 };
 
+// retrato bruto do opencode stats (agregado do dia, texto nao lido); nunca lanca: falha vira false
+const retratoStats = async ({ arquivo, cwd }) => {
+  try {
+    const falso = process.env.ROD_STATS_FALSO;
+    const cmd = falso ? { exe: process.execPath, args: [path.resolve(falso)] } : { exe: 'opencode', args: ['stats', '--days', '1', '--models'] };
+    const exec = comandoParaSpawn(cmd, { resolvido: falso ? null : resolverExecutavel(cmd.exe) });
+    const r = await executar(exec, { cwd, saida: arquivo, stderr: devNull, timeout: Number(process.env.ROD_STATS_TIMEOUT_MS) || 10000 });
+    return r.codigo === 0;
+  } catch {
+    return false;
+  }
+};
+
 const rodar = async ({ plano, harness, comando, exec, resolvido, timeout, schemaRelatorio, falso, repo, hook, gate }) => {
   const pista = plano.pista.caminho;
   const a = plano.arquivosDespacho;
@@ -183,7 +198,14 @@ const rodar = async ({ plano, harness, comando, exec, resolvido, timeout, schema
     meta.avisos.push('RETRATO_FALHOU');
   }
 
+  // so o opencode; com harness falso, so se o teste der o stats falso (nunca roda o opencode real)
+  const comStats = harness.nome === 'opencode' && (!falso || Boolean(process.env.ROD_STATS_FALSO));
+  const stats = async (nome) => {
+    if (comStats && !(await retratoStats({ arquivo: path.join(plano.despachoDir, nome), cwd: pista }))) meta.avisos.push('OPENCODE_STATS_FALHOU');
+  };
+  await stats('opencode-stats-antes.txt');
   const r = await executar(exec, { cwd: pista, saida: a.saida, stderr: a.stderr, timeout });
+  await stats('opencode-stats-depois.txt');
   if (r.erro) {
     const nao = r.erro.code === 'ENOENT';
     throw falha(nao ? 'EXECUTAVEL_NAO_ENCONTRADO' : 'EXECUCAO', nao ? `${comando.exe} nao esta no PATH` : r.erro.message, nao ? 2 : 1);
@@ -192,7 +214,7 @@ const rodar = async ({ plano, harness, comando, exec, resolvido, timeout, schema
   if (r.tempo) throw falha('TEMPO_ESGOTADO', `passou de ${timeout} ms`, 1);
 
   const lido = harness.lerSaida(readFileSync(a.saida, 'utf8'));
-  meta.meta = lido.meta;
+  meta.meta = harness.nome === 'opencode' ? { ...lido.meta, tokens: TOKENS_STATS } : lido.meta;
   let relatorio = lido.relatorio;
   const doStdout = Boolean(relatorio);
   if (!relatorio) {
