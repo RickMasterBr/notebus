@@ -1,18 +1,18 @@
-import { spawn, execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { spawn, spawnSync, execFileSync } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { lerContrato, ContratoErro } from './lib/contrato.mjs';
-import { RodarErro, parseId, caminhosPadrao, lerCommitVigente, caminhoGate, resumoAntes, resumoFinal } from './lib/rodar.mjs';
+import { RodarErro, parseId, caminhosPadrao, lerCommitVigente, caminhoGate, resumoAntes, resumoFinal, LEIA_ME, ARQUIVOS_GUARDADOS, caminhosRegistro, lerPct, pastaLivre } from './lib/rodar.mjs';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 // toda saida e ASCII: o PowerShell do Rick mostra acento mal
 const ascii = (s) => s.replace(/[^\x00-\x7F]/g, '?');
 const imprime = (s) => console.log(ascii(s));
 
-const COM_VALOR = ['--raiz', '--docs', '--schemas', '--gate-vigente', '--harness-falso', '--gate-falso'];
-const SEM_VALOR = ['--sim', '--dry-run', '--so-estatico'];
+const COM_VALOR = ['--raiz', '--docs', '--schemas', '--gate-vigente', '--harness-falso', '--gate-falso', '--pct', '--csv', '--registros'];
+const SEM_VALOR = ['--sim', '--dry-run', '--so-estatico', '--sem-registro'];
 
 const lerArgs = (argv) => {
   const o = { posicionais: [] };
@@ -25,17 +25,22 @@ const lerArgs = (argv) => {
     } else if (a.startsWith('--')) throw new RodarErro('USO', `flag desconhecida: ${a}`);
     else o.posicionais.push(a);
   }
-  if (o.posicionais.length !== 1) throw new RodarErro('USO', 'uso: rodar <id> [--sim] [--dry-run] [--so-estatico]');
+  if (o.posicionais.length !== 1) throw new RodarErro('USO', 'uso: rodar <id> [--sim] [--dry-run] [--so-estatico] [--sem-registro] [--pct n]');
+  if (o.pct !== undefined && !Number.isInteger(lerPct(o.pct))) throw new RodarErro('USO', '--pct pede um numero de 0 a 100');
   return o;
 };
 
+// um leitor so para a entrada toda: o ENTER e o percentual vem da mesma fila de linhas
+let leitor = null;
+const proximaLinha = async () => {
+  leitor ??= readline.createInterface({ input: process.stdin });
+  leitor.it ??= leitor[Symbol.asyncIterator]();
+  const r = await leitor.it.next();
+  return r.done ? null : r.value;
+};
+
 // fim da entrada sem linha = cancelado
-const pedeEnter = () =>
-  new Promise((resolve) => {
-    const rl = readline.createInterface({ input: process.stdin });
-    rl.once('line', () => { resolve(true); rl.close(); });
-    rl.once('close', () => resolve(false));
-  });
+const pedeEnter = async () => (await proximaLinha()) !== null;
 
 const despachar = (args) =>
   new Promise((resolve, reject) => {
@@ -51,6 +56,53 @@ const lerOpcional = (arq) => {
   } catch {
     return null;
   }
+};
+
+const aviso = (s) => console.error(ascii(`AVISO ${s}`));
+
+// trace real (ou RODAR_TRACE_TESTE nos testes); falha vira aviso e nunca muda o codigo de saida
+const trace = (args, falha) => {
+  const r = spawnSync(process.execPath, [process.env.RODAR_TRACE_TESTE ?? path.join(aqui, 'trace.mjs'), ...args], { stdio: 'inherit' });
+  if (r.status !== 0) aviso(`${falha} (${r.status ?? r.error?.code})`);
+  return r.status === 0;
+};
+
+// so copia bytes; nao abre os JSON
+const arquivar = (origem, arquivo, id) => {
+  try {
+    const dest = pastaLivre(arquivo, id, existsSync);
+    mkdirSync(dest, { recursive: true });
+    for (const nome of ARQUIVOS_GUARDADOS) if (existsSync(path.join(origem, nome))) copyFileSync(path.join(origem, nome), path.join(dest, nome));
+    if (!existsSync(path.join(arquivo, 'LEIA-ME.md'))) writeFileSync(path.join(arquivo, 'LEIA-ME.md'), LEIA_ME);
+    return dest;
+  } catch (e) {
+    aviso(`arquivo nao guardado (${e.code ?? e.message})`);
+    return null;
+  }
+};
+
+const perguntaPct = async () => {
+  for (let i = 0; i < 2; i++) {
+    process.stdout.write('Quanto % do limite gastou? (ENTER pula, numero de 0 a 100) ');
+    const t = await proximaLinha();
+    if (t === null) break;
+    const n = lerPct(t);
+    if (n !== undefined) return n;
+  }
+  aviso('percentual nao anotado');
+  return null;
+};
+
+const registrar = async (o, { id, contrato, raiz, docs }) => {
+  const c = caminhosRegistro({ docs, csv: o.csv, registros: o.registros });
+  const origem = path.join(raiz, '_despacho', id);
+  trace([contrato, '--raiz', raiz, '--csv', c.csv, '--registros', c.registros], 'registro nao gerado');
+  const guardado = arquivar(origem, c.arquivo, id);
+  const pct = o.pct !== undefined ? lerPct(o.pct) : o.sim ? null : await perguntaPct();
+  if (pct !== null) trace(['anotar', id, '--csv', c.csv, '--pct', String(pct)], 'percentual nao anotado');
+  const reg = path.join(c.registros, `${id}.md`);
+  if (existsSync(reg)) imprime(`Registro: ${reg}`);
+  if (guardado) imprime(`Arquivo: ${guardado}`);
 };
 
 const principal = async (argv) => {
@@ -98,7 +150,9 @@ const principal = async (argv) => {
     const dir = path.join(raiz, '_despacho', id);
     const achado = (nome) => (existsSync(path.join(dir, nome)) ? path.join(dir, nome) : null);
     imprime(resumoFinal(lerOpcional(path.join(dir, 'meta.json')), lerOpcional(path.join(dir, 'gate.json')), codigo, { relatorio: achado('relatorio.json'), meta: achado('meta.json') }));
+    if (!o['sem-registro'] && codigo !== 2) await registrar(o, { id, contrato, raiz, docs });
   }
+  leitor?.close();
   return codigo;
 };
 

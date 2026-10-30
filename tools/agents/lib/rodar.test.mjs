@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { RodarErro, parseId, caminhosPadrao, lerCommitVigente, caminhoGate, resumoAntes, veredito, resumoFinal } from './rodar.mjs';
+import { RodarErro, parseId, caminhosPadrao, lerCommitVigente, caminhoGate, resumoAntes, veredito, resumoFinal, lerPct, pastaLivre } from './rodar.mjs';
+import path from 'node:path';
 
 const cab = (harness = 'claude') => ({
   id: 'tarefa-x', executor: { harness, modelo: 'sonnet' }, limites: { turnos: 20, minutos: 30 },
@@ -55,4 +56,20 @@ test('L8 resumoFinal so mostra o que existe e nunca undefined, null ou NaN', () 
   assert.ok(sem.includes('Veredito: FALHOU') && sem.includes('Turnos: 3'));
   assert.ok(resumoFinal(null, null, 2, {}).includes('Sem meta.json'));
   for (const t of [cheio, sem, resumoFinal(null, null, 2, {}), resumoFinal({}, null, 1, {})]) assert.doesNotMatch(t, /undefined|null|NaN/);
+});
+
+test('R5 lerPct: vazio pula, virgula e ponto valem, fora de 0 a 100 e lixo sao invalidos', () => {
+  assert.equal(lerPct(''), null);
+  assert.equal(lerPct('  '), null);
+  assert.equal(lerPct('0'), 0);
+  assert.equal(lerPct('100'), 100);
+  assert.equal(lerPct('12,5'), 13);
+  assert.equal(lerPct('7.2'), 7);
+  for (const ruim of ['abc', '150', '100.5', '-1', '1,2,3', '1e2']) assert.equal(lerPct(ruim), undefined, ruim);
+});
+
+test('R3 pastaLivre pula as pastas que existem', () => {
+  const tem = new Set([path.join('a', 'x'), path.join('a', 'x--2')]);
+  assert.equal(pastaLivre('a', 'x', (p) => tem.has(p)), path.join('a', 'x--3'));
+  assert.equal(pastaLivre('a', 'y', (p) => tem.has(p)), path.join('a', 'y'));
 });

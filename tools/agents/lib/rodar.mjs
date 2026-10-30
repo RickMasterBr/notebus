@@ -70,3 +70,32 @@ export const resumoFinal = (meta, gateJson, codigo, { relatorio, meta: caminhoMe
   linhas.push('Proximo passo: avise a coordenacao que terminou');
   return linhas.join('\n');
 };
+
+export const LEIA_ME = `# Arquivo dos JSON de despacho
+
+NAO LER. Estes arquivos (relatorio, meta, gate, autorizacao) ficam guardados so para o caso de um desastre. O resumo legivel de cada tarefa esta em ../<id>.md e no CSV v1/infra/registro-execucao.csv. Agentes e coordenacao nao devem abrir esta pasta como rotina.
+`;
+
+export const ARQUIVOS_GUARDADOS = ['relatorio.json', 'relatorio.original.json', 'meta.json', 'gate.json', 'autorizacao.json'];
+
+export const caminhosRegistro = ({ docs, csv, registros }) => {
+  const reg = registros ? path.resolve(registros) : path.join(docs, 'v1', 'registros');
+  return { csv: csv ? path.resolve(csv) : path.join(docs, 'v1', 'infra', 'registro-execucao.csv'), registros: reg, arquivo: path.join(reg, 'arquivo') };
+};
+
+// vazio = null (pula); invalido = undefined; valido = inteiro 0..100 (o trace anotar so grava inteiro, entao 12,5 vira 13)
+export const lerPct = (texto) => {
+  const t = String(texto ?? '').trim();
+  if (t === '') return null;
+  if (!/^\d+([.,]\d+)?$/.test(t)) return undefined;
+  const n = Number(t.replace(',', '.'));
+  return n <= 100 ? Math.round(n) : undefined;
+};
+
+// nunca devolve uma pasta que ja existe: <id>, <id>--2, <id>--3...
+export const pastaLivre = (arquivo, id, existe) => {
+  for (let n = 1; ; n++) {
+    const p = path.join(arquivo, n === 1 ? id : `${id}--${n}`);
+    if (!existe(p)) return p;
+  }
+};

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -201,4 +202,141 @@ test('L9 rodar.ps1 tem 4 linhas e toda saida e ASCII', () => {
   ];
   for (const s of saidas) assert.match(s.out, /^[\x00-\x7F]*$/, s.out);
   limpa(amb);
+});
+
+// ---- m2-l2: registro, arquivo e percentual (trace real, dispatch falso) ----
+const TRACE_FALSO = aqui('./lib/rodar-fixtures/trace-falso.mjs');
+const sha = (f) => createHash('sha256').update(readFileSync(f)).digest('hex');
+
+// ambiente pronto: contrato, gate e os JSON que o despacho deixaria em _despacho/<id>
+const pronto = (id = 'tarefa-x') => {
+  const amb = ambiente();
+  contrato(amb, { id });
+  const raiz = comGate(amb);
+  const dir = path.join(raiz, '_despacho', id);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, 'meta.json'), JSON.stringify({ id, harness: 'claude', inicio: '2026-01-01T10:00:00Z', fim: '2026-01-01T10:05:00Z', duracao_s: 300 }));
+  writeFileSync(path.join(dir, 'relatorio.json'), JSON.stringify({ tarefa: id, resultado: 'ok', arquivos_mudados: ['feito.txt'], comandos: [] }));
+  return { amb, raiz, dir, csv: path.join(amb.tmp, 'reg.csv'), registros: path.join(amb.tmp, 'registros') };
+};
+const registra = (p, args = [], opts = {}) => rodar(p.amb, ['tarefa-x', '--sim', '--csv', p.csv, '--registros', p.registros, ...args], { raiz: p.raiz, ...opts });
+// valor da coluna da ultima linha do csv
+const celula = (p, coluna) => {
+  const [cab, ...linhas] = readFileSync(p.csv, 'utf8').trim().split('\n');
+  return linhas.at(-1).split(',')[cab.split(',').indexOf(coluna)];
+};
+const arq = (p) => path.join(p.registros, 'arquivo');
+
+test('R1 depois do despacho existem o registro .md e a linha do csv', () => {
+  const p = pronto();
+  const r = registra(p);
+  assert.equal(r.code, 0, r.out);
+  assert.ok(existsSync(path.join(p.registros, 'tarefa-x.md')));
+  assert.match(readFileSync(p.csv, 'utf8'), /^tarefa-x,/m);
+  assert.match(r.stdout, /Registro: .*tarefa-x\.md/);
+  limpa(p.amb);
+});
+
+test('R2 o arquivo tem copias identicas, o original fica e ausente nao da erro', () => {
+  const p = pronto();
+  const r = registra(p);
+  assert.equal(r.code, 0, r.out);
+  for (const n of ['relatorio.json', 'meta.json']) {
+    assert.equal(sha(path.join(arq(p), 'tarefa-x', n)), sha(path.join(p.dir, n)));
+  }
+  assert.deepEqual(readdirSync(path.join(arq(p), 'tarefa-x')).sort(), ['meta.json', 'relatorio.json']);
+  assert.deepEqual(readdirSync(p.dir).sort(), ['meta.json', 'relatorio.json']);
+  assert.doesNotMatch(r.out, /AVISO/);
+  limpa(p.amb);
+});
+
+test('R3 segunda rodada do mesmo id usa --2 e nao mexe na primeira', () => {
+  const p = pronto();
+  registra(p);
+  const antes = sha(path.join(arq(p), 'tarefa-x', 'meta.json'));
+  writeFileSync(path.join(p.dir, 'meta.json'), JSON.stringify({ id: 'tarefa-x', harness: 'claude', inicio: '2026-02-02T10:00:00Z', duracao_s: 9 }));
+  const r = registra(p);
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(readdirSync(arq(p)).filter((n) => n !== 'LEIA-ME.md').sort(), ['tarefa-x', 'tarefa-x--2']);
+  assert.equal(sha(path.join(arq(p), 'tarefa-x', 'meta.json')), antes);
+  assert.equal(sha(path.join(arq(p), 'tarefa-x--2', 'meta.json')), sha(path.join(p.dir, 'meta.json')));
+  limpa(p.amb);
+});
+
+test('R4 LEIA-ME existe, diz NAO LER, e ASCII e nao e reescrito', () => {
+  const p = pronto();
+  registra(p);
+  const f = path.join(arq(p), 'LEIA-ME.md');
+  const texto = readFileSync(f, 'utf8');
+  assert.match(texto, /NAO LER/);
+  assert.match(texto, /^[\x00-\x7F]*$/);
+  const t0 = statSync(f).mtimeMs;
+  registra(p);
+  assert.equal(statSync(f).mtimeMs, t0);
+  limpa(p.amb);
+});
+
+test('R5 pergunta o percentual: virgula, vazio, invalido uma vez, fora da faixa', () => {
+  const caso = (input, esperado, avisa) => {
+    const p = pronto();
+    const r = rodar(p.amb, ['tarefa-x', '--csv', p.csv, '--registros', p.registros], { raiz: p.raiz, input });
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.stdout, /Quanto % do limite gastou\?/);
+    assert.equal(celula(p, 'pct_limite'), esperado, r.out);
+    if (avisa) assert.match(r.out, /AVISO percentual nao anotado/);
+    limpa(p.amb);
+  };
+  caso('\n12,5\n', '13');
+  caso('\n12.4\n', '12');
+  caso('\n\n', '');
+  caso('\nabc\n7\n', '7');
+  caso('\nabc\nxyz\n', '', true);
+  caso('\n150\n', '', true);
+});
+
+test('R6 --pct nao pergunta e anota; --sem-registro nao cria nada', () => {
+  let p = pronto();
+  let r = rodar(p.amb, ['tarefa-x', '--pct', '3', '--csv', p.csv, '--registros', p.registros], { raiz: p.raiz, input: '\n' });
+  assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(r.stdout, /Quanto %/);
+  assert.equal(celula(p, 'pct_limite'), '3');
+  limpa(p.amb);
+  p = pronto();
+  r = rodar(p.amb, ['tarefa-x', '--sem-registro', '--csv', p.csv, '--registros', p.registros], { raiz: p.raiz, input: '\n' });
+  assert.equal(r.code, 0, r.out);
+  assert.doesNotMatch(r.stdout, /Quanto %|Registro:|Arquivo:/);
+  assert.equal(existsSync(p.csv), false);
+  assert.equal(existsSync(p.registros), false);
+  assert.equal(r.out.includes('AVISO'), false);
+  limpa(p.amb);
+});
+
+test('R7 falha do trace ou da copia vira aviso e nao muda o codigo de saida', () => {
+  let p = pronto();
+  for (const c of [0, 1, 3]) {
+    const r = registra(p, [], { env: { RODAR_TRACE_TESTE: TRACE_FALSO, RODAR_FALSO_CODIGO: String(c) } });
+    assert.equal(r.code, c, r.out);
+    assert.match(r.out, /AVISO registro nao gerado \(1\)/);
+  }
+  limpa(p.amb);
+  p = pronto();
+  mkdirSync(p.registros);
+  writeFileSync(path.join(p.registros, 'arquivo'), 'arquivo comum no lugar da pasta');
+  const r = registra(p, [], { env: { RODAR_FALSO_CODIGO: '1' } });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /AVISO arquivo nao guardado \(\w+\)/);
+  assert.equal(r.out.split('\n').filter((l) => l.includes('arquivo nao guardado')).length, 1);
+  limpa(p.amb);
+});
+
+test('R8 --dry-run, id invalido e contrato ausente nao registram nem arquivam', () => {
+  const p = pronto();
+  for (const args of [['tarefa-x', '--dry-run'], ['Maiuscula'], ['nao-existe']]) {
+    const r = rodar(p.amb, [...args, '--csv', p.csv, '--registros', p.registros], { raiz: p.raiz });
+    assert.ok(r.code === 0 || r.code === 2, r.out);
+    assert.doesNotMatch(r.stdout, /Quanto %/);
+  }
+  assert.equal(existsSync(p.csv), false);
+  assert.equal(existsSync(p.registros), false);
+  limpa(p.amb);
 });
