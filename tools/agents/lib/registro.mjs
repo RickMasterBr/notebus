@@ -26,6 +26,9 @@ export const linhaDoDespacho = ({ contrato, meta, relatorio, gate, rodadas }) =>
     soma,
     v(relatorio.resultado),
     '', '', '', '',
+    v(meta.meta?.turnos),
+    v(meta.meta?.custo_usd),
+    v(meta.meta?.tokens?.total),
   ];
 };
 
@@ -50,6 +53,7 @@ export const esqueletoDoRegistro = ({ contrato, meta, relatorio, gate }) => {
       ['branch', relatorio.branch],
       ['resultado do relatorio', relatorio.resultado],
       ['resultado do gate', gate ? gate.resultado : 'sem_gate'],
+      ...[['turnos', meta.meta?.turnos], ['custo (USD)', meta.meta?.custo_usd], ['tokens', meta.meta?.tokens?.total]].filter(([, x]) => x !== undefined && x !== null),
     ]),
     '## Arquivos',
     `**arquivos_mudados**\n\n${lista(relatorio.arquivos_mudados)}\n\n**fora_do_pedido**\n\n${lista(relatorio.fora_do_pedido)}`,

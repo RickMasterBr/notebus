@@ -3,6 +3,7 @@ export const COLUNAS = [
   'duracao_harness_s', 'comandos_s', 'rodadas_verificacao', 'resultado_gate', 'exige_revisor',
   'avisos_gate', 'verificacoes_falhas', 'divergencias', 'arquivos_mudados', 'testes_novos',
   'resultado_relatorio', 'pct_limite', 'mutantes_sobreviventes', 'retrabalho', 'intervencoes_rick',
+  'turnos', 'custo_usd', 'tokens_total',
 ];
 
 export const escapar = (v) => {

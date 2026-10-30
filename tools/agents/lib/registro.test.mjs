@@ -14,11 +14,31 @@ const carrega = (id, modelo) => ({
 });
 const col = (l, nome) => l[COLUNAS.indexOf(nome)];
 
-test('T2 linha: 22 colunas, despacho + relatorio + gate, 4 do Rick vazias, modelo do contrato', () => {
+test('C2 linha: turnos, custo e tokens vem de meta.meta; ausente ou nulo vira vazio', () => {
+  const e = { ...carrega('tarefa-completa', 'sonnet'), gate: null, rodadas: 0 };
+  e.meta.meta = { turnos: 27, custo_usd: 0.4038165, tokens: { total: 1016506, saida: 9, raciocinio: 3 } };
+  const l = linhaDoDespacho(e);
+  assert.deepEqual([col(l, 'turnos'), col(l, 'custo_usd'), col(l, 'tokens_total')], [27, 0.4038165, 1016506]);
+  e.meta.meta = { custo_usd: null };
+  const v = linhaDoDespacho(e);
+  assert.deepEqual([col(v, 'turnos'), col(v, 'custo_usd'), col(v, 'tokens_total')], ['', '', '']);
+});
+
+test('C3 registro: mostra turnos, custo e tokens quando existem e omite quando faltam', () => {
+  const e = { ...carrega('tarefa-completa', 'sonnet'), gate: null };
+  e.meta.meta = { turnos: 27, custo_usd: 0.4038165, tokens: { total: 1016506 } };
+  const md = esqueletoDoRegistro(e);
+  for (const s of ['| turnos | 27 |', '| custo (USD) | 0.4038165 |', '| tokens | 1016506 |']) assert.ok(md.includes(s), s);
+  e.meta.meta = { turnos: null, custo_usd: null, tokens: null };
+  const sem = esqueletoDoRegistro(e);
+  assert.ok(!/null|undefined|\| turnos|\| custo|\| tokens/.test(sem));
+});
+
+test('T2 linha: 25 colunas, despacho + relatorio + gate, 4 do Rick vazias, modelo do contrato', () => {
   const e = { ...carrega('tarefa-completa', 'sonnet'), gate: lerJson(path.join(fx, 'tarefa-completa', 'gate.json')), rodadas: 2 };
   e.relatorio.modelo = 'do-relatorio'; // nao pode ser usado
   const l = linhaDoDespacho(e);
-  assert.equal(l.length, 22);
+  assert.equal(l.length, 25);
   const esperado = {
     tarefa: 'tarefa-completa', executor: 'claude', modelo: 'sonnet',
     inicio_despacho: '2026-10-20T10:00:00.000Z', fim_harness: '2026-10-20T10:05:30.500Z',
