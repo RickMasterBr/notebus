@@ -62,7 +62,10 @@ export const resumoFinal = (meta, gateJson, codigo, { relatorio, meta: caminhoMe
   if (!tem(meta)) linhas.push('Sem meta.json');
   else {
     const m = meta.meta ?? {};
-    const itens = [['Duracao', tem(meta.duracao_s) ? `${meta.duracao_s} s` : null], ['Turnos', m.turnos], ['Custo (USD)', m.custo_usd], ['Tokens', m.tokens]];
+    const tk = m.tokens;
+    // numero puro (forma antiga) ou { total, fonte }; outra coisa some
+    const tokens = typeof tk === 'number' ? tk : tem(tk?.total) ? `${tk.total}${tem(tk.fonte) ? ` (${tk.fonte})` : ''}` : null;
+    const itens = [['Duracao', tem(meta.duracao_s) ? `${meta.duracao_s} s` : null], ['Turnos', m.turnos], ['Custo (USD)', m.custo_usd], ['Tokens', tokens]];
     for (const [k, v] of itens) if (tem(v)) linhas.push(`${k}: ${v}`);
   }
   if (tem(relatorio)) linhas.push(`Relatorio: ${relatorio}`);
