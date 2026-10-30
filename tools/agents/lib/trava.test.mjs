@@ -1,10 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fork } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { adquirir } from './trava.mjs';
+import { EventEmitter } from 'node:events';
+import { spawnSync } from 'node:child_process';
+import { adquirir, registrarSaida } from './trava.mjs';
 
 const nova = () => path.join(mkdtempSync(path.join(tmpdir(), 'trava-')), 'ainda-nao-existe');
 const lista = (raiz) => readdirSync(path.join(raiz, '_despacho', '_trava'));
@@ -77,6 +79,46 @@ test('A5 pasta propria: cria em _trava-gate e nao aparece em _trava', () => {
   assert.ok(comum.ok);
   assert.deepEqual(lista(raiz), ['c.lock']);
   rmSync(path.dirname(raiz), { recursive: true });
+});
+
+const gravaTrava = (raiz, id, t) => {
+  const dir = path.join(raiz, '_despacho', '_trava');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, `${id}.lock`), typeof t === 'string' ? t : JSON.stringify({ id, minutos: 5, ...t }));
+};
+
+test('V1 dono morto: trava com pid de processo que terminou e descartada na hora', () => {
+  const raiz = nova();
+  const pid = spawnSync(process.execPath, ['-e', '0']).pid;
+  gravaTrava(raiz, 'a', { pid, inicio: Date.now() });
+  const r = adquirir({ raiz, id: 'a', minutos: 5, max: 1 });
+  assert.ok(r.ok);
+  assert.equal(JSON.parse(readFileSync(path.join(raiz, '_despacho', '_trava', 'a.lock'), 'utf8')).pid, process.pid);
+  rmSync(path.dirname(raiz), { recursive: true });
+});
+
+test('V2 dono vivo vale; ilegivel e vencida sao descartadas', () => {
+  const raiz = nova();
+  gravaTrava(raiz, 'a', { pid: process.pid, inicio: Date.now() });
+  assert.equal(adquirir({ raiz, id: 'a', minutos: 5, max: 2 }).codigo, 'JA_EM_ANDAMENTO');
+  gravaTrava(raiz, 'b', '{lixo');
+  gravaTrava(raiz, 'c', { pid: process.pid, inicio: Date.now() - 2 * 60000 * 5 - 1 });
+  assert.deepEqual(adquirir({ raiz, id: 'd', minutos: 5, max: 2 }).ok, true);
+  assert.deepEqual(lista(raiz).sort(), ['a.lock', 'd.lock']);
+  rmSync(path.dirname(raiz), { recursive: true });
+});
+
+test('V3 registrarSaida: SIGINT, SIGTERM e SIGHUP soltam a trava e saem com 130, 143 e 129; fim normal remove', () => {
+  const emissor = new EventEmitter();
+  const saidas = [];
+  let liberou = 0;
+  const liberar = (...args) => { assert.equal(args.length, 0); liberou++; };
+  const soltar = registrarSaida(emissor, liberar, (c) => saidas.push(c));
+  for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) emissor.emit(s);
+  assert.deepEqual(saidas, [130, 143, 129]);
+  assert.equal(liberou, 3);
+  soltar();
+  for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) assert.equal(emissor.listenerCount(s), 0);
 });
 
 test('A5 pasta invalida lanca TypeError PASTA_INVALIDA', () => {
