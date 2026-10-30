@@ -2,7 +2,7 @@
 
 Leia antes de mexer em qualquer tela, folha ou texto. Cada regra diz **o que fazer**, **por que** (o defeito que já aconteceu) e **de onde veio** (decisão D-xxx, documento ou teste de guarda).
 
-- Aparência não se inventa. A fonte é `docs/ux/4.3` a `4.6` (repositório privado). Sem especificação, **pare e pergunte** (`docs/fase-6/CLAUDE.md`, regra 3).
+- Aparência não se inventa. A fonte é `docs/v0/ux/4.3` a `4.6` (repositório privado). Sem especificação, **pare e pergunte** (`docs/v0/fase-6/CLAUDE.md`, regra 3).
 - Se uma regra daqui contradisser o plano ou uma decisão aprovada, **pare e pergunte**. Este arquivo resume; não decide.
 - Quem prova o quê: teste automático prova lógica e varredura de código. **Rolagem, teclado, gesto, animação e VoiceOver só o iPhone prova** (marque `[hipótese, só o aparelho decide]`).
 - Nada da MOBILIS neste repositório (D-091). Exemplo de teste é inventado.
@@ -106,7 +106,7 @@ Mensagens que o Rick vê (confira o texto exato no catálogo antes de escrever o
 | `data/noDirectClock.test.ts` | `new Date()` e `Date.now()` fora de `clock.ts` | Formatadores que leem "agora" sem argumento |
 | `theme/tokens.test.ts` | Chaves iguais nos dois temas e valores revisados | `type`, `space`, `radius`, `minTouch`, `opacity` |
 
-A lista completa de defeitos e das lacunas sem guarda está em `docs/fase-6/regressoes.md` (privado).
+A lista completa de defeitos e das lacunas sem guarda está em `docs/v0/fase-6/regressoes.md` (privado).
 
 
 ## 7. Fechar e botão <!-- provisório -->

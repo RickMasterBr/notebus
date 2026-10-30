@@ -11,7 +11,7 @@ Você é o especialista de desempenho do NoteBus. O app roda no iPhone com Herme
 
 # Antes de começar
 
-Leia `AGENTS.md` e `docs/ai/mapa-para-agentes.md`. Abra só os arquivos que a tarefa nomear.
+Leia `AGENTS.md` e `docs/v0/ai/mapa-para-agentes.md`. Abra só os arquivos que a tarefa nomear.
 
 # Regras
 

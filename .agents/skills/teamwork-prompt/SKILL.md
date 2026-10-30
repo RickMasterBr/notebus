@@ -9,13 +9,13 @@ Teamwork custa caro (uma auditoria com 8 agentes gastou cerca de 30% do limite d
 
 ## Passo 1: isto é mesmo Teamwork?
 
-Leia `docs/ai/modos-de-execucao.md`. Se a tarefa for pequena ou for um bug de causa desconhecida em poucos arquivos, não escreva o prompt: diga ao Rick qual modo serve (agente normal ou /boost) e por quê. Só continue se ele confirmar o Teamwork.
+Leia `docs/v0/ai/modos-de-execucao.md`. Se a tarefa for pequena ou for um bug de causa desconhecida em poucos arquivos, não escreva o prompt: diga ao Rick qual modo serve (agente normal ou /boost) e por quê. Só continue se ele confirmar o Teamwork.
 
-Se a tarefa for implementação, confirme ainda: há duas ou mais frentes com lista fechada de arquivos, sem arquivo em comum? Alguma frente toca área protegida? Se houver arquivo em comum ou área protegida, não é Teamwork de implementação: diga isso e proponha um bloco normal. A seção "Teamwork de implementação" de `docs/ai/modos-de-execucao.md` tem as regras completas.
+Se a tarefa for implementação, confirme ainda: há duas ou mais frentes com lista fechada de arquivos, sem arquivo em comum? Alguma frente toca área protegida? Se houver arquivo em comum ou área protegida, não é Teamwork de implementação: diga isso e proponha um bloco normal. A seção "Teamwork de implementação" de `docs/v0/ai/modos-de-execucao.md` tem as regras completas.
 
 ## Passo 2: preencha o modelo
 
-Auditoria: use o modelo "auditoria" de `docs/ai/modos-de-execucao.md`. Implementação: use o modelo "implementação" e escreva a seção "Frentes" no próprio arquivo do bloco; o Rick manda o caminho do bloco, não o texto. Regras para cada campo:
+Auditoria: use o modelo "auditoria" de `docs/v0/ai/modos-de-execucao.md`. Implementação: use o modelo "implementação" e escreva a seção "Frentes" no próprio arquivo do bloco; o Rick manda o caminho do bloco, não o texto. Regras para cada campo:
 
 - Objetivo: uma frase, com resultado que dá para verificar. Se precisar de duas frases, são dois projetos.
 - Dentro do escopo: arquivos e pastas por nome. Nunca "o app" ou "o repositório".
@@ -28,11 +28,11 @@ Auditoria: use o modelo "auditoria" de `docs/ai/modos-de-execucao.md`. Implement
 
 ## Passo 3: confira as regras do projeto no prompt
 
-O prompt deve mandar ler `AGENTS.md` e `docs/ai/mapa-para-agentes.md`, e repetir só o que a tarefa pode violar: teste existente não se reescreve nem se afrouxa, `packages/domain` não se altera sem teste novo, nenhum componente visual sem especificação.
+O prompt deve mandar ler `AGENTS.md` e `docs/v0/ai/mapa-para-agentes.md`, e repetir só o que a tarefa pode violar: teste existente não se reescreve nem se afrouxa, `packages/domain` não se altera sem teste novo, nenhum componente visual sem especificação.
 
 ## Passo 4: mostre ao Rick
 
-Apresente o prompt e diga o modo, o tamanho do time e o orçamento. Só delegue depois do ok. Ao terminar a rodada, registre modo, agentes, % do limite e retorno em `docs/fase-6/custos.md`.
+Apresente o prompt e diga o modo, o tamanho do time e o orçamento. Só delegue depois do ok. Ao terminar a rodada, registre modo, agentes, % do limite e retorno em `docs/v0/fase-6/custos.md`.
 
 ## Agentes disponíveis
 
