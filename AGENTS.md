@@ -1,64 +1,61 @@
-# AGENTS.md — NoteBus (regras para qualquer agente de código)
+# AGENTS.md — NoteBus (índice para qualquer agente)
 
-Este arquivo vale para Antigravity, Codex ou qualquer ferramenta que não seja o Claude Code. As regras completas do projeto estão em `notebus-docs/docs/v0/fase-6/CLAUDE.md`; leia-o também.
+> v1 (S-244, f2; aplicado ao app em 30/10/2026, S-266, D-338). Vale para Claude Code, Antigravity e OpenCode. O `CLAUDE.md` só importa este arquivo.
 
 ## O projeto
+Caderno pessoal de horários de ônibus (MOBILIS, Leiria). Expo SDK 57 + TypeScript estrito, iPhone primeiro.
+Monorepo: `packages/domain` (TS puro), `apps/mobile`, `tools/`. Documentação no repositório privado `notebus-docs`, clonado em `docs/`.
 
-App de caderno de horários de ônibus (MOBILIS Leiria), Expo SDK 57, React Native, para iPhone. Monorepo: `packages/domain` (TypeScript puro) e `apps/mobile`. Os dados da MOBILIS **nunca** entram neste repositório público (D-091); exemplos de teste usam dados inventados.
+## Regras de ouro
+1. **O contrato da tarefa manda.** Fora dele, pare e relate. Decisão nova não se toma: vira dúvida no relatório.
+2. **Só os arquivos da lista do contrato.** Arquivo de outra tarefa não se toca.
+3. **Áreas protegidas** (só com o contrato dizendo): `packages/domain`, esquema e migrações (`schema.ts`), backup (`backup.ts`), `stack.ts`, `StackedSheet.tsx`, `noDirectClock.test.ts`.
+4. **Nunca afrouxe, apague ou reescreva teste existente.** Teste novo pode.
+5. **Nada da MOBILIS nem dado pessoal neste repositório** (D-091). Exemplo de teste é inventado.
+6. **Diga "não sei" ou "não verifiquei"** quando for o caso, com como verificar. Toda afirmação tem origem (comando colado, arquivo e linha) ou leva `[hipótese]`.
+7. Toque, gesto, rolagem, teclado e VoiceOver: `[hipótese, só o aparelho decide]`.
+8. **Relatório no schema** (`docs/v1/infra/modelos/relatorio.schema.json`), em `.agent/report.json`. Prosa só em `duvidas`.
+9. Não escreva em `docs/` (a pista nem tem essa pasta). O registro da tarefa é gerado do seu relatório pelo `trace`; você só entrega o `.agent/report.json`.
+10. Sem push na `main`, tag, workflow, dependência nova ou `--dangerously-skip-permissions`.
+11. **Script em vez de cadeia de chamadas (D-240).** Contar, listar tudo, comparar e conferir são trabalho de comando, não de leitura arquivo por arquivo. Use um comando que devolva a lista completa e curta (com "N achados, M mostrados"); se não existir, peça o utilitário no relatório (`ideias_novas`) em vez de montar a lista de cabeça. Lista montada à mão sai incompleta.
+12. **Memória automática do harness não é fonte (D-240).** Só vale o que está em arquivo do repositório ou de `docs/`. Se você "lembra" de algo de outra sessão, confirme no arquivo antes de usar.
+13. **Contrato:** o objetivo e o "não fazer" estão no topo e os critérios de aceitação se repetem no fim (D-240). Confira os dois antes de entregar.
 
-## Escopo: faça só o que o prompt pede
+## Ambiente
+Windows + PowerShell. Pastas: principal `NoteBus\notebus`; worktrees em `.claude\worktrees\` ou `NoteBus\pistas\<tarefa>`; saídas temporárias em `NoteBus\_saida\` (fora do repo).
+Regras de ambiente e dados: `docs/v1/regras/ambiente.md`.
 
-1. Mexa **apenas** nos arquivos que a tarefa exige. Se um teste falhar por motivo alheio à tarefa (lento, flaky, ambiente Windows), **pare e relate**: não otimize código de produção nem altere teste para fazê-lo passar.
-2. **Nunca afrouxe, apague ou reescreva um teste existente** para passar (limites, tempos, `skip`, `only`). Teste novo pode ser criado. Se um teste antigo estiver errado, diga qual e por quê, e espere.
-3. **Não toque** em `packages/domain`, em `noDirectClock.test.ts` (garante um só ponto de leitura do relógio), nem no reducer da pilha de folhas (`stack.ts`) sem teste novo cobrindo o caso. Não adicione dependências, não renomeie nem mova arquivos além do necessário.
-4. Se a correção exigir mudar o **significado** de algo (regra de negócio, formato de dado, pilha de folhas), **pare e relate** em vez de improvisar.
+## Comandos
+- `npm ci` (só na pasta principal; worktree usa junção do `node_modules`)
+- `npm run typecheck`
+- Testes por pacote: `npm test -w packages/domain`, `npm test -w apps/mobile`, `npm test -w tools/mobilis-seed`
+- `npx expo export --platform ios`
+- Uma rodada de verificação por tarefa, com o tempo de cada comando (`Measure-Command`).
+- Ler arquivo grande por trecho (`rg`, `sed -n`), nunca inteiro.
 
-## Ideias distribuídas
+## O que ler (roteador)
+Sempre: este arquivo e o contrato. Depois, só o que o tipo de tarefa pede:
 
-Antes de planejar ou executar qualquer etapa ou bloco, leia `docs/banco-de-ideias-distribuicao.md` e liste as ideias cujo destino é essa etapa. Cada ideia entra no plano da etapa ou fica fora com o motivo registrado no relatório. Ideia nova que aparecer durante o trabalho vai para `docs/banco-de-ideias.md`, nunca direto para o código (e, como agente, você não escreve `.md` em `docs/`: relate a ideia no relatório). Se o prompt do bloco não citar ideias e o arquivo listar alguma para a etapa, **pare e avise**.
+| Tarefa | Leia | Não leia |
+|---|---|---|
+| Tela, folha, texto | `DESIGN.md` (seções citadas), `docs/v1/regras/renderizacao.md`, skill da área | domínio, banco |
+| Lógica ligada a componente | `docs/v1/regras/logica-em-componente.md` | — |
+| Domínio | `docs/v0/fase-1-dominio.md` (seção citada) | `DESIGN.md` |
+| Banco, backup, migração | `docs/v0/adr/ADR-0002-banco-local.md` | UX |
+| Bug sem causa conhecida | `docs/v0/fase-6/regressoes.md` (busque o sintoma) | planos |
+| Teste e2e (Maestro) | skill `notebus-maestro-e2e` | — |
+| Revisão | contrato, diff, saída do gate, perfil em `.agents/agents/` | histórico |
 
-## Código
+Não leia: `docs/estado_diario_v1.md` (só o coordenador, só o BOOT), `docs/v0/ESTADO-ATUAL.md`, `docs/v0/diario.md`, `docs/referencias/`.
 
-- **Antes de mexer em tela, folha ou texto, leia `DESIGN.md` (raiz do repositório).** Tokens, quadro das folhas (D-150), um só ✕, textos pelo catálogo, vocabulário da tela. Se uma regra dele contradisser o plano, **pare e relate**.
-- Textos só no catálogo (`pt-BR.ts`), nunca soltos no componente. Sem emoji.
-- Rolagem de folhas: siga a skill `diagnostico-rolagem-bottom-sheet` (lista numa `View` de altura fixa, `detentMetrics`/`scrollInset.ts`, sem constante nova). Não invente painel de diagnóstico.
-- Alvo de toque ≥ 44 pt. Respeite "Reduzir movimento".
-- Não dispare workflow do GitHub, não escreva `.md` em `docs/`, não faça push na `main`.
-- Commits na branch indicada, uma mudança por commit, mensagem começando por `E-03:` (ou a etapa do prompt).
+## Onde está cada coisa
+Mapa completo: `docs/MAPA.md`. Atalhos:
+- Decisões técnicas: `docs/v0/adr/`, `docs/v1/adr/`
+- Estratégia de testes (camadas, mutação, o que só o iPhone prova): `docs/v0/estrategia-de-testes.md`
+- Padrões já decididos (não reinventar): `NbSwitch`, `pressedStyle`, `hitSlopToMinTouch`, texto só no catálogo `pt-BR.ts`
 
-## Lógica em componente (lição de três blocos: 6b, 7a e 7b)
+## Ao compactar o contexto
+Preserve: o contrato, a lista de arquivos mudados, as saídas de teste e as dúvidas abertas.
 
-- Decisão que mora em componente vira função pura em `data/`, com teste, e devolve o objeto que o componente consome por campo (por exemplo `cards.showOffline`), não um valor solto.
-- Guarda estático confere o **uso**: o campo no ponto certo do JSX, o argumento exato, a prop dentro do elemento certo. Conferir só que o texto da chamada existe não protege nada.
-- Para cada linha de ligação, aplique a mutação no componente (remover a prop, trocar o argumento, ignorar o resultado, trocar uma variável por constante), mostre o teste falhando (primeira linha da falha) e restaure. Mutação que passa verde é guarda a corrigir antes de seguir.
-- Efeito que resolve estado inicial depende de valores primitivos estáveis (ids, lat/lon, status), nunca de objeto criado no render do pai.
-- Constante de produto (zoom, raio, KB por tile) tem teste que a fixa.
-- No relatório, a contagem de testes fecha por arquivo: linha de base mais testes novos por arquivo igual ao total. Se não fechar, diga a diferença e de onde vem.
-
-## Renderização (lição do crash de 16/10: `Cannot read property 'layout' of null`)
-
-- Nunca leia um objeto de evento (`e.nativeEvent`, `e.target`) dentro de uma função passada a `set...(` ou a qualquer callback adiado: ele já foi reciclado quando a função roda, na renderização. Leia o valor antes e passe o número: `const measured = e.nativeEvent.layout.height; setX((prev) => next(prev, measured));`.
-- Mudança na estrutura de renderização da Início, da `HomeSheet` ou da pilha de folhas: no relatório, "o app abre sem erro" é `[hipótese, só o aparelho decide]`. Typecheck, testes e `expo export` não abrem o app.
-- Guarda novo: rode antes do conserto e cole a primeira linha da falha. Se achar outro handler com leitura tardia de evento fora do pedido, **liste no relatório e não conserte**.
-- A captura de erro (`DiagErrorBoundary`, `diagScroll`) existe só com `DIAG_SCROLL`. Não a ligue em build normal e não a use como painel novo.
-
-## Verificação
-
-Rode no fim: `npm ci && npm run typecheck && npm test` e `npx expo export --platform ios`. Tudo tem de passar, sem `skip`.
-
-## Relatório
-
-Tabela por item: causa → arquivos mudados → teste → **como saber que passou no iPhone**.
-- Marque `[provada por teste]` **só** quando um teste automático falhava antes e passa depois, e diga qual. Comportamento visual, animação, teclado e gesto são `[hipótese, só o aparelho decide]`, mesmo com teste de lógica ao lado.
-- Liste **tudo** que mudou fora do pedido (arquivo e motivo). Se não houver, diga "nada fora do pedido".
-- Resultado dos três comandos de verificação, nome da branch e hash do último commit.
-
-## Multiagente (Teamwork e /boost)
-
-Antes de pedir ou aceitar um Teamwork, leia `docs/v0/ai/modos-de-execucao.md` (quando usar, orçamento, modelo de prompt). Ponto de partida de leitura: `docs/v0/ai/mapa-para-agentes.md`. Teamwork e /boost seguem todas as regras acima. Agentes especialistas ficam em `.agents/agents/` e são só leitura, salvo pedido explícito.
-
-Em Teamwork de implementação: edite **só** os arquivos da sua frente; arquivo compartilhado é do Lead; área protegida e teste existente não se mexem; não faça push, tag nem workflow `ios`; se precisar de algo fora da sua lista, pare e relate. O relatório segue o formato desta página. Regras completas: `docs/v0/ai/modos-de-execucao.md`.
-
-## Modo Argon
-
-Se o bloco disser "Você é o Gemini 4 Argon" (o modelo não sabe sozinho qual é, só o bloco diz), leia e siga `docs/v0/ai/modo-argon.md` antes de qualquer outra coisa: saída de no máximo 40 linhas, nunca despejar JSON ou arquivo inteiro no contexto, uma pergunta por bloco, relatório de no máximo 120 linhas.
+## Segunda via
+Se o Claude estiver fora do ar, o protocolo está em `docs/v1/contingencia/LEIA-ME.md` (proposta P32, em teste no SPK-09). Em contingência você não decide, não toca área protegida e escreve nota de passagem.
