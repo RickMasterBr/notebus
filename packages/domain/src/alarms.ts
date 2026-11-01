@@ -94,7 +94,7 @@ export interface DeparturePlan {
 const MINUTE_MS = 60_000;
 
 /** O aviso vale nesta data? (intervalo, ligado, dia da semana ou data única). */
-function appliesOn(alarm: AlarmRule, date: string): boolean {
+export function alarmAppliesOn(alarm: AlarmRule, date: string): boolean {
   if (!alarm.enabled) return false;
   if (date < alarm.validFrom || (alarm.validTo !== null && date > alarm.validTo)) return false;
   return alarm.weekdays.length > 0 ? alarm.weekdays.includes(dayOfWeek(date)) : alarm.onceDate === date;
@@ -157,7 +157,7 @@ export function planDepartures(input: PlanInput): DeparturePlan {
     const date = addDays(today, i);
     for (const alarm of input.alarms) {
       const option = options.get(alarm.optionId);
-      if (!option || !appliesOn(alarm, date)) continue;
+      if (!option || !alarmAppliesOn(alarm, date)) continue;
       const day = dayOf(date);
       const skip = (reason: SkipReason) => {
         if (i >= 0) skipped.push({ alarmId: alarm.id, serviceDate: date, reason });

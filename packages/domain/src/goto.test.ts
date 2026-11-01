@@ -128,19 +128,20 @@ describe("B2: sair às já passou", () => {
     busCandidates(CASA_FACUL, input({ busOptions: [CASA_FACUL], records: L1_RECORDS, now: at(WED, h, m) })).map((c) => fmt(c.leaveAt));
   const T0810_LEAVE = "07:58";
 
-  it("T-49 (parte pura): 07:57 e 07:58 mantêm a L1 das 08:10; 07:59 a tira e a próxima sobe", () => {
-    // `sair às` da 08:10 = 07:58; comparado ao minuto de `now`: igual fica, menor sai.
+  it("T-49 (parte pura): 07:57 e 07:58 mantêm a L1 das 08:10; 07:59 a tira e a próxima sobe (revisto pela D-357)", () => {
+    // D-357: o cartão fica até `esteja às` (08:06) passar, não até `sair às` (07:58). Igual fica, menor sai.
     expect(cardsAt(7, 57)[0]).toBe(T0810_LEAVE);
     expect(cardsAt(7, 58)[0]).toBe(T0810_LEAVE); // igual: fica
     const after = cardsAt(7, 59);
-    expect(after[0]).not.toBe(T0810_LEAVE); // 07:58 < 07:59: sai
-    expect(after).toHaveLength(DOMAIN_CONFIG.tripsPerOption); // a das 08:40 sobe e entra a das 09:10
+    expect(after[0]).toBe(T0810_LEAVE); // 07:58 < 07:59, mas esteja às 08:06 ≥ 07:59: fica
+    expect(after).toHaveLength(DOMAIN_CONFIG.tripsPerOption); // a das 08:10 e a das 08:40
   });
 
-  it("T-49 (parte pura): às 08:00 a pé (50 min) fica acima da L1 das 08:40 e o cartão das 08:10 já saiu", () => {
+  it("T-49 (parte pura): às 08:00 a pé (50 min) fica acima da L1 das 08:40 e o cartão das 08:10 já saiu (revisto pela D-357)", () => {
     const cards = gotoCards(input({ busOptions: [CASA_FACUL], records: L1_RECORDS, walk: walk(50), now: at(WED, 8, 0) }));
+    // D-357: a L1 das 08:10 (esteja às 08:06) continua, chega ~08:36, antes da a pé (08:50: vence só por −14 < 15).
     // L1 08:40: Arrabalde 08:42, pos. 10 às 09:00 (+1 do nível percurso = 09:01), +5 a pé = 09:06. A pé: 08:50 → vence por 16 ≥ 15.
-    expect(cards.map((c) => (c.kind === "walk" ? "a pé" : fmt(c.leaveAt)))).toEqual(["a pé", "08:28", "08:58"]);
+    expect(cards.map((c) => (c.kind === "walk" ? "a pé" : fmt(c.leaveAt)))).toEqual(["07:58", "a pé", "08:28"]);
   });
 
   it("segundos do relógio não contam: 07:58:59 ainda é o minuto 07:58", () => {
@@ -200,12 +201,13 @@ describe("B3, T-46: tempo real de trecho (Fase 1 §4.5 passo 2)", () => {
 });
 
 describe("B2: limites e recusas", () => {
-  it("devolve no máximo `tripsPerOption` (2) viagens, as próximas", () => {
+  it("devolve no máximo `tripsPerOption` (2) viagens, as próximas (revisto pela D-357)", () => {
     const list = busCandidates(CASA_FACUL, input({ busOptions: [CASA_FACUL] }));
     expect(list).toHaveLength(DOMAIN_CONFIG.tripsPerOption);
     // Base na Arrabalde = partida + 2; faixa ±4; esteja = base − 4 − 2 = partida − 4; sair = esteja − 8 = partida − 12.
-    // Agora 07:00: a das 07:10 sai às 06:58 (já passou), a das 06:40 também; as viáveis são 07:40 (sair 07:28) e 08:10.
-    expect(list.map((c) => fmt(c.beAtStop))).toEqual(["07:36", "08:06"]);
+    // Agora 07:00: a das 07:10 tem esteja às 07:06 (ainda não passou; sair às 06:58 já), a das 06:40 (esteja 06:36) saiu;
+    // as próximas são 07:10 (esteja 07:06) e 07:40 (esteja 07:36).
+    expect(list.map((c) => fmt(c.beAtStop))).toEqual(["07:06", "07:36"]);
   });
 
   it("descida antes (ou na mesma posição) do embarque é recusada", () => {

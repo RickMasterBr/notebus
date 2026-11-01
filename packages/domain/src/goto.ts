@@ -67,6 +67,8 @@ export interface BusCandidate {
   beAtStop: number;
   /** "Sair às" (a pé até o embarque, o maior valor da faixa). */
   leaveAt: number;
+  /** A hora de sair já passou, mas o ônibus ainda não (o cartão fica até `beAtStop`). */
+  leaveAtPassed: boolean;
   /** "Chega ~". */
   arriveAt: number;
   /** "Até". */
@@ -181,7 +183,7 @@ function rawBusCandidates(option: BusOption, input: GotoInput): RawBusCandidate[
     if (!board || !alight) continue;
     const beAtStop = displayBeAtStop(board.beAtStop);
     const leaveAt = Math.floor(beAtStop - toBoard.leave);
-    if (leaveAt < nowMinute) continue;
+    if (beAtStop < nowMinute) continue;
     const official = baseTimeAt(trip, option.alightPosition)!.minute - baseTimeAt(trip, option.boardPosition)!.minute;
     const segment = shrunkRideMinutes(option.rideMinutes, official, config);
     const arrive = segment === null ? alight.center : board.center + segment;
@@ -201,6 +203,7 @@ function rawBusCandidates(option: BusOption, input: GotoInput): RawBusCandidate[
         patternId: trip.patternId,
         beAtStop,
         leaveAt,
+        leaveAtPassed: leaveAt < nowMinute,
         arriveAt: displayCenter(arrive + afterAlight.mid),
         until: displayCenter(until + afterAlight.until),
         usedRideTimes: segment !== null,
