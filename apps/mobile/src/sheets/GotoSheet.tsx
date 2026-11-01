@@ -344,7 +344,7 @@ export function GotoSheet({
 
     const boardPos = boardStopInfo?.position ?? 1;
     const trip = scheduleData?.trips.find((t) => t.id === card.tripId);
-    const cardAlarm = trip ? alarmOfCard(card, alarms, trip, boardPos) : undefined;
+    const cardAlarm = trip ? alarmOfCard(card, alarms, trip, boardPos, gotoInput?.serviceDate) : undefined;
     const isAlarmOn = cardAlarm !== undefined;
 
     const handleToggleAlarm = async () => {
@@ -509,7 +509,9 @@ export function GotoSheet({
               <View style={styles.cardBadgeWrap}>
                 <LineBadge code={lineInfo?.code ?? ""} color={lineInfo?.color ?? colors.accent} />
                 <Text style={[type.bodyStrong, { color: colors.text }]}>
-                  {`${t("sheet_goto.leave_at")} ${clockText(card.leaveAt)}`}
+                  {card.leaveAtPassed
+                    ? t("sheet_goto.leave_now")
+                    : `${t("sheet_goto.leave_at")} ${clockText(card.leaveAt)}`}
                 </Text>
               </View>
               <View style={styles.arriveWrap}>
