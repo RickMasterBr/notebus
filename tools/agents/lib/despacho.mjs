@@ -35,9 +35,9 @@ export const planejar = (contrato, { raiz, repo }) => {
 };
 
 // o gate roda por fora da pista: cwd = raiz, e acha pista, relatorio e saida pelo mesmo planejar
-export const montarComandoGate = (plano, { contrato, gate, repo, raiz, schemas, soEstatico }) => ({
+export const montarComandoGate = (plano, { contrato, gate, repo, raiz, schemas, soEstatico, esperarTravaS }) => ({
   exe: process.execPath,
-  args: [gate, contrato, '--repo', repo, '--raiz', raiz, ...(schemas ? ['--schemas', schemas] : []), ...(soEstatico ? ['--so-estatico'] : [])],
+  args: [gate, contrato, '--repo', repo, '--raiz', raiz, ...(schemas ? ['--schemas', schemas] : []), ...(soEstatico ? ['--so-estatico'] : []), ...(esperarTravaS ? ['--esperar-trava-s', String(esperarTravaS)] : [])],
   cwd: raiz,
 });
 

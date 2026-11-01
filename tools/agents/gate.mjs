@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { adquirir } from './lib/trava.mjs';
+import { adquirirComEspera } from './lib/trava.mjs';
 import { parseZ } from './lib/git.mjs';
 import { montar, UsoErro } from './lib/gate/contexto.mjs';
 import { g01, g00, g03, ORDEM } from './lib/gate/estaticas.mjs';
@@ -160,8 +160,14 @@ const main = async (argv) => {
   const dentro = g00(ctx);
   if (dentro.length) return uso(dentro[0].codigo, dentro[0].mensagem);
 
-  const trava = adquirir({ raiz: ctx.raiz, id: ctx.id || 'gate', minutos: TRAVA_MINUTOS, max: 1, pasta: '_trava-gate' });
+  const trava = await adquirirComEspera({
+    raiz: ctx.raiz, id: ctx.id || 'gate', minutos: TRAVA_MINUTOS, max: 1, pasta: '_trava-gate',
+    esperarS: Number(ctx.flags['--esperar-trava-s'] ?? 0),
+    aoEsperar: (ativos, s) => console.error(`ESPERANDO_TRAVA ${s}s com a trava: ${ativos.join(', ')}`),
+  });
   if (!trava.ok) return uso('GATE_OCUPADO', `outro gate em andamento (${trava.ativos.join(', ')})`);
+  // o dispatch le esta linha para registrar a espera no meta.json
+  if (trava.esperouS > 0) console.error(`ESPEROU_TRAVA_S ${trava.esperouS}`);
   try {
     const verificacoes = [];
     let extra = { comandos: [], testes: { novos_por_arquivo: {}, execucao: [] }, divergencias: [] };

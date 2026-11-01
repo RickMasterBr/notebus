@@ -636,13 +636,29 @@ test('J2 o gate roda uma vez, depois do relatorio, com cwd = raiz e os argumento
   const [c] = r.chamadas;
   assert.equal(c.relatorio, true);
   assert.equal(realpathSync(c.cwd), realpathSync(amb.raiz));
-  assert.deepEqual(c.argv, [contrato, '--repo', amb.repo, '--raiz', amb.raiz, '--schemas', SCHEMAS]);
+  assert.deepEqual(c.argv, [contrato, '--repo', amb.repo, '--raiz', amb.raiz, '--schemas', SCHEMAS, '--esperar-trava-s', '1800']);
   limpa(amb);
 
   const amb2 = ambiente();
   const c2 = comGate(amb2, ['--gate-so-estatico']).chamadas[0].argv;
-  assert.deepEqual(c2.slice(5), ['--schemas', SCHEMAS, '--so-estatico']);
+  assert.deepEqual(c2.slice(5), ['--schemas', SCHEMAS, '--so-estatico', '--esperar-trava-s', '1800']);
   for (const proibida of ['--pista', '--relatorio', '--branch', '--saida']) assert.ok(!c2.includes(proibida));
+  limpa(amb2);
+});
+
+test('C4 meta.json registra quanto o gate esperou pela trava (0 se nao esperou)', () => {
+  const amb = ambiente();
+  const sem = comGate(amb);
+  assert.equal(sem.code, 0, sem.out);
+  assert.equal(json(path.join(despacho(amb), 'meta.json')).gate.esperou_trava_s, 0);
+  limpa(amb);
+
+  const amb2 = ambiente();
+  const gate = path.join(amb2.tmp, 'gate-espera.mjs');
+  writeFileSync(gate, "console.error('ESPERANDO_TRAVA 5s com a trava: outro');\nconsole.error('ESPEROU_TRAVA_S 7');\n");
+  const r = comGate(amb2, [], {}, { gate });
+  assert.equal(r.code, 0, r.out);
+  assert.equal(json(path.join(despacho(amb2), 'meta.json')).gate.esperou_trava_s, 7);
   limpa(amb2);
 });
 
