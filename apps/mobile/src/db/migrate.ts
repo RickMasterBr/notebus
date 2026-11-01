@@ -6,7 +6,7 @@
  * 1. Há migração pendente → copia o banco para um arquivo com data.
  * 2. Aplica todas as pendentes numa transação só.
  * 3. Falhou → desfaz, restaura a cópia, deixa o banco só-leitura nesta sessão e devolve `MigrationFailedError`.
- * 4. Guarda as 3 últimas cópias; apaga as mais velhas.
+ * 4. Guarda as 3 últimas cópias de cada tipo (de antes de migrar e de antes de importar); apaga as mais velhas.
  *
  * A versão do banco é o `PRAGMA user_version` (= quantas migrações já rodaram). Ele fica no cabeçalho
  * do arquivo e entra na transação: ou sobe junto com as migrações, ou não sobe.
@@ -112,10 +112,22 @@ export async function migrateProtected(opts: {
   return { status: "migrated", from, to, backupName };
 }
 
-/** Mantém as `BACKUPS_TO_KEEP` cópias mais novas (o nome começa pela data, então ordem de nome = ordem de tempo). */
+/** Cópia de antes de importar: termina em `-import.db` (`backup.ts`); as demais com o prefixo são de antes de migrar. */
+const IMPORT_BACKUP_SUFFIX = "-import.db";
+
+/**
+ * Mantém as `BACKUPS_TO_KEEP` cópias mais novas de cada tipo (o nome começa pela data, então ordem de nome = ordem de
+ * tempo). A poda é separada por tipo (ideia 212): importar não apaga a cópia de antes da migração, nem o contrário.
+ */
 export async function pruneBackups(backups: BackupStore): Promise<void> {
-  const ours = (await backups.list()).filter((n) => n.startsWith(BACKUP_PREFIX)).sort();
-  for (const name of ours.slice(0, Math.max(0, ours.length - BACKUPS_TO_KEEP))) {
-    await backups.remove(name);
+  const ours = (await backups.list()).filter((n) => n.startsWith(BACKUP_PREFIX));
+  const groups = [
+    ours.filter((n) => n.endsWith(IMPORT_BACKUP_SUFFIX)),
+    ours.filter((n) => !n.endsWith(IMPORT_BACKUP_SUFFIX)),
+  ];
+  for (const group of groups) {
+    for (const name of group.sort().slice(0, Math.max(0, group.length - BACKUPS_TO_KEEP))) {
+      await backups.remove(name);
+    }
   }
 }
