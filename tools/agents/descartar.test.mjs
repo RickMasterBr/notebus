@@ -160,3 +160,65 @@ test('D8 saida ASCII e descartar.ps1 e o chamador de 4 linhas', () => {
   assert.deepEqual(readFileSync(PS1, 'utf8').trim().split(/\r?\n/), ['#requires -Version 7', "$ErrorActionPreference = 'Stop'", 'node "$PSScriptRoot/descartar.mjs" @args', 'exit $LASTEXITCODE']);
   e.limpar();
 });
+
+const salvos = (e) => path.join(e.raiz, '_descartadas');
+
+test('F1 sem --forcar a suja segue recusada com a mesma linha', () => {
+  const e = ambiente();
+  const r = rodar(e, ['--aplicar', 'suja', '--sim']);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^PISTA_SUJA suja src\/x\.ts$/m);
+  assert.ok(existsSync(e.p('suja')) && !existsSync(salvos(e)));
+  e.limpar();
+});
+
+test('F2 --forcar salva patch, status, ultimo commit e copias (modificado e novo) e so entao remove', () => {
+  const e = ambiente();
+  writeFileSync(e.p('suja', 'novo.txt'), 'novo\n');
+  mkdirSync(e.p('suja', 'src', 'sub'));
+  writeFileSync(e.p('suja', 'src', 'sub', 'y.ts'), 'y\n');
+  const hash = git(e.p('suja'), 'log', '-1', '--format=%h');
+  const r = rodar(e, ['--aplicar', 'suja', '--sim', '--forcar']);
+  assert.equal(r.status, 0, saida(r));
+  assert.ok(!existsSync(e.p('suja')));
+  const d = path.join(salvos(e), `suja-${hash}`);
+  assert.match(readFileSync(path.join(d, 'mudancas.patch'), 'utf8'), /^\+mudou$/m);
+  assert.match(readFileSync(path.join(d, 'status.txt'), 'utf8'), /M src\/x\.ts/);
+  assert.match(readFileSync(path.join(d, 'status.txt'), 'utf8'), /\?\? src\/sub\/y\.ts/);
+  assert.match(readFileSync(path.join(d, 'ultimo-commit.txt'), 'utf8'), /base/);
+  assert.equal(readFileSync(path.join(d, 'arquivos', 'src', 'x.ts'), 'utf8'), 'mudou\n');
+  assert.equal(readFileSync(path.join(d, 'arquivos', 'novo.txt'), 'utf8'), 'novo\n');
+  assert.equal(readFileSync(path.join(d, 'arquivos', 'src', 'sub', 'y.ts'), 'utf8'), 'y\n');
+  e.limpar();
+});
+
+test('F3 pasta salva repetida ganha -2', () => {
+  const e = ambiente();
+  const hash = git(e.p('suja'), 'log', '-1', '--format=%h');
+  mkdirSync(path.join(salvos(e), `suja-${hash}`), { recursive: true });
+  const r = rodar(e, ['--aplicar', 'suja', '--sim', '--forcar']);
+  assert.equal(r.status, 0, saida(r));
+  assert.ok(existsSync(path.join(salvos(e), `suja-${hash}-2`, 'mudancas.patch')));
+  e.limpar();
+});
+
+test('F4 falha ao salvar: a pista fica e sai SALVAMENTO_FALHOU', () => {
+  const e = ambiente();
+  writeFileSync(salvos(e), 'arquivo no lugar da pasta');
+  const r = rodar(e, ['--aplicar', 'suja', '--sim', '--forcar']);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^SALVAMENTO_FALHOU suja \S/m);
+  assert.ok(existsSync(e.p('suja')));
+  assert.equal(readFileSync(e.p('suja', 'src', 'x.ts'), 'utf8'), 'mudou\n');
+  e.limpar();
+});
+
+test('F5 --forcar nao remove protegida nem em uso, com a mesma mensagem', () => {
+  const e = ambiente();
+  const r = rodar(e, ['--aplicar', 'notebus-infra,uso', '--sim', '--forcar']);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^PISTA_PROTEGIDA notebus-infra pista protegida$/m);
+  assert.match(r.stdout, /^PISTA_EM_USO uso a trava tem a tarefa$/m);
+  assert.ok(existsSync(e.p('notebus-infra')) && existsSync(e.p('uso')) && !existsSync(salvos(e)));
+  e.limpar();
+});

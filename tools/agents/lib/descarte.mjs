@@ -16,6 +16,13 @@ export const classificar = ({ pista, protegidas = [], arquivos = [], emUso = fal
 // nomes pedidos, sem repetir, na ordem dada
 export const ordemDeRemocao = (pedidos) => [...new Set(pedidos.map((s) => s.trim()).filter(Boolean))];
 
+// base, base-2, base-3... o primeiro que `existe` nao acha
+export const nomeLivre = (base, existe) => {
+  let n = base;
+  for (let i = 2; existe(n); i++) n = `${base}-${i}`;
+  return n;
+};
+
 const sn = (v) => (v ? 'sim' : 'nao');
 
 export const formatarLista = (pistas, bytes, raiz) =>
