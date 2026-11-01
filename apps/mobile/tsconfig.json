@@ -4,6 +4,10 @@
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "strict": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    "paths": {
+      "@notebus/domain": ["../../packages/domain/src/index.ts"],
+      "@notebus/domain/*": ["../../packages/domain/*"]
+    }
   }
 }

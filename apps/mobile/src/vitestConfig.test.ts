@@ -12,6 +12,10 @@ describe("vitest.config do app", () => {
   });
 
   it("K2 config tem so a chave test", () => {
-    expect(Object.keys(config)).toEqual(["test"]);
+    expect(Object.keys(config)).toEqual(["resolve", "test"]);
+  });
+
+  it("K2 resolve tem so a chave alias", () => {
+    expect(Object.keys(config.resolve ?? {})).toEqual(["alias"]);
   });
 });
