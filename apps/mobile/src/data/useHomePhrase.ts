@@ -43,7 +43,7 @@ export function useHomePhrase(): { phrase: HomePhrase | null; lineColor: string 
     userName: userName.name,
   });
 
-  const [asyncRead, setAsyncRead] = useState<{
+  const [asyncState, setAsyncRead] = useState<{
     key: string | null;
     scheduled: ScheduledRequest[];
     presented: PresentedNotification[];
@@ -71,17 +71,22 @@ export function useHomePhrase(): { phrase: HomePhrase | null; lineColor: string 
     };
   }, [epoch]);
 
-  const asyncDone = asyncRead.key === epoch;
+  // done: a leitura dos avisos desta época terminou.
+  const asyncRead = { ...asyncState, done: asyncState.key === epoch };
 
   const ready = homePhraseReady({
     nameLoaded: userName.loaded,
     placesReady: places.status === "ready",
     registroReady: registro.status === "ready",
     scheduleReady: schedule.status === "ready",
-    asyncDone,
+    asyncDone: asyncRead.done,
   });
 
-  const computedKeyRef = useRef<string | null>(null);
+  // Congela dentro de uma época; a chave nova descongela (declarado antes do efeito que calcula).
+  const frozenRef = useRef(false);
+  useEffect(() => {
+    frozenRef.current = false;
+  }, [epoch]);
   const [phrase, setPhrase] = useState<HomePhrase | null>(null);
 
   const loaded = userName.loaded;
@@ -90,8 +95,8 @@ export function useHomePhrase(): { phrase: HomePhrase | null; lineColor: string 
   const scheduleReady = schedule.status === "ready";
 
   useEffect(() => {
-    if (!ready || computedKeyRef.current === epoch) return;
-    computedKeyRef.current = epoch;
+    if (!ready || frozenRef.current) return;
+    frozenRef.current = true;
 
     const instant = now();
     const lisbonHour = Math.floor(lisbonWallClock(instant).minute / 60);
@@ -128,7 +133,7 @@ export function useHomePhrase(): { phrase: HomePhrase | null; lineColor: string 
         writeLastPhraseId(db, chosen.id, instant).catch(() => {});
       }
     }
-  }, [ready, epoch, loaded, placesReady, registroReady, scheduleReady, asyncDone]);
+  }, [ready, epoch, loaded, placesReady, registroReady, scheduleReady, asyncRead.done]);
 
   const lineColor = useMemo(() => {
     if (!phrase?.arriving) return colors.accent;
