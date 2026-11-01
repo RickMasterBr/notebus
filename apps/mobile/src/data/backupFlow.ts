@@ -28,12 +28,19 @@ export interface ExportIO {
   write(name: string, text: string): Promise<string>;
   /** Lê de volta o que ficou gravado. */
   read(uri: string): Promise<string>;
-  /** Abre a folha de compartilhar do sistema. Lança se não abrir. */
-  share(uri: string): Promise<void>;
+  /**
+   * Abre a folha de compartilhar do sistema. Lança se não abrir. Devolve `used` (salvou ou compartilhou), `dismissed`
+   * (fechou sem usar) ou `unknown` (não dá para saber; `void` conta como `unknown`).
+   */
+  share(uri: string): Promise<ShareOutcome | void>;
 }
+
+export type ShareOutcome = "used" | "dismissed" | "unknown";
 
 export type ExportResult =
   | { ok: true; fileName: string; counts: Record<string, number>; bytes: number }
+  /** A folha foi fechada sem salvar nem compartilhar: o arquivo existe, mas `last_export_at` não mudou. */
+  | { ok: false; stage: "dismissed"; detail: string }
   /** Não entregue: a gravação, a releitura ou a folha de compartilhar falharam. `last_export_at` não mudou. */
   | { ok: false; stage: "write" | "verify" | "share"; detail: string };
 
@@ -58,11 +65,13 @@ export async function exportBackup(
   const expected = countTables(JSON.parse(text).tables);
   const got = countTables(check.backup.tables);
   if (JSON.stringify(expected) !== JSON.stringify(got)) return { ok: false, stage: "verify", detail: "counts_mismatch" };
+  let outcome: ShareOutcome | void;
   try {
-    await io.share(uri);
+    outcome = await io.share(uri);
   } catch (error) {
     return { ok: false, stage: "share", detail: String(error) };
   }
+  if (outcome === "dismissed") return { ok: false, stage: "dismissed", detail: "share_dismissed" };
   await writeSettingNumber(db, LAST_EXPORT_AT, now, now, deps.newId);
   return { ok: true, fileName, counts: got, bytes: byteLength(reread) };
 }

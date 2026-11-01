@@ -7,6 +7,7 @@ import * as Crypto from "expo-crypto";
 import * as DocumentPicker from "expo-document-picker";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { Platform, Share } from "react-native";
 import { t } from "../i18n";
 import type { ExportIO } from "./backupFlow";
 
@@ -25,8 +26,15 @@ export const nativeExportIO: ExportIO = {
     return file.uri;
   },
   read: (uri) => new File(uri).text(),
-  // Resolve quando a folha fecha; lança se ela não abre. No iOS não dá para saber se o Rick salvou ou cancelou.
-  share: (uri) => Sharing.shareAsync(uri, { mimeType: "application/json", UTI: "public.json", dialogTitle: t("backup.share_title") }),
+  // Lança se a folha não abre. iOS: `Share.share` diz se usou ou fechou. Android: o expo-sharing não diz, então `unknown`.
+  async share(uri) {
+    if (Platform.OS === "ios") {
+      const r = await Share.share({ url: uri });
+      return r.action === Share.dismissedAction ? "dismissed" : "used";
+    }
+    await Sharing.shareAsync(uri, { mimeType: "application/json", UTI: "public.json", dialogTitle: t("backup.share_title") });
+    return "unknown";
+  },
 };
 
 /** Abre o seletor de documento (só JSON) e devolve o texto do arquivo, ou `null` se cancelou. */
