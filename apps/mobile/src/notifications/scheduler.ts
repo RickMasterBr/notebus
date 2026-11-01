@@ -13,7 +13,10 @@ import {
   type PlannedDeparture,
   type WindowDeparture,
 } from "@notebus/domain";
+import { and, eq, isNotNull } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { selectLive } from "../db/query";
+import { observation } from "../db/schema";
 import { configWithMargin, loadSchedule as loadScheduleFromDb, type ScheduleSnapshot } from "../data/schedule";
 import { readPreferences } from "../db/preferences";
 import { ruleOf, sharedAlarms, type PlannedEventInput } from "../db/alarms";
@@ -104,7 +107,12 @@ export function createScheduler(deps: SchedulerDeps) {
     const ctx = await alarmPlanInput(db, schedule, now);
     const alarms = (await repo.listAlarms()).map(ruleOf).filter((a) => a.enabled);
     const plan = planDepartures({ alarms, options: ctx.options, now, dayData: ctx.dayData, config: configWithMargin(schedule.margin) });
-    const { window } = buildWindow(plan.departures);
+    // Viagem (tripId, dia) com embarque já casado: o usuário está nela, o aviso de sair não toca (ideia 196).
+    const boarded = new Set(
+      (await selectLive(db, observation, and(eq(observation.kind, "boarded"), isNotNull(observation.tripId), isNotNull(observation.serviceDate))))
+        .map((o) => `${o.tripId}|${o.serviceDate}`),
+    );
+    const { window } = buildWindow(plan.departures.filter((d) => !boarded.has(`${d.tripId}|${d.serviceDate}`)));
 
     // O que o reagendamento não pode apagar: o "Adiar" ainda no futuro e o aviso de teste pendente. Ficam fora dos 50.
     const pending = await port.listScheduled();

@@ -134,6 +134,7 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
     try {
       await reload();
       await registro.refreshDeductions(nowRef.current());
+      requestReschedule(); // a viagem casada agora é conhecida: o aviso dela sai da janela
       await reload();
     } catch {
       // O fato está salvo; a próxima abertura do app refaz a dedução.
