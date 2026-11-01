@@ -68,6 +68,7 @@ import {
   PassGlyph,
 } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
+import { PendingSwipeRow } from "./PendingSwipeRow";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet, useCloseSheet } from "./StackedSheet";
@@ -291,12 +292,14 @@ interface PendingCardViewProps {
   row: RecordListRow;
   onCheck: (row: RecordListRow) => void;
   onDismiss: (row: RecordListRow) => void;
+  onDelete: (id: string) => void;
 }
 
 const PendingCardView = memo(function PendingCardView({
   row,
   onCheck,
   onDismiss,
+  onDelete,
 }: PendingCardViewProps) {
   const { colors } = useTheme();
 
@@ -304,10 +307,11 @@ const PendingCardView = memo(function PendingCardView({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${t("sheet_records.pending.check")}, ${row.stop.name}, ${row.time}`}
-      accessibilityActions={[{ name: "dismiss", label: t("sheet_records.pending.unsure") }]}
+      accessibilityActions={[{ name: "dismiss", label: t("sheet_records.pending.unsure") }, { name: "delete", label: t("sheet_records.action.delete") }]}
       onAccessibilityAction={(e) => {
         const action = e.nativeEvent.actionName;
         if (action === "dismiss") onDismiss(row);
+        if (action === "delete") onDelete(row.id);
       }}
       onPress={() => onCheck(row)}
       style={({ pressed }) => [styles.pendingCardContainer, { borderColor: colors.accent, backgroundColor: colors.highlight }, pressedStyle(pressed)]}
@@ -700,11 +704,19 @@ export function RecordsSheet({ id }: { id: number }) {
       }
       if (item.type === "pending") {
         return (
-          <PendingCardView
-            row={item.row}
-            onCheck={handleCheckPending}
-            onDismiss={handleDismissPending}
-          />
+          <PendingSwipeRow
+            id={item.row.id}
+            onDelete={handleDeleteSingle}
+            onWillOpen={handleSwipeableWillOpen}
+            onClose={handleSwipeableClose}
+          >
+            <PendingCardView
+              row={item.row}
+              onCheck={handleCheckPending}
+              onDismiss={handleDismissPending}
+              onDelete={handleDeleteSingle}
+            />
+          </PendingSwipeRow>
         );
       }
       if (item.type === "allChecked") {
