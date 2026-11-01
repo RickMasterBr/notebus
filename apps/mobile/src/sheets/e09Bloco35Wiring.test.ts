@@ -98,7 +98,7 @@ describe("E-09 Bloco 35 guardas de ligação (e09Bloco35Wiring)", () => {
 
     it("a raiz tem accessibilityActions com label vindo de t(\"sheet_records.pending.unsure\")", () => {
       const a = root ? attrText(root, "accessibilityActions", sf) : null;
-      expect(squash(a)).toBe('[{name:"dismiss",label:t("sheet_records.pending.unsure")}]');
+      expect(squash(a)).toBe('[{name:"dismiss",label:t("sheet_records.pending.unsure")},{name:"delete",label:t("sheet_records.action.delete")}]');
     });
     it("a raiz tem onAccessibilityAction que lê actionName na primeira linha e chama onDismiss(row)", () => {
       const h = root ? attrText(root, "onAccessibilityAction", sf) : null;
