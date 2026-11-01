@@ -118,7 +118,10 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
     return expectedTime(baseTime, []);
   };
 
-  const learnedByPos = new Map<number, ExpectedTime>();
+  // Máximo corrido (ideia 197): as linhas são montadas em ordem, de "você" ao fim; nenhum horário desce.
+  const minuteByPos = new Map<number, number>();
+  let runCenter = -Infinity;
+  let runEnd = -Infinity;
 
   const row = (
     pos: number,
@@ -126,13 +129,15 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
     expected: ExpectedTime,
     extra: Pick<AheadStopRow, "isTimepoint" | "number" | "returnsHere">,
   ): AheadStopRow => {
-    learnedByPos.set(pos, expected);
+    runCenter = Math.max(runCenter, shouldLearn ? expected.center : base.minute);
+    runEnd = Math.max(runEnd, expected.rangeEnd);
+    minuteByPos.set(pos, runCenter);
     return {
       position: pos,
       name: nameAt.get(pos) ?? "",
-      time: clockText(displayCenter(shouldLearn ? expected.center : base.minute)),
+      time: clockText(displayCenter(runCenter)),
       rangeStart: clockText(displayCenter(expected.rangeStart)),
-      rangeEnd: clockText(displayCenter(expected.rangeEnd)),
+      rangeEnd: clockText(displayCenter(runEnd)),
       kind: base.kind,
       confidence: expected.confidence,
       isLast: pos === trip.lastPosition,
@@ -142,14 +147,20 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
 
   const place = (s: { info: { position: number }; base: { minute: number } }): AheadPlace => {
     const pos = s.info.position;
-    const exp = learnedByPos.get(pos);
-    const minute = shouldLearn && exp ? exp.center : s.base.minute;
     return {
       name: nameAt.get(pos) ?? "",
-      time: clockText(displayCenter(minute)),
+      time: clockText(displayCenter(minuteByPos.get(pos) ?? s.base.minute)),
     };
   };
 
+  // A passagem tocada: o horário dela vem do mesmo cálculo (o domínio devolve só as paragens depois dela).
+  // Montada primeiro: abre o máximo corrido.
+  const hereBase = { position, minute: rawHere.minute + shiftMinutes, kind: rawHere.kind };
+  const here = row(position, hereBase, computeExpected(position, hereBase), {
+    isTimepoint: timepoints.has(position),
+    number: passageInfo(pattern, timepoints, position).number,
+    returnsHere: false,
+  });
   const stops = result.stops.map((s) =>
     row(s.info.position, s.base, computeExpected(s.info.position, s.base), {
       isTimepoint: s.isTimepoint,
@@ -157,13 +168,6 @@ export function buildAhead(tripId: string, position: number, data: ScheduleSnaps
       returnsHere: s.returnsHere,
     }),
   );
-  // A passagem tocada: o horário dela vem do mesmo cálculo (o domínio devolve só as paragens depois dela).
-  const hereBase = { position, minute: rawHere.minute + shiftMinutes, kind: rawHere.kind };
-  const here = row(position, hereBase, computeExpected(position, hereBase), {
-    isTimepoint: timepoints.has(position),
-    number: passageInfo(pattern, timepoints, position).number,
-    returnsHere: false,
-  });
 
   const line = data.patternLine.get(pattern.id) ?? null;
   return {
