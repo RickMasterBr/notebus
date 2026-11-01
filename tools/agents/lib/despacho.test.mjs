@@ -187,6 +187,14 @@ test('m3-i1 C4 montarPermissoesOpencode: curinga so para npm run e git push * se
   assert.equal(b['git push *'], 'deny');
 });
 
+test('C4 montarComandoGate: esperarTravaS acrescenta --esperar-trava-s ao fim; sem ele nada muda', async () => {
+  const { montarComandoGate } = await import('./despacho.mjs');
+  const p = planejar(contrato, dirs);
+  const com = montarComandoGate(p, { contrato: 'c.md', gate: 'g.mjs', repo: dirs.repo, raiz: dirs.raiz, schemas: 's', soEstatico: true, esperarTravaS: 1800 });
+  assert.deepEqual(com.args.slice(6), ['--schemas', 's', '--so-estatico', '--esperar-trava-s', '1800']);
+  assert.ok(!montarComandoGate(p, { contrato: 'c.md', gate: 'g.mjs', repo: dirs.repo, raiz: dirs.raiz }).args.includes('--esperar-trava-s'));
+});
+
 test('J2 montarComandoGate: cwd = raiz, sem pista/relatorio/branch/saida; gateDentroDe', async () => {
   const { montarComandoGate, gateDentroDe } = await import('./despacho.mjs');
   const p = planejar(contrato, dirs);

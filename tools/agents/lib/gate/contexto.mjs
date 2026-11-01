@@ -13,7 +13,7 @@ export class UsoErro extends Error {
   }
 }
 
-const VALOR = ['--raiz', '--repo', '--schemas', '--config', '--areas', '--pista', '--relatorio', '--branch', '--base', '--saida'];
+const VALOR = ['--raiz', '--repo', '--schemas', '--config', '--areas', '--pista', '--relatorio', '--branch', '--base', '--saida', '--esperar-trava-s'];
 const BOOLEANA = ['--so-estatico', '--executar-sempre'];
 
 export const lerArgs = (argv) => {
@@ -28,6 +28,7 @@ export const lerArgs = (argv) => {
     else if (o.contrato === null) o.contrato = a;
     else throw new UsoErro('USO', `argumento a mais: ${a}`);
   }
+  if ('--esperar-trava-s' in o.flags && !/^\d+$/.test(o.flags['--esperar-trava-s'])) throw new UsoErro('USO', '--esperar-trava-s pede um numero inteiro de segundos');
   if (o.contrato === null) throw new UsoErro('USO', 'uso: gate.mjs <contrato.md> [flags]');
   const manual = ['--relatorio', '--branch', '--saida'];
   if ('--pista' in o.flags) {

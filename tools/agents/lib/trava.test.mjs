@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { spawnSync } from 'node:child_process';
-import { adquirir, registrarSaida } from './trava.mjs';
+import { adquirir, adquirirComEspera, registrarSaida } from './trava.mjs';
 
 const nova = () => path.join(mkdtempSync(path.join(tmpdir(), 'trava-')), 'ainda-nao-existe');
 const lista = (raiz) => readdirSync(path.join(raiz, '_despacho', '_trava'));
@@ -127,4 +127,78 @@ test('A5 pasta invalida lanca TypeError PASTA_INVALIDA', () => {
     assert.throws(() => adquirir({ raiz, id: 'a', minutos: 5, max: 1, pasta }), (e) => e instanceof TypeError && e.code === 'PASTA_INVALIDA' && /PASTA_INVALIDA/.test(e.message), JSON.stringify(pasta));
   }
   rmSync(path.dirname(raiz), { recursive: true, force: true });
+});
+
+// ---- v1-infra-01: C1 (gravacao atomica, vazio recente), C2 (recontagem), C3 (espera) ----
+test('C1 trava: o conteudo completo ja esta no temporario quando o nome final ainda nao existe', () => {
+  const raiz = nova();
+  let chamou = 0;
+  const r = adquirir({ raiz, id: 'a', minutos: 5, max: 1, antesDeLinkar: (temp) => {
+    chamou++;
+    assert.equal(existsSync(path.join(raiz, '_despacho', '_trava', 'a.lock')), false);
+    assert.equal(JSON.parse(readFileSync(temp, 'utf8')).id, 'a');
+  } });
+  assert.ok(r.ok);
+  assert.equal(chamou, 1);
+  assert.deepEqual(lista(raiz), ['a.lock']);
+  rmSync(path.dirname(raiz), { recursive: true });
+});
+
+test('C1 trava: arquivo vazio recente conta como ativo; com 30 s ou mais e apagado', () => {
+  const raiz = nova();
+  gravaTrava(raiz, 'b', '');
+  const r = adquirir({ raiz, id: 'c', minutos: 5, max: 1 });
+  assert.deepEqual([r.ok, r.codigo, r.ativos], [false, 'TRAVA_CHEIA', ['b']]);
+  assert.deepEqual(lista(raiz), ['b.lock']);
+  assert.ok(adquirir({ raiz, id: 'c', minutos: 5, max: 1, agora: Date.now() + 30000 }).ok);
+  assert.deepEqual(lista(raiz), ['c.lock']);
+  rmSync(path.dirname(raiz), { recursive: true });
+});
+
+test('C2 trava: passou de max depois de criar, a mais nova sai e devolve TRAVA_CHEIA', () => {
+  const raiz = nova();
+  const alheia = (arq) => writeFileSync(path.join(path.dirname(arq), 'a.lock'), JSON.stringify({ id: 'a', pid: process.pid, inicio: 50, minutos: 5 }));
+  const r = adquirir({ raiz, id: 'b', minutos: 5, max: 1, agora: 100, antesDeCriar: alheia });
+  assert.deepEqual([r.ok, r.codigo, r.ativos], [false, 'TRAVA_CHEIA', ['a']]);
+  assert.deepEqual(lista(raiz), ['a.lock']);
+  rmSync(path.dirname(raiz), { recursive: true });
+});
+
+test('C2 trava: empate no inicio desempata por id; a propria fica se for a mais antiga', () => {
+  const raiz = nova();
+  const alheia = (id) => (arq) => writeFileSync(path.join(path.dirname(arq), `${id}.lock`), JSON.stringify({ id, pid: process.pid, inicio: 100, minutos: 5 }));
+  assert.equal(adquirir({ raiz, id: 'b', minutos: 5, max: 1, agora: 100, antesDeCriar: alheia('a') }).codigo, 'TRAVA_CHEIA');
+  const raiz2 = nova();
+  const ok = adquirir({ raiz: raiz2, id: 'b', minutos: 5, max: 1, agora: 100, antesDeCriar: alheia('c') });
+  assert.ok(ok.ok);
+  assert.deepEqual(lista(raiz2).sort(), ['b.lock', 'c.lock']);
+  rmSync(path.dirname(raiz), { recursive: true });
+  rmSync(path.dirname(raiz2), { recursive: true });
+});
+
+test('C3 trava: adquirirComEspera tenta a cada 5 s com relogio e espera injetados', async () => {
+  const raiz = nova();
+  let agora = 1000;
+  const dormidas = [];
+  const avisos = [];
+  const dono = adquirir({ raiz, id: 'dono', minutos: 60, max: 1, agora });
+  const dormir = async (ms) => { dormidas.push(ms); agora += ms; if (dormidas.length === 3) dono.liberar(); };
+  const r = await adquirirComEspera({ raiz, id: 'x', minutos: 60, max: 1, esperarS: 60, relogio: () => agora, dormir, aoEsperar: (a) => avisos.push(a) });
+  assert.deepEqual([r.ok, r.esperouS, dormidas], [true, 15, [5000, 5000, 5000]]);
+  assert.deepEqual(avisos, [['dono'], ['dono'], ['dono']]);
+  rmSync(path.dirname(raiz), { recursive: true });
+});
+
+test('C3 trava: esperar 0 nao dorme; acabou o tempo devolve TRAVA_CHEIA; JA_EM_ANDAMENTO nao espera', async () => {
+  const raiz = nova();
+  let agora = 0;
+  const dormir = async (ms) => { agora += ms; };
+  adquirir({ raiz, id: 'dono', minutos: 60, max: 1, agora });
+  const zero = await adquirirComEspera({ raiz, id: 'x', minutos: 60, max: 1, relogio: () => agora, dormir: () => assert.fail('dormiu') });
+  assert.equal(zero.codigo, 'TRAVA_CHEIA');
+  const fim = await adquirirComEspera({ raiz, id: 'x', minutos: 60, max: 1, esperarS: 12, relogio: () => agora, dormir });
+  assert.deepEqual([fim.codigo, fim.esperouS], ['TRAVA_CHEIA', 15]);
+  const mesmo = await adquirirComEspera({ raiz, id: 'dono', minutos: 60, max: 1, esperarS: 60, relogio: () => agora, dormir: () => assert.fail('dormiu') });
+  assert.equal(mesmo.codigo, 'JA_EM_ANDAMENTO');
+  rmSync(path.dirname(raiz), { recursive: true });
 });

@@ -144,7 +144,7 @@ const rodarGate = async ({ plano, gate, meta, grava, falha }) => {
   const gateJson = path.join(plano.despachoDir, 'gate.json');
   const t0 = Date.now();
   const r = await executar({ exe: gate.cmd.exe, args: gate.cmd.args }, { cwd: gate.cmd.cwd, saida: path.join(plano.despachoDir, 'gate-saida.txt'), stderr: path.join(plano.despachoDir, 'gate-stderr.txt'), timeout: gate.timeout });
-  meta.gate = { caminho: gate.caminho, sha256: gate.sha256, argumentos: gate.cmd.args.slice(1), codigo: r.codigo ?? null, veredito: null, duracao_s: (Date.now() - t0) / 1000, gate_json: gateJson };
+  meta.gate = { caminho: gate.caminho, sha256: gate.sha256, argumentos: gate.cmd.args.slice(1), codigo: r.codigo ?? null, veredito: null, duracao_s: (Date.now() - t0) / 1000, esperou_trava_s: lerEspera(path.join(plano.despachoDir, 'gate-stderr.txt')), gate_json: gateJson };
   if (r.erro) throw falha('GATE_EXECUCAO', r.erro.message, 1);
   if (r.tempo) throw falha('GATE_TEMPO_ESGOTADO', `passou de ${gate.timeout} ms`, 1);
   const veredito = { 0: 'aprovado', 1: 'reprovado', 3: 'inconclusivo' }[r.codigo];
@@ -156,6 +156,15 @@ const rodarGate = async ({ plano, gate, meta, grava, falha }) => {
   }
   if (!veredito) throw falha('GATE_USO', `${plano.id} gate recusou os argumentos (saida ${r.codigo}): ${lerStderr(path.join(plano.despachoDir, 'gate-stderr.txt'))}${sufixo}`, 2);
   throw falha(r.codigo === 1 ? 'GATE_REPROVADO' : 'GATE_INCONCLUSIVO', `${plano.id} ${gateJson}${sufixo}`, r.codigo);
+};
+
+// segundos que o gate esperou pela trava (linha ESPEROU_TRAVA_S do stderr dele); 0 se nao esperou
+const lerEspera = (caminho) => {
+  try {
+    return Number(/^ESPEROU_TRAVA_S (\d+)$/m.exec(readFileSync(caminho, 'utf8'))?.[1] ?? 0);
+  } catch {
+    return 0;
+  }
 };
 
 // retrato bruto do opencode stats (agregado do dia, texto nao lido); nunca lanca: falha vira false
@@ -288,7 +297,7 @@ const principal = async (argv) => {
       caminho,
       doRepo: dentro(repo),
       timeout: o.gateTimeout ?? 3600000,
-      cmd: montarComandoGate(plano, { contrato: arquivo, gate: caminho, repo, raiz, schemas: o.schemas ? schemas : undefined, soEstatico: o.gateSoEstatico }),
+      cmd: montarComandoGate(plano, { contrato: arquivo, gate: caminho, repo, raiz, schemas: o.schemas ? schemas : undefined, soEstatico: o.gateSoEstatico, esperarTravaS: 1800 }),
     };
   }
 
