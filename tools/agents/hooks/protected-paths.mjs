@@ -99,10 +99,11 @@ const resolverToken = (tok, cwdRel, rootN) => {
 };
 
 // R7: primeira entrada que o caminho resolvido cita (literal: isUnder; curinga: globCasa)
-const citaResolvido = (seg, cwdRel, rootN, alvos) => {
+// pula: caminho literal autorizado por arquivo nao conta como citacao da area
+const citaResolvido = (seg, cwdRel, rootN, alvos, pula = () => false) => {
   for (const tok of tokensDe(seg)) {
     const rel = resolverToken(tok, cwdRel, rootN);
-    if (rel === null) continue;
+    if (rel === null || pula(rel)) continue;
     const hit = alvos.find((e) => (/[*?[]/.test(rel) ? globCasa(rel, e) : isUnder(rel, e)));
     if (hit) return hit;
   }
@@ -133,6 +134,8 @@ export const decidir = (input, { areas = path.join(HERE, 'protected-paths.json')
   const lista = JSON.parse(readFileSync(areas, 'utf8')).map(norm);
   const permitido = autorizacao ? lerAutorizacao(autorizacao) : [];
   const liberado = (rel) => permitido.some((a) => isUnder(rel, a));
+  // controle nunca se libera, nem listado por arquivo; curinga nunca e arquivo
+  const pula = (rel) => liberado(rel) && !isControle(rel) && !/[*?[]/.test(rel);
   const protegido = (rel) => (isControle(rel) ? rel : lista.find((e) => isUnder(rel, e) && !liberado(rel)));
   const negar = (alvo) => ({ negar: true, motivo: MOTIVO(alvo), alvo });
 
@@ -145,11 +148,17 @@ export const decidir = (input, { areas = path.join(HERE, 'protected-paths.json')
     for (const seg of semInofensivos(command).split(/;|&&|\|\||\||&|\r?\n/)) {
       if (!seg.trim()) continue;
       const texto = norm(seg);
+      // segunda rede sem os tokens pulados, removidos como foram escritos
+      let textoLista = texto;
+      for (const tok of tokensDe(seg)) {
+        const rel = resolverToken(tok, cwdRel, rootN);
+        if (rel !== null && pula(rel)) textoLista = textoLista.split(norm(tok)).join(' ');
+      }
       // R5-R7 (resolucao) em OU com a checagem por texto, que fica como segunda rede
       const citado =
-        citaResolvido(seg, cwdRel, rootN, alvos) ??
+        citaResolvido(seg, cwdRel, rootN, alvos, pula) ??
         CONTROLE.find((c) => texto.includes(c)) ??
-        lista.find((e) => texto.includes(stripSlash(e)) && !liberado(stripSlash(e)));
+        lista.find((e) => textoLista.includes(stripSlash(e)) && !liberado(stripSlash(e)));
       if (citado ? !eLeitura(seg) || escreve(seg) : emCwd && !eLeitura(seg)) return negar(citado ?? emCwd);
     }
     return { negar: false, alvo: command };

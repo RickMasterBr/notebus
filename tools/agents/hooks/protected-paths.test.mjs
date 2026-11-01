@@ -428,3 +428,41 @@ test('C4 chaves em ferramenta de escrita sem caminho achado; o main as grava no 
   assert.deepEqual(a.chaves, ['bar', 'foo']);
   assert.equal('chaves' in b, false);
 });
+
+// ideia 218: autorizacao por arquivo no terminal
+{
+  const D = 'packages/domain/src/';
+  const mkA = (areas) => {
+    const f = path.join(tmp(), 'autorizacao.json');
+    writeFileSync(f, JSON.stringify({ areas_autorizadas: areas }));
+    return f;
+  };
+  const arq = [D + 'goto.ts', D + 'index.ts'];
+  const AREAS_D = (() => {
+    const f = path.join(tmp(), 'areas.json');
+    writeFileSync(f, JSON.stringify(['packages/domain/']));
+    return f;
+  })();
+  const casos = [
+    ['git add packages/domain/src/goto.ts packages/domain/src/index.ts', arq, false],
+    ['git add packages/domain/src/goto.ts', arq, false],
+    ['git add packages/domain/src/goto.ts packages/domain/src/matching.ts', arq, true],
+    ['git add packages/domain', arq, true],
+    ['git add packages/domain/src', arq, true],
+    ['git add packages/domain/src/*.ts', arq, true],
+    ['rm -rf packages/domain', arq, true],
+    ['git add .agents/hooks.json', arq, true],
+    ['git add .agents/hooks.json', [...arq, '.agents/hooks.json'], true],
+    ['cp packages/domain/src/goto.ts packages/domain/src/matching.ts', arq, true],
+    ['git add ./packages/domain/src/../src/goto.ts', arq, false],
+    ['rm packages/domain/src/goto.ts', arq, false],
+    ['git add packages/domain/src/matching.ts', ['packages/domain/'], false],
+  ];
+  for (const [cmd, auth, negado] of casos) {
+    test(`218: ${negado ? 'nega' : 'libera'} "${cmd}" com ${auth.join(',')}`, () => {
+      const r = mkRoot();
+      const o = { areas: AREAS_D, autorizacao: mkA(auth) };
+      assert.equal(decidir(claudeBash(r, cmd), o).negar, negado);
+    });
+  }
+}
