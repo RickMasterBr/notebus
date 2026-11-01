@@ -1,9 +1,10 @@
 /**
  * Hook da frase viva do Início (E-08.5 Bloco 17, Item 4.2, D-207).
- * Lê provedores e persistência uma única vez e congela a frase por abertura do app.
+ * Recalcula a frase (e relê os avisos) só quando a chave de época muda (homePhraseEpoch.ts).
  */
 import { lisbonWallClock } from "@notebus/domain";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 import { readLastPhraseId, writeLastPhraseId } from "../db/homePhrase";
 import { getSharedDb } from "../db/sharedDb";
 import { expoPort } from "../notifications/expoPort";
@@ -15,6 +16,7 @@ import { useRegistro } from "./RegistroProvider";
 import { useSchedule } from "./ScheduleProvider";
 import { useUserName } from "./UserNameProvider";
 import { departuresFromNotifications } from "./homeDepartures";
+import { homePhraseEpochKey } from "./homePhraseEpoch";
 import { homePhraseReady } from "./homePhraseReady";
 import { homePhrase, type HomePhrase } from "./homePhrase";
 
@@ -26,59 +28,70 @@ export function useHomePhrase(): { phrase: HomePhrase | null; lineColor: string 
   const schedule = useSchedule();
   const now = useNow();
 
+  const [activeCount, setActiveCount] = useState(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") setActiveCount((c) => c + 1);
+    });
+    return () => sub.remove();
+  }, []);
+
+  // A frase só se refaz quando esta chave muda (voltar ao app, viagem, nome).
+  const epoch = homePhraseEpochKey({
+    activeCount,
+    tripId: registro.tripCard?.rideId ?? null,
+    userName: userName.name,
+  });
+
   const [asyncRead, setAsyncRead] = useState<{
-    done: boolean;
+    key: string | null;
     scheduled: ScheduledRequest[];
     presented: PresentedNotification[];
     lastPhraseId: HomePhrase["id"] | null;
   }>({
-    done: false,
+    key: null,
     scheduled: [],
     presented: [],
     lastPhraseId: null,
   });
 
-  const initiatedAsyncRef = useRef(false);
-
   useEffect(() => {
-    if (initiatedAsyncRef.current) return;
-    initiatedAsyncRef.current = true;
-
+    let cancelled = false;
     const db = getSharedDb();
     Promise.all([
       expoPort.listScheduled().catch(() => [] as ScheduledRequest[]),
       expoPort.listPresented().catch(() => [] as PresentedNotification[]),
       db ? readLastPhraseId(db).catch(() => null) : Promise.resolve(null),
     ]).then(([scheduled, presented, lastPhraseId]) => {
-      setAsyncRead({
-        done: true,
-        scheduled,
-        presented,
-        lastPhraseId,
-      });
+      if (cancelled) return;
+      setAsyncRead({ key: epoch, scheduled, presented, lastPhraseId });
     });
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [epoch]);
+
+  const asyncDone = asyncRead.key === epoch;
 
   const ready = homePhraseReady({
     nameLoaded: userName.loaded,
     placesReady: places.status === "ready",
     registroReady: registro.status === "ready",
     scheduleReady: schedule.status === "ready",
-    asyncDone: asyncRead.done,
+    asyncDone,
   });
 
-  const frozenRef = useRef(false);
+  const computedKeyRef = useRef<string | null>(null);
   const [phrase, setPhrase] = useState<HomePhrase | null>(null);
 
   const loaded = userName.loaded;
   const placesReady = places.status === "ready";
   const registroReady = registro.status === "ready";
   const scheduleReady = schedule.status === "ready";
-  const asyncDone = asyncRead.done;
 
   useEffect(() => {
-    if (!ready || frozenRef.current) return;
-    frozenRef.current = true;
+    if (!ready || computedKeyRef.current === epoch) return;
+    computedKeyRef.current = epoch;
 
     const instant = now();
     const lisbonHour = Math.floor(lisbonWallClock(instant).minute / 60);
@@ -115,7 +128,7 @@ export function useHomePhrase(): { phrase: HomePhrase | null; lineColor: string 
         writeLastPhraseId(db, chosen.id, instant).catch(() => {});
       }
     }
-  }, [ready, loaded, placesReady, registroReady, scheduleReady, asyncDone]);
+  }, [ready, epoch, loaded, placesReady, registroReady, scheduleReady, asyncDone]);
 
   const lineColor = useMemo(() => {
     if (!phrase?.arriving) return colors.accent;
