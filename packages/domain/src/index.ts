@@ -79,7 +79,7 @@ export type {
 } from "./passages";
 export { busCandidates, gotoCards, shrunkRideMinutes, walkTimes } from "./goto";
 export type { BusCandidate, BusOption, GotoCandidate, GotoInput, WalkCandidate, WalkOption, WalkRange } from "./goto";
-export { alarmTextParams, applyAlarm, buildWindow, planDepartures, resolveAlarmEventState, snoozePlan } from "./alarms";
+export { alarmAppliesOn, alarmTextParams, applyAlarm, buildWindow, planDepartures, resolveAlarmEventState, snoozePlan } from "./alarms";
 export type {
   AlarmAction,
   AlarmDayData,
