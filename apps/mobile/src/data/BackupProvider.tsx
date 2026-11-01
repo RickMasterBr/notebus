@@ -142,7 +142,9 @@ export function BackupProvider({
         const result = await exclusive(() =>
           exportBackup(raw, { now: at, appVersion, sha256: nativeSha256, io: nativeExportIO, newId: () => uuidv7(at) }),
         );
-        if (!result.ok) {
+        if (!result.ok && result.stage === "dismissed") {
+          toast.show({ title: t("toast.export_dismissed.title") });
+        } else if (!result.ok) {
           toast.show({
             title: t("toast.export_failed.title"),
             body: result.stage === "share" ? t("toast.export_failed.share") : t("toast.export_failed.verify"),

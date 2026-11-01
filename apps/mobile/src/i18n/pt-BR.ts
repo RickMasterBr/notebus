@@ -221,6 +221,7 @@ export const ptBR = {
   "toast.export_failed.title": "Backup não exportado",
   "toast.export_failed.verify": "O arquivo não passou na conferência.",
   "toast.export_failed.share": "Não foi possível abrir o compartilhar.",
+  "toast.export_dismissed.title": "Backup não salvo", // provisório
   "toast.import_done.title": "{{count}} registros restaurados",
   "toast.import_undone.title": "Importação desfeita",
   "toast.import_failed.title": "Backup não importado",
@@ -890,7 +891,7 @@ export const ptBR = {
   "settings.map.ready_hint": "Leiria e arredores. O mapa abre mesmo sem internet; os horários já funcionam sem ela.", // provisório
   "settings.data.backup_row": "Backup", // provisório
   "settings.backup.hint": "Leva seus registros, lugares, avisos e ajustes. Guarde o arquivo onde quiser, como no iCloud Drive.", // provisório
-  "settings.backup.import_hint": "Importar troca tudo o que está neste aparelho pelo conteúdo do arquivo. O app mostra o resumo antes de confirmar.", // provisório
+  "settings.backup.import_hint": "Importar junta o arquivo com o que já está neste aparelho e atualiza o que for o mesmo registro. Dá para desfazer. O app mostra o resumo antes de confirmar.", // provisório
   "settings.back": "Ajustes", // provisório
   "settings.back.a11y": "Voltar para Ajustes", // provisório
   "greeting.morning": "Bom dia", // provisório
