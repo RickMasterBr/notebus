@@ -3,11 +3,13 @@
  * Funções puras: sem expo-*, sem relógio direto, lógica testável pelo Node.
  */
 import {
+  alarmAppliesOn,
   baseTimeAt,
   dayOfWeek,
   formatServiceMinute,
   lisbonWallClock,
   type AlarmEventState,
+  type AlarmRule,
   type SkipReason,
   type TripData,
 } from "@notebus/domain";
@@ -203,11 +205,17 @@ export function alarmFromRow(row: AlarmRow): NewAlarm {
 }
 
 /** 4. O cartão tem aviso ligado com o mesmo horário-base? */
-export function alarmOfCard<T extends { enabled: boolean; optionId: string; anchorBaseMinute: number }>(
+export function alarmOfCard<
+  T extends { enabled: boolean; optionId: string; anchorBaseMinute: number } & Pick<
+    AlarmRule,
+    "id" | "anchorTripId" | "weekdays" | "onceDate" | "validFrom" | "validTo"
+  >,
+>(
   card: { optionId: string; tripId?: string },
   alarms: readonly T[],
   tripOrBase: TripData | number,
   boardPosition?: number,
+  serviceDate?: string,
 ): T | undefined {
   const baseMinute =
     typeof tripOrBase === "number"
@@ -217,7 +225,11 @@ export function alarmOfCard<T extends { enabled: boolean; optionId: string; anch
       : undefined;
   if (baseMinute === undefined) return undefined;
   return alarms.find(
-    (a) => a.enabled && a.optionId === card.optionId && a.anchorBaseMinute === baseMinute,
+    (a) =>
+      a.enabled &&
+      a.optionId === card.optionId &&
+      a.anchorBaseMinute === baseMinute &&
+      (serviceDate === undefined || alarmAppliesOn(a, serviceDate)),
   );
 }
 

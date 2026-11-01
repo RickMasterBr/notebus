@@ -17,7 +17,7 @@ import { patternStopKey } from "./schedule";
 import { fixture, lisbon, stopId, THURSDAY } from "./registroFixture";
 
 describe("T-49: progressão temporal ao vivo (07:58 -> 07:59 -> 08:00)", () => {
-  it("a lista se reordena e descarta viagens passadas a cada minuto sem recarregar", async () => {
+  it("a lista se reordena e descarta viagens passadas a cada minuto sem recarregar (revisto pela D-357)", async () => {
     const f = await fixture();
     const placesRepo = createPlaces(f.db);
 
@@ -105,15 +105,15 @@ describe("T-49: progressão temporal ao vivo (07:58 -> 07:59 -> 08:00)", () => {
     const input0759 = buildGotoInputFromSources(sources, t0759)!;
     const cards0759 = gotoCards(input0759);
 
-    // Às 07:59, a viagem das 08:10 (sair às 07:58) já passou do minuto de saída e foi descartada
+    // Às 07:59, a viagem das 08:10 (sair às 07:58) fica até o ônibus passar, marcada como "Saia agora" (D-357)
     const bus0810At0759 = cards0759.find((c) => c.kind === "bus" && c.tripId === trip0810.id);
-    expect(bus0810At0759).toBeUndefined();
+    expect(bus0810At0759).toBeDefined();
+    expect((bus0810At0759 as any).leaveAtPassed).toBe(true);
 
-    // A próxima viagem (08:40) sobe para ser o primeiro ônibus
     const firstBus0759 = cards0759.find((c) => c.kind === "bus");
     expect(firstBus0759).toBeDefined();
-    expect(firstBus0759!.tripId).toBe(trip0840.id);
-    expect(formatServiceMinute(firstBus0759!.leaveAt)).toBe("08:28");
+    expect(firstBus0759!.tripId).toBe(trip0810.id);
+    expect(formatServiceMinute(firstBus0759!.leaveAt)).toBe("07:58");
 
     // ─── MINUTO 3: 08:00 ───────────────────────────────────────────────────
     const t0800 = lisbon(THURSDAY, "08:00", "00");
@@ -125,8 +125,10 @@ describe("T-49: progressão temporal ao vivo (07:58 -> 07:59 -> 08:00)", () => {
     // Ônibus 08:40: chega 09:14 (554 min).
     // Diferença: 554 - 530 = 24 min >= 15 min (walkBeatsBusMinutes).
     // A opção a pé fica ACIMA do ônibus na lista!
-    expect(cards0800[0]?.kind).toBe("walk");
-    expect(cards0800[1]?.kind).toBe("bus");
-    expect((cards0800[1] as any).tripId).toBe(trip0840.id);
+    // Regra nova (D-357): o ônibus das 08:10 (chega 524 < 530 a pé) ainda não passou e vem primeiro.
+    expect((cards0800[0] as any).tripId).toBe(trip0810.id);
+    expect(cards0800[1]?.kind).toBe("walk");
+    expect(cards0800[2]?.kind).toBe("bus");
+    expect((cards0800[2] as any).tripId).toBe(trip0840.id);
   });
 });
