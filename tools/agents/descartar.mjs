@@ -1,8 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { classificar, formatarLista, ordemDeRemocao, sujeira } from './lib/descarte.mjs';
+import { classificar, formatarLista, nomeLivre, ordemDeRemocao, sujeira } from './lib/descarte.mjs';
 import { removerJuncao } from './lib/juncao.mjs';
 import { pergunta } from './lib/pergunta.mjs';
 
@@ -15,8 +15,8 @@ class Falha extends Error {
 }
 
 const COM_VALOR = ['--raiz', '--repo', '--aplicar', '--destino'];
-const SEM_VALOR = ['--sim', '--apagar-branch'];
-const USO = 'uso: node tools/agents/descartar.mjs --raiz <pasta> [--repo <pasta>] [--aplicar <pista[,pista]>] [--destino <branch>] [--sim] [--apagar-branch]';
+const SEM_VALOR = ['--sim', '--apagar-branch', '--forcar'];
+const USO = 'uso: node tools/agents/descartar.mjs --raiz <pasta> [--repo <pasta>] [--aplicar <pista[,pista]>] [--destino <branch>] [--sim] [--apagar-branch] [--forcar]';
 // pistas que nunca saem, alem da worktree principal e da do --repo
 const PROTEGIDAS = ['notebus-infra'];
 // mesmas pastas de node_modules que o despacho liga com junction (lib/despacho.mjs)
@@ -41,7 +41,7 @@ const ascii = (s) => String(s).replace(/[^\x20-\x7e\n]/g, '?');
 const dizer = (s) => console.log(ascii(s));
 
 // fsmonitor off: o config da pista nao pode fazer o git rodar programa
-const rodarGit = (cwd, args) => spawnSync('git', ['-c', 'core.fsmonitor=false', '-c', 'core.quotepath=off', '-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+const rodarGit = (cwd, args) => spawnSync('git', ['-c', 'core.fsmonitor=false', '-c', 'core.quotepath=off', '-C', cwd, ...args], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });
 const git = (cwd, ...args) => {
   const r = rodarGit(cwd, args);
   if (r.status !== 0) throw new Error(`git ${args[0]} falhou: ${(r.stderr || r.error?.message || '').trim()}`);
@@ -136,7 +136,24 @@ const lerPistas = (repo, raiz, destino) => {
 // stdin fechado, vazio ou ilegivel = nao
 const proximaLinha = pergunta;
 
-const removerPista = (repo, p, falhas) => {
+// guarda a sujeira em <raiz>/_descartadas/<pista>-<hash>[-N]/; lanca se algo falhar
+const salvarSujeira = (raiz, p) => {
+  const dir = nomeLivre(path.join(raiz, '_descartadas', `${p.nome}-${p.hash}`), existsSync);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(path.join(dir, 'mudancas.patch'), git(p.caminho, 'diff', 'HEAD'));
+  writeFileSync(path.join(dir, 'status.txt'), git(p.caminho, 'status', '--porcelain', '--untracked-files=all'));
+  writeFileSync(path.join(dir, 'ultimo-commit.txt'), git(p.caminho, 'log', '-1'));
+  for (const f of sujeira(p.arquivos)) {
+    const de = path.join(p.caminho, f);
+    // so arquivo comum: apagado some, link nao e seguido
+    if (!lstatSync(de, { throwIfNoEntry: false })?.isFile()) continue;
+    const para = path.join(dir, 'arquivos', f);
+    mkdirSync(path.dirname(para), { recursive: true });
+    copyFileSync(de, para);
+  }
+};
+
+const removerPista = (repo, p, falhas, forcar = false) => {
   // junction primeiro: se o git seguisse o link, o node_modules real iria junto
   for (const sub of PASTAS) {
     const nm = path.join(p.caminho, sub, 'node_modules');
@@ -151,11 +168,13 @@ const removerPista = (repo, p, falhas) => {
       return false;
     }
   }
-  let r = rodarGit(repo, ['worktree', 'remove', p.caminho]);
+  // --force so quando a sujeira ja foi salva (forcar)
+  const remover = ['worktree', 'remove', ...(forcar ? ['--force'] : []), p.caminho];
+  let r = rodarGit(repo, remover);
   if (r.status !== 0) {
     // so .agent/ e controle nao rastreado seguram o git: apaga so isso, sem --force
     rmSync(path.join(p.caminho, '.agent'), { recursive: true, force: true });
-    r = rodarGit(repo, ['worktree', 'remove', p.caminho]);
+    r = rodarGit(repo, remover);
   }
   if (r.status !== 0) {
     falhas.push(['WORKTREE_NAO_REMOVIDA', p.nome, r.stderr.trim().split('\n')[0]]);
@@ -201,7 +220,8 @@ const principal = (argv) => {
       continue;
     }
     const motivo = classificar({ pista: p, protegidas: PROTEGIDAS, arquivos: p.arquivos, emUso: p.emUso });
-    if (motivo !== 'ok') {
+    const forcando = motivo === 'PISTA_SUJA' && o.forcar === true;
+    if (motivo !== 'ok' && !forcando) {
       falhas.push([motivo, nome, motivo === 'PISTA_SUJA' ? sujeira(p.arquivos).join(', ') : motivo === 'PISTA_EM_USO' ? 'a trava tem a tarefa' : 'pista protegida']);
       continue;
     }
@@ -209,7 +229,15 @@ const principal = (argv) => {
       falhas.push(['NADA_CONFIRMADO', nome, 'nada removido']);
       continue;
     }
-    if (!removerPista(repo, p, falhas)) continue;
+    if (forcando) {
+      try {
+        salvarSujeira(raiz, p);
+      } catch (e) {
+        falhas.push(['SALVAMENTO_FALHOU', nome, e.message.split('\n')[0]]);
+        continue;
+      }
+    }
+    if (!removerPista(repo, p, falhas, forcando)) continue;
     dizer(`pista ${nome} removida (branch ${p.branch ?? 'solta'} mantida)`);
     if (o['apagar-branch'] && p.branch) apagarBranch(repo, p, falhas);
   }
