@@ -8,9 +8,10 @@
  * - `updated_at` só muda quando algo mudou de verdade.
  * - Soft-delete para opções (`deletedAt`), com token para Desfazer.
  */
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { checkBusOption, uuidv7 } from "@notebus/domain";
+import { inTransaction } from "./inTransaction";
 import { selectLive } from "./query";
 import { option, patternStop, place, route, setting, walkTime } from "./schema";
 
@@ -111,18 +112,6 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
     return run;
   }
 
-  async function inTransaction<T>(body: () => Promise<T>): Promise<T> {
-    await db.run(sql`begin immediate`);
-    try {
-      const result = await body();
-      await db.run(sql`commit`);
-      return result;
-    } catch (error) {
-      await db.run(sql`rollback`).catch(() => undefined);
-      throw error;
-    }
-  }
-
   // ─── Lugares ─────────────────────────────────────────────────────────────
 
   async function getPlace(id: string): Promise<PlaceRow | null> {
@@ -144,7 +133,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
 
   function createPlace(input: CreatePlaceInput, at: number): Promise<PlaceRow> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const id = newId(at);
         const isShortcut = input.isShortcut === true;
         let shortcutOrder: number | null = null;
@@ -176,7 +165,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
 
   function updatePlace(id: string, patch: UpdatePlacePatch, at: number): Promise<PlaceRow> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const existing = await getPlace(id);
         if (!existing) throw new Error("lugar não encontrado");
 
@@ -226,7 +215,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
 
   function reorderShortcuts(placeIdsInOrder: string[], at: number): Promise<void> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const current = await listShortcuts();
         const byId = new Map(current.map((p) => [p.id, p]));
         for (let i = 0; i < placeIdsInOrder.length; i++) {
@@ -278,7 +267,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
   }
 
   function ensureRoute(originPlaceId: string, destinationPlaceId: string, at: number): Promise<RouteRow> {
-    return enqueue(() => inTransaction(() => applyEnsureRoute(originPlaceId, destinationPlaceId, at)));
+    return enqueue(() => inTransaction(db, () => applyEnsureRoute(originPlaceId, destinationPlaceId, at)));
   }
 
   // ─── Tempo a pé do par (D-069, D-087) ────────────────────────────────────
@@ -344,7 +333,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
   }
 
   function setWalkTime(stopId: string, placeId: string, input: SetWalkTimeInput, at: number): Promise<WalkTimeRow> {
-    return enqueue(() => inTransaction(() => applySetWalkTime(stopId, placeId, input, at)));
+    return enqueue(() => inTransaction(db, () => applySetWalkTime(stopId, placeId, input, at)));
   }
 
   // ─── Opções ───────────────────────────────────────────────────────────────
@@ -409,7 +398,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
   }
 
   function addOption(input: AddOptionInput, at: number): Promise<OptionRow> {
-    return enqueue(() => inTransaction(() => applyAddOption(input, at)));
+    return enqueue(() => inTransaction(db, () => applyAddOption(input, at)));
   }
 
   async function applyUpdateOption(id: string, patch: UpdateOptionPatch, at: number): Promise<OptionRow> {
@@ -447,12 +436,12 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
   }
 
   function updateOption(id: string, patch: UpdateOptionPatch, at: number): Promise<OptionRow> {
-    return enqueue(() => inTransaction(() => applyUpdateOption(id, patch, at)));
+    return enqueue(() => inTransaction(db, () => applyUpdateOption(id, patch, at)));
   }
 
   function saveBusOption(input: SaveBusOptionInput, at: number): Promise<OptionRow> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         let routeId = input.routeId;
         if (!routeId) {
           const r = await applyEnsureRoute(input.originPlaceId, input.destinationPlaceId, at);
@@ -494,7 +483,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
 
   function removeOption(id: string, at: number): Promise<{ token: OptionToken }> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const rows = await selectLive(db, option);
         const existing = rows.find((o) => o.id === id);
         if (!existing) throw new Error("opção não encontrada");
@@ -507,7 +496,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
 
   function restoreOption(token: OptionToken, at: number): Promise<void> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         await db.update(option).set({ deletedAt: null, updatedAt: at }).where(eq(option.id, token.option.id));
       }),
     );
@@ -515,7 +504,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
 
   function reorderOptions(optionIdsInOrder: string[], at: number): Promise<void> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const all = await selectLive(db, option);
         const byId = new Map(all.map((o) => [o.id, o]));
         for (let i = 0; i < optionIdsInOrder.length; i++) {
@@ -544,7 +533,7 @@ export function createPlaces(db: AnyDb, deps: PlacesDeps = {}) {
     at: number,
   ): Promise<Record<string, string>> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const rows = await selectLive(db, setting);
         const existing = rows.find((s) => s.key === GOTO_LAST_ORIGIN_KEY);
         const currentMap = ((existing?.value as Record<string, string>) ?? {}) as Record<string, string>;

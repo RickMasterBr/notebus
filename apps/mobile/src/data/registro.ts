@@ -15,7 +15,7 @@
  * síncrono (expo-sqlite) e o dos testes é assíncrono (node:sqlite), e o `db.transaction` do Drizzle não serve aos dois.
  * Sem relógio e sem React aqui: o instante vem de quem chama, para o teste poder fixá-lo.
  */
-import { and, eq, isNotNull, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt, ne, or } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import {
   type Deduction,
@@ -38,6 +38,7 @@ import {
   notBoarded as domainNotBoarded,
   uuidv7,
 } from "@notebus/domain";
+import { inTransaction } from "../db/inTransaction";
 import { selectLive } from "../db/query";
 import { observation, ride } from "../db/schema";
 import { resolveBoarding, serviceMinuteOn } from "./rideView";
@@ -155,18 +156,6 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     return run;
   }
 
-  async function inTransaction<T>(body: () => Promise<T>): Promise<T> {
-    await db.run(sql`begin immediate`);
-    try {
-      const result = await body();
-      await db.run(sql`commit`);
-      return result;
-    } catch (error) {
-      await db.run(sql`rollback`);
-      throw error;
-    }
-  }
-
   const rideState = (r: RideRow): RideState => ({
     id: r.id,
     boardingObservationId: r.boardingObservationId,
@@ -195,7 +184,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       const observationId = newId(at);
       const rideId = newId(at);
       const reopenedRideIds: string[] = [];
-      await inTransaction(async () => {
+      await inTransaction(db, async () => {
         for (const open of await selectLive(db, ride, eq(ride.status, "open"))) {
           await db.update(ride).set({ status: "closed", updatedAt: at }).where(eq(ride.id, open.id));
           reopenedRideIds.push(open.id);
@@ -233,7 +222,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
   /** Desfazer o embarque: apaga o registro e o `ride` (`deleted_at`) e reabre o que ele tinha fechado. */
   function undoBoard(token: BoardToken, at: number): Promise<void> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, token.observationId));
         await db.update(ride).set({ deletedAt: at, updatedAt: at }).where(eq(ride.id, token.rideId));
         for (const id of token.reopenedRideIds) {
@@ -277,7 +266,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       } catch (error) {
         return { ok: false, problem: error instanceof Error ? error.message : String(error) };
       }
-      await inTransaction(async () => {
+      await inTransaction(db, async () => {
         await db.insert(observation).values({
           id: observationId,
           createdAt: input.at,
@@ -310,7 +299,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
   /** Desfazer a descida: "Você continua em viagem" — apaga o `alighted` e reabre o `ride`. */
   function undoAlight(token: AlightToken, at: number): Promise<void> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, token.observationId));
         await db.update(ride).set({ alightingObservationId: null, status: "open", updatedAt: at }).where(eq(ride.id, token.rideId));
       }),
@@ -325,7 +314,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       const row = await rideById(rideId);
       if (!row) throw new Error("viagem não encontrada");
       const { ride: next, boardingKind } = domainNotBoarded(rideState(row));
-      await inTransaction(async () => {
+      await inTransaction(db, async () => {
         await db.update(observation).set({ kind: boardingKind, updatedAt: at }).where(eq(observation.id, row.boardingObservationId));
         await db.update(ride).set({ status: next.status, updatedAt: at }).where(eq(ride.id, rideId));
       });
@@ -336,7 +325,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     return enqueue(async () => {
       const row = await rideById(rideId);
       if (!row) throw new Error("viagem não encontrada");
-      await inTransaction(async () => {
+      await inTransaction(db, async () => {
         await db.update(observation).set({ kind: "boarded", updatedAt: at }).where(eq(observation.id, row.boardingObservationId));
         await db.update(ride).set({ status: "open", updatedAt: at }).where(eq(ride.id, rideId));
       });
@@ -452,7 +441,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       return;
     }
 
-    await inTransaction(async () => {
+    await inTransaction(db, async () => {
       if (observationChanged || row.matchRuleVersion !== MATCH_RULE_VERSION) {
         await db
           .update(observation)
@@ -757,7 +746,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
         return { changed: false, rejected, token: null };
       }
 
-      await inTransaction(async () => {
+      await inTransaction(db, async () => {
         if (kindChange === "passed" && ownRide) {
           // Embarquei → vi passar: o `ride` fecha como `dismissed` e a descida deixa de valer (D-099).
           await db.update(ride).set({ status: "dismissed", alightingObservationId: null, updatedAt: at }).where(eq(ride.id, ownRide.id));
@@ -856,7 +845,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       }
 
       const before = await captureBefore([row.id, alightRow?.id], [parent?.id]);
-      await inTransaction(async () => {
+      await inTransaction(db, async () => {
         await db
           .update(observation)
           .set({
@@ -918,7 +907,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       const ownRide = parent !== undefined && parent.boardingObservationId === row.id ? parent : undefined;
       const alightRow = ownRide ? await alightRowOf(ownRide) : undefined;
       const before = await captureBefore([row.id, alightRow?.id], [parent?.id]);
-      await inTransaction(async () => {
+      await inTransaction(db, async () => {
         await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, row.id));
         if (alightRow) await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, alightRow.id));
         if (ownRide) await db.update(ride).set({ deletedAt: at, updatedAt: at }).where(eq(ride.id, ownRide.id));
@@ -936,7 +925,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
    */
   function restore(token: EditToken, at: number): Promise<void> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         for (const { id, ...rest } of token.observations) {
           await db.update(observation).set({ ...rest, updatedAt: at }).where(eq(observation.id, id));
         }

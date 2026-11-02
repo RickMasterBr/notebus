@@ -22,7 +22,7 @@
  * Depois de **qualquer** gravação ou `undo`, nesta ordem (como o `calendarEdits`): recarrega os horários (`reload`); recasa os
  * registros das datas cujo tipo de dia é um dos afetados (`rematch`; `manual` nunca é recasado, D-085); reagenda os avisos.
  */
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import {
   type CalendarData,
@@ -34,6 +34,7 @@ import {
   planDeclaration,
   uuidv7,
 } from "@notebus/domain";
+import { inTransaction } from "./inTransaction";
 import { selectLive } from "./query";
 import { dayType, patternStop, stopTime, timetable, trip, tripDayType } from "./schema";
 
@@ -102,18 +103,6 @@ export function timetableInForce<T extends { validFrom: string; validTo: string 
 export function createDeclaredTimes<S extends { calendar: CalendarData }>(deps: DeclaredTimesDeps<S>) {
   const { db } = deps;
   const newId = deps.newId ?? ((at: number) => uuidv7(at));
-
-  async function inTransaction<T>(body: () => Promise<T>): Promise<T> {
-    await db.run(sql`begin immediate`);
-    try {
-      const result = await body();
-      await db.run(sql`commit`);
-      return result;
-    } catch (error) {
-      await db.run(sql`rollback`).catch(() => undefined);
-      throw error;
-    }
-  }
 
   async function afterChange(affected: ReadonlySet<DayTypeCode>, nowMs: number): Promise<void> {
     const fresh = await deps.reload();
@@ -186,7 +175,7 @@ export function createDeclaredTimes<S extends { calendar: CalendarData }>(deps: 
 
     const touched: Touched[] = [];
     const result = await deps.exclusive(() =>
-      inTransaction(async (): Promise<{ ok: true } | { ok: false; reason: DeclareRefusal }> => {
+      inTransaction(db, async (): Promise<{ ok: true } | { ok: false; reason: DeclareRefusal }> => {
         const planned = await replan(input, patternId, position);
         if (!planned) return { ok: false, reason: "stale" };
         const { data, here } = planned;
@@ -274,7 +263,7 @@ export function createDeclaredTimes<S extends { calendar: CalendarData }>(deps: 
 
     const undo: DeclaredUndo = async (at) => {
       const applied = await deps.exclusive(() =>
-        inTransaction(async () => {
+        inTransaction(db, async () => {
           // Tudo ou nada: se alguma linha mudou depois (outra gravação), nada é desfeito.
           const currents: { updatedAt: number }[] = [];
           for (const t of touched) {
@@ -311,7 +300,7 @@ export function createDeclaredTimes<S extends { calendar: CalendarData }>(deps: 
     };
 
     const result = await deps.exclusive(() =>
-      inTransaction(async (): Promise<{ ok: true } | { ok: false; reason: "stale" }> => {
+      inTransaction(db, async (): Promise<{ ok: true } | { ok: false; reason: "stale" }> => {
         const data = await readPattern(input.patternId);
         const here = data.stops.find((p) => p.position === input.position);
         if (!here || here.stopId !== input.stopId) return { ok: false, reason: "stale" };
@@ -379,7 +368,7 @@ export function createDeclaredTimes<S extends { calendar: CalendarData }>(deps: 
 
     const undo: DeclaredUndo = async (at) => {
       const applied = await deps.exclusive(() =>
-        inTransaction(async () => {
+        inTransaction(db, async () => {
           // Tudo ou nada: se alguma linha mudou depois, nada é desfeito.
           for (const t of touched) {
             const row = (await db.select().from(t.table).where(eq(t.table.id, t.id)))[0];

@@ -16,6 +16,14 @@ export const DB_NAME = "notebus.db";
 /** Lista das cópias (o expo-sqlite não lista arquivos). Arquivo à parte: restaurar o banco não o apaga. */
 const BACKUP_CATALOG = "notebus-backups.db";
 
+/** Quanto a conexão espera por banco ocupado antes de desistir (a mesma espera nas duas aberturas). */
+export const BUSY_TIMEOUT_MS = 5000;
+
+/** Põe a conexão a esperar por banco ocupado em vez de falhar na hora com "database is locked". */
+export function setBusyTimeout(db: { execAsync: (sql: string) => Promise<unknown> }): Promise<unknown> {
+  return db.execAsync(`PRAGMA busy_timeout = ${BUSY_TIMEOUT_MS}`);
+}
+
 /**
  * Ponto de entrada do banco no aplicativo.
  * Abre o banco local via `expo-sqlite`, dispara a migração protegida
@@ -27,6 +35,7 @@ export async function openNotebusDb(): Promise<{
   migration: MigrationResult;
 }> {
   const sqlite = await SQLite.openDatabaseAsync(DB_NAME);
+  await setBusyTimeout(sqlite);
   const migration = await migrateProtected({
     db: {
       exec: (sql) => sqlite.execAsync(sql),
@@ -98,7 +107,7 @@ export async function expoBackupStore(main: SQLite.SQLiteDatabase): Promise<Back
  */
 export async function openExistingNotebusDb(): Promise<ReturnType<typeof drizzle<typeof schema>> | null> {
   const sqlite = await SQLite.openDatabaseAsync(DB_NAME);
-  await sqlite.execAsync("PRAGMA busy_timeout = 5000");
+  await setBusyTimeout(sqlite);
   const needed = ["observation", "ride", "departure_alarm", "alarm_event"];
   const found = await sqlite.getAllAsync<{ name: string }>(
     `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${needed.map((n) => `'${n}'`).join(", ")})`,

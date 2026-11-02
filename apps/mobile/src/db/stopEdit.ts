@@ -6,9 +6,10 @@
  * updatedAt estritamente crescente.
  */
 import { validateLocation } from "@notebus/domain";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { externalIdTooLong } from "../data/stopEdit";
+import { inTransaction } from "./inTransaction";
 import { selectLive } from "./query";
 import { stop } from "./schema";
 import type { StopPoint } from "./stopLocation";
@@ -37,18 +38,6 @@ export type StopEditUndo = (
 export type SaveStopEditResult =
   | { ok: true; undo: StopEditUndo }
   | { ok: false; reason: SaveStopEditRefusal };
-
-async function inTransaction<T>(db: AnyDb, body: () => Promise<T>): Promise<T> {
-  await db.run(sql`begin immediate`);
-  try {
-    const result = await body();
-    await db.run(sql`commit`);
-    return result;
-  } catch (error) {
-    await db.run(sql`rollback`).catch(() => undefined);
-    throw error;
-  }
-}
 
 const editedSource = (current: "user" | "official" | "official_edited") =>
   current === "official" ? "official_edited" : current;

@@ -10,9 +10,10 @@
  *    `match_status = manual` nunca é recasado e a hora do registro nunca muda (D-085);
  * 3. os avisos de saída são reagendados (`reschedule`, E-06), porque feriados e exceções mudam os dias em que um aviso toca.
  */
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { type CalendarData, type DayTypeCode, dayTypeOf, uuidv7 } from "@notebus/domain";
+import { inTransaction } from "./inTransaction";
 import { selectLive } from "./query";
 import { dateOverride, dayType, holiday, network } from "./schema";
 
@@ -85,22 +86,10 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
   const { db } = deps;
   const newId = deps.newId ?? ((at: number) => uuidv7(at));
 
-  async function inTransaction<T>(body: () => Promise<T>): Promise<T> {
-    await db.run(sql`begin immediate`);
-    try {
-      const result = await body();
-      await db.run(sql`commit`);
-      return result;
-    } catch (error) {
-      await db.run(sql`rollback`).catch(() => undefined);
-      throw error;
-    }
-  }
-
   /** Grava na fila, numa transação, e só então faz as três consequências (a fila do registro não pode estar ocupada por nós). */
   async function commit<T>(write: () => Promise<T>, nowMs: number): Promise<T> {
     const before = deps.calendar();
-    const result = await deps.exclusive(() => inTransaction(write));
+    const result = await deps.exclusive(() => inTransaction(db, write));
     await afterChange(before, nowMs);
     return result;
   }
@@ -117,7 +106,7 @@ export function createCalendarEdits<S extends { calendar: CalendarData }>(deps: 
   /** Como `commit`, mas para o `undo`: devolve o `UndoFn` pronto. Só aplica se a linha não mudou depois da gravação. */
   const undoOf = (restore: (nowMs: number) => Promise<boolean>): UndoFn => async (nowMs) => {
     const before = deps.calendar();
-    const applied = await deps.exclusive(() => inTransaction(() => restore(nowMs)));
+    const applied = await deps.exclusive(() => inTransaction(db, () => restore(nowMs)));
     if (applied) {
       await afterChange(before, nowMs);
     }

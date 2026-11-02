@@ -5,9 +5,10 @@
  * mudou de verdade, exclusão lógica. Quem precisa de relógio recebe o `at` (epoch ms) como argumento.
  * Sem fila nova: cada gravação é uma transação (a fila de uma gravação por vez é a mesma do `places.ts`).
  */
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { applyAlarm, uuidv7, type AlarmEventState, type AlarmReplacement, type AlarmRule, type SkipReason } from "@notebus/domain";
+import { inTransaction } from "./inTransaction";
 import { selectLive } from "./query";
 import { alarmEvent, departureAlarm } from "./schema";
 
@@ -99,18 +100,6 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
     return run;
   }
 
-  async function inTransaction<T>(body: () => Promise<T>): Promise<T> {
-    await db.run(sql`begin immediate`);
-    try {
-      const result = await body();
-      await db.run(sql`commit`);
-      return result;
-    } catch (error) {
-      await db.run(sql`rollback`).catch(() => undefined);
-      throw error;
-    }
-  }
-
   // ─── Avisos ──────────────────────────────────────────────────────────────
 
   async function liveAlarms(): Promise<AlarmRow[]> {
@@ -134,7 +123,7 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
   /** Cria um aviso, sem mexer em nenhum outro (para o que não pede a D-105, como a importação). Use `saveAlarm` na tela. */
   function createAlarm(input: NewAlarm, at: number): Promise<AlarmRow> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const row = rowOf({ ...input, weekdays: [...input.weekdays], id: newId(at) }, at);
         await db.insert(departureAlarm).values(row);
         return row;
@@ -145,7 +134,7 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
   /** Liga ou desliga um aviso. `updated_at` só muda se o estado mudou. */
   function setEnabled(id: string, enabled: boolean, at: number): Promise<AlarmRow> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const existing = await getAlarm(id);
         if (!existing) throw new Error("aviso não encontrado");
         if (existing.enabled === enabled) return existing;
@@ -159,7 +148,7 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
   /** Exclusão lógica (C2): o aviso some das listas e do agendamento, a linha fica. */
   function deleteAlarm(id: string, at: number): Promise<void> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const existing = await getAlarm(id);
         if (!existing) return;
         await db.update(departureAlarm).set({ deletedAt: at, updatedAt: at }).where(eq(departureAlarm.id, id));
@@ -173,7 +162,7 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
    */
   function saveAlarm(input: NewAlarm & { id?: string }, at: number): Promise<SaveAlarmResult> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const before = await liveAlarms();
         const incoming: AlarmRule = { ...input, weekdays: [...input.weekdays], id: input.id ?? newId(at) };
         const { next, replaced } = applyAlarm(before.map(ruleOf), incoming);
@@ -197,7 +186,7 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
         const created = !byId.has(incoming.id);
         const undo = (undoAt: number) =>
           enqueue(() =>
-            inTransaction(async () => {
+            inTransaction(db, async () => {
               for (const row of before) {
                 await db.update(departureAlarm).set({ ...row, updatedAt: undoAt }).where(eq(departureAlarm.id, row.id));
               }
@@ -215,7 +204,7 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
 
   function recordEvent(input: RecordEventInput, at: number): Promise<AlarmEventRow> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const row: AlarmEventRow = {
           id: newId(at),
           alarmId: input.alarmId,
@@ -248,7 +237,7 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
    */
   function upsertPlannedEvents(inputs: readonly PlannedEventInput[], at: number): Promise<void> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const existing = new Map((await selectLive(db, alarmEvent)).map((e) => [e.id, e]));
         for (const input of inputs) {
           const row = existing.get(input.id);
@@ -285,7 +274,7 @@ export function createAlarms(db: AnyDb, deps: AlarmsDeps = {}) {
   /** Atualiza o estado do evento (o botão do aviso, a central de notificações). `updated_at` só muda se algo mudou. */
   function updateEvent(id: string, patch: EventPatch, at: number): Promise<AlarmEventRow> {
     return enqueue(() =>
-      inTransaction(async () => {
+      inTransaction(db, async () => {
         const existing = (await selectLive(db, alarmEvent)).find((e) => e.id === id);
         if (!existing) throw new Error("evento não encontrado");
         const next = {

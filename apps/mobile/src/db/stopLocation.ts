@@ -4,26 +4,15 @@
  * Só grava: quem chama (a tela) valida com `validateLocation` e pergunta "Fica longe de Leiria" antes.
  * Ponto oficial que ganha coordenada vira `official_edited`, para a coordenada ir no backup em `official_edits.stop`.
  */
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { inTransaction } from "./inTransaction";
 import { stop } from "./schema";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
 
 export type StopLocationSource = "manual" | "suggested";
 export type StopPoint = { lat: number; lon: number };
-
-async function inTransaction<T>(db: AnyDb, body: () => Promise<T>): Promise<T> {
-  await db.run(sql`begin immediate`);
-  try {
-    const result = await body();
-    await db.run(sql`commit`);
-    return result;
-  } catch (error) {
-    await db.run(sql`rollback`).catch(() => undefined);
-    throw error;
-  }
-}
 
 async function liveStop(db: AnyDb, stopId: string) {
   const row = (await db.select().from(stop).where(eq(stop.id, stopId)))[0];
