@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { spawnSync } from 'node:child_process';
-import { adquirir, adquirirComEspera, registrarSaida } from './trava.mjs';
+import { adquirir, adquirirComEspera, lerAtivasSemApagar, registrarSaida } from './trava.mjs';
 
 const nova = () => path.join(mkdtempSync(path.join(tmpdir(), 'trava-')), 'ainda-nao-existe');
 const lista = (raiz) => readdirSync(path.join(raiz, '_despacho', '_trava'));
@@ -200,5 +200,18 @@ test('C3 trava: esperar 0 nao dorme; acabou o tempo devolve TRAVA_CHEIA; JA_EM_A
   assert.deepEqual([fim.codigo, fim.esperouS], ['TRAVA_CHEIA', 15]);
   const mesmo = await adquirirComEspera({ raiz, id: 'dono', minutos: 60, max: 1, esperarS: 60, relogio: () => agora, dormir: () => assert.fail('dormiu') });
   assert.equal(mesmo.codigo, 'JA_EM_ANDAMENTO');
+  rmSync(path.dirname(raiz), { recursive: true });
+});
+
+test('lerAtivasSemApagar: nao apaga a vencida que listarAtivas (via adquirir) apagaria', () => {
+  const raiz = nova();
+  adquirir({ raiz, id: 'velha', minutos: 1, max: 2, agora: 0 });
+  const depois = 10 * 60000;
+  assert.deepEqual(lerAtivasSemApagar(raiz, '_trava', depois), []);
+  assert.deepEqual(lista(raiz), ['velha.lock']);
+  assert.deepEqual(lerAtivasSemApagar(raiz, '_trava', 1000).map((t) => t.id), ['velha']);
+  assert.deepEqual(lerAtivasSemApagar(path.join(raiz, 'nada'), '_trava', 0), []);
+  assert.ok(adquirir({ raiz, id: 'nova', minutos: 1, max: 2, agora: depois }).ok);
+  assert.deepEqual(lista(raiz), ['nova.lock']);
   rmSync(path.dirname(raiz), { recursive: true });
 });

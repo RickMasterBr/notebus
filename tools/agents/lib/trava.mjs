@@ -35,14 +35,15 @@ const GRACA_MS = 30000;
 // Lista as travas ativas ({id, inicio}); apaga as vencidas, de dono morto ou ilegiveis antigas.
 // shortcut: so o arquivo VAZIO tem a graca de 30 s (e o que sobrava da criacao antiga, em dois passos);
 // texto torto continua descartado na hora, como o teste V2 exige. Ampliar se aparecer outra forma de ilegivel recente.
-const listarAtivas = (dir, agora) => {
+const listarAtivas = (dir, agora, apagar = true) => {
   const ativas = [];
+  const remove = (arquivo) => { if (apagar) rmSync(arquivo, { force: true }); };
   for (const nome of readdirSync(dir).filter((n) => n.endsWith('.lock'))) {
     const arquivo = path.join(dir, nome);
     const t = lerTrava(arquivo);
     if (t) {
       // vencida ou de dono morto: o dono saiu sem liberar
-      if (agora - t.inicio > 2 * 60000 * t.minutos || donoMorto(t.pid)) rmSync(arquivo, { force: true });
+      if (agora - t.inicio > 2 * 60000 * t.minutos || donoMorto(t.pid)) remove(arquivo);
       else ativas.push({ id: t.id, inicio: t.inicio });
       continue;
     }
@@ -55,9 +56,20 @@ const listarAtivas = (dir, agora) => {
       continue; // sumiu entre a listagem e a leitura
     }
     if (vazia && agora - mtime < GRACA_MS) ativas.push({ id: nome.slice(0, -5), inicio: mtime });
-    else rmSync(arquivo, { force: true });
+    else remove(arquivo);
   }
   return ativas;
+};
+
+// So le: mesma conta de listarAtivas, mas nao apaga as vencidas. Pasta ausente = nenhuma ativa.
+export const lerAtivasSemApagar = (raiz, pasta = '_trava', agora = Date.now()) => {
+  const dir = path.join(raiz, '_despacho', pasta);
+  try {
+    return listarAtivas(dir, agora, false);
+  } catch (e) {
+    if (e.code === 'ENOENT') return [];
+    throw e;
+  }
 };
 
 // Tenta a cada intervaloS ate esperarS segundos; so TRAVA_CHEIA espera (JA_EM_ANDAMENTO volta na hora).
