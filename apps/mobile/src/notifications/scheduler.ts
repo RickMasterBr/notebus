@@ -112,12 +112,19 @@ export function createScheduler(deps: SchedulerDeps) {
       (await selectLive(db, observation, and(eq(observation.kind, "boarded"), isNotNull(observation.tripId), isNotNull(observation.serviceDate))))
         .map((o) => `${o.tripId}|${o.serviceDate}`),
     );
-    const { window } = buildWindow(plan.departures.filter((d) => !boarded.has(`${d.tripId}|${d.serviceDate}`)));
+    // Saída que já passou e já tem evento foi agendada antes e o iOS já a entregou: não reagenda (ideia 227).
+    const events = await repo.listEvents();
+    const known = new Set(events.map((e) => e.id));
+    const { window } = buildWindow(
+      plan.departures.filter(
+        (d) => !boarded.has(`${d.tripId}|${d.serviceDate}`) && !(d.leaveAt < now && known.has(eventIdOf(d.alarmId, d.serviceDate))),
+      ),
+    );
 
     // O que o reagendamento não pode apagar: o "Adiar" ainda no futuro e o aviso de teste pendente. Ficam fora dos 50.
     const pending = await port.listScheduled();
     const snoozedIds = new Set(
-      (await repo.listEvents()).filter((e) => e.state === "snoozed" && e.snoozedTo !== null && e.snoozedTo > now).map((e) => snoozeIdOf(e.id)),
+      events.filter((e) => e.state === "snoozed" && e.snoozedTo !== null && e.snoozedTo > now).map((e) => snoozeIdOf(e.id)),
     );
     const kept = pending.filter((p) => p.at > now && (snoozedIds.has(p.id) || isTestEvent(p.id)));
 
