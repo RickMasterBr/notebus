@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { classificar, formatarLista, nomeLivre, ordemDeRemocao, sujeira } from './lib/descarte.mjs';
+import { classificar, controleDoDispatch, formatarLista, nomeLivre, ordemDeRemocao, sujeira } from './lib/descarte.mjs';
 import { removerJuncao } from './lib/juncao.mjs';
 import { pergunta } from './lib/pergunta.mjs';
 
@@ -174,6 +174,7 @@ const removerPista = (repo, p, falhas, forcar = false) => {
   if (r.status !== 0) {
     // so .agent/ e controle nao rastreado seguram o git: apaga so isso, sem --force
     rmSync(path.join(p.caminho, '.agent'), { recursive: true, force: true });
+    for (const f of controleDoDispatch) rmSync(path.join(p.caminho, f), { force: true });
     r = rodarGit(repo, remover);
   }
   if (r.status !== 0) {

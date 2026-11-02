@@ -309,6 +309,30 @@ suite('M6 e M7 pista com arquivo nao rastreado: PISTA_SUJA, merge feito, branch 
   assert.equal(readFileSync(path.join(amb.alvo, 'pacote.txt'), 'utf8'), 'conteudo');
 });
 
+const gravaControle = (amb) => {
+  mkdirSync(path.join(amb.pista, '.agents'), { recursive: true });
+  writeFileSync(path.join(amb.pista, 'opencode.json'), '{}');
+  writeFileSync(path.join(amb.pista, '.agents', 'hooks.json'), '{}');
+};
+
+suite('C2 arquivos de controle do dispatch nao rastreados: merge limpa pista e branch', (amb) => {
+  gravaControle(amb);
+  const r = rodar(amb, ['--confirmo']);
+  assert.equal(r.code, 0, r.out);
+  assert.equal(existsSync(amb.pista), false);
+  assert.equal(tenta(amb.repo, 'rev-parse', '--verify', '--quiet', `refs/heads/tarefa/${ID}`), null);
+});
+
+suite('C2 controle do dispatch mais lixo.txt: PISTA_SUJA, so o lixo listado, branch mantida', (amb) => {
+  gravaControle(amb);
+  writeFileSync(path.join(amb.pista, 'lixo.txt'), 'l\n');
+  const r = rodar(amb, ['--confirmo']);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /FALHA PISTA_SUJA \?\? lixo\.txt; /);
+  assert.notEqual(tenta(amb.repo, 'rev-parse', '--verify', '--quiet', `refs/heads/tarefa/${ID}`), null);
+  assert.equal(existsSync(amb.pista), true);
+});
+
 suite('M7 conflito nunca apaga a branch', (amb) => {
   writeFileSync(path.join(amb.pista, 'README.md'), 'da tarefa\n');
   git(amb.pista, 'commit', '-q', '-am', 'tarefa');

@@ -213,6 +213,44 @@ test('F4 falha ao salvar: a pista fica e sai SALVAMENTO_FALHOU', () => {
   e.limpar();
 });
 
+const gravaControle = (e, nome) => {
+  mkdirSync(e.p(nome, '.agents'), { recursive: true });
+  writeFileSync(e.p(nome, 'opencode.json'), '{}');
+  writeFileSync(e.p(nome, '.agents', 'hooks.json'), '{}');
+};
+
+test('C3 pista so com os arquivos do dispatch sai sem --forcar', () => {
+  const e = ambiente();
+  gravaControle(e, 'b');
+  const r = rodar(e, ['--aplicar', 'b', '--sim']);
+  assert.equal(r.status, 0, saida(r));
+  assert.ok(!existsSync(e.p('b')) && !existsSync(salvos(e)));
+  e.limpar();
+});
+
+test('C3 --forcar nao copia os arquivos do dispatch para _descartadas', () => {
+  const e = ambiente();
+  gravaControle(e, 'suja');
+  const hash = git(e.p('suja'), 'log', '-1', '--format=%h');
+  const r = rodar(e, ['--aplicar', 'suja', '--sim', '--forcar']);
+  assert.equal(r.status, 0, saida(r));
+  const d = path.join(salvos(e), `suja-${hash}`, 'arquivos');
+  assert.ok(existsSync(path.join(d, 'src', 'x.ts')));
+  assert.ok(!existsSync(path.join(d, 'opencode.json')) && !existsSync(path.join(d, '.agents')));
+  e.limpar();
+});
+
+test('C3 pista com os dois arquivos e lixo.txt segue PISTA_SUJA so com o lixo', () => {
+  const e = ambiente();
+  gravaControle(e, 'c');
+  writeFileSync(e.p('c', 'lixo.txt'), 'l\n');
+  const r = rodar(e, ['--aplicar', 'c', '--sim']);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /^PISTA_SUJA c lixo\.txt$/m);
+  assert.ok(existsSync(e.p('c')));
+  e.limpar();
+});
+
 test('F5 --forcar nao remove protegida nem em uso, com a mesma mensagem', () => {
   const e = ambiente();
   const r = rodar(e, ['--aplicar', 'notebus-infra,uso', '--sim', '--forcar']);
