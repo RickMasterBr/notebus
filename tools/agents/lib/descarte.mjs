@@ -1,7 +1,13 @@
 // Puro: sem fs nem processo. Decide a recusa e monta a lista; quem le o git e quem apaga fica no descartar.mjs.
 
 // .agent/ e a junção de node_modules sao do fluxo, nao trabalho do worker
-export const ehControle = (arquivo) => /^(\.agent|node_modules)(\/|$)/.test(arquivo.replace(/\\/g, '/')) || /(^|\/)node_modules$/.test(arquivo);
+// os dois arquivos que o dispatch grava na raiz da pista (lib/despacho.mjs); so estes caminhos exatos
+export const controleDoDispatch = ['opencode.json', '.agents/hooks.json'];
+
+export const ehControle = (arquivo) => {
+  const a = arquivo.replace(/\\/g, '/');
+  return /^(\.agent|node_modules)(\/|$)/.test(a) || /(^|\/)node_modules$/.test(arquivo) || controleDoDispatch.includes(a);
+};
 
 export const sujeira = (arquivos) => arquivos.filter((a) => !ehControle(a));
 

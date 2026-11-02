@@ -7,6 +7,7 @@ import { lerJson } from './lib/json.mjs';
 import { lerContrato, ContratoErro } from './lib/contrato.mjs';
 import { planejar } from './lib/despacho.mjs';
 import { removerJuncao } from './lib/juncao.mjs';
+import { controleDoDispatch, ehControle } from './lib/descarte.mjs';
 
 class Falha extends Error {
   constructor(codigo, texto, saida, linhas = []) {
@@ -100,11 +101,13 @@ const limpar = ({ repo, plano, destino }) => {
   const aMao = `o merge ja ocorreu em ${destino}: falta limpar a pista e a branch a mao`;
   for (const { para } of plano.junctions) removerJuncao(para);
   if (existsSync(pista)) {
-    const sujos = git(pista, 'status', '--porcelain', '--untracked-files=all').split('\n').filter((l) => l && !l.startsWith('?? .agent/'));
+    const sujos = git(pista, 'status', '--porcelain', '--untracked-files=all').split('\n').filter((l) => l && !(l.startsWith('?? ') && ehControle(l.slice(3))));
     if (sujos.length) throw new Falha('PISTA_SUJA', `${sujos.join(', ')}; ${aMao}`, 1);
     const agente = path.join(pista, '.agent');
     // .agent e da pista e nao e link: o git recusaria remover a worktree por causa dele
     if (existsSync(agente) && lstatSync(agente).isDirectory()) rmSync(agente, { recursive: true, force: true });
+    // os dois arquivos do dispatch tambem seguram o remove (nao rastreados)
+    for (const f of controleDoDispatch) rmSync(path.join(pista, f), { force: true });
     const r = rodarGit(repo, ['worktree', 'remove', pista]);
     if (r.status !== 0) throw new Falha('PISTA_SUJA', `${r.stderr.trim()}; ${aMao}`, 1);
   }
