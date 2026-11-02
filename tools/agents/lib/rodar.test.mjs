@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { RodarErro, parseId, caminhosPadrao, lerCommitVigente, caminhoGate, resumoAntes, veredito, resumoFinal, lerPct, pastaLivre } from './rodar.mjs';
+import { RodarErro, parseId, caminhosPadrao, lerCommitVigente, caminhoGate, resumoAntes, veredito, resumoFinal, motivoDe, lerPct, pastaLivre } from './rodar.mjs';
 import path from 'node:path';
 
 const cab = (harness = 'claude') => ({
@@ -82,4 +82,50 @@ test('R3 pastaLivre pula as pastas que existem', () => {
   const tem = new Set([path.join('a', 'x'), path.join('a', 'x--2')]);
   assert.equal(pastaLivre('a', 'x', (p) => tem.has(p)), path.join('a', 'x--3'));
   assert.equal(pastaLivre('a', 'y', (p) => tem.has(p)), path.join('a', 'y'));
+});
+
+// ---- v1-infra-07: limites de concorrencia deixam de parecer uso errado ----
+
+test('L10 veredito so muda no codigo 2 e com um dos dois motivos', () => {
+  assert.equal(veredito(2, false, 'GATE_OCUPADO'), 'GATE OCUPADO');
+  assert.equal(veredito(2, true, 'GATE_OCUPADO'), 'GATE OCUPADO');
+  assert.equal(veredito(2, false, 'TRAVA_CHEIA'), 'DESPACHOS EM ANDAMENTO');
+  assert.equal(veredito(2, true, 'TRAVA_CHEIA'), 'DESPACHOS EM ANDAMENTO');
+  for (const motivo of [undefined, null, '', 'OUTRO', 'gate_ocupado']) assert.equal(veredito(2, false, motivo), 'USO ERRADO', String(motivo));
+  // o motivo nunca contamina os outros codigos
+  for (const motivo of ['GATE_OCUPADO', 'TRAVA_CHEIA']) {
+    assert.equal(veredito(0, true, motivo), 'APROVADO');
+    assert.equal(veredito(3, true, motivo), 'INCONCLUSIVO');
+    assert.equal(veredito(1, true, motivo), 'REPROVADO');
+    assert.equal(veredito(1, false, motivo), 'FALHOU');
+  }
+});
+
+test('L11 resumoFinal com motivo traz o proximo passo certo e o id da tarefa', () => {
+  const gate = resumoFinal(null, null, 2, { motivo: 'GATE_OCUPADO', id: 'tarefa-x' });
+  assert.ok(gate.includes('Veredito: GATE OCUPADO'), gate);
+  assert.match(gate, /Proximo passo: espere o outro gate terminar e rode \.\\_gate-bin\\regate\.ps1 tarefa-x/);
+  assert.ok(!gate.includes('avise a coordenacao'), gate);
+
+  const trava = resumoFinal(null, null, 2, { motivo: 'TRAVA_CHEIA', id: 'tarefa-x' });
+  assert.ok(trava.includes('Veredito: DESPACHOS EM ANDAMENTO'), trava);
+  assert.match(trava, /Proximo passo: ha 2 despachos em andamento; espere um terminar e rode de novo \.\\notebus\\tools\\agents\\rodar\.ps1 tarefa-x/);
+  assert.ok(!trava.includes('avise a coordenacao'), trava);
+
+  const sem = resumoFinal(null, null, 2, { id: 'tarefa-x' });
+  assert.ok(sem.includes('Veredito: USO ERRADO'), sem);
+  assert.ok(sem.includes('Proximo passo: avise a coordenacao que terminou'), sem);
+  for (const t of [gate, trava, sem]) assert.doesNotMatch(t, /undefined|null|NaN/);
+});
+
+test('L12 motivoDe so aceita a linha FALHA no inicio e o gate so explica GATE_OCUPADO', () => {
+  assert.equal(motivoDe('FALHA TRAVA_CHEIA ativos: a, b\n', null), 'TRAVA_CHEIA');
+  assert.equal(motivoDe('FALHA GATE_OCUPADO outro gate em andamento (tarefa-y)\n', null), 'GATE_OCUPADO');
+  assert.equal(motivoDe('linha antes\nFALHA TRAVA_CHEIA ativos: a\nlinha depois\n', null), 'TRAVA_CHEIA');
+  assert.equal(motivoDe(null, 'FALHA GATE_OCUPADO outro gate em andamento (tarefa-y)\n'), 'GATE_OCUPADO');
+  // o gate-stderr.txt nao explica TRAVA_CHEIA
+  assert.equal(motivoDe(null, 'FALHA TRAVA_CHEIA ativos: a\n'), null);
+  for (const [err, gate] of [['', ''], [undefined, undefined], ['texto FALHA GATE_OCUPADO no meio', null], ['FALHA OUTRA coisa', null]]) {
+    assert.equal(motivoDe(err, gate), null, String(err));
+  }
 });

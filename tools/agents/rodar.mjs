@@ -4,7 +4,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { lerContrato, ContratoErro } from './lib/contrato.mjs';
-import { RodarErro, parseId, caminhosPadrao, lerCommitVigente, caminhoGate, resumoAntes, resumoFinal, LEIA_ME, ARQUIVOS_GUARDADOS, caminhosRegistro, lerPct, pastaLivre } from './lib/rodar.mjs';
+import { RodarErro, parseId, caminhosPadrao, lerCommitVigente, caminhoGate, resumoAntes, resumoFinal, motivoDe, LEIA_ME, ARQUIVOS_GUARDADOS, caminhosRegistro, lerPct, pastaLivre } from './lib/rodar.mjs';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 // toda saida e ASCII: o PowerShell do Rick mostra acento mal
@@ -45,14 +45,28 @@ const pedeEnter = async () => (await proximaLinha()) !== null;
 const despachar = (args) =>
   new Promise((resolve, reject) => {
     // RODAR_DISPATCH_TESTE: gancho so de teste, troca o dispatch.mjs por um falso
-    const filho = spawn(process.execPath, [process.env.RODAR_DISPATCH_TESTE ?? path.join(aqui, 'dispatch.mjs'), ...args], { stdio: 'inherit' });
+    const filho = spawn(process.execPath, [process.env.RODAR_DISPATCH_TESTE ?? path.join(aqui, 'dispatch.mjs'), ...args], { stdio: ['inherit', 'inherit', 'pipe'] });
+    const pedacos = [];
+    // o stderr continua aparecendo no terminal byte a byte; aqui so guardamos uma copia
+    filho.stderr.on('data', (p) => {
+      pedacos.push(p);
+      process.stderr.write(p);
+    });
     filho.on('error', reject);
-    filho.on('close', (c) => resolve(c ?? 1));
+    filho.on('close', (c) => resolve({ codigo: c ?? 1, stderr: Buffer.concat(pedacos).toString('utf8') }));
   });
 
 const lerOpcional = (arq) => {
   try {
     return JSON.parse(readFileSync(arq, 'utf8'));
+  } catch {
+    return null;
+  }
+};
+
+const lerTextoOpcional = (arq) => {
+  try {
+    return readFileSync(arq, 'utf8');
   } catch {
     return null;
   }
@@ -140,7 +154,7 @@ const principal = async (argv) => {
   imprime(resumoAntes(cab, { gateCommit }));
   if (!o.sim && !o['dry-run'] && !(await pedeEnter())) throw new RodarErro('CANCELADO', 'nada foi despachado');
 
-  const codigo = await despachar([
+  const { codigo, stderr } = await despachar([
     contrato, '--repo', repo, '--raiz', raiz, '--schemas', schemas, '--gate', gate,
     ...(o['so-estatico'] ? ['--gate-so-estatico'] : []),
     ...(o['harness-falso'] ? ['--harness-falso', path.resolve(o['harness-falso'])] : []),
@@ -149,7 +163,9 @@ const principal = async (argv) => {
   if (!o['dry-run']) {
     const dir = path.join(raiz, '_despacho', id);
     const achado = (nome) => (existsSync(path.join(dir, nome)) ? path.join(dir, nome) : null);
-    imprime(resumoFinal(lerOpcional(path.join(dir, 'meta.json')), lerOpcional(path.join(dir, 'gate.json')), codigo, { relatorio: achado('relatorio.json'), meta: achado('meta.json') }));
+    // codigo 2 pode ser limite de concorrencia: o motivo vem do stderr do dispatch ou do gate
+    const motivo = codigo === 2 ? motivoDe(stderr, lerTextoOpcional(path.join(dir, 'gate-stderr.txt'))) : null;
+    imprime(resumoFinal(lerOpcional(path.join(dir, 'meta.json')), lerOpcional(path.join(dir, 'gate.json')), codigo, { relatorio: achado('relatorio.json'), meta: achado('meta.json'), motivo, id }));
     if (!o['sem-registro'] && codigo !== 2) await registrar(o, { id, contrato, raiz, docs });
   }
   leitor?.close();
