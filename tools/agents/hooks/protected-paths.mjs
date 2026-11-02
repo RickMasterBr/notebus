@@ -60,8 +60,18 @@ const eLeitura = (seg) => {
 const semInofensivos = (c) => c.replace(/\d*>&\d+/g, '').replace(/\d*>>?\s*(\$null|nul|\/dev\/null)\b/gi, '');
 
 // R4: o token (relativo a base) casa com a entrada nas primeiras min(partes) partes
-const globParte = (g, parte) =>
-  new RegExp('^' + g.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$', 'i').test(parte);
+// classe invalida (a[b) compara como texto: [ e ] literais, * e ? continuam curingas; outro erro sobe (fail-closed)
+const globParte = (g, parte) => {
+  const monta = (esc) => new RegExp('^' + g.replace(esc, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$', 'i');
+  let re;
+  try {
+    re = monta(/[.+^${}()|\\]/g);
+  } catch (e) {
+    if (!(e instanceof SyntaxError)) throw e;
+    re = monta(/[.+^${}()|\\[\]]/g);
+  }
+  return re.test(parte);
+};
 const globCasa = (rel, entry) => {
   const a = rel.split('/').filter(Boolean);
   const b = entry.split('/');

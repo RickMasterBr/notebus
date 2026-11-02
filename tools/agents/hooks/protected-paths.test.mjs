@@ -466,3 +466,34 @@ test('C4 chaves em ferramenta de escrita sem caminho achado; o main as grava no 
     });
   }
 }
+
+// ideia 233: colchete sem par nao nega sozinho; classe valida e curinga continuam alcancando area e controle
+{
+  const areas = path.join(tmp(), 'areas.json');
+  writeFileSync(areas, JSON.stringify(['packages/domain/']));
+  const casos = [
+    ['echo a[b', false],
+    ['echo "arr[0" > /dev/null', false],
+    ['node -e "const a=[1,2]; console.log(a[0)"', false],
+    ['git add packages/domain a[b', true],
+    ['git add pack[a]ges/domain/src/x.ts', true],
+    ['git add packages/domain/sr[c]/x.ts', true],
+    ['git add .agents/hooks.json', true],
+    ['git add .agents/ho[o]ks.json', true],
+    ['echo pack[ages', false],
+    ['git add packages/dom[ain*', false],
+    ['git add packages/domain*', true],
+  ];
+  for (const [cmd, negado] of casos) {
+    test(`233: ${negado ? 'nega' : 'libera'} "${cmd}"`, () => {
+      assert.equal(decidir(claudeBash(mkRoot(), cmd), { areas }).negar, negado);
+    });
+  }
+}
+
+test('233: padrao invalido compara como texto, com * curinga (area com [ no nome)', () => {
+  const areas = path.join(tmp(), 'areas.json');
+  writeFileSync(areas, JSON.stringify(['packages/do[main/']));
+  assert.equal(decidir(claudeBash(mkRoot(), 'git add packages/do[ma*'), { areas }).negar, true);
+  assert.equal(decidir(claudeBash(mkRoot(), 'git add packages/do[xa*'), { areas }).negar, false);
+});
