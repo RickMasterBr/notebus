@@ -346,3 +346,68 @@ test('R8 --dry-run, id invalido e contrato ausente nao registram nem arquivam', 
   assert.equal(existsSync(p.registros), false);
   limpa(p.amb);
 });
+
+// ---- v1-infra-07: limites de concorrencia deixam de parecer uso errado ----
+
+// dispatch falso pelo gancho RODAR_DISPATCH_TESTE: escreve o texto no stderr e sai com o codigo
+const dispatchFalha = (amb, texto, codigo = 2) => {
+  const arq = path.join(amb.tmp, `dispatch-falha-${codigo}.mjs`);
+  writeFileSync(arq, `process.stderr.write(${JSON.stringify(texto)});\nprocess.exit(${codigo});\n`);
+  return arq;
+};
+
+// como rodar(), mas guarda stdout e stderr separados para provar o repasse byte a byte
+const rodarStreams = (amb, args, { input = '', env = {}, raiz = amb.raiz } = {}) => {
+  const log = path.join(amb.tmp, 'dispatch.log');
+  const r = spawnSync(process.execPath, [RODAR, ...args, '--raiz', raiz, '--docs', amb.docs, '--schemas', SCHEMAS, '--gate-vigente', amb.vigente], {
+    encoding: 'utf8', input, timeout: 60000, env: { ...process.env, RODAR_DISPATCH_TESTE: FALSO, RODAR_FALSO_LOG: log, ...env },
+  });
+  return { code: r.status, stdout: r.stdout, stderr: r.stderr, out: `${r.stdout}${r.stderr}` };
+};
+
+test('L10 TRAVA_CHEIA: stderr inteiro no terminal, veredito e proximo passo, sem registro', () => {
+  const p = pronto();
+  const stderr = 'FALHA TRAVA_CHEIA ativos: tarefa-a, tarefa-b\nlinha seguinte\n';
+  const r = rodarStreams(p.amb, ['tarefa-x', '--sim', '--csv', p.csv, '--registros', p.registros], { raiz: p.raiz, env: { RODAR_DISPATCH_TESTE: dispatchFalha(p.amb, stderr) } });
+  assert.equal(r.code, 2, r.out);
+  assert.equal(r.stderr, stderr);
+  assert.match(r.stdout, /Veredito: DESPACHOS EM ANDAMENTO/);
+  assert.match(r.stdout, /Proximo passo: ha 2 despachos em andamento; espere um terminar e rode de novo \.\\notebus\\tools\\agents\\rodar\.ps1 tarefa-x/);
+  assert.equal(existsSync(p.csv), false);
+  assert.equal(existsSync(p.registros), false);
+  limpa(p.amb);
+});
+
+test('L11 GATE_OCUPADO vem do stderr do dispatch ou do gate-stderr.txt', () => {
+  let p = pronto();
+  writeFileSync(path.join(p.dir, 'gate-stderr.txt'), 'FALHA GATE_OCUPADO outro gate em andamento (tarefa-y)\n');
+  let r = rodarStreams(p.amb, ['tarefa-x', '--sim'], { raiz: p.raiz, env: { RODAR_DISPATCH_TESTE: dispatchFalha(p.amb, 'saida do dispatch sem a linha\n') } });
+  assert.equal(r.code, 2, r.out);
+  assert.equal(r.stderr, 'saida do dispatch sem a linha\n');
+  assert.match(r.stdout, /Veredito: GATE OCUPADO/);
+  assert.match(r.stdout, /Proximo passo: espere o outro gate terminar e rode \.\\_gate-bin\\regate\.ps1 tarefa-x/);
+  limpa(p.amb);
+
+  p = pronto();
+  r = rodarStreams(p.amb, ['tarefa-x', '--sim'], { raiz: p.raiz, env: { RODAR_DISPATCH_TESTE: dispatchFalha(p.amb, 'FALHA GATE_OCUPADO outro gate em andamento (tarefa-y)\n') } });
+  assert.equal(r.code, 2, r.out);
+  assert.match(r.stdout, /Veredito: GATE OCUPADO/);
+  limpa(p.amb);
+});
+
+test('L12 a linha FALHA so muda o veredito com codigo 2', () => {
+  let p = pronto();
+  let r = rodarStreams(p.amb, ['tarefa-x', '--sim', '--sem-registro'], { raiz: p.raiz, env: { RODAR_DISPATCH_TESTE: dispatchFalha(p.amb, 'FALHA GATE_OCUPADO outro gate em andamento\n', 1) } });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.stdout, /Veredito: FALHOU/);
+  assert.match(r.stdout, /Proximo passo: avise a coordenacao que terminou/);
+  limpa(p.amb);
+
+  p = pronto();
+  r = rodarStreams(p.amb, ['tarefa-x', '--sim'], { raiz: p.raiz, env: { RODAR_DISPATCH_TESTE: dispatchFalha(p.amb, 'qualquer coisa no stderr\n') } });
+  assert.equal(r.code, 2, r.out);
+  assert.equal(r.stderr, 'qualquer coisa no stderr\n');
+  assert.match(r.stdout, /Veredito: USO ERRADO/);
+  assert.match(r.stdout, /Proximo passo: avise a coordenacao que terminou/);
+  limpa(p.amb);
+});

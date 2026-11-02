@@ -48,17 +48,44 @@ export const resumoAntes = (cab, { gateCommit }) => {
   return [...linhas.map(([k, v]) => `${k.padEnd(14)}${v}`), 'ENTER para despachar, Ctrl+C para cancelar'].join('\n');
 };
 
-export const veredito = (codigo, temGate) => {
+// limites de concorrencia que o dispatch/gate anunciam com uma linha "FALHA <motivo> ..."
+const MOTIVOS = ['TRAVA_CHEIA', 'GATE_OCUPADO'];
+
+const achaFalha = (texto, motivos) => {
+  if (typeof texto !== 'string') return null;
+  for (const linha of texto.split(/\r?\n/)) {
+    const t = linha.trim();
+    for (const m of motivos) if (t.startsWith(`FALHA ${m}`)) return m;
+  }
+  return null;
+};
+
+// o stderr do dispatch manda; o gate-stderr.txt so explica GATE_OCUPADO
+export const motivoDe = (stderr, gateStderr) => achaFalha(stderr, MOTIVOS) ?? achaFalha(gateStderr, ['GATE_OCUPADO']);
+
+export const veredito = (codigo, temGate, motivo) => {
   if (codigo === 0) return 'APROVADO';
   if (codigo === 3) return 'INCONCLUSIVO';
-  if (codigo === 2) return 'USO ERRADO';
+  if (codigo === 2) {
+    if (motivo === 'GATE_OCUPADO') return 'GATE OCUPADO';
+    if (motivo === 'TRAVA_CHEIA') return 'DESPACHOS EM ANDAMENTO';
+    return 'USO ERRADO';
+  }
   return codigo === 1 && temGate ? 'REPROVADO' : 'FALHOU';
 };
 
 const tem = (v) => v !== undefined && v !== null && !(typeof v === 'number' && Number.isNaN(v));
 
-export const resumoFinal = (meta, gateJson, codigo, { relatorio, meta: caminhoMeta } = {}) => {
-  const linhas = [`Veredito: ${veredito(codigo, tem(gateJson))}`];
+// so os dois motivos de concorrencia trocam o proximo passo
+const proximoPasso = (motivo, id) => {
+  const alvo = tem(id) ? ` ${id}` : '';
+  if (motivo === 'GATE_OCUPADO') return `Proximo passo: espere o outro gate terminar e rode .\\_gate-bin\\regate.ps1${alvo}`;
+  if (motivo === 'TRAVA_CHEIA') return `Proximo passo: ha 2 despachos em andamento; espere um terminar e rode de novo .\\notebus\\tools\\agents\\rodar.ps1${alvo}`;
+  return 'Proximo passo: avise a coordenacao que terminou';
+};
+
+export const resumoFinal = (meta, gateJson, codigo, { relatorio, meta: caminhoMeta, motivo, id } = {}) => {
+  const linhas = [`Veredito: ${veredito(codigo, tem(gateJson), motivo)}`];
   if (!tem(meta)) linhas.push('Sem meta.json');
   else {
     const m = meta.meta ?? {};
@@ -70,7 +97,7 @@ export const resumoFinal = (meta, gateJson, codigo, { relatorio, meta: caminhoMe
   }
   if (tem(relatorio)) linhas.push(`Relatorio: ${relatorio}`);
   if (tem(caminhoMeta)) linhas.push(`Meta: ${caminhoMeta}`);
-  linhas.push('Proximo passo: avise a coordenacao que terminou');
+  linhas.push(proximoPasso(motivo, id));
   return linhas.join('\n');
 };
 
