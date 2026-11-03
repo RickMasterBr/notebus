@@ -63,5 +63,11 @@ const v4 = [
   `INSERT INTO holiday (id, created_at, updated_at, source, network_id, date, name, scope, recurring) VALUES ('hol-man', ${c}, 'user', 'net', '2026-03-03', 'Dia Inventado', 'manual', 1)`,
 ];
 
+/** Versão 5 (0004, formato 2 do seed): as linhas da v4 mais uma exceção de data da viagem `trip` (`trip_date`). */
+const v5 = [
+  ...v4,
+  `INSERT INTO trip_date (id, created_at, updated_at, source, official_key, trip_id, date, kind) VALUES ('td', ${c}, 'official', 'exemplo/X1/ida/0810/date/2026-12-25', 'trip', '2026-12-25', 'not_on')`,
+];
+
 /** Fixture de cada versão, pelo número da versão (= quantas migrações reais rodaram). */
-export const fixtures: Record<number, readonly string[]> = { 1: v1, 2: v2, 3: v3, 4: v4 };
+export const fixtures: Record<number, readonly string[]> = { 1: v1, 2: v2, 3: v3, 4: v4, 5: v5 };

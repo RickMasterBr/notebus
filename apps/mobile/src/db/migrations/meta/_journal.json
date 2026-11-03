@@ -29,6 +29,13 @@
       "when": 1791657141151,
       "tag": "0003_abandoned_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793694003671,
+      "tag": "0004_lumpy_rockslide",
+      "breakpoints": true
     }
   ]
 }

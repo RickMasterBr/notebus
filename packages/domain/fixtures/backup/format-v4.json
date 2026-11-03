@@ -1,7 +1,7 @@
 {
   "format": "notebus-backup",
   "formatVersion": 4,
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "appVersion": "1.0.0",
   "exportedAt": "2026-10-08T17:00:00Z",
   "network": {
@@ -40,7 +40,7 @@
     "departure_alarm": 1,
     "official_edits": 1
   },
-  "checksum": "sha256:f992a0a4e317caa9309ff6b1a09ab0a22b0baad61cfc42fad77aedf2da2b8537",
+  "checksum": "sha256:76869a5153c57c6352d389ab1be938371aba07f24783cea9bfd1932e025352cc",
   "tables": {
     "observation": [
       {

@@ -164,6 +164,18 @@ export const tripDayType = sqliteTable("trip_day_type", {
   dayTypeId: text("day_type_id").notNull(),
 });
 
+/** Exceção de data de uma viagem (formato 2 do seed): `not_on` não circula, `also_on` circula. Fora do backup. */
+export const tripDate = sqliteTable(
+  "trip_date",
+  {
+    ...officialCommon(),
+    tripId: text("trip_id").notNull(),
+    date: text("date").notNull(),
+    kind: text("kind", { enum: ["not_on", "also_on"] }).notNull(),
+  },
+  (t) => [unique("trip_date_trip_date").on(t.tripId, t.date)],
+);
+
 export const stopTime = sqliteTable("stop_time", {
   ...officialCommon(),
   tripId: text("trip_id").notNull(),
@@ -316,7 +328,7 @@ export const setting = sqliteTable("setting", {
 /** Todas as tabelas, na ordem do plano. */
 export const tables = {
   network, dataset, stop, line, pattern, patternStop,
-  dayType, holiday, dateOverride, season, timetable, trip, tripDayType, stopTime, frequency, frequencyDayType,
+  dayType, holiday, dateOverride, season, timetable, trip, tripDayType, tripDate, stopTime, frequency, frequencyDayType,
   observation, ride,
   place, walkTime, route, option, setting,
   departureAlarm, alarmEvent,

@@ -20,7 +20,7 @@ async function setup() {
 
 const IMPORTED = [
   "network", "day_type", "season", "holiday", "dataset", "line", "stop", "pattern", "pattern_stop",
-  "timetable", "trip", "trip_day_type", "stop_time",
+  "timetable", "trip", "trip_day_type", "stop_time", "trip_date",
 ];
 const TIME = 1_790_000_000_000;
 const now = () => TIME;
@@ -70,7 +70,7 @@ describe("importMobilis com o exemplo inventado", () => {
 
     expect(counts(conn)).toEqual({
       network: 1, day_type: 3, season: 1, holiday: 2, dataset: 1, line: 1, stop: 3, pattern: 1, pattern_stop: 3,
-      timetable: 1, trip: 2, trip_day_type: 3, stop_time: 6,
+      timetable: 1, trip: 2, trip_day_type: 3, stop_time: 6, trip_date: 0,
     });
     expect(Object.keys(report.tables)).toEqual(expect.arrayContaining(IMPORTED));
     expect(Object.fromEntries(Object.entries(report.tables).map(([t, r]) => [t, r.inserted]))).toEqual(counts(conn));
@@ -94,10 +94,11 @@ describe("importMobilis com o exemplo inventado", () => {
     const conn = await setup();
     const seen: string[] = [];
     await importMobilis(conn, exampleSeed(), { now, onProgress: (p) => seen.push(`${p.step}/${p.of} ${p.table}`) });
-    expect(seen).toHaveLength(13);
-    expect(seen[0]).toBe("1/13 network");
-    expect(seen[3]).toBe("4/13 holiday");
-    expect(seen[12]).toBe("13/13 stop_time");
+    expect(seen).toHaveLength(14);
+    expect(seen[0]).toBe("1/14 network");
+    expect(seen[3]).toBe("4/14 holiday");
+    expect(seen[12]).toBe("13/14 stop_time");
+    expect(seen[13]).toBe("14/14 trip_date");
   });
 
   it("importar duas vezes: mesmas contagens, nada alterado, dataset não duplica", async () => {
