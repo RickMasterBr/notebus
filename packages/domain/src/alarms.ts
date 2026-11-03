@@ -113,7 +113,7 @@ function departureOn(option: AlarmOption, alarm: AlarmRule, date: string, day: A
   const boardStop = option.pattern.stops.find((s) => s.position === option.boardPosition);
   const base = baseTimeAt(trip, option.boardPosition);
   if (!boardStop || !base) return null;
-  const target = { tripId: trip.id, patternId: trip.patternId, position: option.boardPosition, stopId: boardStop.stopId, dayType: day.dayType.dayType, validFrom: day.validFrom(trip.id) };
+  const target = { tripId: trip.id, patternId: trip.patternId, family: option.pattern.family, position: option.boardPosition, stopId: boardStop.stopId, dayType: day.dayType.dayType, validFrom: day.validFrom(trip.id) };
   const board = expectedTime(base, day.records, { target, now: input.now, config });
   const beAtStop = displayBeAtStop(board.beAtStop);
   const leaveMinute = Math.floor(beAtStop - walkTimes(option.walkToBoard).leave);

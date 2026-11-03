@@ -171,7 +171,7 @@ function rawBusCandidates(option: BusOption, input: GotoInput): RawBusCandidate[
   const expectedAt = (trip: TripData, position: number, stopId: string): ExpectedTime | null => {
     const base = baseTimeAt(trip, position);
     if (!base) return null;
-    const target = { tripId: trip.id, patternId: trip.patternId, position, stopId, dayType: input.dayType, validFrom: input.validFrom(trip.id) };
+    const target = { tripId: trip.id, patternId: trip.patternId, family: option.pattern.family, position, stopId, dayType: input.dayType, validFrom: input.validFrom(trip.id) };
     return expectedTime(base, input.records, { target, now: input.now, config });
   };
 

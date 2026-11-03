@@ -77,6 +77,7 @@ export type {
   StopTimeData,
   TripData,
 } from "./passages";
+export { samePassage } from "./samePassage";
 export { busCandidates, gotoCards, shrunkRideMinutes, walkTimes } from "./goto";
 export type { BusCandidate, BusOption, GotoCandidate, GotoInput, WalkCandidate, WalkOption, WalkRange } from "./goto";
 export { alarmAppliesOn, alarmTextParams, applyAlarm, buildWindow, planDepartures, resolveAlarmEventState, snoozePlan } from "./alarms";

@@ -23,6 +23,8 @@ export interface PatternStopData {
 /** Um percurso com as suas posições (qualquer ordem; as funções ordenam). */
 export interface PatternData {
   id: string;
+  /** Família do percurso: o mesmo percurso entre vigências (cada vigência cria um ID novo). Opcional. */
+  family?: string;
   stops: PatternStopData[];
 }
 
@@ -103,6 +105,8 @@ export interface PassageRecord {
   /** A passagem a que o registro foi ligado: viagem, percurso, posição e ponto físico. */
   tripId: string;
   patternId: string;
+  /** Família do percurso do registro (opcional): conta para o alvo da mesma família. */
+  patternFamily?: string;
   position: number;
   stopId: string;
   matchStatus: MatchStatus;
@@ -114,6 +118,8 @@ export interface PassageRecord {
 export interface PassageTarget {
   tripId: string;
   patternId: string;
+  /** Família do percurso do alvo (opcional). */
+  family?: string;
   position: number;
   stopId: string;
   dayType: DayTypeCode;
@@ -192,7 +198,9 @@ interface Weighted {
  * Cada nível contém o anterior.
  */
 function levelsOf(target: PassageTarget, records: readonly PassageRecord[]): Record<Exclude<EstimateLevel, "none">, PassageRecord[]> {
-  const pattern = records.filter((r) => r.patternId === target.patternId && r.dayType === target.dayType);
+  const samePattern = (r: PassageRecord) =>
+    r.patternId === target.patternId || (r.patternFamily !== undefined && target.family !== undefined && r.patternFamily === target.family);
+  const pattern = records.filter((r) => samePattern(r) && r.dayType === target.dayType);
   const stop = pattern.filter((r) => r.stopId === target.stopId);
   const trip = stop.filter((r) => r.tripId === target.tripId && r.position === target.position);
   return { trip, stop, pattern };
@@ -255,6 +263,11 @@ export function estimateDeviation(
   if (count < config.mediumFromRecords) confidence = "low";
   else if (count < config.highFromRecords) confidence = "medium";
   else confidence = recentCount >= config.highFromRecords && rangeEnd - rangeStart <= config.highMaxRangeMinutes + EPS ? "high" : "medium";
+  // D-375: sem 6 registros da vigência atual no nível usado, a confiança fica no máximo "média".
+  if (confidence === "high" && target.validFrom !== null) {
+    const from = target.validFrom;
+    if (levels[level].filter((r) => r.serviceDate >= from).length < config.highFromRecords) confidence = "medium";
+  }
 
   const newest = levels[level].reduce((a, b) => (b.observedAt >= a.observedAt ? b : a));
   const last: LastRecord = { observedAt: newest.observedAt, deviation: newest.deviation, serviceDate: newest.serviceDate, tripId: newest.tripId, position: newest.position };
