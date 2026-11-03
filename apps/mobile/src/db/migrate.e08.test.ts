@@ -25,7 +25,7 @@ const columnsOf = (conn: NodeSqlite, table: string) => conn.all(`PRAGMA table_in
 
 describe("E-08: migração 0003, holiday.recurring", () => {
   it("é a quarta migração e só faz ALTER TABLE holiday ADD recurring", () => {
-    expect(migrations).toHaveLength(4);
+    expect(migrations).toHaveLength(5);
     const statements = migrations[3]!.sql.split("--> statement-breakpoint").map((s) => s.trim()).filter(Boolean);
     expect(statements).toEqual(["ALTER TABLE `holiday` ADD `recurring` integer DEFAULT false NOT NULL;"]);
   });
@@ -39,8 +39,8 @@ describe("E-08: migração 0003, holiday.recurring", () => {
 
     const result = await migrate(migrations);
 
-    expect(result).toMatchObject({ status: "migrated", from: 3, to: 4 });
-    expect(await conn.userVersion()).toBe(4);
+    expect(result).toMatchObject({ status: "migrated", from: 3, to: 5 });
+    expect(await conn.userVersion()).toBe(5);
     expect(await backups.list()).toContain((result as { backupName: string }).backupName);
     expect(columnsOf(conn, "holiday")).toContain("recurring");
     expect(conn.all("SELECT id, scope, date, recurring FROM holiday")).toEqual([

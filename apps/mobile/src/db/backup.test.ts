@@ -80,7 +80,7 @@ describe("contrato do formato v1 contra o esquema (D-090)", () => {
     }));
     for (const t of BACKUP_TABLES) expect([t, BACKUP_V4_COLUMNS[t]]).toEqual([t, schema[t]]);
     // Toda tabela do esquema está no backup, menos `dataset` (fato da importação da MOBILIS).
-    expect(Object.keys(schema).filter((t) => !(BACKUP_TABLES as string[]).includes(t))).toEqual(["dataset", "alarm_event"]);
+    expect(Object.keys(schema).filter((t) => !(BACKUP_TABLES as string[]).includes(t))).toEqual(["dataset", "trip_date", "alarm_event"]);
   });
 
   it("BACKUP_V2_COLUMNS é contrato congelado: a v3 só acrescenta stop.location_source, depois de lon (D-090)", () => {

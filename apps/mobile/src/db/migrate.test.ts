@@ -19,7 +19,7 @@ const PLAN_TABLES = [
   "frequency", "frequency_day_type",
   "observation", "ride",
   "place", "walk_time", "route", "option", "setting",
-  "departure_alarm", "alarm_event",
+  "departure_alarm", "alarm_event", "trip_date",
 ];
 
 function setup() {
@@ -57,7 +57,7 @@ function expectNoRowLost(before: ReturnType<typeof snapshot>, after: ReturnType<
 }
 
 describe("migração v1 (0000_init)", () => {
-  it("vazio → v1: cria as 25 tabelas do plano, com as colunas de schema.ts", async () => {
+  it("vazio → v1: cria as 26 tabelas do plano, com as colunas de schema.ts", async () => {
     const { conn, migrate } = setup();
     expect(await migrate(migrations)).toMatchObject({ status: "migrated", from: 0, to: migrations.length });
     expect(await conn.userVersion()).toBe(migrations.length);

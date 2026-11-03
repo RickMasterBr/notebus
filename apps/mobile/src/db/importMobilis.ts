@@ -60,7 +60,7 @@ export async function importMobilis(db: ImportDb, json: unknown, options: Import
   const seed = parseSeedFile(json); // falha aqui = banco intocado
   const now = (options.now ?? Date.now)();
   const tables: ImportReport["tables"] = {};
-  const steps = 13;
+  const steps = 14;
   let step = 0;
 
   /** Grava as linhas que ainda não existem (pelo `id`, ou pelo `official_key`). Devolve quantas entraram. */
@@ -101,6 +101,14 @@ export async function importMobilis(db: ImportDb, json: unknown, options: Import
       seed.lines.map((l) => [...common(l.id, l.key), networkId, l.code, l.name, l.color]));
     await insert("stop", [...COMMON, "network_id", "name", "aliases", "external_id"],
       seed.stops.map((s) => [...common(s.id, s.key), networkId, s.name, JSON.stringify(s.aliases), s.externalId]));
+    // Coordenada do arquivo só onde o ponto não tem nada: nunca por cima da oficial nem da pessoa (D-107).
+    for (const s of seed.stops) {
+      if (s.lat === undefined || s.lon === undefined) continue;
+      await db.run(
+        "UPDATE stop SET lat = ?, lon = ? WHERE id = ? AND lat IS NULL AND lon IS NULL AND location_source IS NULL",
+        [s.lat, s.lon, s.id],
+      );
+    }
     await insert("pattern", [...COMMON, "line_id", "label", "is_circular"],
       seed.patterns.map((p) => [...common(p.id, p.key), p.lineId, p.label, p.isCircular ? 1 : 0]));
     await insert("pattern_stop", [...COMMON, "pattern_id", "position", "stop_id", "is_timepoint", "timepoint_label"],
@@ -119,6 +127,14 @@ export async function importMobilis(db: ImportDb, json: unknown, options: Import
         })));
     await insert("stop_time", [...COMMON, "trip_id", "pattern_stop_id", "service_minute", "origin"],
       seed.stopTimes.map((s) => [...common(s.id, s.key), s.tripId, s.patternStopId, s.serviceMinute, "official"]));
+    await insert("trip_date", [...COMMON, "trip_id", "date", "kind"],
+      seed.trips.flatMap((t) => [
+        ...(t.notOn ?? []).map((d) => [t.key, d, "not_on"] as const),
+        ...(t.alsoOn ?? []).map((d) => [t.key, d, "also_on"] as const),
+      ].map(([key, date, kind]) => {
+        const k = `${key}/date/${date}`;
+        return [...common(officialId(k), k), t.id, date, kind];
+      })));
 
     await db.exec("COMMIT");
     return { tables, datasetId, newDataset: tables.dataset!.inserted === 1 };

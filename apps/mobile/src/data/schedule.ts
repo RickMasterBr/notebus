@@ -10,7 +10,7 @@ import type { CalendarData, DayTypeCode, DomainConfig, PatternData, ScheduleData
 import { INCLUDE_MUNICIPAL_KEY, MARGIN_KEY } from "../db/preferences";
 import { selectLive } from "../db/query";
 import {
-  dateOverride, dayType, holiday, line, pattern, patternStop, season, setting, stop, stopTime, timetable, trip, tripDayType,
+  dateOverride, dayType, holiday, line, pattern, patternStop, season, setting, stop, stopTime, timetable, trip, tripDate, tripDayType,
 } from "../db/schema";
 
 type AnyDb = BaseSQLiteDatabase<"sync" | "async", any, any>;
@@ -53,7 +53,7 @@ export function configWithMargin(margin: number | undefined): DomainConfig | und
 }
 
 export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
-  const [dayTypes, holidays, overrides, seasons, timetables, trips, tripDays, stopTimes, patternStops, patterns, lines, stops, settings] =
+  const [dayTypes, holidays, overrides, seasons, timetables, trips, tripDays, tripDates, stopTimes, patternStops, patterns, lines, stops, settings] =
     await Promise.all([
       selectLive(db, dayType),
       selectLive(db, holiday),
@@ -62,6 +62,7 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
       selectLive(db, timetable),
       selectLive(db, trip),
       selectLive(db, tripDayType),
+      selectLive(db, tripDate),
       selectLive(db, stopTime),
       selectLive(db, patternStop),
       selectLive(db, pattern),
@@ -79,7 +80,14 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
     if (code) dayTypesByTrip.set(link.tripId, [...(dayTypesByTrip.get(link.tripId) ?? []), code]);
   }
 
-  const positionOf = new Map(patternStops.map((p) => [p.id, p.position]));
+  const datesByTrip = new Map<string, { notOn: string[]; alsoOn: string[] }>();
+  for (const d of tripDates) {
+    const entry = datesByTrip.get(d.tripId) ?? { notOn: [], alsoOn: [] };
+    (d.kind === "not_on" ? entry.notOn : entry.alsoOn).push(d.date);
+    datesByTrip.set(d.tripId, entry);
+  }
+
+  const positionOf =new Map(patternStops.map((p) => [p.id, p.position]));
   const patternOfTimetable = new Map(timetables.map((t) => [t.id, t.patternId]));
   const timesByTrip = new Map<string, TripData["stopTimes"]>();
   for (const st of stopTimes) {
@@ -139,13 +147,19 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
       includeMunicipal: settings.find((r) => r.key === INCLUDE_MUNICIPAL_KEY)?.value !== false,
     },
     schedule: {
-      trips: trips.map((t) => ({
-        id: t.id,
-        timetableId: t.timetableId,
-        dayTypes: dayTypesByTrip.get(t.id) ?? [],
-        seasonId: t.seasonId,
-        deletedAt: t.deletedAt,
-      })),
+      trips: trips.map((t) => {
+        const dates = datesByTrip.get(t.id);
+        return {
+          id: t.id,
+          timetableId: t.timetableId,
+          dayTypes: dayTypesByTrip.get(t.id) ?? [],
+          seasonId: t.seasonId,
+          deletedAt: t.deletedAt,
+          // Só a chave que tem datas: viagem sem exceção fica idêntica à de antes.
+          ...(dates?.notOn.length ? { notOn: dates.notOn } : {}),
+          ...(dates?.alsoOn.length ? { alsoOn: dates.alsoOn } : {}),
+        };
+      }),
       timetables: timetables.map((t) => ({ id: t.id, validFrom: t.validFrom, validTo: t.validTo })),
       seasons: seasons.map((s) => ({ id: s.id, startMd: s.startMd, endMd: s.endMd, mode: s.mode })),
     },
