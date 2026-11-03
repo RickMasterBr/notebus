@@ -18,7 +18,8 @@ export type DaysCode = "util" | "sab" | "dom-fer" | "sab-dom-fer";
 export interface SeasonRef {
   startMd: string;
   endMd: string;
-  mode: "exclude";
+  /** `include` só no formato 2. */
+  mode: "exclude" | "include";
 }
 
 /**
@@ -27,10 +28,11 @@ export interface SeasonRef {
  */
 export interface SeedFile {
   format: "notebus.mobilis-seed";
-  formatVersion: 1;
+  /** 2 acrescenta `notOn`, `alsoOn`, `season.mode = "include"` e `lat`/`lon` dos pontos. */
+  formatVersion: 1 | 2;
   network: { name: string; timezone: string };
   dataset: { name: string; version: string };
-  stops: { id: string; key: string; name: string; aliases: string[]; externalId: string | null }[];
+  stops: { id: string; key: string; name: string; aliases: string[]; externalId: string | null; lat?: number; lon?: number }[];
   lines: { id: string; key: string; code: string; name: string; color: string }[];
   patterns: { id: string; key: string; code: string; lineId: string; label: string; isCircular: boolean }[];
   patternStops: {
@@ -51,6 +53,8 @@ export interface SeedFile {
     lastPosition: number;
     dayTypes: DayTypeCode[];
     season: SeasonRef | null;
+    notOn?: string[];
+    alsoOn?: string[];
     /** Quadro de origem no markdown, contado pela ordem (1…), não pelo título. */
     sourceTable: number;
   }[];
@@ -127,7 +131,8 @@ export function parseSeedFile(value: unknown): SeedFile {
   const problems: string[] = [];
   if (!isObj(value)) throw new SeedFormatError(["o arquivo não é um objeto JSON"]);
   if (value.format !== "notebus.mobilis-seed") problems.push("format deve ser notebus.mobilis-seed");
-  if (value.formatVersion !== 1) problems.push("formatVersion deve ser 1");
+  if (value.formatVersion !== 1 && value.formatVersion !== 2) problems.push("formatVersion deve ser 1 ou 2");
+  const v2 = value.formatVersion === 2;
   for (const [key, shape] of [["network", { name: "s", timezone: "s" }], ["dataset", { name: "s", version: "s" }]] as const) {
     const o = value[key];
     if (!isObj(o)) problems.push(`${key}: ausente`);
@@ -146,13 +151,16 @@ export function parseSeedFile(value: unknown): SeedFile {
       if (list === "timetables" && (row.validTo !== null || !DATE.test(String(row.validFrom)))) {
         problems.push(`timetables[${i}]: validFrom AAAA-MM-DD e validTo nulo`);
       }
+      if (list === "stops") problems.push(...checkStopCoords(row, i, v2));
       if (list === "trips") {
+        problems.push(...checkTripDateLists(row, i, v2));
         const days = row.dayTypes;
         if (!Array.isArray(days) || days.length === 0 || !days.every((d) => DAY_TYPES.includes(d as string))) {
           problems.push(`trips[${i}].dayTypes: inválido`);
         }
         const s = row.season;
-        if (s !== null && !(isObj(s) && MD.test(String(s.startMd)) && MD.test(String(s.endMd)) && s.mode === "exclude")) {
+        const modeOk = s !== null && isObj(s) && (s.mode === "exclude" || (v2 && s.mode === "include"));
+        if (s !== null && !(isObj(s) && MD.test(String(s.startMd)) && MD.test(String(s.endMd)) && modeOk)) {
           problems.push(`trips[${i}].season: inválida`);
         }
       }
@@ -160,10 +168,46 @@ export function parseSeedFile(value: unknown): SeedFile {
   }
   if (problems.length === 0) {
     const seed = value as unknown as SeedFile;
-    problems.push(...checkReferences(seed), ...checkIds(seed), ...checkHolidays(seed.holidays ?? []));
+    problems.push(...checkReferences(seed), ...checkIds(seed), ...checkHolidays(seed.holidays ?? []), ...checkTripDates(seed));
   }
   if (problems.length > 0) throw new SeedFormatError(problems);
   return value as unknown as SeedFile;
+}
+
+/** `lat`/`lon` dos pontos (formato 2): os dois ou nenhum, finitos e em faixa; no formato 1 nenhum dos dois. */
+function checkStopCoords(row: Record<string, unknown>, i: number, v2: boolean): string[] {
+  const { lat, lon } = row;
+  if (lat === undefined && lon === undefined) return [];
+  if (!v2) return [`stops[${i}]: lat/lon só no formato 2`];
+  const ok = (v: unknown, max: number) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= max;
+  return ok(lat, 90) && ok(lon, 180) ? [] : [`stops[${i}]: lat e lon juntos, lat de -90 a 90 e lon de -180 a 180`];
+}
+
+/** `notOn`/`alsoOn` da viagem (formato 2): listas de datas reais, sem repetição, sem data nas duas. */
+function checkTripDateLists(row: Record<string, unknown>, i: number, v2: boolean): string[] {
+  const errors: string[] = [];
+  const lists: string[][] = [];
+  for (const f of ["notOn", "alsoOn"]) {
+    const v = row[f];
+    if (v === undefined) continue;
+    if (!v2) errors.push(`trips[${i}].${f}: só no formato 2`);
+    else if (!Array.isArray(v) || !v.every((d) => typeof d === "string" && isRealDate(d))) errors.push(`trips[${i}].${f}: lista de datas reais`);
+    else if (new Set(v).size !== v.length) errors.push(`trips[${i}].${f}: data repetida`);
+    else lists.push(v as string[]);
+  }
+  if (lists.length === 2 && lists[0]!.some((d) => lists[1]!.includes(d))) errors.push(`trips[${i}]: data em notOn e em alsoOn`);
+  return errors;
+}
+
+/** Cada data de `notOn`/`alsoOn` vale a partir do `validFrom` do quadro da viagem. */
+export function checkTripDates(seed: SeedFile): string[] {
+  const from = new Map(seed.timetables.map((t) => [t.id, t.validFrom]));
+  return seed.trips.flatMap((t) => {
+    const f = from.get(t.timetableId);
+    return [...(t.notOn ?? []), ...(t.alsoOn ?? [])].some((d) => f !== undefined && d < f)
+      ? [`viagem ${t.key}: data de notOn/alsoOn anterior ao validFrom do quadro`]
+      : [];
+  });
 }
 
 /**
