@@ -104,3 +104,30 @@ test('C1 gtfs: le primeiro ponto, sequencia numerica e hora que passa de 24h', (
   assert.equal(feed.paradas[0].lon, -8.8071);
   assert.deepEqual(feed.calendario[0].dias, ['1', '1', '1', '1', '1', '0', '0']);
 });
+
+test('C1b gtfs: timepoint 1 e vazio dao controle verdadeiro, 0 da falso', () => {
+  const pasta = montarFeed({
+    'stop_times.txt':
+      'trip_id,arrival_time,departure_time,stop_id,stop_sequence,timepoint\nT1,08:00:00,08:00:00,P1,1,1\nT1,08:05:00,08:05:00,P2,2,\nT1,08:10:00,08:10:00,P3,3,0\n',
+  });
+  assert.deepEqual(
+    lerFeed(pasta).horarios.map((h) => h.controle),
+    [true, true, false],
+  );
+});
+
+test('C1b gtfs: sem a coluna timepoint o controle e verdadeiro', () => {
+  assert.equal(lerFeed(montarFeed()).horarios[0].controle, true);
+});
+
+test('C1b gtfs: stop_name sai aparado em nome', () => {
+  const pasta = montarFeed({ 'stops.txt': 'stop_id,stop_code,stop_name,stop_lat,stop_lon\nP1,100,  Praca Inventada  ,39.7436,-8.8071\n' });
+  assert.equal(lerFeed(pasta).paradas[0].nome, 'Praca Inventada');
+});
+
+test('C1b gtfs: os campos de antes seguem iguais', () => {
+  const feed = lerFeed(montarFeed());
+  assert.deepEqual(feed.horarios, [{ viagem: 'T1', parada: 'P1', sequencia: 1, hora: '08:00:00', controle: true }]);
+  assert.deepEqual(feed.paradas, [{ id: 'P1', codigo: '100', nome: '', lat: 39.7436, lon: -8.8071 }]);
+  assert.deepEqual(feed.viagens, [{ id: 'T1', rota: 'R1', servico: 'U1', direcao: '0' }]);
+});
