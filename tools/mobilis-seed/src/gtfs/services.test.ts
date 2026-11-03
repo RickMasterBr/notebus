@@ -153,3 +153,15 @@ describe("exceções de data", () => {
     expect(h.ok && h.value.notOn).toEqual([]);
   });
 });
+
+describe("exceções de data: bordas do intervalo", () => {
+  it("o corte e o último dia do feed (ambos domingos) entram em alsoOn", () => {
+    const f = feed({
+      excecoes: [
+        { servico: "A-U", data: "20261101", tipo: "1" }, // o próprio corte
+        { servico: "A-U", data: "20270131", tipo: "1" }, // o último dia do feed
+      ],
+    });
+    expect(run(f, "A-U").alsoOn).toEqual(["2026-11-01", "2027-01-31"]);
+  });
+});

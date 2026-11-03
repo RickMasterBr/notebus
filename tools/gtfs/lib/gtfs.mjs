@@ -125,10 +125,13 @@ export const lerFeed = (pasta) => {
       sequencia: numero(s.stop_sequence),
       // departure_time manda; arrival_time e o recuo (formato HH:MM:SS, pode passar de 24h)
       hora: texto(s.departure_time) || texto(s.arrival_time),
+      // timepoint vazio vale 1 no GTFS (horario exato); so "0" e ponto sem controle
+      controle: texto(s.timepoint).trim() !== '0',
     })),
     paradas: conteudo['stops.txt'].map((s) => ({
       id: texto(s.stop_id),
       codigo: texto(s.stop_code),
+      nome: texto(s.stop_name).trim(),
       lat: numero(s.stop_lat),
       lon: numero(s.stop_lon),
     })),

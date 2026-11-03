@@ -131,6 +131,19 @@ export function generateSeed(feed: GtfsFeed, config: NetworkConfig, cutoff: stri
     });
 
     const trips = [...route.trips].sort((a, b) => a.times[0]!.serviceMinute - b.times[0]!.serviceMinute || (a.tripId < b.tripId ? -1 : 1));
+    // desempate: chave igual de service_id diferentes → todas do grupo ganham o service_id em minúsculas no fim
+    const baseKeyOf = new Map<(typeof trips)[number], string>();
+    const servicesOf = new Map<string, Set<string>>();
+    for (const t of trips) {
+      const r = serviceRule(t.servico);
+      if (!r.ok) continue;
+      const first = t.times[0]!.serviceMinute;
+      const hhmm = String(Math.floor(first / 60)).padStart(2, "0") + String(first % 60).padStart(2, "0");
+      const base = `mobilis/${cutoff}/trip/${p.code}/${r.value.days}/${hhmm}-p${t.firstPosition}`;
+      baseKeyOf.set(t, base);
+      if (!servicesOf.has(base)) servicesOf.set(base, new Set());
+      servicesOf.get(base)!.add(t.servico);
+    }
     for (const t of trips) {
       const rule = serviceRule(t.servico);
       if (!rule.ok) {
@@ -143,9 +156,9 @@ export function generateSeed(feed: GtfsFeed, config: NetworkConfig, cutoff: stri
         ex = r.ok ? r.value : { notOn: [], alsoOn: [] };
         exceptions.set(t.servico, ex);
       }
-      const first = t.times[0]!.serviceMinute;
-      const hhmm = String(Math.floor(first / 60)).padStart(2, "0") + String(first % 60).padStart(2, "0");
-      const tripKey = `mobilis/${cutoff}/trip/${p.code}/${rule.value.days}/${hhmm}-p${t.firstPosition}`;
+      const base = baseKeyOf.get(t)!;
+      const tripKey = servicesOf.get(base)!.size > 1 ? `${base}-${t.servico.toLowerCase()}` : base;
+      if (tripKey !== base) warnings.push(issue("CHAVE_DESAMBIGUADA", "viagens de service_id diferentes com a mesma chave ganharam o service_id no fim", [tripKey]));
       const v2 = checkTripTimes(t.times);
       if (v2) errors.push(issue("INVARIANTE_HORARIO", `${tripKey}: ${v2}`, [t.tripId]));
       const trip = {

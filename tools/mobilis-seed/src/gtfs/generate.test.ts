@@ -179,7 +179,7 @@ describe("generateSeed: erros", () => {
   it("dois itens com a mesma chave → CHAVE_DUPLICADA (sem renomear)", () => {
     const f = feed({}, {
       t1: { servico: "A-U", rows: rows("08:00:00", "08:10:00", "08:20:00") },
-      t2: { servico: "AX2431-U", rows: rows("08:00:00", "08:11:00", "08:21:00") },
+      t2: { servico: "A-U", rows: rows("08:00:00", "08:11:00", "08:21:00") },
     });
     const r = generateSeed(f, config(), CUT);
     expect(codes(r)).toEqual(["CHAVE_DUPLICADA"]);
@@ -195,5 +195,43 @@ describe("generateSeed: erros", () => {
     expect(codes(generateSeed(feed(), config({ lines: [] }), CUT))).toEqual(["LINHA_AUSENTE"]);
     const h = config().holidays[0]!;
     expect(codes(generateSeed(feed(), config({ holidays: [h, { ...h, key: "mobilis/holiday/x" }] }), CUT))).toContain("FERIADO_INVALIDO");
+  });
+});
+
+describe("generateSeed: desempate de chaves e bordas das exceções", () => {
+  const colliding = () =>
+    feed({}, {
+      t1: { servico: "JA-U", rows: rows("10:00:00", "10:10:00", "10:20:00") },
+      t2: { servico: "XJA1-U", rows: rows("10:00:00", "10:11:00", "10:21:00") },
+      t3: { servico: "A-U", rows: rows("08:00:00", "08:10:00", "08:20:00") },
+    });
+
+  it("service_ids diferentes com a mesma hora ganham o sufixo, o aviso e horários seguem a chave", () => {
+    const { seed, warnings } = ok(generateSeed(colliding(), config(), CUT));
+    const base = `mobilis/${CUT}/trip/L1-s1/util/1000-p1`;
+    expect(seed.trips.map((t) => t.key).sort()).toEqual([`mobilis/${CUT}/trip/L1-s1/util/0800-p1`, `${base}-ja-u`, `${base}-xja1-u`].sort());
+    const w = warnings.find((x) => x.code === "CHAVE_DESAMBIGUADA")!;
+    expect(w.items.sort()).toEqual([`${base}-ja-u`, `${base}-xja1-u`]);
+    for (const t of seed.trips) {
+      const mine = seed.stopTimes.filter((s) => s.tripId === t.id);
+      expect(mine.length).toBeGreaterThan(0);
+      expect(mine.every((s) => s.key.startsWith(`${t.key}/pos/`))).toBe(true);
+    }
+  });
+
+  it("viagem sem colisão não ganha sufixo", () => {
+    const { seed } = ok(generateSeed(colliding(), config(), CUT));
+    expect(seed.trips.map((t) => t.key)).toContain(`mobilis/${CUT}/trip/L1-s1/util/0800-p1`);
+  });
+
+  it("o corte e o último dia do feed entram nas exceções de data da viagem", () => {
+    const f = feed({
+      excecoes: [
+        { servico: "A-U", data: "20261101", tipo: "1" },
+        { servico: "A-U", data: "20270131", tipo: "1" },
+      ],
+    });
+    const trip = ok(generateSeed(f, config(), CUT)).seed.trips.find((t) => t.key.endsWith("/0800-p1"))!;
+    expect(trip.alsoOn).toEqual(expect.arrayContaining(["2026-11-01", "2027-01-31"]));
   });
 });
