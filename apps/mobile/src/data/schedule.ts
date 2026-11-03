@@ -9,6 +9,7 @@ import { DOMAIN_CONFIG, clampMargin } from "@notebus/domain";
 import type { CalendarData, DayTypeCode, DomainConfig, PatternData, ScheduleData, TripData } from "@notebus/domain";
 import { INCLUDE_MUNICIPAL_KEY, MARGIN_KEY } from "../db/preferences";
 import { selectLive } from "../db/query";
+import { familyOfOfficialKey } from "./continuity";
 import {
   dateOverride, dayType, holiday, line, pattern, patternStop, season, setting, stop, stopTime, timetable, trip, tripDate, tripDayType,
 } from "../db/schema";
@@ -40,6 +41,8 @@ export interface ScheduleSnapshot {
   /** O caminho de volta: `pattern_stop_id` → percurso, posição e ponto (para ler a dedução gravada). */
   patternStopById: Map<string, { patternId: string; position: number; stopId: string }>;
   stopNames: Map<string, string>;
+  /** Vigência dos quadros de cada percurso (id → `validFrom`/`validTo`); ausente = sem dado, vale o percurso guardado. */
+  patternQuadros?: Map<string, { validFrom: string; validTo: string | null }[]>;
 }
 
 /** Chave de `ScheduleSnapshot.patternStopIds`. */
@@ -111,6 +114,11 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
     });
   }
 
+  const patternQuadros = new Map<string, { validFrom: string; validTo: string | null }[]>();
+  for (const t of timetables) {
+    patternQuadros.set(t.patternId, [...(patternQuadros.get(t.patternId) ?? []), { validFrom: t.validFrom, validTo: t.validTo }]);
+  }
+
   const stopsByPattern = new Map<string, PatternData["stops"]>();
   for (const ps of patternStops) {
     const list = stopsByPattern.get(ps.patternId) ?? [];
@@ -163,7 +171,11 @@ export async function loadSchedule(db: AnyDb): Promise<ScheduleSnapshot> {
       timetables: timetables.map((t) => ({ id: t.id, validFrom: t.validFrom, validTo: t.validTo })),
       seasons: seasons.map((s) => ({ id: s.id, startMd: s.startMd, endMd: s.endMd, mode: s.mode })),
     },
-    patterns: patterns.map((p) => ({ id: p.id, stops: stopsByPattern.get(p.id) ?? [] })),
+    patterns: patterns.map((p) => {
+      const family = familyOfOfficialKey(p.officialKey);
+      return { id: p.id, ...(family !== undefined ? { family } : {}), stops: stopsByPattern.get(p.id) ?? [] };
+    }),
+    patternQuadros,
     trips: tripData,
     patternLine,
     patternLineId,

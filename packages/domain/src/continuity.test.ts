@@ -94,6 +94,10 @@ describe("C2: D-375, confiança no máximo média sem 6 registros da vigência a
   it("(v) weightSum de registros de outra vigência é 0,25 por registro", () => {
     expect(est(old(4), target({ validFrom: VF })).weightSum).toBeCloseTo(1, 10);
   });
+
+  it("(vi) fronteira: 6 registros com serviceDate igual ao validFrom contam como da vigência atual, high", () => {
+    expect(est(many(6, { serviceDate: VF }), target({ validFrom: VF })).confidence).toBe("high");
+  });
 });
 
 describe("C4: o Ir para e o aviso usam os registros da família", () => {

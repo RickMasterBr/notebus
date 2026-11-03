@@ -6,6 +6,7 @@
 import { dayTypeOf, excludedBySeason, tripsRunningOn, type AlarmDayData, type AlarmOption } from "@notebus/domain";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { buildGotoInputFromSources } from "../data/gotoData";
+import { tripsSeenByOptionPatterns } from "../data/continuity";
 import { passageRecords } from "../data/records";
 import type { ScheduleSnapshot } from "../data/schedule";
 import { selectLive } from "../db/query";
@@ -64,7 +65,7 @@ export async function alarmPlanInput(db: AnyDb, schedule: ScheduleSnapshot, now:
     const dayType = dayTypeOf(date, schedule.calendar);
     const running = new Set(tripsRunningOn(date, dayType.dayType, schedule.schedule).map((t) => t.id));
     return {
-      trips: schedule.trips.filter((t) => running.has(t.id)),
+      trips: tripsSeenByOptionPatterns(schedule, schedule.trips.filter((t) => running.has(t.id)), alarmOptions.map((o) => o.pattern)),
       records,
       dayType,
       validFrom,
