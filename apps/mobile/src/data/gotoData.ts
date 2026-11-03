@@ -32,6 +32,7 @@ import {
   route,
   walkTime,
 } from "../db/schema";
+import { passagePositionIn, patternInForceOn } from "./continuity";
 import { passageRecords } from "./records";
 import { type ScheduleSnapshot, configWithMargin } from "./schedule";
 
@@ -115,8 +116,11 @@ export function buildGotoInputFromSources(
     const alightInfo = schedule.patternStopById.get(opt.alightPatternStopId);
     if (!boardInfo || !alightInfo || boardInfo.patternId !== alightInfo.patternId) continue;
 
-    const pattern = schedule.patterns.find((p) => p.id === boardInfo.patternId);
+    const pattern = patternInForceOn(schedule, boardInfo.patternId, serviceDate);
     if (!pattern) continue;
+    const boardPosition = passagePositionIn(schedule, opt.boardPatternStopId, pattern);
+    const alightPosition = passagePositionIn(schedule, opt.alightPatternStopId, pattern);
+    if (boardPosition === null || alightPosition === null) continue; // não se traduz: fica de fora, em silêncio (D-376)
 
     const walkToBoard = findWalkRange(walkTimes, boardInfo.stopId, r.originPlaceId);
     const walkAfterAlight = findWalkRange(walkTimes, alightInfo.stopId, r.destinationPlaceId);
@@ -130,7 +134,11 @@ export function buildGotoInputFromSources(
       if (!bObs || !aObs || bObs.deletedAt !== null || aObs.deletedAt !== null) continue;
       if (bObs.matchStatus !== "auto" && bObs.matchStatus !== "manual") continue;
       if (aObs.matchStatus !== "auto" && aObs.matchStatus !== "manual") continue;
-      if (bObs.patternStopId === opt.boardPatternStopId && aObs.patternStopId === opt.alightPatternStopId) {
+      if (
+        bObs.patternStopId !== null && aObs.patternStopId !== null &&
+        passagePositionIn(schedule, bObs.patternStopId, pattern) === boardPosition &&
+        passagePositionIn(schedule, aObs.patternStopId, pattern) === alightPosition
+      ) {
         const diffMinutes = displayCenter((aObs.observedAt - bObs.observedAt) / 60_000);
         if (diffMinutes >= 0) {
           rideMinutesList.push(diffMinutes);
@@ -141,8 +149,8 @@ export function buildGotoInputFromSources(
     busOptions.push({
       id: opt.id,
       pattern,
-      boardPosition: boardInfo.position,
-      alightPosition: alightInfo.position,
+      boardPosition,
+      alightPosition,
       walkToBoard,
       walkAfterAlight,
       rideMinutes: rideMinutesList,

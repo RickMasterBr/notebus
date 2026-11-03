@@ -12,6 +12,7 @@ import {
   type PassageTarget,
   dayTypeOf,
 } from "@notebus/domain";
+import { familyOfPattern } from "./continuity";
 import type { ObservationRow } from "./registro";
 import type { ScheduleSnapshot } from "./schedule";
 
@@ -42,6 +43,7 @@ export function passageRecords(observations: readonly ObservationRow[], data: Sc
     if (o.tripId === null || o.patternStopId === null || o.deviationMin === null || o.serviceDate === null) continue;
     const at = data.patternStopById.get(o.patternStopId);
     if (!at) continue; // a posição não existe mais (importação trocada): o fato fica, a estatística ignora
+    const patternFamily = familyOfPattern(data, at.patternId);
     out.push({
       deviation: o.deviationMin,
       observedAt: o.observedAt,
@@ -49,6 +51,7 @@ export function passageRecords(observations: readonly ObservationRow[], data: Sc
       dayType: dayTypeOf(o.serviceDate, data.calendar).dayType,
       tripId: o.tripId,
       patternId: at.patternId,
+      ...(patternFamily !== undefined ? { patternFamily } : {}),
       position: at.position,
       stopId: at.stopId,
       matchStatus: o.matchStatus,
@@ -75,5 +78,8 @@ export function passageTarget(
   const timetableId = data.schedule.trips.find((t) => t.id === tripId)?.timetableId;
   const validFrom = data.schedule.timetables.find((t) => t.id === timetableId)?.validFrom ?? null;
   const resolvedDayType = dayType ?? dayTypeOf(serviceDate, data.calendar).dayType;
-  return { tripId, patternId: pattern.id, position, stopId, dayType: resolvedDayType, validFrom };
+  return {
+    tripId, patternId: pattern.id, ...(pattern.family !== undefined ? { family: pattern.family } : {}),
+    position, stopId, dayType: resolvedDayType, validFrom,
+  };
 }
