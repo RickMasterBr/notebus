@@ -32,6 +32,8 @@ export function reasonText(reason: CardReason): string {
       return t("sheet_stop.no_service.no_table");
     case "season":
       return t("sheet_stop.no_service.season", { months: monthsText(reason.months) });
+    case "date_off":
+      return t("sheet_stop.no_service.date_off");
   }
 }
 

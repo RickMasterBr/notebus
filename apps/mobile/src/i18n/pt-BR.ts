@@ -77,6 +77,7 @@ export const ptBR = {
   "sheet_stop.no_service.sunday_holiday": "Não circula aos domingos e feriados",
   "sheet_stop.no_service.weekdays_only": "Só circula em dias úteis",
   "sheet_stop.no_service.season": "não circula em {{months}}",
+  "sheet_stop.no_service.date_off": "Não circula neste dia",
   "sheet_stop.next_day": "próximo: {{weekday}}, {{time}}",
   "sheet_stop.no_service.no_table": "Sem horário para este tipo de dia",
   "sheet_stop.may_pass_now": "Pode passar a qualquer momento, até {{time}}",

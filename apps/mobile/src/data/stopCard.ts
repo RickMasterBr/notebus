@@ -23,6 +23,7 @@ import {
   type Confidence,
   type DayTypeCode,
   type ExpectedTime,
+  type NoServiceReason,
   type PassageRecord,
   type PatternData,
   type ScheduleData,
@@ -42,7 +43,9 @@ export type CardReason =
   /** Sem tabela para esse tipo de dia (D-146); só a folha do ponto usa, o cartão do Início mantém o texto de domingo. */
   | { kind: "no_table" }
   /** Meses (1–12) em que não circula, na ordem do calendário ("julho e agosto" = [7, 8]). */
-  | { kind: "season"; months: number[] };
+  | { kind: "season"; months: number[] }
+  /** A data está em `notOn` de uma viagem do dia (25/12, 01/01…): "Não circula neste dia". */
+  | { kind: "date_off" };
 
 export interface NextBus {
   status: "next";
@@ -276,13 +279,15 @@ export function destinationOf(passage: StopPassage, patterns: PatternData[], tri
  * o cartão do Início segue dizendo "domingos e feriados" num domingo e nada num sábado (D-134).
  */
 export function reasonOf(
-  why: "sem_tabela" | "so_dias_uteis" | "epoca" | "feriado",
+  why: NoServiceReason,
   date: string,
   calendar: CalendarData,
   lineSchedule: ScheduleData,
   forSheet: boolean,
 ): CardReason | null {
   switch (why) {
+    case "data_sem_servico":
+      return { kind: "date_off" };
     case "feriado":
       return { kind: "sunday_holiday" };
     case "so_dias_uteis":

@@ -186,6 +186,10 @@ export interface ScheduleTrip {
   dayTypes: DayTypeCode[];
   seasonId: string | null;
   deletedAt?: number | null;
+  /** Datas (AAAA-MM-DD) em que a viagem não circula, mesmo com tipo de dia e época a favor (formato 2). */
+  notOn?: string[];
+  /** Datas em que a viagem circula além da regra; respeita a vigência e ignora tipo de dia e época (formato 2). */
+  alsoOn?: string[];
 }
 
 export interface ScheduleData {
@@ -219,7 +223,11 @@ function liveTripsInForce(date: string, data: ScheduleData): ScheduleTrip[] {
 export function tripsRunningOn(date: string, dayType: DayTypeCode, data: ScheduleData): ScheduleTrip[] {
   const seasons = new Map(data.seasons.map((s) => [s.id, s]));
   return liveTripsInForce(date, data).filter(
-    (t) => t.dayTypes.includes(dayType) && seasonAllows(date, t.seasonId === null ? undefined : seasons.get(t.seasonId)),
+    (t) =>
+      t.alsoOn?.includes(date) ||
+      (t.dayTypes.includes(dayType) &&
+        seasonAllows(date, t.seasonId === null ? undefined : seasons.get(t.seasonId)) &&
+        !t.notOn?.includes(date)),
   );
 }
 
@@ -228,9 +236,10 @@ export function tripsRunningOn(date: string, dayType: DayTypeCode, data: Schedul
  * - `feriado`: a data é feriado e o tipo de dia dela sem o feriado teria serviço.
  * - `so_dias_uteis`: a linha só tem viagens de dia útil.
  * - `sem_tabela`: a linha não tem tabela para esse tipo de dia (nem nenhuma em vigência).
+ * - `data_sem_servico`: há viagens para o tipo de dia, a época deixa a data, mas uma viagem tem a data em `notOn`.
  * - `epoca`: há viagens para o tipo de dia, mas a época tira todas (julho e agosto).
  */
-export type NoServiceReason = "sem_tabela" | "so_dias_uteis" | "epoca" | "feriado";
+export type NoServiceReason = "sem_tabela" | "so_dias_uteis" | "epoca" | "feriado" | "data_sem_servico";
 
 export type LineService =
   | { status: "running"; trips: ScheduleTrip[] }
@@ -259,9 +268,14 @@ export function excludedBySeason(date: string, dayType: DayTypeCode, data: Sched
   });
 }
 
+function seasonOf(t: ScheduleTrip, data: ScheduleData): ScheduleData["seasons"][number] | undefined {
+  return t.seasonId === null ? undefined : data.seasons.find((s) => s.id === t.seasonId);
+}
+
 function noServiceReason(date: string, dayType: DayTypeResult, data: ScheduleData): NoServiceReason {
   const live = liveTripsInForce(date, data);
   const ofDayType = live.filter((t) => t.dayTypes.includes(dayType.dayType));
+  if (ofDayType.some((t) => t.notOn?.includes(date) && seasonAllows(date, seasonOf(t, data)))) return "data_sem_servico";
   if (ofDayType.length > 0) return "epoca";
   // Antes de a tabela entrar em vigência (a da MOBILIS vale de 01/09/2026): se a época tira a data, é a época o motivo.
   if (live.length === 0 && excludedBySeason(date, dayType.dayType, data)) return "epoca";
