@@ -155,3 +155,20 @@ describe("reuseKeys: percurso que mudou, novo e removido", () => {
     expect(r.seed.lines).toEqual(next.lines);
   });
 });
+
+describe("reuseKeys: fronteira de data da camada A (corte 2026-11-01)", () => {
+  // o anterior tem notOn em D e o novo não tem: só conta como sumida a data que vale a partir do corte
+  const verdictWith = (day: string) => verdictOf(reuseKeys(seedOf(NEXT, [{ ...L1, notOn: undefined }, L2]), seedOf(PREV, [{ ...L1, notOn: [day] }, L2])), "L1");
+
+  it("exceção no dia do corte que sumiu → percurso mudado", () => {
+    expect(verdictWith("2026-11-01")).toEqual({ code: "L1", status: "changed", reasons: ["excecao_removida"] });
+  });
+
+  it("exceção na véspera do corte que sumiu → mantido", () => {
+    expect(verdictWith("2026-10-31")).toEqual({ code: "L1", status: "kept" });
+  });
+
+  it("exceção no dia seguinte ao corte que sumiu → mudado", () => {
+    expect(verdictWith("2026-11-02")).toEqual({ code: "L1", status: "changed", reasons: ["excecao_removida"] });
+  });
+});
