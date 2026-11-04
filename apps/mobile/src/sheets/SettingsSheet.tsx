@@ -11,7 +11,7 @@
  */
 import { dayTypeOf, lisbonWallClock } from "@notebus/domain";
 import { BottomSheetScrollView, type BottomSheetScrollViewMethods, BottomSheetTextInput } from "@gorhom/bottom-sheet";
-import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AccessibilityInfo,
   Pressable,
@@ -20,7 +20,6 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import Animated, { FadeIn, SlideInRight } from "react-native-reanimated";
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from "react-native-gesture-handler/ReanimatedSwipeable";
@@ -62,10 +61,8 @@ import { greetingText } from "../data/greeting";
 import { resolveSettingsScroll } from "../data/settingsScroll";
 import {
   normalizeUserName,
-  settingsHandle,
   settingsIndexView,
   settingsPageTitle,
-  type SettingsPage,
 } from "../data/settingsIndex";
 import { createTapCounter } from "../data/testClockPicker";
 import { useToast } from "../data/ToastProvider";
@@ -91,11 +88,10 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
 import { containerHeightOf, detentMetrics } from "./scrollInset";
-import { activeSheet } from "./stack";
+import { activeSheet, type SettingsPageId } from "./stack";
 import { closeAndClearSwipeable, openSingleSwipeable } from "./swipeCoordinator";
 import { useKeyboardHeight } from "./useKeyboardHeight";
 import { useOptimisticSwitch } from "../ui/useOptimisticSwitch";
-import { useReduceMotion } from "./useReduceMotion";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 import { pressedStyle } from "../ui/pressed";
 
@@ -103,43 +99,19 @@ const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_S
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
-/**
- * `settingsIndex.ts` não é deste bloco (lista fechada): a página nova entra aqui, sem mexer nele.
- * shortcut: mover "network_import" para `SettingsPage` quando um bloco puder tocar `settingsIndex.ts`.
- */
-type Page = SettingsPage | "network_import";
-type NavAction = { type: "open"; page: Page } | { type: "back" };
-const navReduce = (page: Page, action: NavAction): Page => (action.type === "open" ? action.page : "root");
-
-interface SettingsNavContextValue {
-  page: Page;
-  onBack: () => void;
-}
-
-const SettingsNavContext = createContext<SettingsNavContextValue>({
-  page: "root",
-  onBack: () => {},
-});
-
 function SettingsHandle({ onClose }: { onClose: () => void }) {
   const setHandleHeight = useContext(HeightContext);
-  const { page, onBack } = useContext(SettingsNavContext);
-  const handleInfo = settingsHandle(page === "network_import" ? "backup" : page);
 
   return (
     <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
-      <SheetHandle
-        kind="close"
-        hideCloseButton={!handleInfo.showClose}
-        onPress={handleInfo.press === "close" ? onClose : onBack}
-      />
+      <SheetHandle kind="close" onPress={onClose} />
     </View>
   );
 }
 
 const DETENTS: StackedDetents = { snapPoints: ["82%"], initialIndex: 0, Handle: SettingsHandle };
 
-export function SettingsSheet({ id }: { id: number }) {
+export function SettingsSheet({ id, page = "root" }: { id: number; page?: SettingsPageId | "root" }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
@@ -153,15 +125,14 @@ export function SettingsSheet({ id }: { id: number }) {
   const wasCovered = useRef(false);
   const [handleHeight, setHandleHeight] = useState(0);
 
-  const reduceMotion = useReduceMotion();
   const keyboardHeight = useKeyboardHeight();
-  const [page, dispatchNav] = useReducer(navReduce, "root");
-  const handleBack = useCallback(() => dispatchNav({ type: "back" }), []);
+  const handleBack = useCallback(() => dispatch({ type: "close", id }), [dispatch, id]);
 
   const scrollRef = useRef<BottomSheetScrollViewMethods>(null);
   const scrollOffsetRef = useRef(0);
   const prevPageRef = useRef(page);
 
+  // sem efeito enquanto cada página é tela própria; retirar no contrato 09 (D-399)
   useEffect(() => {
     const prev = prevPageRef.current;
     if (prev !== page) {
@@ -381,18 +352,17 @@ export function SettingsSheet({ id }: { id: number }) {
 
   const handleSaveName = async () => {
     await setName(draftName);
-    dispatchNav({ type: "back" });
+    handleBack();
   };
 
   const handleClearName = async () => {
     await clear();
-    dispatchNav({ type: "back" });
+    handleBack();
   };
 
   const hasName = Boolean(normalizeUserName(draftName));
 
   return (
-    <SettingsNavContext.Provider value={{ page, onBack: handleBack }}>
       <HeightContext.Provider value={setHandleHeight}>
         <StackedSheet id={id} detents={DETENTS}>
           <View style={{ height: scrollAreaHeight, overflow: "hidden" }}>
@@ -427,7 +397,7 @@ export function SettingsSheet({ id }: { id: number }) {
                       <SettingsIndexRow
                         title={t("settings.name.title")}
                         value={view.nameValue}
-                        onPress={() => dispatchNav({ type: "open", page: "name" })}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "settings", page: "name" } })}
                       />
                       <SettingsIndexRow
                         title={t("settings.places.row")}
@@ -447,18 +417,18 @@ export function SettingsSheet({ id }: { id: number }) {
                       <SettingsIndexRow
                         title={t("settings.margin.title")}
                         value={view.marginValue}
-                        onPress={() => dispatchNav({ type: "open", page: "margin" })}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "settings", page: "margin" } })}
                       />
                       <SettingsIndexRow
                         title={t("settings.days.row")}
                         value={view.daysValue}
-                        onPress={() => dispatchNav({ type: "open", page: "days" })}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "settings", page: "days" } })}
                       />
                       <SettingsIndexRow
                         title={t("settings.holidays.row")}
                         value={view.holidaysValue}
                         borderBottom={false}
-                        onPress={() => dispatchNav({ type: "open", page: "holidays" })}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "settings", page: "holidays" } })}
                       />
                     </View>
                   </View>
@@ -524,7 +494,7 @@ export function SettingsSheet({ id }: { id: number }) {
                         title={t("settings.offline_map.title")}
                         value={view.mapValue}
                         borderBottom={false}
-                        onPress={() => dispatchNav({ type: "open", page: "map" })}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "settings", page: "map" } })}
                       />
                     </View>
                   </View>
@@ -538,19 +508,19 @@ export function SettingsSheet({ id }: { id: number }) {
                       <SettingsIndexRow
                         title={t("settings.data.backup_row")}
                         value={view.backupValue}
-                        onPress={() => dispatchNav({ type: "open", page: "backup" })}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "settings", page: "backup" } })}
                       />
                       <SettingsIndexRow
                         title={t("settings.network_import")}
                         onPress={() =>
                           void networkImport.start().then((picked) => {
-                            if (picked) dispatchNav({ type: "open", page: "network_import" });
+                            if (picked) dispatch({ type: "push", sheet: { kind: "settings", page: "network_import" } });
                           })
                         }
                       />
                       <SettingsIndexRow
                         title={t("settings.about.title")}
-                        onPress={() => dispatchNav({ type: "open", page: "about" })}
+                        onPress={() => dispatch({ type: "push", sheet: { kind: "settings", page: "about" } })}
                       />
                       <Pressable
                         ref={row}
@@ -575,28 +545,9 @@ export function SettingsSheet({ id }: { id: number }) {
               )}
 
               {page !== "root" && (
-                <Animated.View
-                  key={page}
-                  entering={reduceMotion ? FadeIn.duration(200) : SlideInRight.duration(280)}
-                  style={styles.pageContainer}
-                >
-                  {/* Botão ‹ Ajustes */}
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t("settings.back.a11y")}
-                      onPress={handleBack}
-                      style={({ pressed }) => [styles.backButton, pressedStyle(pressed)]}
-                    >
-                      <View style={{ transform: [{ rotate: "180deg" }] }}>
-                        <ChevronRightGlyph color={colors.accent} />
-                      </View>
-                      <Text style={[type.body, styles.backText, { color: colors.accent }]}>
-                        {t("settings.back")}
-                      </Text>
-                    </Pressable>
-
+                <View style={styles.pageContainer}>
                   <Text accessibilityRole="header" style={[type.title, styles.pageTitle, { color: colors.text }]}>
-                    {t(page === "network_import" ? "settings.network_import" : settingsPageTitle(page))}
+                    {t(settingsPageTitle(page))}
                   </Text>
 
                   {/* Página Meu nome */}
@@ -964,13 +915,12 @@ export function SettingsSheet({ id }: { id: number }) {
 
                   {/* Página Sobre */}
                   {page === "about" && <AboutPage />}
-                </Animated.View>
+                </View>
               )}
             </BottomSheetScrollView>
           </View>
         </StackedSheet>
       </HeightContext.Provider>
-    </SettingsNavContext.Provider>
   );
 }
 

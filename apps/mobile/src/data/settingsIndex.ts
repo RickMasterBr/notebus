@@ -4,32 +4,9 @@
  */
 import type { DayTypeCode } from "@notebus/domain";
 import { t, type MessageKey } from "../i18n";
+import type { SettingsPageId } from "../sheets/stack";
 
-export type SettingsPage = "root" | "name" | "margin" | "days" | "holidays" | "map" | "backup" | "about";
-
-export type SettingsNavAction =
-  | { type: "open"; page: SettingsPage }
-  | { type: "back" };
-
-export function settingsNavReduce(page: SettingsPage, action: SettingsNavAction): SettingsPage {
-  if (action.type === "open") return action.page;
-  return "root";
-}
-
-export interface SettingsHandleInfo {
-  showClose: boolean;
-  press: "close" | "back";
-}
-
-export function settingsHandle(page: SettingsPage): SettingsHandleInfo {
-  const isRoot = page === "root";
-  return {
-    showClose: isRoot,
-    press: isRoot ? "close" : "back",
-  };
-}
-
-export function settingsPageTitle(page: SettingsPage): MessageKey {
+export function settingsPageTitle(page: SettingsPageId | "root"): MessageKey {
   switch (page) {
     case "name":
       return "settings.name.title";
@@ -45,6 +22,8 @@ export function settingsPageTitle(page: SettingsPage): MessageKey {
       return "settings.data.backup_row";
     case "about":
       return "settings.about.title";
+    case "network_import":
+      return "settings.network_import";
     case "root":
     default:
       return "settings.title";

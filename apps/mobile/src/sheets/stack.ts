@@ -12,6 +12,8 @@
  */
 import type { DayTypeCode } from "@notebus/domain";
 
+export type SettingsPageId = "name" | "margin" | "days" | "holidays" | "map" | "backup" | "about" | "network_import";
+
 export type SheetContent =
   | { kind: "home" }
   /** `pick`: a Busca reaproveitada para escolher o ponto da folha Registrar; o toque devolve o ponto em vez de abri-lo. */
@@ -27,7 +29,7 @@ export type SheetContent =
   /** As paragens que faltam até o fim do percurso (D-075), aberta ao puxar o cartão Em viagem. Só leitura. */
   | { kind: "trip" }
   /** Ajustes mínimo (D-151): só a versão e as 7 batidas que abrem o seletor do relógio de teste. */
-  | { kind: "settings" }
+  | { kind: "settings"; page?: SettingsPageId }
   | { kind: "clockPicker" }
   /** Prévia da importação do backup (E-03 §5.4), aberta pelo "Importar backup" de Ajustes. O arquivo fica no `BackupProvider`. */
   | { kind: "backupImport" }
@@ -141,6 +143,7 @@ function sameSheet(a: SheetContent, b: SheetContent): boolean {
   if (a.kind === "lineDetail" && b.kind === "lineDetail") return a.lineId === b.lineId;
   if (a.kind === "declare" && b.kind === "declare") return a.stopId === b.stopId;
   if (a.kind === "stopEdit" && b.kind === "stopEdit") return a.stopId === b.stopId;
+  if (a.kind === "settings" && b.kind === "settings") return a.page === b.page;
   return true;
 }
 

@@ -20,7 +20,7 @@ describe("E-09 Bloco 7 guardas de ligação (e09Bloco7Wiring)", () => {
 
     it("a linha Sobre da raiz abre a página about", () => {
       expect(settings).toMatch(
-        /<SettingsIndexRow title=\{t\("settings\.about\.title"\)\} onPress=\{\(\) => dispatchNav\(\{ type: "open", page: "about" \}\)\} \/>/,
+        /<SettingsIndexRow title=\{t\("settings\.about\.title"\)\} onPress=\{\(\) => dispatch\(\{ type: "push", sheet: \{ kind: "settings", page: "about" \} \}\)\} \/>/,
       );
     });
 

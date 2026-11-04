@@ -52,7 +52,7 @@ describe("E-09 Bloco 28 guardas de ligação (e09Bloco28Wiring)", () => {
       "sheets/OptionSheet.tsx": 20,
       "sheets/LineEditSheet.tsx": 11,
       "sheets/StopEditSheet.tsx": 6,
-      "sheets/SettingsSheet.tsx": 12,
+      "sheets/SettingsSheet.tsx": 11,
       "sheets/RecordsSheet.tsx": 13,
       "sheets/SheetHandle.tsx": 1,
       "sheets/AlightPickerSheet.tsx": 2,

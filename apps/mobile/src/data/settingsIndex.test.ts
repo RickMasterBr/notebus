@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeUserName,
-  settingsHandle,
   settingsIndexView,
-  settingsNavReduce,
   settingsPageTitle,
-  type SettingsPage,
 } from "./settingsIndex";
 
 describe("settingsIndex (Item 1, D-206, D-207)", () => {
@@ -31,35 +28,6 @@ describe("settingsIndex (Item 1, D-206, D-207)", () => {
     });
   });
 
-  describe("settingsNavReduce", () => {
-    it("abrir página muda para a página", () => {
-      expect(settingsNavReduce("root", { type: "open", page: "name" })).toBe("name");
-      expect(settingsNavReduce("root", { type: "open", page: "margin" })).toBe("margin");
-    });
-
-    it("voltar de uma página vai para a raiz", () => {
-      expect(settingsNavReduce("name", { type: "back" })).toBe("root");
-      expect(settingsNavReduce("margin", { type: "back" })).toBe("root");
-    });
-
-    it("voltar na raiz continua na raiz", () => {
-      expect(settingsNavReduce("root", { type: "back" })).toBe("root");
-    });
-  });
-
-  describe("settingsHandle", () => {
-    it("na raiz mostra fechar e chama close", () => {
-      expect(settingsHandle("root")).toEqual({ showClose: true, press: "close" });
-    });
-
-    it("numa página não mostra fechar e chama back", () => {
-      const pages: SettingsPage[] = ["name", "margin", "days", "holidays", "map", "backup", "about"];
-      for (const p of pages) {
-        expect(settingsHandle(p)).toEqual({ showClose: false, press: "back" });
-      }
-    });
-  });
-
   describe("settingsPageTitle", () => {
     it("devolve a chave de título para cada página", () => {
       expect(settingsPageTitle("root")).toBe("settings.title");
@@ -70,6 +38,7 @@ describe("settingsIndex (Item 1, D-206, D-207)", () => {
       expect(settingsPageTitle("map")).toBe("settings.offline_map.title");
       expect(settingsPageTitle("backup")).toBe("settings.data.backup_row");
       expect(settingsPageTitle("about")).toBe("settings.about.title");
+      expect(settingsPageTitle("network_import")).toBe("settings.network_import");
     });
   });
 

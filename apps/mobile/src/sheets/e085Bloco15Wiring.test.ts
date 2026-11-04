@@ -53,19 +53,13 @@ describe("e085Bloco15Wiring (Item 3: Ajustes como índice e páginas)", () => {
     expect(settingsSheet).toMatch(/value=\{view\.backupValue\}[\s\S]*?page:\s*"backup"/);
   });
 
-  it("SheetHandle usa hideCloseButton fora da raiz e o toque da barra chama voltar", () => {
-    expect(settingsSheet).toMatch(
-      /hideCloseButton=\{!handleInfo\.showClose\}|hideCloseButton=\{page\s*!==\s*"root"\}/,
-    );
-    expect(settingsSheet).toMatch(
-      /handleInfo\.press\s*===\s*"close"\s*\?\s*onClose\s*:\s*onBack|handleInfo\.press\s*===\s*"close"\s*\?\s*onClose\s*:\s*handleBack/,
-    );
+  it("SheetHandle fecha a tela pelo onClose e não esconde o botão (o Voltar é do SheetHandle em tela)", () => {
+    expect(settingsSheet).toContain('<SheetHandle kind="close" onPress={onClose}');
+    expect(settingsSheet).not.toContain("hideCloseButton");
   });
 
-  it("o botão '‹ Ajustes' existe só fora da raiz e tem o rótulo settings.back.a11y", () => {
-    expect(settingsSheet).toMatch(
-      /page\s*!==\s*"root"[\s\S]*?accessibilityLabel=\{t\("settings\.back\.a11y"\)\}/,
-    );
+  it("o botão interno '‹ Ajustes' saiu: o único Voltar é o do topo da tela", () => {
+    expect(settingsSheet).not.toContain("settings.back.a11y");
   });
 
   it("o interruptor de avisos fica na linha e usa handleToggleAlarms", () => {

@@ -25,17 +25,17 @@ describe("E-09 bloco 1b: SettingsSheet", () => {
 
   it("S1/S3: Salvar chama handleSaveName, que grava draftName e volta; o campo edita draftName", () => {
     expect(settings).toMatch(
-      /const handleSaveName = async \(\) => \{ await setName\(draftName\); dispatchNav\(\{ type: "back" \}\); \};/,
+      /const handleSaveName = async \(\) => \{ await setName\(draftName\); handleBack\(\); \};/,
     );
     expect(settings).toMatch(/accessibilityLabel=\{t\("settings\.name\.save"\)\} onPress=\{handleSaveName\}/);
     expect(settings).toMatch(/<BottomSheetTextInput value=\{draftName\} onChangeText=\{setDraftName\}/);
   });
 
-  it("S14: o ‹ Ajustes e a barra da folha ligam em handleBack, que despacha back", () => {
-    expect(settings).toMatch(/const handleBack = useCallback\(\(\) => dispatchNav\(\{ type: "back" \}\), \[\]\);/);
-    expect(settings).toMatch(/<SettingsNavContext\.Provider value=\{\{ page, onBack: handleBack \}\}>/);
-    expect(settings).toMatch(/accessibilityLabel=\{t\("settings\.back\.a11y"\)\} onPress=\{handleBack\}/);
-    expect(settings).toMatch(/onPress=\{handleInfo\.press === "close" \? onClose : onBack\}/);
+  it("S14: o Voltar do topo e a barra da tela ligam em handleBack, que despacha close", () => {
+    expect(settings).toMatch(/const handleBack = useCallback\(\(\) => dispatch\(\{ type: "close", id \}\), \[dispatch, id\]\);/);
+    expect(settings).toMatch(/function SettingsHandle\(\{ onClose \}: \{ onClose: \(\) => void \}\)/);
+    expect(settings).toMatch(/<SheetHandle kind="close" onPress=\{onClose\} \/>/);
+    expect(settings).not.toContain("settings.back.a11y");
   });
 
   it("S9: o interruptor de feriados municipais mostra e grava includeMunicipalHolidays sem inverter", () => {

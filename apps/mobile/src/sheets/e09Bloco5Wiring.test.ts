@@ -73,20 +73,14 @@ describe("E-09 Bloco 5 guardas de ligação (e09Bloco5Wiring)", () => {
   describe("Item 2: Animação ao voltar de página nos Ajustes (FN-16)", () => {
     it("SettingsSheet.tsx não tem exiting no Animated.View da página (FN-19)", () => {
       const settingsSource = squash(read("sheets/SettingsSheet.tsx"));
-      expect(settingsSource).toMatch(
-        /page !== "root" && \(\s*<Animated\.View\b[^>]*key=\{page\}[^>]*entering=\{reduceMotion \? FadeIn\.duration\(200\) : SlideInRight\.duration\(280\)\}/,
-      );
-      expect(settingsSource).not.toMatch(
-        /page !== "root" && \(\s*<Animated\.View\b[^>]*exiting=/,
-      );
+      expect(settingsSource).not.toContain("SlideInRight");
+      expect(settingsSource).toMatch(/page !== "root" && \(\s*<View style=\{styles\.pageContainer\}>/);
     });
 
     it("SettingsSheet.tsx passa handleBack tanto para o cabeçalho quanto para o Cancelar", () => {
       const settingsSource = squash(read("sheets/SettingsSheet.tsx"));
       // Cabeçalho de voltar
-      expect(settingsSource).toMatch(
-        /accessibilityLabel=\{t\("settings\.back\.a11y"\)\}\s*onPress=\{handleBack\}/,
-      );
+      expect(settingsSource).toContain('const handleBack = useCallback(() => dispatch({ type: "close", id }), [dispatch, id]);');
       // Cancelar em Mapa sem internet
       expect(settingsSource).toMatch(
         /runOfflineSettingsAction\(\s*b\.action,\s*\{\s*startDownload:\s*offlineMap\.startDownload,\s*deleteMap:\s*offlineMap\.deleteMap,\s*goBack:\s*handleBack,?\s*\}\s*\)/,
