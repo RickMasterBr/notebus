@@ -34,17 +34,19 @@ const ambiente = ({ arquivos = { 'tools/x.mjs': 'export const x = 1;\n', 'tools/
   return { tmp, repo, raiz, base, arquivo };
 };
 
-const escreve = (amb, mudar = {}) => {
+const SECAO10 = '\n## 10. Formato de entrega\nCopie o criterio palavra por palavra.\n\n## 11. Criterios\n';
+
+const escreve = (amb, mudar = {}, secao10 = SECAO10) => {
   const cab = {
     id: 'tarefa-x', modo: 'agente normal', executor: { harness: 'claude', modelo: 'sonnet' }, base: { branch: 'main', commit: amb.base },
     pista: 'pista-x', arquivos_permitidos: ['tools/y.mjs'], comandos_validacao: ['node --test tools/y.test.mjs'],
     limites: { turnos: 20, minutos: 20 }, criterios: ['C1 um'], ...mudar,
   };
   for (const k of Object.keys(cab)) if (cab[k] === undefined) delete cab[k];
-  writeFileSync(amb.arquivo, `# c\n\n\`\`\`json contrato\n${JSON.stringify(cab, null, 2)}\n\`\`\`\n`);
+  writeFileSync(amb.arquivo, `# c\n\n\`\`\`json contrato\n${JSON.stringify(cab, null, 2)}\n\`\`\`\n${secao10}`);
 };
 
-const rodar = (amb, extra = {}) => conferir({ contrato: amb.arquivo, schemaPath: SCHEMA, raiz: amb.raiz, repo: amb.repo, agora: AGORA, ...extra });
+const rodar = (amb, extra = {}) => conferir({ contrato: amb.arquivo, schemaPath: SCHEMA, raiz: amb.raiz, repo: amb.repo, agora: AGORA, processos: () => [], ...extra });
 const nivel = (linhas, codigo) => linhas.filter((l) => l.codigo === codigo).map((l) => l.nivel);
 const limpa = (amb) => rmSync(amb.tmp, { recursive: true, force: true });
 const tudo = (dir) => readdirSync(dir, { recursive: true }).sort();
@@ -180,6 +182,66 @@ test('LE_O_TEXTO: teste de fora que le o arquivo permitido avisa; teste na lista
   escreve(amb, { arquivos_permitidos: ['tools/x.mjs', 'tools/x.test.mjs'] });
   linhas = rodar(amb).filter((l) => l.codigo === 'LE_O_TEXTO');
   assert.deepEqual(linhas.map((l) => l.nivel), ['OK']);
+  limpa(amb);
+});
+
+test('LE_O_TEXTO_SEM_COMANDO: teste que le o texto e nao esta nos comandos da FALTA; citado da OK; manual vira AVISO', () => {
+  const amb = ambiente({ arquivos: {
+    'tools/x.mjs': 'export const x = 1;\n',
+    'tools/x.test.mjs': "import { readFileSync } from 'node:fs';\nreadFileSync('tools/x.mjs');\n",
+    'tools/w.test.mjs': "import { readFileSync } from 'node:fs';\nreadFileSync('tools/x.mjs');\n",
+  } });
+  escreve(amb, { arquivos_permitidos: ['tools/x.mjs'], comandos_validacao: ['node --test tools\\x.test.mjs'] });
+  const linhas = rodar(amb).filter((l) => l.codigo === 'LE_O_TEXTO_SEM_COMANDO');
+  assert.deepEqual(linhas.map((l) => l.nivel), ['FALTA']);
+  assert.match(linhas[0].texto, /tools\/w\.test\.mjs/);
+  assert.doesNotMatch(linhas[0].texto, /x\.test/);
+  assert.deepEqual(nivel(rodar(amb, { manual: true }), 'LE_O_TEXTO_SEM_COMANDO'), ['AVISO']);
+  escreve(amb, { arquivos_permitidos: ['tools/x.mjs'], comandos_validacao: ['node --test tools/x.test.mjs', 'node --test w.test.mjs'] });
+  assert.deepEqual(nivel(rodar(amb), 'LE_O_TEXTO_SEM_COMANDO'), ['OK']);
+  limpa(amb);
+});
+
+test('LE_O_TEXTO_SEM_COMANDO: lista ate 5 testes e diz e mais N; sem achado da OK', () => {
+  const leitor = "import { readFileSync } from 'node:fs';\nreadFileSync('tools/x.mjs');\n";
+  const arquivos = { 'tools/x.mjs': 'export const x = 1;\n' };
+  for (let i = 1; i <= 7; i++) arquivos[`tools/t${i}.test.mjs`] = leitor;
+  const amb = ambiente({ arquivos });
+  escreve(amb, { arquivos_permitidos: ['tools/x.mjs'] });
+  const linhas = rodar(amb).filter((l) => l.codigo === 'LE_O_TEXTO_SEM_COMANDO');
+  assert.equal(linhas.length, 1);
+  assert.equal((linhas[0].texto.match(/\.test\.mjs/g) ?? []).length, 5);
+  assert.match(linhas[0].texto, /e mais 2$/);
+  limpa(amb);
+  const vazio = ambiente();
+  escreve(vazio, { arquivos_permitidos: ['tools/outro.mjs'] });
+  assert.deepEqual(nivel(rodar(vazio), 'LE_O_TEXTO_SEM_COMANDO'), ['OK']);
+  limpa(vazio);
+});
+
+test('SEM_FRASE_CRITERIOS: sem secao ou sem a expressao FALTA; com a expressao (qualquer caixa) OK; manual vira AVISO', () => {
+  const amb = ambiente();
+  escreve(amb, {}, '');
+  assert.deepEqual(nivel(rodar(amb), 'SEM_FRASE_CRITERIOS'), ['FALTA']);
+  assert.deepEqual(nivel(rodar(amb, { manual: true }), 'SEM_FRASE_CRITERIOS'), ['AVISO']);
+  escreve(amb, {}, '\n## 10. Formato\nResuma os criterios.\n\n## 11. Criterios\nPALAVRA POR PALAVRA fora da secao.\n');
+  assert.deepEqual(nivel(rodar(amb), 'SEM_FRASE_CRITERIOS'), ['FALTA']);
+  escreve(amb, {}, '\n## 10. Formato\nCopie PALAVRA POR PALAVRA.\n\n## 11. Criterios\n');
+  assert.deepEqual(nivel(rodar(amb), 'SEM_FRASE_CRITERIOS'), ['OK']);
+  limpa(amb);
+});
+
+test('EDITOR_ABERTO: code, Code.exe e CODE.EXE avisam; Codex.exe, node.exe e funcao que lanca dao OK; nunca FALTA', () => {
+  const amb = ambiente();
+  escreve(amb);
+  for (const nome of ['Code.exe', 'code', 'CODE.EXE']) {
+    const linhas = rodar(amb, { processos: () => ['node.exe', nome] });
+    assert.deepEqual(nivel(linhas, 'EDITOR_ABERTO'), ['AVISO'], nome);
+    assert.match(formatar(linhas.find((l) => l.codigo === 'EDITOR_ABERTO')), /^AVISO EDITOR_ABERTO feche o VS Code antes do rodar \(A16\)$/);
+    assert.equal(veredito(linhas).codigo, 0);
+  }
+  assert.deepEqual(nivel(rodar(amb, { processos: () => ['Codex.exe', 'node.exe'] }), 'EDITOR_ABERTO'), ['OK']);
+  assert.deepEqual(nivel(rodar(amb, { processos: () => { throw new Error('x'); } }), 'EDITOR_ABERTO'), ['OK']);
   limpa(amb);
 });
 

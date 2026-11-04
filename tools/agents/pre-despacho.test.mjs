@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,8 @@ const PROGRAMA = aqui('./pre-despacho.mjs');
 const SCHEMAS = aqui('./lib/fixtures');
 
 const git = (repo, ...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-C', repo, ...args], { encoding: 'utf8' }).trim();
+
+const SECAO10 = '\n## 10. Formato de entrega\nCopie o criterio palavra por palavra.\n\n## 11. Criterios\n';
 
 // repo, raiz (com gate vigente) e docs temporarios; o contrato aponta para a base dada
 const ambiente = ({ commit } = {}) => {
@@ -31,7 +33,7 @@ const ambiente = ({ commit } = {}) => {
     id: 'tarefa-x', modo: 'agente normal', executor: { harness: 'claude', modelo: 'sonnet' }, base: { branch: 'main', commit: commit ?? git(repo, 'rev-parse', 'HEAD') },
     pista: 'pista-x', arquivos_permitidos: ['b.txt'], comandos_validacao: ['node --test b.test.mjs'], limites: { turnos: 20, minutos: 20 }, criterios: ['C1 um'],
   };
-  writeFileSync(path.join(docs, 'v1', 'contratos', 'tarefa-x.md'), `# c\n\n\`\`\`json contrato\n${JSON.stringify(cab, null, 2)}\n\`\`\`\n`);
+  writeFileSync(path.join(docs, 'v1', 'contratos', 'tarefa-x.md'), `# c\n\n\`\`\`json contrato\n${JSON.stringify(cab, null, 2)}\n\`\`\`\n${SECAO10}`);
   return { tmp, repo, raiz, docs };
 };
 
@@ -77,6 +79,47 @@ test('--manual troca a suite inteira de FALTA para AVISO', () => {
   const r = roda(amb, ['tarefa-x', '--manual']);
   assert.equal(r.code, 0);
   assert.ok(r.linhas.some((l) => l.startsWith('AVISO SUITE_INTEIRA ')));
+  rmSync(amb.tmp, { recursive: true, force: true });
+});
+
+test('SEM_FRASE_CRITERIOS: contrato sem a secao ## 10. sai com 1 e linha FALTA; --manual vira AVISO e sai com 0', () => {
+  const amb = ambiente();
+  const arq = path.join(amb.docs, 'v1', 'contratos', 'tarefa-x.md');
+  writeFileSync(arq, readFileSync(arq, 'utf8').replace(SECAO10, ''));
+  const r = roda(amb, ['tarefa-x']);
+  assert.equal(r.code, 1, r.linhas.join('\n'));
+  assert.ok(r.linhas.some((l) => l.startsWith('FALTA SEM_FRASE_CRITERIOS ')));
+  const m = roda(amb, ['tarefa-x', '--manual']);
+  assert.equal(m.code, 0);
+  assert.ok(m.linhas.some((l) => l.startsWith('AVISO SEM_FRASE_CRITERIOS ')));
+  rmSync(amb.tmp, { recursive: true, force: true });
+});
+
+test('LE_O_TEXTO_SEM_COMANDO: teste de fora que le o arquivo e nao esta nos comandos sai com 1; --manual vira AVISO', () => {
+  const amb = ambiente();
+  writeFileSync(path.join(amb.repo, 'b.txt'), 'b');
+  writeFileSync(path.join(amb.repo, 'b.test.mjs'), "import { readFileSync } from 'node:fs';\nreadFileSync('b.txt');\n");
+  writeFileSync(path.join(amb.repo, 'c.test.mjs'), "import { readFileSync } from 'node:fs';\nreadFileSync('b.txt');\n");
+  git(amb.repo, 'add', '.');
+  git(amb.repo, 'commit', '-q', '-m', 'testes');
+  const arq = path.join(amb.docs, 'v1', 'contratos', 'tarefa-x.md');
+  const base = git(amb.repo, 'rev-parse', 'HEAD');
+  writeFileSync(arq, readFileSync(arq, 'utf8').replace(/"commit": "[0-9a-f]+"/, `"commit": "${base}"`));
+  const r = roda(amb, ['tarefa-x']);
+  assert.equal(r.code, 1, r.linhas.join('\n'));
+  assert.ok(r.linhas.some((l) => /^FALTA LE_O_TEXTO_SEM_COMANDO .*c\.test\.mjs/.test(l)), r.linhas.join('\n'));
+  assert.ok(!r.linhas.some((l) => /^FALTA LE_O_TEXTO_SEM_COMANDO .*b\.test\.mjs/.test(l)));
+  const m = roda(amb, ['tarefa-x', '--manual']);
+  assert.equal(m.code, 0, m.linhas.join('\n'));
+  assert.ok(m.linhas.some((l) => l.startsWith('AVISO LE_O_TEXTO_SEM_COMANDO ')));
+  rmSync(amb.tmp, { recursive: true, force: true });
+});
+
+test('EDITOR_ABERTO: a linha sai no programa e nunca reprova (o padrao dos processos nao e injetavel aqui)', () => {
+  const amb = ambiente();
+  const r = roda(amb, ['tarefa-x']);
+  assert.ok(r.linhas.some((l) => /^(OK|AVISO) EDITOR_ABERTO /.test(l)), r.linhas.join('\n'));
+  assert.ok(!r.linhas.some((l) => l.startsWith('FALTA EDITOR_ABERTO ')));
   rmSync(amb.tmp, { recursive: true, force: true });
 });
 
