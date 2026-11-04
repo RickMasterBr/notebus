@@ -49,14 +49,27 @@ const leOTexto = (repo, c) => {
 };
 
 // Devolve [{ nivel: 'OK'|'FALTA'|'AVISO', codigo, texto }]; nao escreve em lugar nenhum.
-export const conferir = ({ contrato, schemaPath, raiz, repo, manual = false, agora = Date.now() }) => {
+// nomes de imagem dos processos; fora do Windows ou em qualquer falha, lista vazia
+export const processosPadrao = () => {
+  if (process.platform !== 'win32') return [];
+  try {
+    const saida = execFileSync('tasklist', ['/FO', 'CSV', '/NH'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1 << 26 });
+    return saida.split('\n').map((l) => /^"([^"]*)"/.exec(l.trim())?.[1]).filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+export const conferir = ({ contrato, schemaPath, raiz, repo, manual = false, agora = Date.now(), processos = processosPadrao }) => {
   const r = [];
   const add = (nivel, codigo, texto) => r.push({ nivel, codigo, texto });
   const confere = (codigo, problema, ok, nivel = 'FALTA') => (problema ? add(nivel, codigo, problema) : add('OK', codigo, ok));
 
   let c;
+  let texto = '';
   try {
-    c = extrairCabecalho(readFileSync(contrato, 'utf8')).cabecalho;
+    texto = readFileSync(contrato, 'utf8');
+    c = extrairCabecalho(texto).cabecalho;
   } catch (e) {
     if (!(e instanceof ContratoErro)) throw e;
     add('FALTA', 'CONTRATO_INVALIDO', e.erros[0].mensagem);
@@ -123,6 +136,25 @@ export const conferir = ({ contrato, schemaPath, raiz, repo, manual = false, ago
   const le = Array.isArray(c.arquivos_permitidos) && typeof commit === 'string' && HEX.test(commit) ? leOTexto(repo, c) : [];
   if (le.length) for (const { teste, arq } of le) add('AVISO', 'LE_O_TEXTO', `${teste} le o texto de ${arq}`);
   else add('OK', 'LE_O_TEXTO', 'nenhum teste fora da lista le o texto de arquivo permitido');
+
+  const cmds = barra((Array.isArray(c.comandos_validacao) ? c.comandos_validacao : []).filter((x) => typeof x === 'string').join('\n'));
+  const fora = [...new Set(le.map((x) => x.teste))].filter((t) => !cmds.includes(barra(t)) && !cmds.includes(path.posix.basename(barra(t))));
+  const lista = fora.slice(0, 5).join(', ') + (fora.length > 5 ? ` e mais ${fora.length - 5}` : '');
+  confere('LE_O_TEXTO_SEM_COMANDO', fora.length ? `teste que le o texto fora dos comandos de validacao: ${lista}` : '', 'todo teste que le o texto de arquivo permitido esta nos comandos', manual ? 'AVISO' : 'FALTA');
+
+  const ini = texto.search(/^## 10\./m);
+  const resto = ini < 0 ? '' : texto.slice(ini);
+  const fim = resto.slice(1).search(/^## 11\./m);
+  const secao10 = fim < 0 ? resto : resto.slice(0, fim + 1);
+  confere('SEM_FRASE_CRITERIOS', /palavra por palavra/i.test(secao10) ? '' : 'a secao ## 10. do contrato falta ou nao manda copiar os criterios palavra por palavra', 'a secao ## 10. manda copiar os criterios palavra por palavra', manual ? 'AVISO' : 'FALTA');
+
+  let nomes = [];
+  try {
+    nomes = processos();
+  } catch {
+    // sem lista de processos: nao avisa
+  }
+  confere('EDITOR_ABERTO', nomes.some((n) => /^code(\.exe)?$/i.test(String(n).trim())) ? 'feche o VS Code antes do rodar (A16)' : '', 'VS Code fechado', 'AVISO');
   return r;
 };
 
