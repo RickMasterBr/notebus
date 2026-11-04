@@ -123,7 +123,7 @@ export function StackedSheetContent({ entry }: { entry: SheetEntry }) {
         />
       );
     case "settings":
-      return <SettingsSheet id={entry.id} />;
+      return <SettingsSheet id={entry.id} page={entry.page} />;
     case "clockPicker":
       return <ClockPickerSheet id={entry.id} />;
     case "backupImport":
