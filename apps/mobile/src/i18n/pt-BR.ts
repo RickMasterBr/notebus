@@ -893,6 +893,18 @@ export const ptBR = {
   "settings.data.backup_row": "Backup", // provisório
   "settings.backup.hint": "Leva seus registros, lugares, avisos e ajustes. Guarde o arquivo onde quiser, como no iCloud Drive.", // provisório
   "settings.backup.import_hint": "Importar junta o arquivo com o que já está neste aparelho e atualiza o que for o mesmo registro. Dá para desfazer. O app mostra o resumo antes de confirmar.", // provisório
+  // v1-e3-10 (ideia 249): importar rede nova pelo seletor de arquivo
+  "settings.network_import": "Importar rede nova", // provisório
+  "settings.network_import.hint": "Escolha o arquivo da rede da MOBILIS. O app junta com o que já está aqui e não apaga nada. Dá para desfazer.", // provisório
+  "settings.network_import.summary": "Rede de {{from}}: {{lines}} linhas, {{stops}} pontos, {{trips}} viagens", // provisório
+  "settings.network_import.already": "Esta rede já está neste aparelho. Nada será alterado.", // provisório
+  "settings.network_import.invalid": "Este arquivo não é uma rede da MOBILIS do NoteBus.", // provisório
+  "settings.network_import.confirm": "Importar", // provisório
+  "settings.network_import.cancel": "Cancelar", // provisório
+  "toast.network_import_done.title": "Rede nova importada", // provisório
+  "toast.network_import_failed.title": "Não foi possível importar", // provisório
+  "toast.network_import_failed.body": "Nada foi alterado.", // provisório
+  "toast.network_import_undone.title": "Importação desfeita", // provisório
   "settings.back": "Ajustes", // provisório
   "settings.back.a11y": "Voltar para Ajustes", // provisório
   "greeting.morning": "Bom dia", // provisório

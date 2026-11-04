@@ -19,6 +19,7 @@ import { PositionProvider } from "./src/data/PositionProvider";
 import { StopLocationsProvider } from "./src/data/StopLocationsProvider";
 import { ToastProvider } from "./src/data/ToastProvider";
 import { BackupProvider } from "./src/data/BackupProvider";
+import { NetworkImportProvider } from "./src/data/NetworkImportProvider";
 import { OfflineMapProvider } from "./src/data/OfflineMapProvider";
 import { markFirstRunDone, needsFirstRun } from "./src/db/appState";
 import { pickAndImport } from "./src/db/importFromFile";
@@ -115,9 +116,11 @@ export default function App() {
                                 <DeclaredTimesProvider db={db}>
                                   <PlacesProvider db={db}>
                                     <BackupProvider raw={raw} backups={backups} appVersion={appJson.expo.version}>
-                                      <OfflineMapProvider db={db}>
-                                        <Home key={fontScaleState.key} />
-                                      </OfflineMapProvider>
+                                      <NetworkImportProvider raw={raw} backups={backups}>
+                                        <OfflineMapProvider db={db}>
+                                          <Home key={fontScaleState.key} />
+                                        </OfflineMapProvider>
+                                      </NetworkImportProvider>
                                     </BackupProvider>
                                   </PlacesProvider>
                                 </DeclaredTimesProvider>
