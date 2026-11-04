@@ -8,6 +8,8 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { t } from "../i18n";
 import { minTouch, space, useTheme } from "../theme";
 import { CrossGlyph } from "../ui/Glyphs";
+import { useScreenEntry } from "../nav/ScreenContext";
+import { ScreenBackButton } from "../nav/ScreenBackButton";
 import type { Detent } from "./stack";
 import { pressedStyle } from "../ui/pressed";
 
@@ -37,19 +39,22 @@ export function SheetHandle(props: Props) {
   const bar = <View style={[styles.bar, { backgroundColor: colors.grab }]} />;
 
   if (props.kind === "close") {
+    const screen = useScreenEntry();
     return (
       <View style={styles.closeRow}>
-        {/* O ✕ já anuncia "Fechar"; o handle continua fechando ao toque, mas fica fora da leitura para não repetir. */}
-        <Pressable
-          accessible={false}
-          importantForAccessibility="no"
-          hitSlop={HIT_SLOP}
-          onPress={props.onPress}
-          style={styles.area}
-        >
-          {bar}
-        </Pressable>
-        {!props.hideCloseButton && <CloseButton onPress={props.onPress} />}
+        {/* A barrinha só existe fora de tela: dentro de tela o topo é do botão de voltar. */}
+        {!screen && (
+          <Pressable
+            accessible={false}
+            importantForAccessibility="no"
+            hitSlop={HIT_SLOP}
+            onPress={props.onPress}
+            style={styles.area}
+          >
+            {bar}
+          </Pressable>
+        )}
+        {!props.hideCloseButton && <CloseOrBack onPress={props.onPress} />}
       </View>
     );
   }
@@ -73,9 +78,15 @@ export function SheetHandle(props: Props) {
   return (
     <View style={styles.closeRow}>
       {adjustable}
-      <CloseButton onPress={props.onClose} />
+      <CloseOrBack onPress={props.onClose} />
     </View>
   );
+}
+
+/** Dentro de tela o topo mostra o botão de voltar; fora de tela (folha e modal) continua o ✕. */
+function CloseOrBack({ onPress }: { onPress: () => void }) {
+  const screen = useScreenEntry();
+  return screen ? <ScreenBackButton onPress={onPress} /> : <CloseButton onPress={onPress} />;
 }
 
 function CloseButton({ onPress }: { onPress: () => void }) {
