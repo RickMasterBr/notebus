@@ -28,6 +28,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import appJson from "../../app.json";
 import { alarmsSwitchDecision } from "../data/alarmsSwitchFlow";
 import { useBackup } from "../data/BackupProvider";
+import { useNetworkImport } from "../data/NetworkImportProvider";
 import { useCalendarEdits } from "../data/CalendarEditsProvider";
 import { realNow } from "../data/clock";
 import { useNow } from "../data/NowProvider";
@@ -63,7 +64,6 @@ import {
   normalizeUserName,
   settingsHandle,
   settingsIndexView,
-  settingsNavReduce,
   settingsPageTitle,
   type SettingsPage,
 } from "../data/settingsIndex";
@@ -103,8 +103,16 @@ const VERSION_TEXT = `${appJson.expo.version} (${process.env.EXPO_PUBLIC_BUILD_S
 
 const HeightContext = createContext<(height: number) => void>(() => {});
 
+/**
+ * `settingsIndex.ts` não é deste bloco (lista fechada): a página nova entra aqui, sem mexer nele.
+ * shortcut: mover "network_import" para `SettingsPage` quando um bloco puder tocar `settingsIndex.ts`.
+ */
+type Page = SettingsPage | "network_import";
+type NavAction = { type: "open"; page: Page } | { type: "back" };
+const navReduce = (page: Page, action: NavAction): Page => (action.type === "open" ? action.page : "root");
+
 interface SettingsNavContextValue {
-  page: SettingsPage;
+  page: Page;
   onBack: () => void;
 }
 
@@ -116,7 +124,7 @@ const SettingsNavContext = createContext<SettingsNavContextValue>({
 function SettingsHandle({ onClose }: { onClose: () => void }) {
   const setHandleHeight = useContext(HeightContext);
   const { page, onBack } = useContext(SettingsNavContext);
-  const handleInfo = settingsHandle(page);
+  const handleInfo = settingsHandle(page === "network_import" ? "backup" : page);
 
   return (
     <View collapsable={false} onLayout={(e) => setHandleHeight(e.nativeEvent.layout.height)}>
@@ -147,7 +155,7 @@ export function SettingsSheet({ id }: { id: number }) {
 
   const reduceMotion = useReduceMotion();
   const keyboardHeight = useKeyboardHeight();
-  const [page, dispatchNav] = useReducer(settingsNavReduce, "root");
+  const [page, dispatchNav] = useReducer(navReduce, "root");
   const handleBack = useCallback(() => dispatchNav({ type: "back" }), []);
 
   const scrollRef = useRef<BottomSheetScrollViewMethods>(null);
@@ -299,6 +307,7 @@ export function SettingsSheet({ id }: { id: number }) {
   };
 
   const backup = useBackup();
+  const networkImport = useNetworkImport();
   const backupDays = backupDaysText(backup.lastExportAt, now());
 
   const offlineMap = useOfflineMap();
@@ -532,6 +541,14 @@ export function SettingsSheet({ id }: { id: number }) {
                         onPress={() => dispatchNav({ type: "open", page: "backup" })}
                       />
                       <SettingsIndexRow
+                        title={t("settings.network_import")}
+                        onPress={() =>
+                          void networkImport.start().then((picked) => {
+                            if (picked) dispatchNav({ type: "open", page: "network_import" });
+                          })
+                        }
+                      />
+                      <SettingsIndexRow
                         title={t("settings.about.title")}
                         onPress={() => dispatchNav({ type: "open", page: "about" })}
                       />
@@ -579,7 +596,7 @@ export function SettingsSheet({ id }: { id: number }) {
                     </Pressable>
 
                   <Text accessibilityRole="header" style={[type.title, styles.pageTitle, { color: colors.text }]}>
-                    {t(settingsPageTitle(page))}
+                    {t(page === "network_import" ? "settings.network_import" : settingsPageTitle(page))}
                   </Text>
 
                   {/* Página Meu nome */}
@@ -890,6 +907,58 @@ export function SettingsSheet({ id }: { id: number }) {
                       <Text style={[type.caption, { color: colors.textSecondary }]}>
                         {t("settings.backup.import_hint")}
                       </Text>
+                    </View>
+                  )}
+
+                  {/* Página Importar rede nova */}
+                  {page === "network_import" && (
+                    <View style={styles.pageSection}>
+                      <View style={[styles.stateCard, { borderColor: colors.divider, backgroundColor: colors.surface }]}>
+                        {(networkImport.state.status === "checking" || networkImport.state.status === "applying") && (
+                          <Text style={[type.body, { color: colors.textSecondary }]}>{t("backup.preview.checking")}</Text>
+                        )}
+                        {networkImport.state.status === "ready" && (
+                          <>
+                            <Text style={[type.title, { color: colors.text, fontSize: 20 }]}>{networkImport.state.summary}</Text>
+                            <Text style={[type.caption, { color: colors.textSecondary }]}>
+                              {networkImport.state.jaInstalada ? t("settings.network_import.already") : t("settings.network_import.hint")}
+                            </Text>
+                          </>
+                        )}
+                        {networkImport.state.status === "error" && (
+                          <Text style={[type.body, { color: colors.text }]}>{networkImport.state.message}</Text>
+                        )}
+                      </View>
+                      <View style={styles.buttonStack}>
+                        {networkImport.state.status === "ready" && !networkImport.state.jaInstalada && (
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t("settings.network_import.confirm")}
+                            onPress={() => {
+                              networkImport.confirm();
+                              handleBack();
+                            }}
+                            style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.accent }, pressedStyle(pressed)]}
+                          >
+                            <Text style={[type.bodyStrong, { color: colors.onAccent, fontSize: 17 }]}>
+                              {t("settings.network_import.confirm")}
+                            </Text>
+                          </Pressable>
+                        )}
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={t("settings.network_import.cancel")}
+                          onPress={() => {
+                            networkImport.cancel();
+                            handleBack();
+                          }}
+                          style={({ pressed }) => [styles.fillButton, { backgroundColor: colors.fill }, pressedStyle(pressed)]}
+                        >
+                          <Text style={[type.bodyStrong, { color: colors.text, fontSize: 17 }]}>
+                            {t("settings.network_import.cancel")}
+                          </Text>
+                        </Pressable>
+                      </View>
                     </View>
                   )}
 

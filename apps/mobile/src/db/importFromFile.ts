@@ -15,6 +15,14 @@ export type PickResult =
   /** O arquivo é válido, mas a gravação falhou (a transação foi desfeita). */
   | { status: "failed"; error: unknown };
 
+/** Só escolhe e lê o arquivo: devolve o JSON lido, ou `null` se cancelou. Arquivo ilegível lança. */
+export async function pickNetworkJson(): Promise<unknown | null> {
+  const picked = await DocumentPicker.getDocumentAsync({ type: "application/json", copyToCacheDirectory: true });
+  const asset = picked.assets?.[0];
+  if (picked.canceled || !asset) return null;
+  return (await fetch(asset.uri)).json();
+}
+
 /**
  * Abre o seletor nativo de documentos (iOS/Android), lê o arquivo JSON
  * e faz o parse antes de chamar o importador.
