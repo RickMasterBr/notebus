@@ -20,6 +20,8 @@ import { useReduceMotion } from "./useReduceMotion";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 import { REVEAL_CHECK_MS, ghostReason, repairStep, settledIndex } from "./ghostRepair";
 import { realNow } from "../data/clock";
+import { useScreenEntry } from "../nav/ScreenContext";
+import { ScreenSheetFrame } from "../nav/ScreenSheetFrame";
 
 const OPEN_MS = motion.normal; // 250
 const CLOSE_MS = 180;
@@ -91,6 +93,9 @@ export function StackedSheet({
   tall?: boolean;
   detents?: StackedDetents;
 }) {
+  // O contexto de tela é fixo durante a vida do componente (folha montada numa tela nunca muda de lugar): a ordem dos hooks não varia.
+  const screen = useScreenEntry();
+  if (screen) return <ScreenSheetFrame Handle={detents?.Handle}>{children}</ScreenSheetFrame>;
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { state, dispatch } = useSheets();

@@ -41,7 +41,7 @@ import { homeLayerPointerEvents } from "./diagLog";
 import { type SheetEntry, stackedSheets } from "./stack";
 
 export function SheetHost({ customBase }: { customBase?: React.ReactNode } = {}) {
-  const { state } = useSheets();
+  const { sheetState: state } = useSheets();
   const stacked = stackedSheets(state);
   useEffect(() => {
     if (DIAG_SCROLL) recordDiagEvent(`inicio pe=${homeLayerPointerEvents(stacked.length)} pilha=${stacked.length}`);
@@ -84,7 +84,7 @@ function StackedSheetSlot({ entry }: { entry: SheetEntry }) {
   );
 }
 
-function StackedSheetContent({ entry }: { entry: SheetEntry }) {
+export function StackedSheetContent({ entry }: { entry: SheetEntry }) {
   if (entry.kind === "lineDetail" && entry.lineId === NEW_LINE_ID && entry.initialStop) {
     return <LineEditSheet id={entry.id} initialStop={entry.initialStop} />;
   }
