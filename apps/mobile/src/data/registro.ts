@@ -71,6 +71,19 @@ export interface BoardToken {
   reopenedRideIds: string[];
 }
 
+/** O que fazer com a viagem que está aberta quando entra um embarque novo (D-403). */
+export type PreviousRideChoice =
+  | { choice: "conferir" }
+  | { choice: "dispensar" }
+  | { choice: "descida"; stopId: string; patternId: string; position: number };
+
+/** O Desfazer do `boardOver`: o que o embarque novo fez e o que foi feito à viagem anterior. */
+export type BoardOverToken = BoardToken & {
+  previous: { rideId: string; choice: PreviousRideChoice["choice"]; alightObservationId?: string } | null;
+};
+
+export type BoardOverResult = { ok: true; token: BoardOverToken } | { ok: false; problem: string };
+
 export interface AlightToken {
   observationId: string;
   rideId: string;
@@ -170,8 +183,56 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
   async function observationById(id: string): Promise<ObservationRow | undefined> {
     return (await selectLive(db, observation, eq(observation.id, id)).limit(1))[0];
   }
+  /** A linha do `ride` mesmo apagada: o Desfazer do `dispensar` precisa do embarque que ela guarda. */
+  async function anyRideById(id: string): Promise<RideRow | undefined> {
+    return (await db.select().from(ride).where(eq(ride.id, id)).limit(1))[0];
+  }
 
   // ─── Embarque ────────────────────────────────────────────────────────────
+
+  /**
+   * O corpo do embarque, dentro da transação: fecha os `ride` abertos que houver (menos `exceptRideId`, que quem chama
+   * trata à parte), grava o `ride` novo `open` e o fato do embarque, e anota em `reopenedRideIds` quem fechou.
+   */
+  async function boardFacts(
+    input: { stopId: string; lineId: string; at: number; gps?: PositionFix | null },
+    ids: { observationId: string; rideId: string },
+    exceptRideId: string | null,
+    reopenedRideIds: string[],
+  ): Promise<void> {
+    const { at } = input;
+    const { observationId, rideId } = ids;
+    for (const open of await selectLive(db, ride, eq(ride.status, "open"))) {
+      if (open.id === exceptRideId) continue;
+      await db.update(ride).set({ status: "closed", updatedAt: at }).where(eq(ride.id, open.id));
+      reopenedRideIds.push(open.id);
+    }
+    await db.insert(ride).values({
+      id: rideId,
+      createdAt: at,
+      updatedAt: at,
+      source: "user",
+      boardingObservationId: observationId,
+      alightingObservationId: null,
+      tripId: null,
+      status: "open",
+    });
+    await db.insert(observation).values({
+      id: observationId,
+      createdAt: at,
+      updatedAt: at,
+      source: "user",
+      stopId: input.stopId,
+      lineId: input.lineId,
+      observedAt: at,
+      observedEndAt: null,
+      kind: "boarded",
+      mode: "live",
+      rideId,
+      recordedAt: at,
+      ...gpsColumns("live", input.gps),
+    });
+  }
 
   /**
    * Fato do embarque: `observed_at` = `recorded_at` (o mesmo instante, com segundos), `kind = boarded`, `mode = live`,
@@ -184,37 +245,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       const observationId = newId(at);
       const rideId = newId(at);
       const reopenedRideIds: string[] = [];
-      await inTransaction(db, async () => {
-        for (const open of await selectLive(db, ride, eq(ride.status, "open"))) {
-          await db.update(ride).set({ status: "closed", updatedAt: at }).where(eq(ride.id, open.id));
-          reopenedRideIds.push(open.id);
-        }
-        await db.insert(ride).values({
-          id: rideId,
-          createdAt: at,
-          updatedAt: at,
-          source: "user",
-          boardingObservationId: observationId,
-          alightingObservationId: null,
-          tripId: null,
-          status: "open",
-        });
-        await db.insert(observation).values({
-          id: observationId,
-          createdAt: at,
-          updatedAt: at,
-          source: "user",
-          stopId: input.stopId,
-          lineId: input.lineId,
-          observedAt: at,
-          observedEndAt: null,
-          kind: "boarded",
-          mode: "live",
-          rideId,
-          recordedAt: at,
-          ...gpsColumns("live", input.gps),
-        });
-      });
+      await inTransaction(db, () => boardFacts(input, { observationId, rideId }, null, reopenedRideIds));
       return { observationId, rideId, reopenedRideIds };
     });
   }
@@ -227,6 +258,125 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
         await db.update(ride).set({ deletedAt: at, updatedAt: at }).where(eq(ride.id, token.rideId));
         for (const id of token.reopenedRideIds) {
           await db.update(ride).set({ status: "open", updatedAt: at }).where(and(eq(ride.id, id), isNull(ride.deletedAt)));
+        }
+      }),
+    );
+  }
+
+  /**
+   * Embarque novo com a viagem que está aberta (D-403): numa transação, grava o embarque novo **com a hora do toque** e
+   * faz com a viagem anterior o que o usuário escolheu — `conferir` fecha sem descida (como o `board` de hoje),
+   * `dispensar` apaga o embarque e a viagem anteriores, `descida` grava a descida na paragem escolhida (mesmo invariante
+   * 5 do `alight`). `previous = null` é o `board` de hoje. Nada inválido é gravado: o problema volta antes da transação.
+   */
+  function boardOver(
+    input: { stopId: string; lineId: string; at: number; gps?: PositionFix | null },
+    previous: ({ rideId: string } & PreviousRideChoice) | null,
+  ): Promise<BoardOverResult> {
+    return enqueue(async (): Promise<BoardOverResult> => {
+      const { at } = input;
+      const observationId = newId(at);
+      const rideId = newId(at);
+      const reopenedRideIds: string[] = [];
+      let prevRide: RideRow | undefined;
+      let prevBoarding: ObservationRow | undefined;
+      let alight: { observationId: string; next: RideState } | null = null;
+
+      if (previous) {
+        prevRide = await rideById(previous.rideId);
+        if (!prevRide || prevRide.status !== "open") return { ok: false, problem: "viagem não encontrada" };
+        if (previous.choice === "descida") {
+          prevBoarding = await observationById(prevRide.boardingObservationId);
+          if (!prevBoarding) return { ok: false, problem: "viagem não encontrada" };
+          const network = deps.network();
+          const start = network ? resolveBoarding(prevBoarding, network) : null;
+          if (!start) return { ok: false, problem: "viagem sem percurso conhecido" };
+          const alightObservationId = newId(at);
+          try {
+            const next = alightRide(
+              rideState(prevRide),
+              alightObservationId,
+              { patternId: start.patternId, position: start.position, observedAt: prevBoarding.observedAt },
+              { patternId: previous.patternId, position: previous.position, observedAt: at },
+            );
+            alight = { observationId: alightObservationId, next };
+          } catch (error) {
+            return { ok: false, problem: error instanceof Error ? error.message : String(error) };
+          }
+        }
+      }
+
+      await inTransaction(db, async () => {
+        if (previous && prevRide) {
+          if (previous.choice === "dispensar") {
+            // O embarque e a viagem anteriores somem; o novo entra como o `board`.
+            await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, prevRide.boardingObservationId));
+            await db.update(ride).set({ deletedAt: at, updatedAt: at }).where(eq(ride.id, prevRide.id));
+          } else if (previous.choice === "descida" && alight && prevBoarding) {
+            // A descida entra como o `alight`: `alighted` na paragem escolhida e o `ride` anterior fecha.
+            await db.insert(observation).values({
+              id: alight.observationId,
+              createdAt: at,
+              updatedAt: at,
+              source: "user",
+              stopId: previous.stopId,
+              lineId: prevBoarding.lineId,
+              observedAt: at,
+              observedEndAt: null,
+              kind: "alighted",
+              mode: "live",
+              rideId: prevRide.id,
+              recordedAt: at,
+              ...gpsColumns("live", null),
+            });
+            await db
+              .update(ride)
+              .set({ alightingObservationId: alight.next.alightingObservationId, status: alight.next.status, updatedAt: at })
+              .where(eq(ride.id, prevRide.id));
+          }
+        }
+        // A anterior que não foi tratada aqui (a de `conferir`) fecha em `boardFacts`, como no `board`.
+        await boardFacts(input, { observationId, rideId }, previous?.choice === "conferir" ? null : (prevRide?.id ?? null), reopenedRideIds);
+      });
+
+      let previousToken: BoardOverToken["previous"] = null;
+      if (previous) {
+        previousToken = { rideId: previous.rideId, choice: previous.choice };
+        if (alight) previousToken.alightObservationId = alight.observationId;
+      }
+      return { ok: true, token: { observationId, rideId, reopenedRideIds, previous: previousToken } };
+    });
+  }
+
+  /**
+   * Desfazer o `boardOver` (A40): apaga o embarque novo e a viagem nova (como o `undoBoard`) e desfaz o tratamento dado à
+   * viagem anterior. `conferir` (e `previous = null`) reabre as viagens que o embarque fechou; `dispensar` restaura o
+   * embarque e a viagem anteriores, com a viagem aberta; `descida` apaga o `alighted` e devolve a viagem a `open`.
+   */
+  function undoBoardOver(token: BoardOverToken, at: number): Promise<void> {
+    return enqueue(() =>
+      inTransaction(db, async () => {
+        await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, token.observationId));
+        await db.update(ride).set({ deletedAt: at, updatedAt: at }).where(eq(ride.id, token.rideId));
+        const previous = token.previous;
+        if (!previous || previous.choice === "conferir") {
+          for (const id of token.reopenedRideIds) {
+            await db.update(ride).set({ status: "open", updatedAt: at }).where(and(eq(ride.id, id), isNull(ride.deletedAt)));
+          }
+        } else if (previous.choice === "dispensar") {
+          const row = await anyRideById(previous.rideId);
+          if (row) {
+            await db.update(observation).set({ deletedAt: null, updatedAt: at }).where(eq(observation.id, row.boardingObservationId));
+            await db.update(ride).set({ deletedAt: null, status: "open", updatedAt: at }).where(eq(ride.id, row.id));
+          }
+        } else {
+          if (previous.alightObservationId) {
+            await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, previous.alightObservationId));
+          }
+          await db
+            .update(ride)
+            .set({ alightingObservationId: null, status: "open", updatedAt: at })
+            .where(eq(ride.id, previous.rideId));
         }
       }),
     );
@@ -950,7 +1100,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     return enqueue(job);
   }
 
-  return { board, undoBoard, alight, undoAlight, notBoarded, undoNotBoarded, dismiss, undoDismiss, expire, refreshDeductions, rematchWhere, edit, chooseManual, dismissReview, remove, restore, load, exclusive };
+  return { board, undoBoard, boardOver, undoBoardOver, alight, undoAlight, notBoarded, undoNotBoarded, dismiss, undoDismiss, expire, refreshDeductions, rematchWhere, edit, chooseManual, dismissReview, remove, restore, load, exclusive };
 }
 
 export type Registro = ReturnType<typeof createRegistro>;
