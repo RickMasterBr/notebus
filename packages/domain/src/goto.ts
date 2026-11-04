@@ -67,7 +67,7 @@ export interface BusCandidate {
   beAtStop: number;
   /** "Sair às" (a pé até o embarque, o maior valor da faixa). */
   leaveAt: number;
-  /** A hora de sair já passou, mas o ônibus ainda não (o cartão fica até `beAtStop`). */
+  /** A hora de sair já passou, mas o ônibus ainda não (o cartão fica até a hora do ônibus passar no embarque). */
   leaveAtPassed: boolean;
   /** "Chega ~". */
   arriveAt: number;
@@ -147,6 +147,7 @@ interface RawBusCandidate {
 
 /**
  * As próximas viagens viáveis de uma opção de ônibus, em ordem de horário no embarque (no máximo `tripsPerOption`).
+ * A viagem sai da lista só quando a hora do ônibus no embarque já passou (não em `beAtStop`, ideia 231).
  * Lança erro se a descida não vem depois do embarque (`checkBusOption`).
  */
 export function busCandidates(option: BusOption, input: GotoInput): BusCandidate[] {
@@ -183,7 +184,7 @@ function rawBusCandidates(option: BusOption, input: GotoInput): RawBusCandidate[
     if (!board || !alight) continue;
     const beAtStop = displayBeAtStop(board.beAtStop);
     const leaveAt = Math.floor(beAtStop - toBoard.leave);
-    if (beAtStop < nowMinute) continue;
+    if (displayCenter(board.center) < nowMinute) continue;
     const official = baseTimeAt(trip, option.alightPosition)!.minute - baseTimeAt(trip, option.boardPosition)!.minute;
     const segment = shrunkRideMinutes(option.rideMinutes, official, config);
     const arrive = segment === null ? alight.center : board.center + segment;
