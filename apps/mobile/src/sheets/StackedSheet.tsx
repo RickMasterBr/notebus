@@ -17,6 +17,7 @@ import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { activeSheet } from "./stack";
 import { useReduceMotion } from "./useReduceMotion";
+import { useClosedWithoutNotice } from "./useClosedWithoutNotice";
 import { DIAG_SCROLL, recordDiagEvent } from "./diagScroll";
 import { REVEAL_CHECK_MS, ghostReason, repairStep, settledIndex } from "./ghostRepair";
 import { realNow } from "../data/clock";
@@ -238,6 +239,7 @@ export function StackedSheet({
     },
     [id],
   );
+  useClosedWithoutNotice({ animatedIndex, pop, resetKey: revealKey });
   const fill = tall || detents !== undefined;
 
   const renderBackdrop = useCallback(
