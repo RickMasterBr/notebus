@@ -2,11 +2,17 @@
 import { useNow } from "../data/NowProvider";
 import { notifyPendingIntent, onPendingIntent, peekPendingIntent, takePendingIntent } from "../notifications/pendingIntent";
 import { DIAG_SCROLL, recordCloseRequest, recordDiagEvent, recordOpenRequest } from "./diagScroll";
-import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from "react";
-import { type SheetAction, type SheetContent, type SheetStackState, initialSheetState, sheetReducer } from "./stack";
+import { StackActions } from "@react-navigation/native";
+import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { navigationRef, openScreenEntries, registerScreenEntry, screenIdsOf } from "../nav/screenEntries";
+import { routeAction } from "../nav/routeAction";
+import { type SheetAction, type SheetContent, type SheetEntry, type SheetStackState, initialSheetState, sheetReducer } from "./stack";
 
 interface SheetsValue {
+  /** Folhas seguidas das telas abertas (para o "sou a do topo?"). */
   state: SheetStackState;
+  /** Só a pilha de folhas. */
+  sheetState: SheetStackState;
   dispatch: Dispatch<SheetAction>;
   /** Pede à folha do Início (HomeSheet) para recolher ao detent pequeno (D-145, D-180). */
   collapseHome: () => void;
@@ -84,8 +90,29 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
       const oldKind = top ? top.kind : "desconhecido";
       recordDiagEvent(`trocar ${oldKind} > ${action.sheet.kind}`);
     }
+    const routed = routeAction(action, { screenIds: screenIdsOf(navigationRef.isReady() ? navigationRef.getRootState() : undefined) });
+    if (routed.to === "nav") {
+      if (!navigationRef.isReady()) return;
+      if (routed.op === "push") navigationRef.dispatch(StackActions.push("tela", { id: registerScreenEntry(routed.sheet).id }));
+      else if (routed.op === "replace") navigationRef.dispatch(StackActions.replace("tela", { id: registerScreenEntry(routed.sheet).id }));
+      else if (routed.op === "goBack") navigationRef.goBack();
+      else if (routed.op === "popToTopThenSheets") navigationRef.dispatch(StackActions.popToTop());
+      if (routed.op !== "popToTopThenSheets") return;
+    }
     rawDispatch(action);
   }, []);
+
+  // As telas abertas vêm do estado da navegação; o ouvinte é guardado pelo `navigationRef` até o container montar.
+  const [screens, setScreens] = useState<readonly SheetEntry[]>([]);
+  useEffect(
+    () =>
+      navigationRef.addListener("state", () => {
+        const next = openScreenEntries(navigationRef.getRootState());
+        setScreens((prev) => (prev.length === next.length && prev.every((e, i) => e === next[i]) ? prev : next));
+      }),
+    [],
+  );
+  const fullState = useMemo(() => (screens.length ? { ...state, stack: [...state.stack, ...screens] } : state), [state, screens]);
 
   useEffect(() => {
     sheetOpener = (sheet) => dispatch({ type: "push", sheet });
@@ -122,8 +149,8 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ state, dispatch, collapseHome, registerHomeCollapse }),
-    [state, dispatch, collapseHome, registerHomeCollapse],
+    () => ({ state: fullState, sheetState: state, dispatch, collapseHome, registerHomeCollapse }),
+    [fullState, state, dispatch, collapseHome, registerHomeCollapse],
   );
   const pick = useRef<StopPick | null>(null);
   const stopPick = useMemo<StopPickValue>(
