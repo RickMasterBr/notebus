@@ -62,6 +62,7 @@ import { containerHeightOf, detentMetrics } from "./scrollInset";
 import { type Detent, activeSheet } from "./stack";
 import { useToast } from "../data/ToastProvider";
 import { useTestClock } from "../data/TestClockProvider";
+import { shouldAnnounceReplaced } from "../data/alarmReplacedNotice";
 import { realNow } from "../data/clock";
 import { ensureAlarmPermission } from "../notifications/permission";
 import { expoPort } from "../notifications/expoPort";
@@ -373,24 +374,26 @@ export function GotoSheet({
                       ? rep.weekdays.map((d) => t(weekdayPluralKey(d))).join(" ")
                       : t("alarm.repeat.once");
                   const repTime = oldAlarm ? minuteText(oldAlarm.anchorBaseMinute) : "";
-                  toast.show({
-                    title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
-                    action: {
-                      label: t("toast.action.undo"),
-                      run: async () => {
-                        try {
-                          await saveResult.undo(realNow());
-                          requestReschedule();
-                          await loadAlarms();
-                        } catch {
-                          toast.show({
-                            title: t("alarms.undo_failed"),
-                            kind: "error",
-                          });
-                        }
+                  if (shouldAnnounceReplaced(rep, oldAlarm ? oldAlarm.anchorBaseMinute : null, realNow())) {
+                    toast.show({
+                      title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
+                      action: {
+                        label: t("toast.action.undo"),
+                        run: async () => {
+                          try {
+                            await saveResult.undo(realNow());
+                            requestReschedule();
+                            await loadAlarms();
+                          } catch {
+                            toast.show({
+                              title: t("alarms.undo_failed"),
+                              kind: "error",
+                            });
+                          }
+                        },
                       },
-                    },
-                  });
+                    });
+                  }
                 }
               } catch {
                 toast.show({
@@ -452,24 +455,26 @@ export function GotoSheet({
           ? rep.weekdays.map((d) => t(weekdayPluralKey(d))).join(" ")
           : t("alarm.repeat.once");
         const repTime = oldAlarm ? minuteText(oldAlarm.anchorBaseMinute) : "";
-        toast.show({
-          title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
-          action: {
-            label: t("toast.action.undo"),
-            run: async () => {
-              try {
-                await saveResult.undo(realNow());
-                requestReschedule();
-                await loadAlarms();
-              } catch {
-                toast.show({
-                  title: t("alarms.undo_failed"),
-                  kind: "error",
-                });
-              }
+        if (shouldAnnounceReplaced(rep, oldAlarm ? oldAlarm.anchorBaseMinute : null, realNow())) {
+          toast.show({
+            title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
+            action: {
+              label: t("toast.action.undo"),
+              run: async () => {
+                try {
+                  await saveResult.undo(realNow());
+                  requestReschedule();
+                  await loadAlarms();
+                } catch {
+                  toast.show({
+                    title: t("alarms.undo_failed"),
+                    kind: "error",
+                  });
+                }
+              },
             },
-          },
-        });
+          });
+        }
       } else {
         toast.show({
           title: t("toast.alarm_set.title"),
