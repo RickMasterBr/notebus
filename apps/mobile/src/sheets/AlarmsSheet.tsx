@@ -40,6 +40,7 @@ import {
   type HistoryItem,
   type UpcomingItem,
 } from "../data/alarmsUi";
+import { shouldAnnounceReplaced } from "../data/alarmReplacedNotice";
 import { realNow } from "../data/clock";
 import { testAlarmToastKey } from "../data/settingsActions";
 import { sharedAlarms, type AlarmRow } from "../db/alarms";
@@ -175,24 +176,26 @@ export function AlarmsSheet({ id }: { id: number }) {
                 const currentAlarms = await sharedAlarms(db).listAlarms();
                 const oldAlarm = currentAlarms.find((a) => a.id === rep.alarmId);
                 const repTime = oldAlarm ? minuteText(oldAlarm.anchorBaseMinute) : "";
-                toast.show({
-                  title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
-                  action: {
-                    label: t("toast.action.undo"),
-                    run: async () => {
-                      try {
-                        await saveResult.undo(realNow());
-                        requestReschedule();
-                        await loadData();
-                      } catch {
-                        toast.show({
-                          title: t("alarms.undo_failed"),
-                          kind: "error",
-                        });
-                      }
+                if (shouldAnnounceReplaced(rep, oldAlarm ? oldAlarm.anchorBaseMinute : null, realNow())) {
+                  toast.show({
+                    title: t("toast.alarm_replaced", { time: repTime, days: repDays }),
+                    action: {
+                      label: t("toast.action.undo"),
+                      run: async () => {
+                        try {
+                          await saveResult.undo(realNow());
+                          requestReschedule();
+                          await loadData();
+                        } catch {
+                          toast.show({
+                            title: t("alarms.undo_failed"),
+                            kind: "error",
+                          });
+                        }
+                      },
                     },
-                  },
-                });
+                  });
+                }
               }
             } catch {
               toast.show({
