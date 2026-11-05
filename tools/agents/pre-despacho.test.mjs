@@ -123,6 +123,17 @@ test('EDITOR_ABERTO: a linha sai no programa e nunca reprova (o padrao dos proce
   rmSync(amb.tmp, { recursive: true, force: true });
 });
 
+test('PERMISSAO_DO_EXECUTOR: agy com comando fora da lista sai com 1; AGY_SEM_REGRA_DE_ESPERA e so AVISO', () => {
+  const amb = ambiente();
+  const arq = path.join(amb.docs, 'v1', 'contratos', 'tarefa-x.md');
+  writeFileSync(arq, readFileSync(arq, 'utf8').replace('"harness": "claude"', '"harness": "agy"'));
+  const r = roda(amb, ['tarefa-x']);
+  assert.equal(r.code, 1, r.linhas.join('\n'));
+  assert.ok(r.linhas.some((l) => /^FALTA PERMISSAO_DO_EXECUTOR [\x20-\x7E]*node --test b\.test\.mjs/.test(l)), r.linhas.join('\n'));
+  assert.ok(r.linhas.some((l) => /^AVISO AGY_SEM_REGRA_DE_ESPERA [\x20-\x7E]+$/.test(l)), r.linhas.join('\n'));
+  rmSync(amb.tmp, { recursive: true, force: true });
+});
+
 test('uso errado sai com 2 e uma linha FALHA <codigo> <texto>', () => {
   const amb = ambiente();
   for (const [args, codigo] of [[[], 'USO'], [['a', 'b'], 'USO'], [['tarefa-x', '--nada'], 'USO'], [['Id Torto'], 'ID_INVALIDO'], [['nao-existe'], 'CONTRATO_AUSENTE']]) {

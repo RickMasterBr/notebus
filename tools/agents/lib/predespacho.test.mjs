@@ -105,14 +105,16 @@ test('SUITE_INTEIRA: ** e a pasta inteira falham; com manual vira AVISO; arquivo
   limpa(amb);
 });
 
-test('TRAVA_CHEIA: 1 ativo passa, 2 falham; GATE_OCUPADO e so AVISO', () => {
+test('TRAVA_CHEIA: 2 ativos passam, 3 falham (maximo 3); GATE_OCUPADO e so AVISO', () => {
   const amb = ambiente();
   escreve(amb);
-  adquirir({ raiz: amb.raiz, id: 'a', minutos: 5, max: 2, agora: AGORA });
+  adquirir({ raiz: amb.raiz, id: 'a', minutos: 5, max: 3, agora: AGORA });
+  adquirir({ raiz: amb.raiz, id: 'b', minutos: 5, max: 3, agora: AGORA });
   assert.deepEqual(nivel(rodar(amb), 'TRAVA_CHEIA'), ['OK']);
-  adquirir({ raiz: amb.raiz, id: 'b', minutos: 5, max: 2, agora: AGORA });
+  adquirir({ raiz: amb.raiz, id: 'c', minutos: 5, max: 3, agora: AGORA });
   const linhas = rodar(amb);
   assert.deepEqual(nivel(linhas, 'TRAVA_CHEIA'), ['FALTA']);
+  assert.match(linhas.find((l) => l.codigo === 'TRAVA_CHEIA').texto, /3 despachos ativos \(maximo 3\)/);
   assert.deepEqual(nivel(linhas, 'GATE_OCUPADO'), ['OK']);
   adquirir({ raiz: amb.raiz, id: 'g', minutos: 5, max: 1, agora: AGORA, pasta: '_trava-gate' });
   assert.deepEqual(nivel(rodar(amb), 'GATE_OCUPADO'), ['AVISO']);
@@ -242,6 +244,64 @@ test('EDITOR_ABERTO: code, Code.exe e CODE.EXE avisam; Codex.exe, node.exe e fun
   }
   assert.deepEqual(nivel(rodar(amb, { processos: () => ['Codex.exe', 'node.exe'] }), 'EDITOR_ABERTO'), ['OK']);
   assert.deepEqual(nivel(rodar(amb, { processos: () => { throw new Error('x'); } }), 'EDITOR_ABERTO'), ['OK']);
+  limpa(amb);
+});
+
+const exec = (harness) => ({ harness, modelo: 'm' });
+
+test('PERMISSAO_DO_EXECUTOR: agy fora da lista falha; dentro da lista passa; opencode com pipe falha; claude nao confere', () => {
+  const amb = ambiente();
+  for (const cmd of ['node --test x', 'npm run test', 'npm test && npm run typecheck']) {
+    escreve(amb, { executor: exec('agy'), comandos_validacao: [cmd] });
+    assert.deepEqual(nivel(rodar(amb), 'PERMISSAO_DO_EXECUTOR'), ['FALTA'], cmd);
+  }
+  escreve(amb, { executor: exec('agy'), comandos_validacao: ['npm test --workspace=@notebus/mobile -- x', ' git status --short', 'npm run typecheck', 'npx vitest run'] });
+  assert.deepEqual(nivel(rodar(amb), 'PERMISSAO_DO_EXECUTOR'), ['OK']);
+  escreve(amb, { executor: exec('opencode'), comandos_validacao: ['cmd1 | cmd2'] });
+  assert.deepEqual(nivel(rodar(amb), 'PERMISSAO_DO_EXECUTOR'), ['FALTA']);
+  escreve(amb, { executor: exec('opencode'), comandos_validacao: ['node --test x'] });
+  assert.deepEqual(nivel(rodar(amb), 'PERMISSAO_DO_EXECUTOR'), ['OK']);
+  escreve(amb, { executor: exec('claude'), comandos_validacao: ['node --test x', 'a | b'] });
+  assert.deepEqual(nivel(rodar(amb), 'PERMISSAO_DO_EXECUTOR'), ['OK']);
+  limpa(amb);
+});
+
+test('PERMISSAO_DO_EXECUTOR: lista ate 3 comandos e diz e mais N', () => {
+  const amb = ambiente();
+  escreve(amb, { executor: exec('agy'), comandos_validacao: ['a1', 'a2', 'a3', 'a4', 'a5'] });
+  const l = rodar(amb).find((x) => x.codigo === 'PERMISSAO_DO_EXECUTOR');
+  assert.equal(l.nivel, 'FALTA');
+  assert.match(l.texto, /a1 \| a2 \| a3 e mais 2$/);
+  limpa(amb);
+});
+
+test('AGY_SEM_REGRA_DE_ESPERA: so AVISO para agy sem a expressao; com ela (qualquer caixa) OK; claude sem a linha', () => {
+  const amb = ambiente();
+  const cmds = { comandos_validacao: ['npm test'] };
+  escreve(amb, { executor: exec('agy'), ...cmds });
+  const linhas = rodar(amb);
+  assert.deepEqual(nivel(linhas, 'AGY_SEM_REGRA_DE_ESPERA'), ['AVISO']);
+  assert.equal(veredito(linhas.filter((l) => l.codigo === 'AGY_SEM_REGRA_DE_ESPERA')).codigo, 0);
+  escreve(amb, { executor: exec('agy'), ...cmds }, `${SECAO10}\nRode em SEGUNDO PLANO.\n`);
+  assert.deepEqual(nivel(rodar(amb), 'AGY_SEM_REGRA_DE_ESPERA'), ['OK']);
+  escreve(amb, { executor: exec('claude') });
+  assert.deepEqual(nivel(rodar(amb), 'AGY_SEM_REGRA_DE_ESPERA'), []);
+  escreve(amb, { executor: exec('opencode') });
+  assert.deepEqual(nivel(rodar(amb), 'AGY_SEM_REGRA_DE_ESPERA'), []);
+  limpa(amb);
+});
+
+test('LE_O_TEXTO: so o nome do arquivo conta na mesma pasta de topo; caminho completo conta em qualquer pasta', () => {
+  const leitor = (alvo) => `import { readFileSync } from 'node:fs';\nreadFileSync('${alvo}');\n`;
+  const amb = ambiente({ arquivos: {
+    'tools/lib/x.mjs': 'export const x = 1;\n',
+    'tools/lib/mesma.test.mjs': leitor('x.mjs'),
+    'apps/outra.test.mjs': leitor('x.mjs'),
+    'apps/completo.test.mjs': leitor('tools/lib/x.mjs'),
+  } });
+  escreve(amb, { arquivos_permitidos: ['tools/lib/x.mjs'] });
+  const achados = rodar(amb).filter((l) => l.codigo === 'LE_O_TEXTO').map((l) => l.texto.split(' ')[0]).sort();
+  assert.deepEqual(achados, ['apps/completo.test.mjs', 'tools/lib/mesma.test.mjs']);
   limpa(amb);
 });
 
