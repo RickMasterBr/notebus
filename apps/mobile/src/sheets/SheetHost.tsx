@@ -110,6 +110,7 @@ export function StackedSheetContent({ entry }: { entry: SheetEntry }) {
           position={entry.position}
           serviceDate={entry.serviceDate}
           dayType={entry.dayType}
+          viaGoto={entry.viaGoto}
         />
       );
     case "why":

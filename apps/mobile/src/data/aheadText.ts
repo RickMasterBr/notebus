@@ -71,9 +71,9 @@ export function returnTag(row: Pick<AheadStopRow, "returnsHere" | "isLast">): st
  * Cada paragem é lida como um bloco (D-047): "08:44, Campus, ponto de controle, volta aqui · fim". A passagem tocada
  * leva "você" depois do nome.
  */
-export function stopA11y(row: AheadStopRow, isHere: boolean): string {
+export function stopA11y(row: AheadStopRow, isHere: boolean, boardingTag = false): string {
   const parts = [row.time, row.name];
-  if (isHere) parts.push(t("terminal_detail.you_are_here"));
+  if (isHere) parts.push(t(boardingTag ? "terminal_detail.boarding_here" : "terminal_detail.you_are_here"));
   if (row.isTimepoint) parts.push(t("terminal_detail.a11y.timepoint"));
   const tag = returnTag(row);
   if (tag) parts.push(tag.replace("↺ ", ""));

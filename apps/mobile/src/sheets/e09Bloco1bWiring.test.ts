@@ -180,7 +180,7 @@ describe("E-09 bloco 1b: Por que (AheadSheet, SheetHost, StopSheet, WhySheet)", 
     ] as const) {
       expect(host).toMatch(
         new RegExp(
-          `case "${kind}": return \\( <${component} id=\\{entry\\.id\\} tripId=\\{entry\\.tripId\\} position=\\{entry\\.position\\} serviceDate=\\{entry\\.serviceDate\\} dayType=\\{entry\\.dayType\\} />`,
+          `case "${kind}": return \\( <${component} id=\\{entry\\.id\\} tripId=\\{entry\\.tripId\\} position=\\{entry\\.position\\} serviceDate=\\{entry\\.serviceDate\\} dayType=\\{entry\\.dayType\\} ${kind === "ahead" ? "viaGoto=\\{entry\\.viaGoto\\} " : ""}/>`,
         ),
       );
     }
