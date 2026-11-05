@@ -44,6 +44,7 @@ import { gotoCardA11yKey } from "../data/gotoCardA11y";
 import { buildGotoInputFromSources } from "../data/gotoData";
 import { resolveGotoNoService } from "../data/gotoNoService";
 import { resolveGotoOrigin } from "../data/gotoOrigin";
+import { originSelectorLabel, startsChoosingOrigin } from "../data/gotoOriginHeader";
 import { clockText } from "../data/stopCard";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
@@ -154,7 +155,6 @@ export function GotoSheet({
   const [handleHeight, setHandleHeight] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [firstCardHeight, setFirstCardHeight] = useState(0);
-  const [isChoosingOrigin, setIsChoosingOrigin] = useState(false);
 
   // Destino
   const destinationPlace = places.places.find(
@@ -172,6 +172,11 @@ export function GotoSheet({
       position: { fix, nowMs: realNow() },
     });
   }, [destinationPlaceId, places.places, places.routes, places.options, places.gotoLastOrigins, fix]);
+
+  // Menu de origens: começa aberto quando a abertura não trouxe origem e não há trajeto (ideia 68)
+  const [isChoosingOrigin, setIsChoosingOrigin] = useState(() =>
+    startsChoosingOrigin(initialOriginId, defaultOriginResolution.kind),
+  );
 
   // Origem selecionada no momento (se initialOriginId foi passado e existe, usa; senão resolvida)
   const [userSelectedOriginId, setUserSelectedOriginId] = useState<string | null>(
@@ -668,7 +673,7 @@ export function GotoSheet({
               >
                 <PlaceIconGlyph icon={originPlace?.icon} color={colors.accent} size={16} />
                 <Text style={[type.body, { color: colors.text }]}>
-                  {`${t("sheet_goto.origin_label", { origin: originPlace?.name ?? "" })} ▾`}
+                  {originSelectorLabel(originPlace?.name)}
                 </Text>
               </Pressable>
             </View>
