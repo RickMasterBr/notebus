@@ -62,8 +62,8 @@ export function HomePhrase({
           <View style={styles.arrivingRow}>
             <LineBadge code={phrase.arriving.lineCode} color={lineColor} />
             <Text
-              numberOfLines={1}
-              style={[type.eyebrow, { color: colors.textSecondary }]}
+              numberOfLines={2}
+              style={[type.eyebrow, styles.arrivingText, { color: colors.textSecondary }]}
             >
               {arrivingText}
             </Text>
@@ -87,4 +87,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: space.sm,
   },
+  arrivingText: { flexShrink: 1 },
 });
