@@ -5,9 +5,20 @@ import { extrairCabecalho, lerContrato, ContratoErro } from './contrato.mjs';
 import { lerCommitVigente, caminhoGate } from './rodar.mjs';
 import { lerAtivasSemApagar } from './trava.mjs';
 
-const MAX_WORKERS = 2;
+const MAX_WORKERS = 3;
 const HEX = /^[0-9a-f]{7,40}$/i;
 const barra = (p) => p.replace(/\\/g, '/');
+
+// lista fechada do agy (A48); npm run test e negado
+const PERMISSAO_AGY = [/^git (status|diff|log|show|add|commit)( |$)/, /^npm test( |$)/, /^npm run typecheck( |$)/, /^npx vitest( |$)/];
+const ENCADEIA = /;|&&|\|/; // cobre | e ||
+const comandoLiberado = (harness, cmd) => {
+  if (harness !== 'agy' && harness !== 'opencode') return true;
+  const c = cmd.trim();
+  if (ENCADEIA.test(c)) return false;
+  return harness === 'opencode' || PERMISSAO_AGY.some((re) => re.test(c));
+};
+const topo = (p) => (p.includes('/') ? p.split('/')[0] : '');
 
 // so leitura: rev-parse, show, grep, branch --list (o status 1 do grep e "nada achado")
 const SO_LEITURA = new Set(['rev-parse', 'show', 'grep', 'branch']);
@@ -39,7 +50,9 @@ const leOTexto = (repo, c) => {
       const teste = l.slice(c.base.commit.length + 1);
       if (permitidos.has(teste)) continue;
       try {
-        if (gitLer(repo, ['show', `${c.base.commit}:${teste}`]).includes('readFileSync')) achados.push({ teste, arq });
+        const corpo = gitLer(repo, ['show', `${c.base.commit}:${teste}`]);
+        // so o nome do arquivo no texto: conta apenas na mesma pasta de topo (A48/E-33)
+        if (corpo.includes('readFileSync') && (corpo.includes(arq) || topo(teste) === topo(arq))) achados.push({ teste, arq });
       } catch {
         // some entre os dois comandos: ignora
       }
@@ -101,6 +114,13 @@ export const conferir = ({ contrato, schemaPath, raiz, repo, manual = false, ago
 
   const suites = (Array.isArray(c.comandos_validacao) ? c.comandos_validacao : []).filter((x) => typeof x === 'string' && ehSuiteInteira(x));
   confere('SUITE_INTEIRA', suites.length ? `suite inteira no worker: ${suites.join(' | ')}` : '', 'nenhum comando de suite inteira', manual ? 'AVISO' : 'FALTA');
+
+  const harness = c.executor?.harness;
+  const todos = (Array.isArray(c.comandos_validacao) ? c.comandos_validacao : []).filter((x) => typeof x === 'string');
+  const negados = todos.filter((x) => !comandoLiberado(harness, x));
+  const negLista = negados.slice(0, 3).join(' | ') + (negados.length > 3 ? ` e mais ${negados.length - 3}` : '');
+  confere('PERMISSAO_DO_EXECUTOR', negados.length ? `comando fora da permissao do ${harness}: ${negLista}` : '', `comandos dentro da permissao do ${harness}`);
+  if (harness === 'agy') confere('AGY_SEM_REGRA_DE_ESPERA', /segundo plano/i.test(texto) ? '' : 'o contrato nao traz a regra de segundo plano', 'o contrato traz a regra de segundo plano', 'AVISO');
 
   const workers = lerAtivasSemApagar(raiz, '_trava', agora).length;
   confere('TRAVA_CHEIA', workers >= MAX_WORKERS ? `${workers} despachos ativos (maximo ${MAX_WORKERS})` : '', `${workers} despacho(s) ativo(s)`);
