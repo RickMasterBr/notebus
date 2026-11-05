@@ -19,7 +19,8 @@ export type SheetContent =
   /** `pick`: a Busca reaproveitada para escolher o ponto da folha Registrar; o toque devolve o ponto em vez de abri-lo. */
   | { kind: "search"; pick?: boolean }
   | { kind: "stop"; stopId: string; name: string }
-  | { kind: "ahead"; tripId: string; position: number; serviceDate?: string; dayType?: DayTypeCode }
+  // viaGoto: aberto pelo Ir para: a linha de embarque diz "embarque", não "você" (ideia 69)
+  | { kind: "ahead"; tripId: string; position: number; serviceDate?: string; dayType?: DayTypeCode; viaGoto?: boolean }
   /** TL-13 Por que este horário (E-08.5 bloco 12, D-192, D-197). */
   | { kind: "why"; tripId: string; position: number; serviceDate: string; dayType: DayTypeCode }
   /** TL-03 Registrar (E-03). `stopId` vem do "Registrar aqui" do Ponto; `null` = o ponto sugerido (4.1 §6.1). */
@@ -125,7 +126,9 @@ export function sheetReducer(state: SheetStackState, action: SheetAction): Sheet
 function sameSheet(a: SheetContent, b: SheetContent): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === "stop" && b.kind === "stop") return a.stopId === b.stopId;
-  if (a.kind === "ahead" && b.kind === "ahead") return a.tripId === b.tripId && a.position === b.position;
+  if (a.kind === "ahead" && b.kind === "ahead") {
+    return a.tripId === b.tripId && a.position === b.position && (a.viaGoto ?? false) === (b.viaGoto ?? false);
+  }
   if (a.kind === "why" && b.kind === "why") return a.tripId === b.tripId && a.position === b.position;
   if (a.kind === "record" && b.kind === "record") return a.observationId === b.observationId;
   if (a.kind === "verify" && b.kind === "verify") return a.observationId === b.observationId;

@@ -96,6 +96,7 @@ export const ptBR = {
   "terminal_detail.title": "Daqui para a frente",
   "terminal_detail.context": "viagem das {{time}} · {{place}}, {{pass_ordinal}} passagem",
   "terminal_detail.you_are_here": "você",
+  "terminal_detail.boarding_here": "embarque",
   "terminal_detail.return_here": "↺ volta aqui · fim",
   "terminal_detail.gap": "+ {{count}} paragens",
   "terminal_detail.footnote": "Entre os pontos de controle, horário interpolado.",

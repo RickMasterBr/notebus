@@ -73,12 +73,14 @@ export function AheadSheet({
   position,
   serviceDate,
   dayType,
+  viaGoto,
 }: {
   id: number;
   tripId: string;
   position: number;
   serviceDate?: string;
   dayType?: DayTypeCode;
+  viaGoto?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
@@ -155,7 +157,7 @@ export function AheadSheet({
                     }}
                   />
                 ) : null}
-                {ahead ? <Body ahead={ahead} /> : null}
+                {ahead ? <Body ahead={ahead} viaGoto={viaGoto} /> : null}
               </>
             )}
           </BottomSheetScrollView>
@@ -182,7 +184,7 @@ export function Header({ ahead }: { ahead: Ahead | null }) {
   );
 }
 
-export function Body({ ahead }: { ahead: Ahead }) {
+export function Body({ ahead, viaGoto }: { ahead: Ahead; viaGoto?: boolean }) {
   const { colors } = useTheme();
   const summary = summaryText(ahead);
   return (
@@ -212,7 +214,7 @@ export function Body({ ahead }: { ahead: Ahead }) {
           <Text style={[type.label, { color: colors.warning }]}>{t("sheet_stop.end_of_route")}</Text>
         </View>
       ) : (
-        <Timeline ahead={ahead} lineColor={ahead.line?.color ?? colors.accent} />
+        <Timeline ahead={ahead} lineColor={ahead.line?.color ?? colors.accent} viaGoto={viaGoto} />
       )}
 
       {ahead.isLast ? null : (
@@ -223,7 +225,7 @@ export function Body({ ahead }: { ahead: Ahead }) {
 }
 
 /** A linha do tempo: "você", as paragens (ou "+ N paragens") e o trilho na cor da linha. */
-export function Timeline({ ahead, lineColor }: { ahead: Ahead; lineColor: string }) {
+export function Timeline({ ahead, lineColor, viaGoto }: { ahead: Ahead; lineColor: string; viaGoto?: boolean }) {
   const { fontScale } = useWindowDimensions();
   const stacked = fontScale >= STACK_FONT_SCALE;
   const [openGaps, setOpenGaps] = useState<ReadonlySet<number>>(new Set());
@@ -242,16 +244,28 @@ export function Timeline({ ahead, lineColor }: { ahead: Ahead; lineColor: string
             onPress={() => setOpenGaps((open) => toggleGap(open, item.id))}
           />
         ) : (
-          <StopRow key={item.row.position} row={item.row} isHere={item.row === ahead.here} lineColor={lineColor} stacked={stacked} />
+          <StopRow key={item.row.position} row={item.row} isHere={item.row === ahead.here} boardingTag={viaGoto} lineColor={lineColor} stacked={stacked} />
         ),
       )}
     </View>
   );
 }
 
-function StopRow({ row, isHere, lineColor, stacked }: { row: AheadStopRow; isHere: boolean; lineColor: string; stacked: boolean }) {
+function StopRow({
+  row,
+  isHere,
+  boardingTag,
+  lineColor,
+  stacked,
+}: {
+  row: AheadStopRow;
+  isHere: boolean;
+  boardingTag?: boolean;
+  lineColor: string;
+  stacked: boolean;
+}) {
   const { colors } = useTheme();
-  const tag = isHere ? t("terminal_detail.you_are_here") : returnTag(row);
+  const tag = isHere ? t(boardingTag ? "terminal_detail.boarding_here" : "terminal_detail.you_are_here") : returnTag(row);
   const strong = isHere || row.isTimepoint || row.returnsHere;
   const time = (
     <Text
@@ -278,7 +292,7 @@ function StopRow({ row, isHere, lineColor, stacked }: { row: AheadStopRow; isHer
   );
   const pill = tag ? <Tag text={tag} isHere={isHere} colors={colors} /> : null;
   return (
-    <View accessible accessibilityLabel={stopA11y(row, isHere)} style={styles.row}>
+    <View accessible accessibilityLabel={stopA11y(row, isHere, boardingTag)} style={styles.row}>
       {stacked ? (
         <>
           {dot}

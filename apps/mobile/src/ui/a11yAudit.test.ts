@@ -40,7 +40,7 @@ describe("Auditoria de acessibilidade (T-96, D-046, D-047, D-050)", () => {
     const aheadSheetPath = join(sheetsDir, "AheadSheet.tsx");
     const source = stripComments(readFileSync(aheadSheetPath, "utf-8"));
 
-    expect(source).toMatch(/accessible\s+accessibilityLabel=\{stopA11y\(row,\s*isHere\)\}/);
+    expect(source).toMatch(/accessible\s+accessibilityLabel=\{stopA11y\(row,\s*isHere(?:,\s*boardingTag)?\)\}/);
   });
 
   // 4. accessibilityLiveRegion no toast e no cartão 'Em viagem' (D-050)

@@ -323,7 +323,7 @@ export function GotoSheet({
   const openAhead = (tripId: string, position: number) => {
     dispatch({
       type: "push",
-      sheet: { kind: "ahead", tripId, position },
+      sheet: { kind: "ahead", tripId, position, viaGoto: true },
     });
   };
 
