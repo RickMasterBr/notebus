@@ -421,6 +421,7 @@ export const ptBR = {
   "sheet_goto.no_trips_left": "Sem mais viagens hoje",
   "sheet_goto.next_service": "Próximo serviço: {{day}}",
   "sheet_goto.a11y.bus_card": "Sair às {{leave}}, esteja no ponto às {{be_at}}, chega por volta das {{arrive}}, até {{until}}, Linha {{line}}, ponto {{stop}}",
+  "sheet_goto.a11y.bus_card_now": "Sair agora, esteja no ponto às {{be_at}}, chega por volta das {{arrive}}, até {{until}}, Linha {{line}}, ponto {{stop}}",
   "sheet_goto.a11y.walk_card": "A pé, sair às {{leave}}, chega por volta das {{arrive}}",
   "home.stop_card.leave_at_neutral": "sair às {{time}} · {{place}}", // provisório
   "home.shortcut.add": "Adicionar",

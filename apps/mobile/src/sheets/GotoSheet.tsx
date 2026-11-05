@@ -40,6 +40,7 @@ import { usePlaces } from "../data/PlacesProvider";
 import { useLastFix } from "../data/PositionProvider";
 import { useRegistro } from "../data/RegistroProvider";
 import { useSchedule } from "../data/ScheduleProvider";
+import { gotoCardA11yKey } from "../data/gotoCardA11y";
 import { buildGotoInputFromSources } from "../data/gotoData";
 import { resolveGotoNoService } from "../data/gotoNoService";
 import { resolveGotoOrigin } from "../data/gotoOrigin";
@@ -333,7 +334,7 @@ export function GotoSheet({
       ? scheduleData?.stopNames.get(boardStopInfo.stopId) ?? ""
       : "";
 
-    const a11yLabel = t("sheet_goto.a11y.bus_card", {
+    const a11yLabel = t(gotoCardA11yKey(card.leaveAtPassed), {
       leave: clockText(card.leaveAt),
       be_at: clockText(card.beAtStop),
       arrive: clockText(card.arriveAt),
