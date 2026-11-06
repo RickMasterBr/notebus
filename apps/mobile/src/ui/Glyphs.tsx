@@ -227,6 +227,45 @@ export function TargetGlyph({ color, size = 20 }: { color: string; size?: number
   );
 }
 
+/** Caderno/Registros: retângulo 14 × 18 com borda 1,8, raio 2 e 3 traços de 8 × 1,8 dentro. */
+export function RecordsGlyph({ color }: { color: string }) {
+  return (
+    <View style={[styles.recordsBook, { borderColor: color }]} {...HIDDEN}>
+      <View style={[styles.recordsLine, { backgroundColor: color }]} />
+      <View style={[styles.recordsLine, { backgroundColor: color }]} />
+      <View style={[styles.recordsLine, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+/** Seta chevron para a esquerda (botão voltar). */
+export function ChevronLeftGlyph({ color }: { color: string }) {
+  return (
+    <View style={[styles.chevronRight, { transform: [{ rotate: "180deg" }] }]} {...HIDDEN}>
+      <View style={[styles.chevronArm, { borderColor: color }]} />
+    </View>
+  );
+}
+
+/** Seta chevron para baixo (botão fechar modal). */
+export function ChevronDownGlyph({ color }: { color: string }) {
+  return (
+    <View style={[styles.chevronRight, { transform: [{ rotate: "90deg" }] }]} {...HIDDEN}>
+      <View style={[styles.chevronArm, { borderColor: color }]} />
+    </View>
+  );
+}
+
+/** Seta para a direita com traço horizontal de 14 × 2 e ponta chevron. */
+export function ArrowRightGlyph({ color }: { color: string }) {
+  return (
+    <View style={styles.arrowRight} {...HIDDEN}>
+      <View style={[styles.arrowRightStem, { backgroundColor: color }]} />
+      <View style={[styles.arrowRightHead, { borderColor: color }]} />
+    </View>
+  );
+}
+
 
 const styles = StyleSheet.create({
   plus: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
@@ -299,5 +338,30 @@ const styles = StyleSheet.create({
     borderRightWidth: 2,
     transform: [{ rotate: "45deg" }],
     marginLeft: -2,
+  },
+  recordsBook: {
+    width: 14,
+    height: 18,
+    borderWidth: 1.8,
+    borderRadius: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  recordsLine: {
+    width: 8,
+    height: 1.8,
+    borderRadius: 0.9,
+  },
+  arrowRight: { width: 18, height: 14, alignItems: "center", justifyContent: "center" },
+  arrowRightStem: { position: "absolute", left: 1, width: 14, height: 2, borderRadius: 1 },
+  arrowRightHead: {
+    position: "absolute",
+    right: 2,
+    width: 6,
+    height: 6,
+    borderTopWidth: 2,
+    borderRightWidth: 2,
+    transform: [{ rotate: "45deg" }],
   },
 });
