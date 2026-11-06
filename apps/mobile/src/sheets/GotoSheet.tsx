@@ -45,6 +45,7 @@ import { buildGotoInputFromSources } from "../data/gotoData";
 import { resolveGotoNoService } from "../data/gotoNoService";
 import { resolveGotoOrigin } from "../data/gotoOrigin";
 import { originSelectorLabel, startsChoosingOrigin } from "../data/gotoOriginHeader";
+import { unresolvedBusOptionIds } from "../data/gotoUnresolved";
 import { clockText } from "../data/stopCard";
 import { t } from "../i18n";
 import { minTouch, radius, space, type, useTheme } from "../theme";
@@ -56,6 +57,7 @@ import {
 } from "../ui/Glyphs";
 import { LineBadge } from "../ui/LineBadge";
 import { HiddenBelowSpacer } from "./HiddenBelowSpacer";
+import { GotoReviewNotice } from "./GotoReviewNotice";
 import { SheetHandle } from "./SheetHandle";
 import { useSheets } from "./SheetsContext";
 import { type StackedDetents, StackedSheet } from "./StackedSheet";
@@ -212,6 +214,16 @@ export function GotoSheet({
       (o) => o.routeId === activeRoute.id && o.kind === "bus" && o.deletedAt === null,
     );
   }, [places.options, activeRoute]);
+
+  const unresolvedIds = useMemo(() => {
+    if (!activeRoute || !scheduleData) return [];
+    return unresolvedBusOptionIds(
+      places.options,
+      activeRoute.id,
+      scheduleData,
+      lisbonWallClock(instant).date,
+    );
+  }, [places.options, activeRoute, scheduleData, instant]);
 
   // Constrói entrada do cálculo de candidatos
   const gotoInput = useMemo(() => {
@@ -712,6 +724,8 @@ export function GotoSheet({
                 })}
               </View>
             )}
+
+            {unresolvedIds.length > 0 && activeRoute ? <GotoReviewNotice routeId={activeRoute.id} /> : null}
 
             {/* Mensagem sem rota cadastrada */}
             {!activeRoute || (routeBusOptions.length === 0 && cards.length === 0 && !noService) ? (
