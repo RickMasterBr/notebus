@@ -4,7 +4,7 @@ import { notifyPendingIntent, onPendingIntent, peekPendingIntent, takePendingInt
 import { DIAG_SCROLL, recordCloseRequest, recordDiagEvent, recordOpenRequest } from "./diagScroll";
 import { StackActions } from "@react-navigation/native";
 import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { navigationRef, openScreenEntries, registerScreenEntry, screenIdsOf } from "../nav/screenEntries";
+import { getScreenEntry, navigationRef, openScreenEntries, registerScreenEntry, screenIdsOf } from "../nav/screenEntries";
 import { routeAction } from "../nav/routeAction";
 import { type SheetAction, type SheetContent, type SheetEntry, type SheetStackState, initialSheetState, sheetReducer } from "./stack";
 
@@ -90,7 +90,9 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
       const oldKind = top ? top.kind : "desconhecido";
       recordDiagEvent(`trocar ${oldKind} > ${action.sheet.kind}`);
     }
-    const routed = routeAction(action, { screenIds: screenIdsOf(navigationRef.isReady() ? navigationRef.getRootState() : undefined) });
+    const screenIds = screenIdsOf(navigationRef.isReady() ? navigationRef.getRootState() : undefined);
+    const topScreenId = screenIds[screenIds.length - 1];
+    const routed = routeAction(action, { screenIds, topScreen: topScreenId === undefined ? undefined : getScreenEntry(topScreenId) });
     if (routed.to === "nav") {
       if (!navigationRef.isReady()) return;
       if (routed.op === "push") navigationRef.dispatch(StackActions.push("tela", { id: registerScreenEntry(routed.sheet).id }));

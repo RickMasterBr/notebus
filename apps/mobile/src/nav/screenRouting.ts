@@ -35,6 +35,9 @@ export const DESTINO: Record<SheetKind, Destino> = {
   route: "tela",
   option: "tela",
   alightPicker: "tela",
+  recordTrip: "tela",
+  pendingAll: "tela",
+  lineNew: "tela",
 };
 
 /** A Busca em modo escolha, aberta de dentro de uma tela, é tela (senão ficaria por baixo dela). */

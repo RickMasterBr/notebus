@@ -135,6 +135,11 @@ export function StackedSheetContent({ entry }: { entry: SheetEntry }) {
       return <VerifySheet id={entry.id} observationId={entry.observationId} />;
     case "records":
       return <RecordsSheet id={entry.id} />;
+    case "lineNew":
+      return <LineEditSheet id={entry.id} initialStop={entry.initialStop} />;
+    case "recordTrip":
+    case "pendingAll":
+      return <RecordsSheet id={entry.id} />; // provisório: o contrato 03 desenha as telas próprias
     case "places":
       return <PlacesSheet id={entry.id} />;
     case "place":

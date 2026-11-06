@@ -5,13 +5,14 @@ import { DESTINO, routeOf } from "./screenRouting";
 const TELAS: SheetKind[] = [
   "records", "record", "verify", "settings", "override", "pastOverrides", "holiday", "networkInfo", "backupImport",
   "clockPicker", "alarms", "repeat", "alarmIntro", "network", "stopEdit", "places", "place", "route", "option", "alightPicker",
+  "recordTrip", "pendingAll", "lineNew",
 ];
 const FOLHAS: SheetKind[] = ["search", "stop", "lineDetail", "ahead", "why", "board", "goto", "declare", "trip", "alight", "home"];
 
-describe("screenRouting: os 31 tipos de SheetKind", () => {
-  it("a tabela cobre exatamente 31 tipos (20 telas, 11 folhas com a base)", () => {
-    expect(Object.keys(DESTINO)).toHaveLength(31);
-    expect(TELAS).toHaveLength(20);
+describe("screenRouting: os 34 tipos de SheetKind", () => {
+  it("a tabela cobre exatamente 34 tipos (23 telas, 11 folhas com a base)", () => {
+    expect(Object.keys(DESTINO)).toHaveLength(34);
+    expect(TELAS).toHaveLength(23);
     expect(FOLHAS).toHaveLength(11);
   });
   it.each(TELAS)("%s é tela", (kind) => expect(DESTINO[kind]).toBe("tela"));
