@@ -64,7 +64,13 @@ export type SheetContent =
   /** E-08 Bloco 2: TL-07 Declarar horário */
   | { kind: "declare"; stopId: string }
   /** E-08 Bloco 3: Editar ponto */
-  | { kind: "stopEdit"; stopId: string; initialName?: string; afterSave?: "pick" | "open" };
+  | { kind: "stopEdit"; stopId: string; initialName?: string; afterSave?: "pick" | "open" }
+  /** V1-E2 (D-396): Viagem registrada, aberta de um cartão de Registros. */
+  | { kind: "recordTrip"; boardingId: string }
+  /** V1-E2 (D-396): Para conferir completo ("Ver todas"). */
+  | { kind: "pendingAll" }
+  /** V1-E2 (D-389): Nova linha como tela própria; o desvio pelo lineDetail com NEW_LINE_ID sai no contrato 06. */
+  | { kind: "lineNew"; initialStop?: { id: string; name: string } };
 
 export type SheetKind = SheetContent["kind"];
 
@@ -123,7 +129,7 @@ export function sheetReducer(state: SheetStackState, action: SheetAction): Sheet
   }
 }
 
-function sameSheet(a: SheetContent, b: SheetContent): boolean {
+export function sameSheet(a: SheetContent, b: SheetContent): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === "stop" && b.kind === "stop") return a.stopId === b.stopId;
   if (a.kind === "ahead" && b.kind === "ahead") {
@@ -147,6 +153,8 @@ function sameSheet(a: SheetContent, b: SheetContent): boolean {
   if (a.kind === "declare" && b.kind === "declare") return a.stopId === b.stopId;
   if (a.kind === "stopEdit" && b.kind === "stopEdit") return a.stopId === b.stopId;
   if (a.kind === "settings" && b.kind === "settings") return a.page === b.page;
+  if (a.kind === "recordTrip" && b.kind === "recordTrip") return a.boardingId === b.boardingId;
+  if (a.kind === "lineNew" && b.kind === "lineNew") return (a.initialStop?.id ?? null) === (b.initialStop?.id ?? null);
   return true;
 }
 
