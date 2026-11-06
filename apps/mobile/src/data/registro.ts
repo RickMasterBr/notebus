@@ -28,6 +28,7 @@ import {
   baseTimeAt,
   checkAlightEdit,
   checkObservationInterval,
+  checkRide,
   deduceObservation,
   displayCenter,
   dismissRide,
@@ -387,6 +388,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
   /**
    * "Desci aqui": o `alighted` entra no mesmo `ride` e o `ride` fecha. O invariante 5 é conferido antes: percurso
    * igual, posição maior e hora maior ou igual. `trip` é a viagem do `ride` (a lista da descida sai dela).
+   * `observedAt`/`mode` são a descida anotada depois (D-418): sem eles, grava na hora do toque, ao vivo, como sempre.
    */
   function alight(input: {
     rideId: string;
@@ -395,6 +397,10 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     position: number;
     at: number;
     gps?: PositionFix | null;
+    /** A hora da descida quando é anotada depois (D-418); sem ela, a hora do toque. */
+    observedAt?: number;
+    /** `live` ao tocar; `later` quando a descida é anotada depois (`alightRecordTime`). */
+    mode?: "live" | "later";
   }): Promise<AlightResult> {
     return enqueue(async (): Promise<AlightResult> => {
       const row = await rideById(input.rideId);
@@ -404,6 +410,8 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       const start = network ? resolveBoarding(boarding, network) : null;
       if (!start) return { ok: false, problem: "viagem sem percurso conhecido" };
 
+      const observedAt = input.observedAt ?? input.at;
+      const mode = input.mode ?? "live";
       const observationId = newId(input.at);
       let next: RideState;
       try {
@@ -411,7 +419,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
           rideState(row),
           observationId,
           { patternId: start.patternId, position: start.position, observedAt: boarding.observedAt },
-          { patternId: input.patternId, position: input.position, observedAt: input.at },
+          { patternId: input.patternId, position: input.position, observedAt },
         );
       } catch (error) {
         return { ok: false, problem: error instanceof Error ? error.message : String(error) };
@@ -424,13 +432,13 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
           source: "user",
           stopId: input.stopId,
           lineId: boarding.lineId,
-          observedAt: input.at,
+          observedAt,
           observedEndAt: null,
           kind: "alighted",
-          mode: "live",
+          mode,
           rideId: row.id,
           recordedAt: input.at,
-          ...gpsColumns("live", input.gps),
+          ...gpsColumns(mode, input.gps),
         });
         await db
           .update(ride)
@@ -440,7 +448,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       return {
         ok: true,
         token: { observationId, rideId: row.id },
-        minutes: rideMinutes(boarding.observedAt, input.at),
+        minutes: rideMinutes(boarding.observedAt, observedAt),
         at: input.at,
       };
     });
@@ -452,6 +460,73 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
       inTransaction(db, async () => {
         await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, token.observationId));
         await db.update(ride).set({ alightingObservationId: null, status: "open", updatedAt: at }).where(eq(ride.id, token.rideId));
+      }),
+    );
+  }
+
+  /**
+   * "Onde você desceu?" depois de a viagem fechar (D-414, D-418): grava a descida numa viagem `closed` sem descida, com a
+   * hora escolhida (modo `later`), e liga a viagem a ela **sem reabrir**. Mesmo invariante 5 do `alight`; o problema
+   * volta antes de gravar.
+   */
+  function alightLater(input: {
+    rideId: string;
+    stopId: string;
+    patternId: string;
+    position: number;
+    observedAt: number;
+    at: number;
+  }): Promise<AlightResult> {
+    return enqueue(async (): Promise<AlightResult> => {
+      const row = await rideById(input.rideId);
+      if (!row) return { ok: false, problem: "viagem não encontrada" };
+      if (row.status !== "closed") return { ok: false, problem: "a viagem não está fechada" };
+      if (row.alightingObservationId !== null) return { ok: false, problem: "a viagem já tem descida" };
+      const boarding = await observationById(row.boardingObservationId);
+      if (!boarding) return { ok: false, problem: "viagem não encontrada" };
+      const network = deps.network();
+      const start = network ? resolveBoarding(boarding, network) : null;
+      if (!start) return { ok: false, problem: "viagem sem percurso conhecido" };
+      const problem = checkRide(
+        { patternId: start.patternId, position: start.position, observedAt: boarding.observedAt },
+        { patternId: input.patternId, position: input.position, observedAt: input.observedAt },
+      );
+      if (problem) return { ok: false, problem };
+
+      const observationId = newId(input.at);
+      await inTransaction(db, async () => {
+        await db.insert(observation).values({
+          id: observationId,
+          createdAt: input.at,
+          updatedAt: input.at,
+          source: "user",
+          stopId: input.stopId,
+          lineId: boarding.lineId,
+          observedAt: input.observedAt,
+          observedEndAt: null,
+          kind: "alighted",
+          mode: "later",
+          rideId: row.id,
+          recordedAt: input.at,
+          ...gpsColumns("later", null),
+        });
+        await db.update(ride).set({ alightingObservationId: observationId, updatedAt: input.at }).where(eq(ride.id, row.id));
+      });
+      return {
+        ok: true,
+        token: { observationId, rideId: row.id },
+        minutes: rideMinutes(boarding.observedAt, input.observedAt),
+        at: input.at,
+      };
+    });
+  }
+
+  /** Desfazer a descida anotada depois: apaga a descida e deixa a viagem fechada sem descida. */
+  function undoAlightLater(token: AlightToken, at: number): Promise<void> {
+    return enqueue(() =>
+      inTransaction(db, async () => {
+        await db.update(observation).set({ deletedAt: at, updatedAt: at }).where(eq(observation.id, token.observationId));
+        await db.update(ride).set({ alightingObservationId: null, updatedAt: at }).where(eq(ride.id, token.rideId));
       }),
     );
   }
@@ -482,19 +557,62 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     });
   }
 
-  /** "Dispensar": fecha sem descida. */
+  /**
+   * "Dispensar": fecha sem descida e deixa a viagem "para conferir" (D-414): grava `review_dismissed_at` no embarque
+   * casado (`auto` ou `manual`), na mesma transação.
+   */
   function dismiss(rideId: string, at: number): Promise<void> {
     return enqueue(async () => {
       const row = await rideById(rideId);
       if (!row) throw new Error("viagem não encontrada");
       const next = dismissRide(rideState(row));
-      await db.update(ride).set({ status: next.status, updatedAt: at }).where(eq(ride.id, rideId));
+      const boarding = await observationById(row.boardingObservationId);
+      const matched = boarding !== undefined && (boarding.matchStatus === "auto" || boarding.matchStatus === "manual");
+      await inTransaction(db, async () => {
+        await db.update(ride).set({ status: next.status, updatedAt: at }).where(eq(ride.id, rideId));
+        if (matched) {
+          await db.update(observation).set({ reviewDismissedAt: at, updatedAt: at }).where(eq(observation.id, boarding.id));
+        }
+      });
     });
   }
 
   function undoDismiss(rideId: string, at: number): Promise<void> {
     return enqueue(async () => {
-      await db.update(ride).set({ status: "open", updatedAt: at }).where(eq(ride.id, rideId));
+      const row = await rideById(rideId);
+      await inTransaction(db, async () => {
+        await db.update(ride).set({ status: "open", updatedAt: at }).where(eq(ride.id, rideId));
+        const boarding = row ? await observationById(row.boardingObservationId) : undefined;
+        if (boarding && (boarding.matchStatus === "auto" || boarding.matchStatus === "manual")) {
+          await db.update(observation).set({ reviewDismissedAt: null, updatedAt: at }).where(eq(observation.id, boarding.id));
+        }
+      });
+    });
+  }
+
+  /**
+   * "Deixar para conferir" numa viagem fechada sem descida (D-414): grava `review_dismissed_at` no embarque casado, para
+   * ela sair de "Onde você desceu?". Sem viagem fechada sem descida com embarque `auto`/`manual`, lança e nada se grava.
+   */
+  function dismissNoAlight(rideId: string, at: number): Promise<void> {
+    return enqueue(async () => {
+      const row = await rideById(rideId);
+      if (!row || row.status !== "closed" || row.alightingObservationId !== null) throw new Error("viagem não encontrada");
+      const boarding = await observationById(row.boardingObservationId);
+      if (!boarding || (boarding.matchStatus !== "auto" && boarding.matchStatus !== "manual")) {
+        throw new Error("viagem não encontrada");
+      }
+      await db.update(observation).set({ reviewDismissedAt: at, updatedAt: at }).where(eq(observation.id, boarding.id));
+    });
+  }
+
+  /** Desfazer o "Deixar para conferir": limpa a marca; a viagem continua fechada sem descida. */
+  function undoDismissNoAlight(rideId: string, at: number): Promise<void> {
+    return enqueue(async () => {
+      const row = await rideById(rideId);
+      const boarding = row ? await observationById(row.boardingObservationId) : undefined;
+      if (!boarding) return;
+      await db.update(observation).set({ reviewDismissedAt: null, updatedAt: at }).where(eq(observation.id, boarding.id));
     });
   }
 
@@ -1100,7 +1218,7 @@ export function createRegistro(db: AnyDb, deps: RegistroDeps) {
     return enqueue(job);
   }
 
-  return { board, undoBoard, boardOver, undoBoardOver, alight, undoAlight, notBoarded, undoNotBoarded, dismiss, undoDismiss, expire, refreshDeductions, rematchWhere, edit, chooseManual, dismissReview, remove, restore, load, exclusive };
+  return { board, undoBoard, boardOver, undoBoardOver, alight, undoAlight, alightLater, undoAlightLater, notBoarded, undoNotBoarded, dismiss, undoDismiss, dismissNoAlight, undoDismissNoAlight, expire, refreshDeductions, rematchWhere, edit, chooseManual, dismissReview, remove, restore, load, exclusive };
 }
 
 export type Registro = ReturnType<typeof createRegistro>;
