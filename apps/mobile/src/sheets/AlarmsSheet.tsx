@@ -41,6 +41,7 @@ import {
   type UpcomingItem,
 } from "../data/alarmsUi";
 import { shouldAnnounceReplaced } from "../data/alarmReplacedNotice";
+import { noTripNotices } from "../data/alarmNoTripNotice";
 import { realNow } from "../data/clock";
 import { testAlarmToastKey } from "../data/settingsActions";
 import { sharedAlarms, type AlarmRow } from "../db/alarms";
@@ -86,6 +87,7 @@ export function AlarmsSheet({ id }: { id: number }) {
   const [alarms, setAlarms] = useState<AlarmRow[]>([]);
   const [upcoming, setUpcoming] = useState<UpcomingItem[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [notices, setNotices] = useState<ReadonlyMap<string, string>>(new Map());
   const activeSwipeable = useRef<SwipeableMethods | null>(null);
 
   const isTop = activeSheet(state).id === id;
@@ -102,6 +104,7 @@ export function AlarmsSheet({ id }: { id: number }) {
 
       const events = await repo.listEvents();
       setHistory(historyList(events, realNow()));
+      setNotices(noTripNotices(allAlarms.filter((a) => a.enabled), events, lisbonWallClock(realNow()).date));
     } catch {
       // Ignora erro
     }
@@ -273,6 +276,7 @@ export function AlarmsSheet({ id }: { id: number }) {
                       key={item.id}
                       alarm={item}
                       meta={getMeta(item)}
+                      notice={notices.get(item.id)}
                       onPress={() =>
                         dispatch({
                           type: "push",
@@ -395,6 +399,7 @@ export function AlarmsSheet({ id }: { id: number }) {
 function AlarmListItem({
   alarm,
   meta,
+  notice,
   onPress,
   onDelete,
   onWillOpen,
@@ -402,6 +407,7 @@ function AlarmListItem({
 }: {
   alarm: AlarmRow;
   meta: { placeName: string; lineCode: string; leaveTime: string };
+  notice?: string;
   onPress: () => void;
   onDelete: () => void;
   onWillOpen: (methods: SwipeableMethods) => void;
@@ -447,7 +453,7 @@ function AlarmListItem({
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={lineText}
+        accessibilityLabel={notice ? `${lineText}. ${notice}` : lineText}
         accessibilityActions={alarmRowA11yActions()}
         onAccessibilityAction={(event) => {
           if (isDeleteAction(event.nativeEvent.actionName)) {
@@ -457,7 +463,12 @@ function AlarmListItem({
         onPress={onPress}
         style={({ pressed }) => [styles.alarmRow, { borderBottomColor: colors.divider, backgroundColor: colors.bg }, pressedStyle(pressed)]}
       >
-        <Text style={[type.body, { color: colors.text, flex: 1 }]}>{lineText}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[type.body, { color: colors.text }]}>{lineText}</Text>
+          {notice ? (
+            <Text style={[type.caption, { color: colors.warning }]}>{notice}</Text>
+          ) : null}
+        </View>
         <ChevronRightGlyph color={colors.textSecondary} />
       </Pressable>
     </ReanimatedSwipeable>

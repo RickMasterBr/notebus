@@ -474,6 +474,7 @@ export const ptBR = {
   "alarms.on_count": "Avisos ligados: {{count}}", // provisório
   "alarms.empty": "Nenhum aviso ligado. Ligue um no cartão de uma opção.", // provisório
   "alarms.edit_hint": "Para mudar o horário de sair, ligue um aviso no cartão correspondente.", // provisório
+  "alarms.no_trip": "O ônibus das {{time}} não existe mais desde {{date}}", // provisório
   "alarms.test_button": "Enviar aviso de teste em 1 minuto", // provisório
   "alarms.test_hint": "Neste teste, Registrar embarque grava um embarque de verdade. Use Desfazer na confirmação.", // provisório
   "alarms.test_scheduled": "Aviso de teste agendado para {{time}}", // provisório
