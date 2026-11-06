@@ -3,3 +3,7 @@ export const STACK_FONT_SCALE = 1.25;
 
 /** Com o texto grande, "Desci aqui" e as ações em texto do cartão "Em viagem" não cabem na mesma linha: empilham. */
 export const shouldStackTripButtons = (fontScale: number) => fontScale >= STACK_FONT_SCALE;
+
+/** Do AX4 em diante (D-398); valor a conferir no iPhone no contrato 08 (componentes-v1.md §1 item 6). */
+export const AX_FONT_SCALE = 2.6;
+

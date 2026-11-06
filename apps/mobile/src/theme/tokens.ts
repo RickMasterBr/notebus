@@ -112,6 +112,8 @@ export const lineOutline = { color: "rgba(255,255,255,0.45)", width: 1.5 } as co
 
 /** §2. Números de horário usam `tabular` (nums tabulares). */
 export const type = {
+  /** Título grande de topo de tela inteira (D-415). */
+  largeTitle: { fontSize: 28, fontWeight: "700" },
   wordmark: { fontSize: 20, fontWeight: "800" },
   title: { fontSize: 20, fontWeight: "700" },
   subtitle: { fontSize: 15, fontWeight: "600" },
