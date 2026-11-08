@@ -1,7 +1,7 @@
 /** Moldura de uma folha dentro de tela nativa: uma altura só (99,99%), sem arrastar para fechar e sem fundo escurecido. Só monta a folha após medir a altura da tela [hipótese, só o aparelho decide]. */
 import BottomSheet from "@gorhom/bottom-sheet";
 import { useFocusEffect } from "@react-navigation/native";
-import { type ComponentType, type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ComponentType, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -56,6 +56,23 @@ function MeasuredFrame({
   const close = useCloseSheet();
   const layoutState = useSharedValue<FrameLayoutState>(frameLayoutState(frameHeight, insets.top) as FrameLayoutState);
   const diagPos = useSharedValue(-1);
+  const contentRef = useRef<View>(null);
+  const seenFocus = useRef(false);
+  const [repaintKey, setRepaintKey] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (seenFocus.current) {
+        setRepaintKey((k) => k + 1);
+      }
+      seenFocus.current = true;
+    }, []),
+  );
+
+  useEffect(() => {
+    if (!DIAG_SCROLL || repaintKey === 0) return;
+    recordDiagEvent(`moldura repinta k=${repaintKey}`);
+  }, [repaintKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -68,6 +85,26 @@ function MeasuredFrame({
       }, 600);
       return () => clearTimeout(t);
     }, [diagPos, layoutState]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!DIAG_SCROLL) return;
+      const med = (rotulo: string) => {
+        contentRef.current?.measureInWindow((x, y, w, h) => {
+          recordDiagEvent(
+            `${rotulo} x=${Math.round(x)} y=${Math.round(y)} w=${Math.round(w)} h=${Math.round(h)}${w === 0 || h === 0 ? " ZERO" : ""}`,
+          );
+        });
+      };
+      med("med0");
+      const t150 = setTimeout(() => med("med150"), 150);
+      const t600 = setTimeout(() => med("med600"), 600);
+      return () => {
+        clearTimeout(t150);
+        clearTimeout(t600);
+      };
+    }, []),
   );
 
   useEffect(() => {
@@ -109,6 +146,8 @@ function MeasuredFrame({
       backgroundStyle={{ backgroundColor: colors.surface }}
     >
       <View
+        ref={contentRef}
+        key={repaintKey}
         collapsable={false}
         style={[styles.fill, { paddingHorizontal: 16, paddingBottom: insets.bottom }]}
         onLayout={DIAG_SCROLL ? (e) => recordDiagEvent(`moldura conteudo h=${Math.round(e.nativeEvent.layout.height)} w=${Math.round(e.nativeEvent.layout.width)}`) : undefined}
