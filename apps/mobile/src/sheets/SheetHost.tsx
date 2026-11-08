@@ -10,7 +10,9 @@ import { DIAG_SCROLL, StackDiagStrip, recordDiagEvent } from "./diagScroll";
 import { ClockPickerSheet } from "./ClockPickerSheet";
 import { HomeSheet } from "./HomeSheet";
 import { RecordSheet } from "./RecordSheet";
-import { RecordsSheet } from "./RecordsSheet";
+import { RecordsScreen } from "./RecordsScreen";
+import { RecordTripScreen } from "./RecordTripScreen";
+import { PendingAllScreen } from "./PendingAllScreen";
 import { SearchSheet } from "./SearchSheet";
 import { SettingsSheet } from "./SettingsSheet";
 import { useSheets } from "./SheetsContext";
@@ -134,12 +136,13 @@ export function StackedSheetContent({ entry }: { entry: SheetEntry }) {
     case "verify":
       return <VerifySheet id={entry.id} observationId={entry.observationId} />;
     case "records":
-      return <RecordsSheet id={entry.id} />;
+      return <RecordsScreen id={entry.id} />;
     case "lineNew":
       return <LineEditSheet id={entry.id} initialStop={entry.initialStop} />;
     case "recordTrip":
+      return <RecordTripScreen id={entry.id} boardingId={entry.boardingId} />;
     case "pendingAll":
-      return <RecordsSheet id={entry.id} />; // provisório: o contrato 03 desenha as telas próprias
+      return <PendingAllScreen id={entry.id} />;
     case "places":
       return <PlacesSheet id={entry.id} />;
     case "place":

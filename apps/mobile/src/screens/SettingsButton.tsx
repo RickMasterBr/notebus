@@ -4,14 +4,14 @@
  * Ao fechar Ajustes, o foco volta para ela (a folha inicial também pede o foco para a pílula; este pedido vem depois).
  */
 import { useEffect, useRef } from "react";
-import { AccessibilityInfo, Pressable, StyleSheet, type View } from "react-native";
+import { AccessibilityInfo, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTestClock } from "../data/TestClockProvider";
 import { useSheets } from "../sheets/SheetsContext";
 import { t } from "../i18n";
-import { minTouch, space, useTheme } from "../theme";
+import { space, useTheme } from "../theme";
 import { GearGlyph } from "../ui/Glyphs";
-import { pressedStyle } from "../ui/pressed";
+import { MapButton } from "../ui/MapButton";
 
 /** A faixa vermelha cobre os 28 pt de cima (mais a área segura): a engrenagem desce para não ficar embaixo dela. */
 const BANNER_BAND = 28;
@@ -38,23 +38,27 @@ export function SettingsButton() {
   }, [covered]);
 
   return (
-    <Pressable
+    <View
       ref={button}
-      accessibilityRole="button"
-      accessibilityLabel={t("settings.title")}
-      accessibilityElementsHidden={covered}
-      importantForAccessibility={covered ? "no-hide-descendants" : "auto"}
-      onPress={() => {
-        openedHere.current = true;
-        dispatch({ type: "push", sheet: { kind: "settings" } });
-      }}
-      style={({ pressed }) => [styles.button, { top: insets.top + space.sm + (chosen === null ? 0 : BANNER_BAND) }, pressedStyle(pressed)]}
+      collapsable={false}
+      style={[styles.button, { top: insets.top + space.sm + (chosen === null ? 0 : BANNER_BAND) }]}
     >
-      <GearGlyph color={colors.textSecondary} />
-    </Pressable>
+      <MapButton
+        glyph={<GearGlyph color={colors.textSecondary} />}
+        accessibilityLabel={t("settings.title")}
+        hidden={covered}
+        onPress={() => {
+          openedHere.current = true;
+          dispatch({ type: "push", sheet: { kind: "settings" } });
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  button: { position: "absolute", right: space.sm, width: minTouch, height: minTouch, alignItems: "center", justifyContent: "center" },
+  button: {
+    position: "absolute",
+    right: space.sm,
+  },
 });

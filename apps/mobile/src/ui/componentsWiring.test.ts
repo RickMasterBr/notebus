@@ -78,7 +78,17 @@ describe("componentsWiring (ligação e isolamento das peças reutilizáveis)", 
 
     const violations: { file: string; component: string }[] = [];
 
+    // v1-e2-03 (08/11/2026, autorizado pelo Rick): as telas de registros e os dois botões da Home passam a usar as peças.
+    const permitidos = new Set([
+      "RecordsScreen.tsx",
+      "RecordTripScreen.tsx",
+      "PendingAllScreen.tsx",
+      "RecordsButton.tsx",
+      "SettingsButton.tsx",
+    ]);
+
     for (const filePath of allFiles) {
+      if (permitidos.has(filePath.split(/[\\/]/).pop() ?? "")) continue;
       const code = readFileSync(filePath, "utf-8");
       for (const comp of componentNames) {
         const importRegex = new RegExp(`from\\s+["'][^"']*\\b${comp}\\b["']`);
