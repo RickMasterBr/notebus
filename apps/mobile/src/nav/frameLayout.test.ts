@@ -115,3 +115,33 @@ describe("ScreenSheetFrame posição positiva e diagnóstico (v1-e2-01f)", () =>
     expect(frame).toContain("if (!DIAG_SCROLL) return");
   });
 });
+
+const tela = read("nav/TelaScreen.tsx");
+
+describe("Diagnóstico da volta de tela (v1-e2-01g, D-432)", () => {
+  it("TelaScreen contém DIAG_SCROLL, if (!DIAG_SCROLL) return, eventos de tela e remoção dos ouvintes (C1, C4)", () => {
+    expect(tela).toContain("DIAG_SCROLL");
+    expect(tela).toContain("if (!DIAG_SCROLL) return");
+    expect(tela).toContain("tela focus id=");
+    expect(tela).toContain("tela blur id=");
+    expect(tela).toContain("tela transitionEnd id=");
+    expect(tela).toContain("closing=");
+    expect(tela).toContain("unsubFocus");
+    expect(tela).toContain("unsubBlur");
+    expect(tela).toContain("unsubTransitionEnd");
+  });
+
+  it("ScreenSheetFrame contém useFocusEffect, moldura foco pos= e moldura foco600ms pos= (C2)", () => {
+    expect(frame).toContain("useFocusEffect");
+    expect(frame).toContain("moldura foco pos=");
+    expect(frame).toContain("moldura foco600ms pos=");
+  });
+
+  it("ScreenSheetFrame contém moldura onChange i=, moldura conteudo h=, onChange={DIAG_SCROLL e onLayout={DIAG_SCROLL (C3, C4)", () => {
+    expect(frame).toContain("moldura onChange i=");
+    expect(frame).toContain("moldura conteudo h=");
+    expect(frame).toContain("onChange={DIAG_SCROLL");
+    expect(frame).toContain("onLayout={DIAG_SCROLL");
+  });
+});
+
