@@ -1015,6 +1015,18 @@ export const ptBR = {
   "trip.boarded": "embarcou", // provisório
   "trip.table": "tabela {{time}}", // provisório
   "trip.usual": "costuma {{time}}", // provisório
+  // V1-E2 (contrato v1-e2-04c-escolha-viagem-aberta, D-403, D-427)
+  "board_over.title": "Você ainda está na viagem da {{line}}, desde {{time}}", // provisório
+  "board_over.subtitle": "Embarque novo às {{time}}", // provisório
+  "board_over.option.alighted": "Desci em…", // provisório
+  "board_over.option.dismiss": "Dispensar a anterior", // provisório
+  "board_over.option.review": "Deixar para conferir", // provisório
+  "board_over.back_to_options": "Opções", // provisório
+  "board_over.alight.title": "Onde você desceu?", // provisório
+  "board_over.failed": "Não deu para gravar. Tente de novo.", // provisório
+  "board_over.toast.alighted": "Descida em {{stop_name}} anotada", // provisório
+  "board_over.notif.title": "Você ainda está numa viagem", // provisório
+  "board_over.notif.body": "Toque para escolher o que fazer com a viagem da {{line}}", // provisório
 } as const;
 
 

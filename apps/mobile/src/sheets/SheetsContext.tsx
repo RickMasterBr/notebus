@@ -1,6 +1,6 @@
 /** Estado da pilha de folhas para a árvore de componentes. A lógica está em `stack.ts` (testada no Node). */
 import { useNow } from "../data/NowProvider";
-import { notifyPendingIntent, onPendingIntent, peekPendingIntent, takePendingIntent } from "../notifications/pendingIntent";
+import { notifyPendingIntent, onPendingIntent, peekPendingIntent, setBoardOverIntent, takePendingIntent } from "../notifications/pendingIntent";
 import { DIAG_SCROLL, recordCloseRequest, recordDiagEvent, recordOpenRequest } from "./diagScroll";
 import { StackActions } from "@react-navigation/native";
 import { type Dispatch, type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
@@ -131,6 +131,19 @@ export function SheetsProvider({ children }: { children: ReactNode }) {
       if (intent?.kind !== "goto") return;
       takePendingIntent();
       dispatch({ type: "push", sheet: { kind: "goto", destinationPlaceId: intent.placeId } });
+    };
+    consume();
+    return onPendingIntent(consume);
+  }, [dispatch]);
+
+  // Consumo do pendingIntent boardOver (D-403, D-427): abre a folha Registrar no passo da escolha
+  useEffect(() => {
+    const consume = () => {
+      const intent = peekPendingIntent();
+      if (intent?.kind !== "boardOver") return;
+      takePendingIntent();
+      setBoardOverIntent(intent);
+      dispatch({ type: "push", sheet: { kind: "board", stopId: intent.stopId } });
     };
     consume();
     return onPendingIntent(consume);

@@ -20,12 +20,15 @@ import { useToast } from "./ToastProvider";
 import {
   type AlightResult,
   type AlightToken,
+  type BoardOverResult,
+  type BoardOverToken,
   type BoardToken,
   type EditPatch,
   type EditResult,
   type EditToken,
   type ManualResult,
   type ObservationRow,
+  type PreviousRideChoice,
   type RideRow,
   createRegistro,
 } from "./registro";
@@ -50,6 +53,13 @@ export interface RegistroValue {
   tripCard: TripCardModel | null;
   /** Embarque na linha escolhida da folha Registrar. Devolve o `observationId` se o fato foi gravado. */
   board: (stopId: string, choice: BoardChoice) => Promise<string | null>;
+  /** Embarque novo com a viagem aberta escolhida (D-403). */
+  boardOver: (
+    stopId: string,
+    choice: BoardChoice,
+    previous: ({ rideId: string } & PreviousRideChoice) | null,
+    tapAt: number,
+  ) => Promise<BoardOverResult | null>;
   /** "Desci aqui" numa paragem da lista. Devolve `true` se a descida foi gravada. */
   alight: (
     card: TripCardModel,
@@ -94,6 +104,7 @@ const RegistroContext = createContext<RegistroValue>({
   records: [],
   tripCard: null,
   board: async () => null,
+  boardOver: async () => null,
   alight: nothing,
   alightLater: nothing as any,
   undoAlightLater: nothing as any,
@@ -284,6 +295,68 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
         });
         void settle();
         return observationId;
+      };
+      return attempt();
+    },
+    [registro, toast, failed, undone, settle, reload],
+  );
+
+  const boardOver = useCallback(
+    async (
+      stopId: string,
+      choice: BoardChoice,
+      previous: ({ rideId: string } & PreviousRideChoice) | null,
+      tapAt: number,
+    ): Promise<BoardOverResult | null> => {
+      const gps = fixForRecord(positionRef.current.getFix(), realNow());
+      const stopName = (scheduleRef.current.status === "ready" ? scheduleRef.current.data.stopNames.get(stopId) : undefined) ?? "";
+      const attempt = async (): Promise<BoardOverResult | null> => {
+        let result: BoardOverResult;
+        try {
+          result = await registro.boardOver({ stopId, lineId: choice.lineId, at: tapAt, gps }, previous);
+        } catch {
+          failed(() => void attempt());
+          return null;
+        }
+        if (!result.ok) {
+          return result;
+        }
+        const time = hhmm(tapAt);
+        const token = result.token;
+        const observationId = token.observationId;
+        let body = t("toast.board.body", { line: choice.code, stop_name: stopName, time });
+        if (previous?.choice === "descida") {
+          const alightStopName =
+            (scheduleRef.current.status === "ready" ? scheduleRef.current.data.stopNames.get(previous.stopId) : undefined) ?? "";
+          body = `${body} · ${t("board_over.toast.alighted", { stop_name: alightStopName })}`;
+        }
+        toast.show({
+          title: t("toast.board.title"),
+          body,
+          haptic: "success",
+          action: {
+            label: t("toast.action.undo"),
+            run: () =>
+              void (async () => {
+                try {
+                  await registro.undoBoardOver(token, nowRef.current());
+                  await reload();
+                  undone(t("toast.undo_board.body", { time }));
+                } catch {
+                  failed(() => {});
+                }
+              })(),
+          },
+          secondaryAction: {
+            label: t("toast.action.adjust"),
+            run: () => {
+              openRecordSheet(observationId);
+            },
+          },
+        });
+        await reload();
+        void settle();
+        return result;
       };
       return attempt();
     },
@@ -753,6 +826,7 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
       records,
       tripCard,
       board,
+      boardOver,
       alight,
       alightLater,
       undoAlightLater,
@@ -775,6 +849,7 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
       records,
       tripCard,
       board,
+      boardOver,
       alight,
       alightLater,
       undoAlightLater,
