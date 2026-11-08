@@ -13,7 +13,7 @@ const read = (rel: string) =>
 
 const frame = read("nav/ScreenSheetFrame.tsx");
 
-describe("ScreenSheetFrame medição na janela (C1, C2)", () => {
+describe("ScreenSheetFrame medição na janela (C5)", () => {
   it("tem ref na View interna e mede measureInWindow aos 0, 150 e 600 ms com ZERO sob DIAG_SCROLL", () => {
     expect(frame).toContain("useRef");
     expect(frame).toContain("contentRef");
@@ -32,26 +32,34 @@ describe("ScreenSheetFrame medição na janela (C1, C2)", () => {
   });
 });
 
-describe("ScreenSheetFrame contador repaintKey (C3)", () => {
-  it("guarda repaintKey e seenFocus, subindo repaintKey a cada foco após o primeiro", () => {
+describe("ScreenSheetFrame referência da folha e alternador (C2)", () => {
+  it("guarda sheetRef e alternador flip, passando ref ao BottomSheet", () => {
     expect(frame).toContain("seenFocus");
-    expect(frame).toContain("repaintKey");
-    expect(frame).toContain("setRepaintKey");
+    expect(frame).toContain("sheetRef");
+    expect(frame).toContain("ref={sheetRef}");
     expect(frame).toContain("if (seenFocus.current)");
   });
 });
 
-describe("ScreenSheetFrame recriação do conteúdo e isolamento da folha (C4)", () => {
-  it("a View interna recebe key={repaintKey} e nada mais recebe key", () => {
-    expect(frame).toContain("key={repaintKey}");
-    expect(frame).not.toContain("<BottomSheet key=");
-    expect(frame).not.toContain("<MeasuredFrame key=");
-    expect(frame).not.toContain("<ScreenSheetFrame key=");
+describe("ScreenSheetFrame reassunção da posição ao voltar foco (C3)", () => {
+  it("chama snapToPosition com alternância de 99.98% e 99.99% com duration: 0 na hora e aos 450 ms", () => {
+    expect(frame).toContain("snapToPosition(");
+    expect(frame).toContain('"99.98%"');
+    expect(frame).toContain('"99.99%"');
+    expect(frame).toContain("duration: 0");
+    expect(frame).toContain("450");
   });
 });
 
-describe("ScreenSheetFrame registro da repintura (C5)", () => {
-  it("com DIAG_SCROLL registra moldura repinta k= a cada subida do contador", () => {
-    expect(frame).toContain("moldura repinta k=");
+describe("ScreenSheetFrame ausência de key e registro da reafirmação (C1, C4)", () => {
+  it("nada recebe prop key, estado de repintura saiu e registra moldura reafirma p=", () => {
+    expect(frame).toContain("moldura reafirma p=");
+    expect(frame).not.toContain("moldura repinta");
+    expect(frame).not.toContain("key={");
+    expect(frame).not.toContain("repaintKey");
+    expect(frame).not.toContain("setRepaintKey");
+    expect(frame).not.toContain("<BottomSheet key=");
+    expect(frame).not.toContain("<MeasuredFrame key=");
+    expect(frame).not.toContain("<ScreenSheetFrame key=");
   });
 });
