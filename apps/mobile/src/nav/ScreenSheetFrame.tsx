@@ -1,14 +1,17 @@
-/** Moldura de uma folha dentro de tela nativa: uma altura só (100%), sem arrastar para fechar e sem fundo escurecido. Só monta a folha após medir a altura da tela [hipótese, só o aparelho decide]. */
+/** Moldura de uma folha dentro de tela nativa: uma altura só (99,99%), sem arrastar para fechar e sem fundo escurecido. Só monta a folha após medir a altura da tela [hipótese, só o aparelho decide]. */
 import BottomSheet from "@gorhom/bottom-sheet";
-import { type ComponentType, type ReactNode, useState } from "react";
+import { type ComponentType, type ReactNode, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { DIAG_SCROLL, recordDiagEvent } from "../sheets/diagScroll";
 import { useCloseSheet } from "../sheets/StackedSheet";
 import { useTheme } from "../theme";
 import { type FrameLayoutState, frameLayoutState, heightChanged } from "./frameLayout";
 
-const FULL = ["100%"];
+// A biblioteca ignora a posição 0 (setToPosition sai em if (!targetPosition)), então "100%" deixaria a folha fora da tela;
+// "99.99%" dá posição positiva imperceptível (cerca de 0,08 px em tela típica).
+const FULL = ["99.99%"];
 
 export function ScreenSheetFrame({ Handle, children }: { Handle?: ComponentType<{ onClose: () => void }>; children: ReactNode }) {
   const { colors } = useTheme();
@@ -20,7 +23,13 @@ export function ScreenSheetFrame({ Handle, children }: { Handle?: ComponentType<
       style={[styles.fill, { backgroundColor: colors.surface }]}
       onLayout={(e) => {
         const next = e.nativeEvent.layout.height;
-        setFrameHeight((previous) => (heightChanged(previous, next) ? next : previous));
+        setFrameHeight((previous) => {
+          if (heightChanged(previous, next)) {
+            if (DIAG_SCROLL) recordDiagEvent(`moldura layout h=${Math.round(next)} top=${Math.round(insets.top)}`);
+            return next;
+          }
+          return previous;
+        });
       }}
     >
       {frameLayoutState(frameHeight, insets.top) !== null ? (
@@ -45,6 +54,26 @@ function MeasuredFrame({
   const insets = useSafeAreaInsets();
   const close = useCloseSheet();
   const layoutState = useSharedValue<FrameLayoutState>(frameLayoutState(frameHeight, insets.top) as FrameLayoutState);
+  const diagPos = useSharedValue(-1);
+
+  useEffect(() => {
+    if (!DIAG_SCROLL) return;
+    recordDiagEvent(`moldura montou cl=${Math.round(layoutState.get().height)}`);
+    const t150 = setTimeout(() => {
+      recordDiagEvent(
+        `moldura 150ms pos=${Math.round(diagPos.get())} cl=${Math.round(layoutState.get().height)}`,
+      );
+    }, 150);
+    const t600 = setTimeout(() => {
+      recordDiagEvent(
+        `moldura 600ms pos=${Math.round(diagPos.get())} cl=${Math.round(layoutState.get().height)}`,
+      );
+    }, 600);
+    return () => {
+      clearTimeout(t150);
+      clearTimeout(t600);
+    };
+  }, []);
 
   return (
     <BottomSheet
@@ -60,6 +89,7 @@ function MeasuredFrame({
       enableContentPanningGesture={false}
       topInset={insets.top}
       containerLayoutState={layoutState}
+      animatedPosition={DIAG_SCROLL ? diagPos : undefined}
       handleComponent={Handle ? () => <Handle onClose={close} /> : null}
       backgroundStyle={{ backgroundColor: colors.surface }}
     >
