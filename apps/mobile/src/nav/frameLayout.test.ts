@@ -91,3 +91,27 @@ describe("ScreenSheetFrame preservação (C6)", () => {
     expect(frame).toContain("enablePanDownToClose={false}");
   });
 });
+
+describe("ScreenSheetFrame posição positiva e diagnóstico (v1-e2-01f)", () => {
+  it("contém const FULL = [\"99.99%\"] e não contém 100%", () => {
+    expect(frame).toContain('const FULL = ["99.99%"];');
+    expect(frame).not.toContain("100%");
+  });
+
+  it("contém DIAG_SCROLL e recordDiagEvent", () => {
+    expect(frame).toContain("DIAG_SCROLL");
+    expect(frame).toContain("recordDiagEvent");
+  });
+
+  it("contém cada um dos textos de log de diagnóstico", () => {
+    expect(frame).toContain("moldura layout h=");
+    expect(frame).toContain("moldura montou cl=");
+    expect(frame).toContain("moldura 150ms pos=");
+    expect(frame).toContain("moldura 600ms pos=");
+  });
+
+  it("contém animatedPosition={DIAG_SCROLL e if (!DIAG_SCROLL) return", () => {
+    expect(frame).toContain("animatedPosition={DIAG_SCROLL");
+    expect(frame).toContain("if (!DIAG_SCROLL) return");
+  });
+});
