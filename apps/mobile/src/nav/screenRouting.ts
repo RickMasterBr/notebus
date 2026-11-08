@@ -13,7 +13,7 @@ export const DESTINO: Record<SheetKind, Destino> = {
   board: "folha",
   goto: "folha",
   declare: "folha",
-  trip: "folha",
+  trip: "tela",
   alight: "folha",
   records: "tela",
   record: "tela",

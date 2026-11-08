@@ -5,7 +5,7 @@ import { AheadSheet } from "./AheadSheet";
 import { AlightSheet } from "./AlightSheet";
 import { BackupImportSheet } from "./BackupImportSheet";
 import { BoardSheet } from "./BoardSheet";
-import { TripSheet } from "./TripSheet";
+import { TripScreen } from "./TripScreen";
 import { DIAG_SCROLL, StackDiagStrip, recordDiagEvent } from "./diagScroll";
 import { ClockPickerSheet } from "./ClockPickerSheet";
 import { HomeSheet } from "./HomeSheet";
@@ -101,7 +101,7 @@ export function StackedSheetContent({ entry }: { entry: SheetEntry }) {
     case "alight":
       return <AlightSheet id={entry.id} />;
     case "trip":
-      return <TripSheet id={entry.id} />;
+      return <TripScreen id={entry.id} />;
     case "stop":
       return <StopSheet id={entry.id} stopId={entry.stopId} name={entry.name} />;
     case "ahead":

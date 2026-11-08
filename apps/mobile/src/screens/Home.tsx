@@ -5,7 +5,8 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { View } from "react-native";
-import { type RootParamList, navigationRef } from "../nav/screenEntries";
+import { type RootParamList, getScreenEntry, navigationRef } from "../nav/screenEntries";
+import { presentationOf } from "../nav/screenPresentation";
 import { TelaScreen } from "../nav/TelaScreen";
 import { usePlaces } from "../data/PlacesProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
@@ -51,7 +52,13 @@ export function Home() {
         <NavigationContainer ref={navigationRef}>
           <Stack.Navigator initialRouteName="inicio" screenOptions={{ headerShown: false, gestureEnabled: true }}>
             <Stack.Screen name="inicio" component={Inicio} />
-            <Stack.Screen name="tela" component={TelaScreen} />
+            <Stack.Screen
+              name="tela"
+              component={TelaScreen}
+              options={({ route }) => ({
+                presentation: presentationOf(getScreenEntry(route.params.id)?.kind ?? "records") === "modal" ? "modal" : "card",
+              })}
+            />
           </Stack.Navigator>
         </NavigationContainer>
         {/* O toast fica por último: acima das folhas, sem entrar no layout delas. */}
