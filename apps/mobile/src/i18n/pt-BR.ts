@@ -998,6 +998,22 @@ export const ptBR = {
   "toast.alight_later.title": "Descida anotada", // provisório
   "toast.alight_later.body": "{{stop_name}} · ~{{time}}", // provisório
   "home.records_button.pending.a11y": "Registros, há registros para conferir", // provisório
+  // V1-E2 (contrato v1-e2-04-tela-viagem, D-392, D-393)
+  "trip.title.arrives": "Chega em ~{{minutes}} min", // provisório
+  "trip.title.ongoing": "Em viagem", // provisório
+  "trip.next_stop": "Próxima: {{stop_name}}", // provisório
+  "trip.remaining.a11y": "faltam {{n}} paragens", // provisório
+  "trip.choose_alight": "Escolher onde descer", // provisório
+  "trip.change_alight": "Trocar a descida", // provisório
+  "trip.choose.hint": "Toque na paragem onde vai descer", // provisório
+  "trip.alight_here": "Desci aqui", // provisório
+  "trip.search.placeholder": "Buscar paragem", // provisório
+  "trip.done": "Viagem concluída · {{minutes}} min", // provisório
+  "trip.done.late": "{{n}} min depois da tabela", // provisório
+  "trip.done.early": "{{n}} min antes da tabela", // provisório
+  "trip.boarded": "embarcou", // provisório
+  "trip.table": "tabela {{time}}", // provisório
+  "trip.usual": "costuma {{time}}", // provisório
 } as const;
 
 

@@ -51,7 +51,11 @@ export interface RegistroValue {
   /** Embarque na linha escolhida da folha Registrar. Devolve o `observationId` se o fato foi gravado. */
   board: (stopId: string, choice: BoardChoice) => Promise<string | null>;
   /** "Desci aqui" numa paragem da lista. Devolve `true` se a descida foi gravada. */
-  alight: (card: TripCardModel, row: AlightRow) => Promise<boolean>;
+  alight: (
+    card: TripCardModel,
+    row: AlightRow,
+    opts?: { observedAt: number; mode: "live" | "later" },
+  ) => Promise<boolean>;
   /** Descida anotada depois (D-414, D-418). */
   alightLater: (input: {
     rideId: string;
@@ -527,7 +531,11 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
   );
 
   const alight = useCallback(
-    async (card: TripCardModel, row: AlightRow): Promise<boolean> => {
+    async (
+      card: TripCardModel,
+      row: AlightRow,
+      opts?: { observedAt: number; mode: "live" | "later" },
+    ): Promise<boolean> => {
       if (!card.trip) return false;
       const trip = card.trip;
       const at = nowRef.current();
@@ -535,7 +543,15 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
       const attempt = async (): Promise<boolean> => {
         let result: Awaited<ReturnType<typeof registro.alight>>;
         try {
-          result = await registro.alight({ rideId: card.rideId, stopId: row.stopId, patternId: trip.patternId, position: row.position, at, gps });
+          result = await registro.alight({
+            rideId: card.rideId,
+            stopId: row.stopId,
+            patternId: trip.patternId,
+            position: row.position,
+            at,
+            gps,
+            ...(opts ? { observedAt: opts.observedAt, mode: opts.mode } : {}),
+          });
         } catch {
           failed(() => void attempt());
           return false;
@@ -546,9 +562,10 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
           return false;
         }
         const token: AlightToken = result.token;
+        const toastTime = opts?.observedAt ? hhmm(opts.observedAt) : hhmm(at);
         toast.show({
           title: t("toast.alight.title"),
-          body: t("toast.alight.body", { stop_name: row.name, time: hhmm(at), minutes: result.minutes }),
+          body: t("toast.alight.body", { stop_name: row.name, time: toastTime, minutes: result.minutes }),
           haptic: "success",
           action: {
             label: t("toast.action.undo"),
