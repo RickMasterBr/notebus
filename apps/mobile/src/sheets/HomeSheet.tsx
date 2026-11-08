@@ -27,14 +27,19 @@ import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View, useWi
 import Animated, { FadeIn, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBackup } from "../data/BackupProvider";
+import { alightRecordTime } from "../data/alightTime";
 import { realNow } from "../data/clock";
 import { useNow } from "../data/NowProvider";
 import { useOfflineMap } from "../data/OfflineMapProvider";
 import { usePlaces } from "../data/PlacesProvider";
 import { useRecentStops } from "../data/RecentStopsProvider";
 import { useRegistro } from "../data/RegistroProvider";
+import { serviceMinuteOn } from "../data/rideView";
 import { useSchedule } from "../data/ScheduleProvider";
 import { useStopIndex } from "../data/StopIndexProvider";
+import { tripCardHome } from "../data/tripCardHome";
+import { useTripAlightChoice } from "../data/tripAlightChoice";
+import { useNowTick } from "../data/useNowTick";
 import { openGotoOrNewOption } from "../data/gotoNavigation";
 import { homeCardsPlan } from "../data/homeCards";
 import { homeGuide } from "../data/homeGuide";
@@ -89,7 +94,12 @@ export function HomeSheet() {
   const recent = useRecentStops();
   const places = usePlaces();
   const listReady = stops.status !== "loading" && schedule.status !== "loading" && recent.status !== "loading";
-  const { tripCard, notBoarded, dismiss, observations } = useRegistro();
+  const { tripCard, notBoarded, dismiss, alight, observations } = useRegistro();
+  // D-413: o cartão do Início fala a mesma língua da Tela de viagem (a escolha da descida e o instante do minuto).
+  const choice = useTripAlightChoice(tripCard?.rideId ?? null);
+  const instant = useNowTick();
+  const data = schedule.status === "ready" ? schedule.data : null;
+  const home = tripCard && data ? tripCardHome({ card: tripCard, data, chosenPosition: choice.position, now: instant }) : null;
   const pendingInfo = useMemo(() => homePendingInfo(observations), [observations]);
   const backup = useBackup();
   const reminder = backup.reminder.show
@@ -365,7 +375,20 @@ export function HomeSheet() {
               {tripCard ? (
                 <TripCard
                   card={tripCard}
-                  onAlight={() => dispatch({ type: "push", sheet: { kind: "alight" } })}
+                  summary={home ? { etaText: home.etaText, nextLine: home.nextLine } : undefined}
+                  onAlight={() => {
+                    if (tripCard && home?.alightRow && tripCard.trip) {
+                      void alight(
+                        tripCard,
+                        home.alightRow,
+                        alightRecordTime({
+                          expectedMinute: home.alightRow.minute,
+                          nowMinute: serviceMinuteOn(tripCard.trip.serviceDate, instant),
+                          now: instant,
+                        }),
+                      );
+                    }
+                  }}
                   onNotBoarded={() => notBoarded(tripCard)}
                   onDismiss={() => dismiss(tripCard)}
                   onOpenList={() => dispatch({ type: "push", sheet: { kind: "trip" } })}
