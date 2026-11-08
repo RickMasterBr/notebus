@@ -1,6 +1,7 @@
 /** Moldura de uma folha dentro de tela nativa: uma altura só (99,99%), sem arrastar para fechar e sem fundo escurecido. Só monta a folha após medir a altura da tela [hipótese, só o aparelho decide]. */
 import BottomSheet from "@gorhom/bottom-sheet";
-import { type ComponentType, type ReactNode, useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { type ComponentType, type ReactNode, useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -56,6 +57,19 @@ function MeasuredFrame({
   const layoutState = useSharedValue<FrameLayoutState>(frameLayoutState(frameHeight, insets.top) as FrameLayoutState);
   const diagPos = useSharedValue(-1);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!DIAG_SCROLL) return;
+      recordDiagEvent(`moldura foco pos=${Math.round(diagPos.get())} cl=${Math.round(layoutState.get().height)}`);
+      const t = setTimeout(() => {
+        recordDiagEvent(
+          `moldura foco600ms pos=${Math.round(diagPos.get())} cl=${Math.round(layoutState.get().height)}`,
+        );
+      }, 600);
+      return () => clearTimeout(t);
+    }, [diagPos, layoutState]),
+  );
+
   useEffect(() => {
     if (!DIAG_SCROLL) return;
     recordDiagEvent(`moldura montou cl=${Math.round(layoutState.get().height)}`);
@@ -90,10 +104,15 @@ function MeasuredFrame({
       topInset={insets.top}
       containerLayoutState={layoutState}
       animatedPosition={DIAG_SCROLL ? diagPos : undefined}
+      onChange={DIAG_SCROLL ? (index: number, position: number) => recordDiagEvent(`moldura onChange i=${index} pos=${Math.round(position)}`) : undefined}
       handleComponent={Handle ? () => <Handle onClose={close} /> : null}
       backgroundStyle={{ backgroundColor: colors.surface }}
     >
-      <View collapsable={false} style={[styles.fill, { paddingHorizontal: 16, paddingBottom: insets.bottom }]}>
+      <View
+        collapsable={false}
+        style={[styles.fill, { paddingHorizontal: 16, paddingBottom: insets.bottom }]}
+        onLayout={DIAG_SCROLL ? (e) => recordDiagEvent(`moldura conteudo h=${Math.round(e.nativeEvent.layout.height)} w=${Math.round(e.nativeEvent.layout.width)}`) : undefined}
+      >
         {children}
       </View>
     </BottomSheet>
