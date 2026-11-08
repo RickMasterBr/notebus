@@ -13,6 +13,8 @@ import { requestReschedule } from "../notifications/runtime";
 import { useNow } from "./NowProvider";
 import { useRegistro } from "./RegistroProvider";
 import { useScheduleReload } from "./ScheduleProvider";
+import { useReloadStopIndex } from "./StopIndexProvider";
+import { useStopLocations } from "./StopLocationsProvider";
 import { useToast } from "./ToastProvider";
 
 export type NetworkImportState =
@@ -47,6 +49,8 @@ export function NetworkImportProvider({ raw, backups, children }: { raw: ImportD
   const toast = useToast();
   const { exclusive, refresh } = useRegistro();
   const reloadSchedule = useScheduleReload();
+  const stopLocations = useStopLocations();
+  const reloadStopIndex = useReloadStopIndex();
   const [state, setState] = useState<NetworkImportState>({ status: "idle" });
   const json = useRef<unknown>(null);
 
@@ -96,6 +100,8 @@ export function NetworkImportProvider({ raw, backups, children }: { raw: ImportD
         toast.show({ title: t("toast.network_import_failed.title"), body: t("toast.network_import_failed.body"), kind: "error", haptic: "error" });
       const reload = async () => {
         await reloadSchedule();
+        await stopLocations.reload();
+        await reloadStopIndex();
         requestReschedule();
         await refresh();
       };
@@ -130,7 +136,7 @@ export function NetworkImportProvider({ raw, backups, children }: { raw: ImportD
       json.current = null;
       setState({ status: "idle" });
     })();
-  }, [state, raw, backups, exclusive, refresh, toast, reloadSchedule]);
+  }, [state, raw, backups, exclusive, refresh, toast, reloadSchedule, stopLocations, reloadStopIndex]);
 
   const value = useMemo<NetworkImportValue>(() => ({ state, start, confirm, cancel }), [state, start, confirm, cancel]);
   return <NetworkImportContext.Provider value={value}>{children}</NetworkImportContext.Provider>;

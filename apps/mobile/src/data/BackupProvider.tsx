@@ -28,6 +28,8 @@ import { usePreferences } from "./PreferencesProvider";
 import { useRecentStops } from "./RecentStopsProvider";
 import { useRegistro } from "./RegistroProvider";
 import { useScheduleReload } from "./ScheduleProvider";
+import { useReloadStopIndex } from "./StopIndexProvider";
+import { useStopLocations } from "./StopLocationsProvider";
 import { useToast } from "./ToastProvider";
 import { useNowTick } from "./useNowTick";
 import { requestReschedule } from "../notifications/runtime";
@@ -109,6 +111,8 @@ export function BackupProvider({
   const { observations, exclusive, refresh } = useRegistro();
   const recentStops = useRecentStops();
   const places = usePlaces();
+  const stopLocations = useStopLocations();
+  const reloadStopIndex = useReloadStopIndex();
   const preferences = usePreferences();
   const reloadSchedule = useScheduleReload();
   const [state, setState] = useState<Awaited<ReturnType<typeof readReminderState>> | null>(null);
@@ -216,6 +220,8 @@ export function BackupProvider({
                 await exclusive(() => undoImport(raw, outcome.undo));
                 await recentStops.reload();
                 await places.reload();
+                await stopLocations.reload();
+                await reloadStopIndex();
                 await preferences.reload();
                 await reloadSchedule();
                 requestReschedule();
@@ -230,12 +236,14 @@ export function BackupProvider({
       // Invalida os recentes, os lugares e a fila refaz as deduções dos importados; o toast não espera.
       void recentStops.reload();
       void places.reload();
+      void stopLocations.reload();
+      void reloadStopIndex();
       void preferences.reload();
       void reloadSchedule();
       requestReschedule();
       void refresh();
     })();
-  }, [importSheet, raw, backups, exclusive, refresh, toast, recentStops, places, preferences, reloadSchedule]);
+  }, [importSheet, raw, backups, exclusive, refresh, toast, recentStops, places, stopLocations, reloadStopIndex, preferences, reloadSchedule]);
 
   const snooze = useCallback(() => {
     const at = nowRef.current();
