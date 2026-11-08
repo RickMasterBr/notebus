@@ -1,7 +1,7 @@
 /** Moldura de uma folha dentro de tela nativa: uma altura só (99,99%), sem arrastar para fechar e sem fundo escurecido. Só monta a folha após medir a altura da tela [hipótese, só o aparelho decide]. */
 import BottomSheet from "@gorhom/bottom-sheet";
 import { useFocusEffect } from "@react-navigation/native";
-import { type ComponentType, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ComponentType, type ElementRef, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +12,7 @@ import { type FrameLayoutState, frameLayoutState, heightChanged } from "./frameL
 
 // A biblioteca ignora a posição 0 (setToPosition sai em if (!targetPosition)), então "100%" deixaria a folha fora da tela;
 // "99.99%" dá posição positiva imperceptível (cerca de 0,08 px em tela típica).
+const ALT = "99.98%";
 const FULL = ["99.99%"];
 
 export function ScreenSheetFrame({ Handle, children }: { Handle?: ComponentType<{ onClose: () => void }>; children: ReactNode }) {
@@ -57,22 +58,26 @@ function MeasuredFrame({
   const layoutState = useSharedValue<FrameLayoutState>(frameLayoutState(frameHeight, insets.top) as FrameLayoutState);
   const diagPos = useSharedValue(-1);
   const contentRef = useRef<View>(null);
+  const sheetRef = useRef<ElementRef<typeof BottomSheet>>(null);
   const seenFocus = useRef(false);
-  const [repaintKey, setRepaintKey] = useState(0);
+  const flip = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       if (seenFocus.current) {
-        setRepaintKey((k) => k + 1);
+        const reafirma = (registrar: boolean) => {
+          flip.current = !flip.current;
+          const alvo = flip.current ? ALT : FULL[0]!;
+          if (registrar && DIAG_SCROLL) recordDiagEvent(`moldura reafirma p=${alvo}`);
+          sheetRef.current?.snapToPosition(alvo, { duration: 0 });
+        };
+        reafirma(true);
+        const t = setTimeout(() => reafirma(false), 450);
+        return () => clearTimeout(t);
       }
       seenFocus.current = true;
     }, []),
   );
-
-  useEffect(() => {
-    if (!DIAG_SCROLL || repaintKey === 0) return;
-    recordDiagEvent(`moldura repinta k=${repaintKey}`);
-  }, [repaintKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -128,6 +133,7 @@ function MeasuredFrame({
 
   return (
     <BottomSheet
+      ref={sheetRef}
       accessible={false}
       accessibilityRole={null}
       accessibilityLabel={null}
@@ -147,7 +153,6 @@ function MeasuredFrame({
     >
       <View
         ref={contentRef}
-        key={repaintKey}
         collapsable={false}
         style={[styles.fill, { paddingHorizontal: 16, paddingBottom: insets.bottom }]}
         onLayout={DIAG_SCROLL ? (e) => recordDiagEvent(`moldura conteudo h=${Math.round(e.nativeEvent.layout.height)} w=${Math.round(e.nativeEvent.layout.width)}`) : undefined}
