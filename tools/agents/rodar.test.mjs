@@ -372,7 +372,7 @@ test('L10 TRAVA_CHEIA: stderr inteiro no terminal, veredito e proximo passo, sem
   assert.equal(r.code, 2, r.out);
   assert.equal(r.stderr, stderr);
   assert.match(r.stdout, /Veredito: DESPACHOS EM ANDAMENTO/);
-  assert.match(r.stdout, /Proximo passo: ha 2 despachos em andamento; espere um terminar e rode de novo \.\\notebus\\tools\\agents\\rodar\.ps1 tarefa-x/);
+  assert.match(r.stdout, /Proximo passo: ha 3 despachos em andamento; espere um terminar e rode de novo \.\\notebus\\tools\\agents\\rodar\.ps1 tarefa-x/);
   assert.equal(existsSync(p.csv), false);
   assert.equal(existsSync(p.registros), false);
   limpa(p.amb);

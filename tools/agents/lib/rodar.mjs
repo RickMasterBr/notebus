@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { MAX_DESPACHOS } from './trava.mjs';
 
 export class RodarErro extends Error {
   constructor(codigo, mensagem) {
@@ -80,7 +81,7 @@ const tem = (v) => v !== undefined && v !== null && !(typeof v === 'number' && N
 const proximoPasso = (motivo, id) => {
   const alvo = tem(id) ? ` ${id}` : '';
   if (motivo === 'GATE_OCUPADO') return `Proximo passo: espere o outro gate terminar e rode .\\_gate-bin\\regate.ps1${alvo}`;
-  if (motivo === 'TRAVA_CHEIA') return `Proximo passo: ha 2 despachos em andamento; espere um terminar e rode de novo .\\notebus\\tools\\agents\\rodar.ps1${alvo}`;
+  if (motivo === 'TRAVA_CHEIA') return `Proximo passo: ha ${MAX_DESPACHOS} despachos em andamento; espere um terminar e rode de novo .\\notebus\\tools\\agents\\rodar.ps1${alvo}`;
   return 'Proximo passo: avise a coordenacao que terminou';
 };
 

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lerContrato } from './lib/contrato.mjs';
-import { adquirir } from './lib/trava.mjs';
+import { adquirir, MAX_DESPACHOS } from './lib/trava.mjs';
 
 const aqui = (p) => fileURLToPath(new URL(p, import.meta.url));
 const DISPATCH = aqui('./dispatch.mjs');
@@ -231,16 +231,16 @@ test('P10 falhas: sem relatorio, relatorio invalido, tempo, executavel; trava se
   limpa(amb);
 });
 
-test('P11 trava cheia: codigo 2 sem criar pista; com --max-simultaneas 3 roda', () => {
+test('P11 trava cheia: codigo 2 sem criar pista; com --max-simultaneas maior roda', () => {
   const amb = ambiente();
   const arquivo = contratoMd(amb);
-  for (const id of ['o1', 'o2']) assert.ok(adquirir({ raiz: amb.raiz, id, minutos: 40, max: 2 }).ok);
+  for (let i = 0; i < MAX_DESPACHOS; i++) assert.ok(adquirir({ raiz: amb.raiz, id: `o${i}`, minutos: 40, max: MAX_DESPACHOS }).ok);
   const r = rodar(amb, arquivo);
   assert.equal(r.code, 2);
   assert.match(r.out, /FALHA TRAVA_CHEIA/);
   assert.ok(!existsSync(path.join(amb.raiz, 'pistas')));
   assert.ok(!existsSync(despacho(amb)));
-  const r3 = rodar(amb, arquivo, ['--max-simultaneas', '3']);
+  const r3 = rodar(amb, arquivo, ['--max-simultaneas', String(MAX_DESPACHOS + 1)]);
   assert.equal(r3.code, 0, r3.out);
   limpa(amb);
 });
