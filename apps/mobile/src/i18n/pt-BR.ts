@@ -190,6 +190,7 @@ export const ptBR = {
   "sheet_alight.pass_ordinal": "{{ordinal}} passagem",
   "sheet_alight.no_stops": "Sem paragens para mostrar",
   "home.trip.a11y.open_list": "Ver as paragens até o fim da viagem",
+  "home.trip.a11y.open_trip": "Abre a viagem", // provisório
   "home.trip.title_no_destination": "Em viagem",
   "home.trip.eta.a11y": "chegada prevista {{time}}",
   // E-03 bloco 3, backup (provisórias, a aprovar): a 4.6 não tem os textos do backup. O lembrete e o toast da importação

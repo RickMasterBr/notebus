@@ -3,7 +3,9 @@
  * selo da linha, "Em viagem → {destino}", "embarcou 08:12 · Arrabalde da Ponte", a chegada prevista à direita, "Desci aqui"
  * em botão cheio e, ao lado, "Não embarquei" e "Dispensar" em texto (os dois com o mesmo estilo; Q-83, textos provisórios).
  *
- * Puxar o cartão para cima (ou tocar nele) abre a lista das paragens até o fim do percurso (`onOpenList`, só leitura).
+ * Puxar o cartão para cima (ou tocar nele) abre a Tela de viagem (`onOpenList`, só leitura).
+ * Com `summary` (D-413, D-393): a hora à direita é a da descida escolhida e, sem escolha, uma linha diz a próxima
+ * paragem; sem a prop, o cartão fica como antes (a chegada do `card.eta`).
  * Sem viagem conhecida (registro sem passagem e sem candidato): sem "→ destino", sem chegada e sem "Desci aqui" (a lista
  * da descida sairia vazia); "Não embarquei" e "Dispensar" continuam.
  * Desce 12 px e aparece em 250 ms; com "Reduzir movimento", só esmaece (4.5 §2.5).
@@ -33,12 +35,15 @@ function dropIn() {
 
 export function TripCard({
   card,
+  summary,
   onAlight,
   onNotBoarded,
   onDismiss,
   onOpenList,
 }: {
   card: TripCardModel;
+  /** O resumo do `tripCardHome`: a hora da descida escolhida e a próxima paragem (D-413). */
+  summary?: { etaText: string | null; nextLine: string | null };
   onAlight: () => void;
   onNotBoarded: () => void;
   onDismiss: () => void;
@@ -47,7 +52,7 @@ export function TripCard({
   const { colors } = useTheme();
   const reduceMotion = useReduceMotion();
   const stacked = shouldStackTripButtons(useWindowDimensions().fontScale);
-  const canList = !card.unmatched && card.ahead !== null;
+  const canList = !card.unmatched && card.trip !== null;
 
   const title = card.unmatched
     ? t("trip_card.unmatched")
@@ -59,9 +64,14 @@ export function TripCard({
     AccessibilityInfo.announceForAccessibility(title);
   }, [title]);
   const subtitle = t("home.trip.subtitle", { time: card.boardedTime, stop_name: card.stopName });
-  const eta = card.eta ? `${card.eta.approximate ? "~" : ""}${card.eta.time}` : null;
+  const eta = summary
+    ? summary.etaText
+    : card.eta
+      ? `${card.eta.approximate ? "~" : ""}${card.eta.time}`
+      : null;
   const nextText = card.unmatched ? card.unmatchedNext : null;
-  const headLabel = [title, nextText, subtitle, eta ? t("home.trip.eta.a11y", { time: eta }) : null].filter(Boolean).join(", ");
+  const summaryNext = summary?.nextLine ?? null;
+  const headLabel = [title, nextText, summaryNext, subtitle, eta ? t("home.trip.eta.a11y", { time: eta }) : null].filter(Boolean).join(", ");
 
   return (
     <Animated.View
@@ -72,7 +82,7 @@ export function TripCard({
       <Pressable
         accessibilityRole={canList ? "button" : "text"}
         accessibilityLabel={headLabel}
-        accessibilityHint={canList ? t("home.trip.a11y.open_list") : undefined}
+        accessibilityHint={canList ? t("home.trip.a11y.open_trip") : undefined}
         disabled={!canList}
         hitSlop={{ top: 4, bottom: 4 }}
         onPress={canList ? onOpenList : undefined}
@@ -83,6 +93,9 @@ export function TripCard({
           <Text style={[type.bodyStrong, { color: colors.text }]}>{title}</Text>
           {card.unmatched && card.unmatchedNext ? (
             <Text style={[type.caption, styles.num, { color: colors.tripText2 }]}>{card.unmatchedNext}</Text>
+          ) : null}
+          {summaryNext ? (
+            <Text style={[type.caption, styles.num, { color: colors.tripText2 }]}>{summaryNext}</Text>
           ) : null}
           <Text style={[type.caption, styles.num, { color: colors.tripText2 }]}>{subtitle}</Text>
         </View>
