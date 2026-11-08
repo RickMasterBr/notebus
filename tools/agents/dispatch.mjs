@@ -10,7 +10,7 @@ import { TOKENS_STATS } from './lib/harness/opencode.mjs';
 import { devNull } from 'node:os';
 import { planejar, montarPrompt, montarHooksClaude, montarHooksAgy, montarPermissoesOpencode, montarComandoGate, gateDentroDe } from './lib/despacho.mjs';
 import { CONTROLE } from './hooks/protected-paths.mjs';
-import { adquirir, registrarSaida } from './lib/trava.mjs';
+import { adquirir, registrarSaida, MAX_DESPACHOS } from './lib/trava.mjs';
 import { retrato } from './lib/retrato.mjs';
 import { resolverExecutavel, comandoParaSpawn, ErroExecutavel } from './lib/executavel.mjs';
 
@@ -317,7 +317,7 @@ const principal = async (argv) => {
     const rel = path.relative(plano.pista.caminho, hook.arquivoPista).replace(/\\/g, '/');
     if (naBase(repo, plano.base, rel)) throw new Falha('HOOK_JA_EXISTE', `a base ${plano.base} ja tem ${rel}: o dispatch nao o sobrescreve`, 2);
   }
-  const trava = adquirir({ raiz, id: plano.id, minutos: contrato.limites.minutos, max: o.max ?? 2 });
+  const trava = adquirir({ raiz, id: plano.id, minutos: contrato.limites.minutos, max: o.max ?? MAX_DESPACHOS });
   if (!trava.ok) throw new Falha(trava.codigo, `ativos: ${trava.ativos.join(', ') || '-'}`, 2);
   const soltarSaida = registrarSaida(process, trava.liberar, (codigo) => process.exit(codigo));
   try {

@@ -109,7 +109,7 @@ test('L11 resumoFinal com motivo traz o proximo passo certo e o id da tarefa', (
 
   const trava = resumoFinal(null, null, 2, { motivo: 'TRAVA_CHEIA', id: 'tarefa-x' });
   assert.ok(trava.includes('Veredito: DESPACHOS EM ANDAMENTO'), trava);
-  assert.match(trava, /Proximo passo: ha 2 despachos em andamento; espere um terminar e rode de novo \.\\notebus\\tools\\agents\\rodar\.ps1 tarefa-x/);
+  assert.match(trava, /Proximo passo: ha 3 despachos em andamento; espere um terminar e rode de novo \.\\notebus\\tools\\agents\\rodar\.ps1 tarefa-x/);
   assert.ok(!trava.includes('avise a coordenacao'), trava);
 
   const sem = resumoFinal(null, null, 2, { id: 'tarefa-x' });

@@ -3,9 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { extrairCabecalho, lerContrato, ContratoErro } from './contrato.mjs';
 import { lerCommitVigente, caminhoGate } from './rodar.mjs';
-import { lerAtivasSemApagar } from './trava.mjs';
+import { lerAtivasSemApagar, MAX_DESPACHOS } from './trava.mjs';
 
-const MAX_WORKERS = 3;
 const HEX = /^[0-9a-f]{7,40}$/i;
 const barra = (p) => p.replace(/\\/g, '/');
 
@@ -123,7 +122,7 @@ export const conferir = ({ contrato, schemaPath, raiz, repo, manual = false, ago
   if (harness === 'agy') confere('AGY_SEM_REGRA_DE_ESPERA', /segundo plano/i.test(texto) ? '' : 'o contrato nao traz a regra de segundo plano', 'o contrato traz a regra de segundo plano', 'AVISO');
 
   const workers = lerAtivasSemApagar(raiz, '_trava', agora).length;
-  confere('TRAVA_CHEIA', workers >= MAX_WORKERS ? `${workers} despachos ativos (maximo ${MAX_WORKERS})` : '', `${workers} despacho(s) ativo(s)`);
+  confere('TRAVA_CHEIA', workers >= MAX_DESPACHOS ? `${workers} despachos ativos (maximo ${MAX_DESPACHOS})` : '', `${workers} despacho(s) ativo(s)`);
   const gates = lerAtivasSemApagar(raiz, '_trava-gate', agora).length;
   confere('GATE_OCUPADO', gates ? 'ha gate ativo; o gate espera a vez' : '', 'nenhum gate ativo', 'AVISO');
 

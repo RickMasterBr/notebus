@@ -30,6 +30,9 @@ export const registrarSaida = (emissor, liberar, sair) => {
   return () => { for (const [sinal, f] of tratadores) emissor.off(sinal, f); };
 };
 
+// Limite de despachos juntos (D-408, D-435); subir para 4 so depois de uma rodada de 3 limpa.
+export const MAX_DESPACHOS = 3;
+
 const GRACA_MS = 30000;
 
 // Lista as travas ativas ({id, inicio}); apaga as vencidas, de dono morto ou ilegiveis antigas.
