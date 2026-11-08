@@ -18,6 +18,7 @@ import { fixForRecord } from "./recordFix";
 import { useSchedule } from "./ScheduleProvider";
 import { useToast } from "./ToastProvider";
 import {
+  type AlightResult,
   type AlightToken,
   type BoardToken,
   type EditPatch,
@@ -51,8 +52,20 @@ export interface RegistroValue {
   board: (stopId: string, choice: BoardChoice) => Promise<string | null>;
   /** "Desci aqui" numa paragem da lista. Devolve `true` se a descida foi gravada. */
   alight: (card: TripCardModel, row: AlightRow) => Promise<boolean>;
+  /** Descida anotada depois (D-414, D-418). */
+  alightLater: (input: {
+    rideId: string;
+    stopId: string;
+    patternId: string;
+    position: number;
+    observedAt: number;
+    at?: number;
+  }) => Promise<AlightResult>;
+  undoAlightLater: (token: AlightToken) => Promise<void>;
   notBoarded: (card: TripCardModel) => void;
   dismiss: (card: TripCardModel) => void;
+  dismissNoAlight: (rideId: string) => Promise<void>;
+  undoDismissNoAlight: (rideId: string) => Promise<void>;
   /** Edição do fato na TL-06 com toast e Desfazer. */
   edit: (id: string, patch: EditPatch) => Promise<EditResult>;
   /** Escolha manual na TL-09 com toast e Desfazer. */
@@ -78,8 +91,12 @@ const RegistroContext = createContext<RegistroValue>({
   tripCard: null,
   board: async () => null,
   alight: nothing,
+  alightLater: nothing as any,
+  undoAlightLater: nothing as any,
   notBoarded: () => {},
   dismiss: () => {},
+  dismissNoAlight: nothing as any,
+  undoDismissNoAlight: nothing as any,
   edit: async () => ({ changed: false, rejected: [], token: null }),
   chooseManual: async () => ({ ok: false, problem: "uninitialized" }),
   dismissReview: async () => {},
@@ -561,6 +578,88 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
     [registro, toast, failed, undone, settle, reload],
   );
 
+  const alightLater = useCallback(
+    async (input: {
+      rideId: string;
+      stopId: string;
+      patternId: string;
+      position: number;
+      observedAt: number;
+      at?: number;
+    }): Promise<AlightResult> => {
+      const at = input.at ?? nowRef.current();
+      const attempt = async (): Promise<AlightResult> => {
+        let result: AlightResult;
+        try {
+          result = await registro.alightLater({ ...input, at });
+        } catch {
+          failed(() => void attempt());
+          return { ok: false, problem: "failed" };
+        }
+        if (!result.ok) {
+          toast.show({ title: t("toast.save_failed.title"), body: t("toast.save_failed.body"), haptic: "error" });
+          return result;
+        }
+        await reload();
+        void settle();
+        return result;
+      };
+      return attempt();
+    },
+    [registro, toast, failed, settle, reload],
+  );
+
+  const undoAlightLater = useCallback(
+    async (token: AlightToken): Promise<void> => {
+      const attempt = async (): Promise<void> => {
+        try {
+          await registro.undoAlightLater(token, nowRef.current());
+        } catch {
+          failed(() => void attempt());
+          return;
+        }
+        await reload();
+        void settle();
+      };
+      return attempt();
+    },
+    [registro, failed, settle, reload],
+  );
+
+  const dismissNoAlight = useCallback(
+    async (rideId: string): Promise<void> => {
+      const attempt = async (): Promise<void> => {
+        try {
+          await registro.dismissNoAlight(rideId, nowRef.current());
+        } catch {
+          failed(() => void attempt());
+          return;
+        }
+        await reload();
+        void settle();
+      };
+      return attempt();
+    },
+    [registro, failed, settle, reload],
+  );
+
+  const undoDismissNoAlight = useCallback(
+    async (rideId: string): Promise<void> => {
+      const attempt = async (): Promise<void> => {
+        try {
+          await registro.undoDismissNoAlight(rideId, nowRef.current());
+        } catch {
+          failed(() => void attempt());
+          return;
+        }
+        await reload();
+        void settle();
+      };
+      return attempt();
+    },
+    [registro, failed, settle, reload],
+  );
+
   const notBoarded = useCallback(
     (card: TripCardModel) => {
       const attempt = async () => {
@@ -638,8 +737,12 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
       tripCard,
       board,
       alight,
+      alightLater,
+      undoAlightLater,
       notBoarded,
       dismiss,
+      dismissNoAlight,
+      undoDismissNoAlight,
       edit,
       chooseManual,
       dismissReview,
@@ -656,8 +759,12 @@ export function RegistroProvider({ db, children }: { db: Db; children: ReactNode
       tripCard,
       board,
       alight,
+      alightLater,
+      undoAlightLater,
       notBoarded,
       dismiss,
+      dismissNoAlight,
+      undoDismissNoAlight,
       edit,
       chooseManual,
       dismissReview,

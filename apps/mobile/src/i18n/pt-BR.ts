@@ -984,6 +984,20 @@ export const ptBR = {
   "settings.about.notice.brand": "A logo e o ícone são provisórios e vão mudar.", // provisório
   "settings.about.build_unknown": "N/D", // provisório
   "terminal_detail.gap.a11y": "mostrar mais {{count}} paragens", // provisório
+  // V1-E2 (contrato v1-e2-03-registros-tela, D-396, D-414)
+  "records.filter.all": "Todas", // provisório
+  "records.this_week": "Esta semana", // provisório
+  "records.older_weeks": "Semanas anteriores", // provisório
+  "records.pending.see_all": "Ver todas ({{n}})", // provisório
+  "records.week.summary": "Semana de {{date}} · {{n}} viagens", // provisório
+  "records.week.summary.a11y": "Semana de {{date}}, {{n}} viagens", // provisório
+  "records.week.pending": "{{n}} para conferir", // provisório
+  "records.no_alight.ask": "Onde você desceu?", // provisório
+  "records.no_alight.body": "Toque na paragem onde você desceu. A hora fica a esperada para ela.", // provisório
+  "records.no_alight.unknown": "Não dá para mostrar as paragens desta viagem.", // provisório
+  "toast.alight_later.title": "Descida anotada", // provisório
+  "toast.alight_later.body": "{{stop_name}} · ~{{time}}", // provisório
+  "home.records_button.pending.a11y": "Registros, há registros para conferir", // provisório
 } as const;
 
 

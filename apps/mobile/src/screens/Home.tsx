@@ -13,6 +13,7 @@ import { SheetHost } from "../sheets/SheetHost";
 import { SheetsProvider } from "../sheets/SheetsContext";
 import { useTheme } from "../theme";
 import { ToastHost } from "../ui/ToastHost";
+import { RecordsButton } from "./RecordsButton";
 import { SettingsButton } from "./SettingsButton";
 import { EmptyHome } from "./EmptyHome";
 import { MapBackdrop } from "./MapBackdrop";
@@ -34,6 +35,7 @@ function Inicio() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {!isEmpty ? <MapBackdrop /> : null}
+      <RecordsButton />
       <SettingsButton />
       <SheetHost customBase={isEmpty ? <EmptyHome /> : undefined} />
     </View>
