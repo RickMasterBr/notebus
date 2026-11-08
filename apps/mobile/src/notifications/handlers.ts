@@ -37,6 +37,8 @@ export interface HandlerDeps {
   now: () => number;
   /** O registro sobre o banco (sem dedução: o app a refaz depois). */
   boardingStore: (db: AnyDb) => BoardingStore;
+  /** Consulta se há viagem aberta (D-403, D-427). */
+  hasOpenRide?: (db: AnyDb) => Promise<{ lineCode: string; boardedTime: string } | null>;
   /** Reagenda a janela (enfileirado pelo agendador). */
   reschedule: (db: AnyDb) => Promise<unknown>;
   log: (message: string, error?: unknown) => void;
@@ -72,6 +74,15 @@ export function createResponseHandler(deps: HandlerDeps) {
 
   async function route(response: NotificationResponse): Promise<void> {
     const { data } = response.notification;
+    if (data.kind === "boardOver") {
+      setPendingIntent({
+        kind: "boardOver",
+        stopId: String(data.stopId),
+        lineId: String(data.lineId),
+        tapAt: Number(data.tapAt),
+      });
+      return;
+    }
     if (data.kind === "departure") {
       const departure = readDeparture(data);
       if (!departure) return deps.log("aviso sem os dados esperados");
@@ -106,6 +117,19 @@ export function createResponseHandler(deps: HandlerDeps) {
     };
 
     if (response.actionId === ACTION_BOARD) {
+      if (deps.hasOpenRide) {
+        const open = await deps.hasOpenRide(db);
+        if (open) {
+          await port.present({
+            id: `board_over:${p.eventId}`,
+            title: t("board_over.notif.title"),
+            body: t("board_over.notif.body", { line: open.lineCode }),
+            categoryId: "",
+            data: { kind: "boardOver", stopId: p.stopId, lineId: p.lineId, tapAt: at, eventId: p.eventId },
+          });
+          return;
+        }
+      }
       // O fato primeiro: nada antes dele, nem a confirmação, nem o reagendamento.
       let token: BoardToken;
       try {

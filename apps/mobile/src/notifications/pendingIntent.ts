@@ -2,7 +2,12 @@
  * O que o toque numa notificação pede para a tela fazer quando o app abrir (E-06 §4.3, §5.3). Só na memória: quem consome
  * é a tela (`adjust` agora; `goto` no bloco 3). Um intento por vez; o último vence.
  */
-export type PendingIntent = { kind: "goto"; placeId: string } | { kind: "adjust"; observationId: string };
+export type BoardOverIntent = { kind: "boardOver"; stopId: string; lineId: string; tapAt: number };
+
+export type PendingIntent =
+  | { kind: "goto"; placeId: string }
+  | { kind: "adjust"; observationId: string }
+  | BoardOverIntent;
 
 let pending: PendingIntent | null = null;
 const listeners = new Set<() => void>();
@@ -33,3 +38,18 @@ export function onPendingIntent(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
+
+// ─── Intento direto para a BoardSheet (D-403, D-427) ──────────────────────────
+
+let boardOverPending: BoardOverIntent | null = null;
+
+export function setBoardOverIntent(intent: BoardOverIntent): void {
+  boardOverPending = intent;
+}
+
+export function takeBoardOverIntent(): BoardOverIntent | null {
+  const intent = boardOverPending;
+  boardOverPending = null;
+  return intent;
+}
+

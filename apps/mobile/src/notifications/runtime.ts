@@ -2,9 +2,13 @@
  * A ligação do módulo com o app real (E-06 §3.2, §4): a porta do `expo-notifications`, o relógio real e um agendador por
  * banco. Nada aqui roda nos testes do Node (importa `expoPort`); a lógica está em `scheduler.ts` e `handlers.ts`.
  */
+import { formatServiceMinute, lisbonWallClock } from "@notebus/domain";
+import { eq } from "drizzle-orm";
 import { realNow } from "../data/clock";
 import { createRegistro } from "../data/registro";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { selectLive } from "../db/query";
+import { line, observation, ride } from "../db/schema";
 import { getSharedDb } from "../db/sharedDb";
 import { createScheduler, type Scheduler } from "./scheduler";
 import { expoPort } from "./expoPort";
@@ -27,6 +31,21 @@ export function boardingStoreFor(db: Db): BoardingStore {
   let store = stores.get(db);
   if (!store) stores.set(db, (store = createRegistro(db, { network: () => null, snapshot: () => null })));
   return store;
+}
+
+/** Consulta se há viagem aberta para o aviso de saída (D-403, D-427). */
+export async function hasOpenRideFor(db: Db): Promise<{ lineCode: string; boardedTime: string } | null> {
+  const openRides = await selectLive(db, ride, eq(ride.status, "open")).limit(1);
+  const open = openRides[0];
+  if (!open) return null;
+  const obsList = await selectLive(db, observation, eq(observation.id, open.boardingObservationId)).limit(1);
+  const obs = obsList[0];
+  if (!obs) return null;
+  const lines = await selectLive(db, line, eq(line.id, obs.lineId)).limit(1);
+  const lineRow = lines[0];
+  const lineCode = lineRow ? lineRow.code : obs.lineId;
+  const boardedTime = formatServiceMinute(lisbonWallClock(obs.observedAt).minute);
+  return { lineCode, boardedTime };
 }
 
 /**

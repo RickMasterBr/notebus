@@ -8,7 +8,7 @@ import { openExistingNotebusDb } from "../db/open";
 import { notificationCategories } from "./categories";
 import { expoPort } from "./expoPort";
 import { createResponseHandler } from "./handlers";
-import { boardingStoreFor, schedulerFor } from "./runtime";
+import { boardingStoreFor, hasOpenRideFor, schedulerFor } from "./runtime";
 
 type Db = NonNullable<Awaited<ReturnType<typeof openExistingNotebusDb>>>;
 
@@ -46,6 +46,7 @@ export function registerNotificationHandlers(): void {
     getDb,
     now: realNow,
     boardingStore: boardingStoreFor,
+    hasOpenRide: hasOpenRideFor,
     reschedule: (db) => schedulerFor(db).reschedule(),
     log: (message, error) => console.warn(`[notificações] ${message}`, error ?? ""),
   });
